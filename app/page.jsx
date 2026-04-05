@@ -1,5 +1,6 @@
 "use client";
 import { useState, useRef } from "react";
+import { renderMd, renderInline, Badge, parseOutput, extractAudience } from './lib/shared';
 
 const LOGO_B64 = "data:image/png;base64,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";
 
@@ -113,91 +114,6 @@ function FieldInput({ field, value, onChange }) {
   return <input type="text" style={s} placeholder={field.placeholder} value={value} onChange={e => onChange(field.key, e.target.value)} onFocus={focus} onBlur={blur} />;
 }
 
-function Badge({ status }) {
-  const c = { GREEN: "#22c55e", YELLOW: "#eab308", RED: "#dc2626" }[status] || "#eab308";
-  return <span style={{ display: "inline-block", padding: "2px 9px", borderRadius: 999, fontSize: 9, fontWeight: 700, letterSpacing: "0.08em", background: c + "14", color: c, border: "1px solid " + c + "33", textTransform: "uppercase" }}>{status}</span>;
-}
-
-function parseOutput(text) {
-  const s = { offer: "", blindspots: "", objections: "" };
-  // Match OUTPUT 1/2/3 in any language, any # level, with any title after
-  const o1 = /#{1,4}\s*(?:OUTPUT|SA[IÍ]DA|RESULTADO)\s*1[^\n]*/i;
-  const o2 = /#{1,4}\s*(?:OUTPUT|SA[IÍ]DA|RESULTADO)\s*2[^\n]*/i;
-  const o3 = /#{1,4}\s*(?:OUTPUT|SA[IÍ]DA|RESULTADO)\s*3[^\n]*/i;
-  const m1 = text.search(o1);
-  const m2 = text.search(o2);
-  const m3 = text.search(o3);
-  if (m1 !== -1) {
-    const start = text.indexOf("\n", m1) + 1;
-    const end = m2 !== -1 ? m2 : text.length;
-    s.offer = text.slice(start, end).trim();
-  }
-  if (m2 !== -1) {
-    const start = text.indexOf("\n", m2) + 1;
-    const end = m3 !== -1 ? m3 : text.length;
-    s.blindspots = text.slice(start, end).trim();
-  }
-  if (m3 !== -1) {
-    const start = text.indexOf("\n", m3) + 1;
-    s.objections = text.slice(start).trim();
-  }
-  if (!s.offer && !s.blindspots && !s.objections) s.offer = text;
-  return s;
-}
-
-function renderInline(t) {
-  if (typeof t !== "string") return t;
-  const p = []; let r = t, k = 0;
-  while (r.length > 0) {
-    const m = r.match(/\*\*(.+?)\*\*/);
-    if (m) { if (m.index > 0) p.push(<span key={k++}>{r.slice(0, m.index)}</span>); p.push(<strong key={k++} style={{ color: "#E2E4DF", fontWeight: 600 }}>{m[1]}</strong>); r = r.slice(m.index + m[0].length); }
-    else { p.push(<span key={k++}>{r}</span>); break; }
-  }
-  return p;
-}
-
-function renderMd(md) {
-  if (!md) return null;
-  const lines = md.split("\n"), el = [];
-  let tRows = [], inT = false, tK = 0;
-  const flushT = () => {
-    if (tRows.length > 0) {
-      const h = tRows[0], d = tRows.slice(1);
-      el.push(<div key={"t" + tK++} style={{ overflowX: "auto", margin: "14px 0", borderRadius: 4, border: "1px solid #1e1b17" }}>
-        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
-          <thead><tr style={{ background: "#7A0E1808" }}>{h.map((c, i) => <th key={i} style={{ padding: "9px 12px", textAlign: "left", borderBottom: "1px solid #1e1b17", color: "#6b6860", fontWeight: 600, fontSize: 10, textTransform: "uppercase", letterSpacing: "0.07em" }}>{c}</th>)}</tr></thead>
-          <tbody>{d.map((row, ri) => <tr key={ri} style={{ borderBottom: "1px solid #0f0d0a" }}>{row.map((cell, ci) => {
-            const st = /\b(GREEN|YELLOW|RED)\b/.test(cell);
-            return <td key={ci} style={{ padding: "9px 12px", color: "#c5c3be", verticalAlign: "top", fontSize: 12 }}>{st ? <><Badge status={cell.match(/\b(GREEN|YELLOW|RED)\b/)[1]} /> {cell.replace(/\b(GREEN|YELLOW|RED)\b/, "").trim()}</> : renderInline(cell)}</td>;
-          })}</tr>)}</tbody>
-        </table></div>);
-      tRows = [];
-    }
-    inT = false;
-  };
-  for (let i = 0; i < lines.length; i++) {
-    const l = lines[i];
-    if (l.trim().startsWith("|") && l.trim().endsWith("|")) {
-      const cells = l.split("|").slice(1, -1).map(c => c.trim());
-      if (cells.every(c => /^[-:]+$/.test(c))) continue;
-      tRows.push(cells); inT = true; continue;
-    }
-    if (inT) flushT();
-    if (/^####\s/.test(l)) el.push(<h4 key={i} style={{ fontSize: 13, fontWeight: 700, color: "#E2E4DF", margin: "16px 0 5px" }}>{renderInline(l.replace(/^####\s*/, ""))}</h4>);
-    else if (/^###\s/.test(l)) el.push(<h3 key={i} style={{ fontSize: 14, fontWeight: 700, color: "#7A0E18", margin: "22px 0 7px", textTransform: "uppercase", letterSpacing: "0.04em" }}>{renderInline(l.replace(/^###\s*/, ""))}</h3>);
-    else if (/^##\s/.test(l)) el.push(<h2 key={i} style={{ fontSize: 16, fontWeight: 700, color: "#E2E4DF", margin: "26px 0 9px" }}>{renderInline(l.replace(/^##\s*/, ""))}</h2>);
-    else if (/^---+$/.test(l.trim())) el.push(<hr key={i} style={{ border: "none", borderTop: "1px solid #1e1b17", margin: "18px 0" }} />);
-    else if (/^\d+\.\s/.test(l)) {
-      const c = l.replace(/^\d+\.\s*/, ""), sm = c.match(/^\*\*(GREEN|YELLOW|RED)\*\*/);
-      el.push(<div key={i} style={{ padding: "7px 0 7px 12px", borderLeft: "2px solid #1e1b17", marginLeft: 4, marginBottom: 2 }}>{sm && <><Badge status={sm[1]} />{" "}</>}<span style={{ color: "#c5c3be", fontSize: 13, lineHeight: 1.6 }}>{renderInline(sm ? c.replace(/^\*\*(GREEN|YELLOW|RED)\*\*\s*[-:]?\s*/, "") : c)}</span></div>);
-    }
-    else if (/^[-*]\s/.test(l.trim())) el.push(<div key={i} style={{ padding: "2px 0 2px 16px", color: "#c5c3be", fontSize: 13 }}><span style={{ color: "#7A0E18", marginRight: 8, fontSize: 7 }}>&#9632;</span>{renderInline(l.trim().replace(/^[-*]\s*/, ""))}</div>);
-    else if (l.trim() === "") el.push(<div key={i} style={{ height: 5 }} />);
-    else el.push(<p key={i} style={{ margin: "3px 0", color: "#9a9890", fontSize: 13, lineHeight: 1.65 }}>{renderInline(l)}</p>);
-  }
-  if (inT) flushT();
-  return el;
-}
 
 const TABS = [
   { key: "offer", label: "Grand Slam Offer" },
@@ -206,18 +122,6 @@ const TABS = [
   { key: "revenue", label: "Revenue Projector" },
 ];
 
-function extractAudience(platforms) {
-  if (!platforms) return 0;
-  const nums = platforms.match(/(\d+(?:[.,]\d+)?)\s*[kKmM]?/g) || [];
-  let total = 0;
-  nums.forEach(n => {
-    let v = parseFloat(n.replace(",", "."));
-    if (/k/i.test(n)) v *= 1000;
-    if (/m/i.test(n)) v *= 1000000;
-    total += v;
-  });
-  return Math.round(total);
-}
 
 /*
  * REVENUE PROJECTOR — Deterministic formula
@@ -414,6 +318,8 @@ export default function OfferBuilder() {
   const [tab, setTab] = useState("offer");
   const [step, setStep] = useState(0);
   const [phase, setPhase] = useState("");
+  const [offerId, setOfferId] = useState(null);
+  const [copied, setCopied] = useState(false);
   const ref = useRef(null);
 
   const set = (k, v) => setForm(p => ({ ...p, [k]: v }));
@@ -464,6 +370,16 @@ export default function OfferBuilder() {
       const text = d.content?.map(c => c.text || "").join("\n") || d.text || "";
       setResult({ parsed: parseOutput(text), raw: text, scraped });
       setTab("offer");
+      // Auto-save
+      try {
+        const saveRes = await fetch("/api/offers", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ formData: form, rawOutput: text, parsed: parseOutput(text), scraped }),
+        });
+        const saveData = await saveRes.json();
+        if (saveData.id) setOfferId(saveData.id);
+      } catch {}
       setTimeout(() => ref.current?.scrollIntoView({ behavior: "smooth" }), 100);
     } catch (e) { setError(e.message); } finally { setLoading(false); setPhase(""); }
   };
@@ -489,10 +405,12 @@ export default function OfferBuilder() {
           <span style={{ color: "#2a2720", fontSize: 14 }}>|</span>
           <span style={{ fontSize: 10, fontWeight: 600, letterSpacing: "0.12em", textTransform: "uppercase", color: "#4a4840" }}>Offer Builder</span>
         </div>
-        {result && <div style={{ display: "flex", gap: 6 }}>
-          <button onClick={exportMd} style={{ padding: "6px 14px", borderRadius: 3, border: "1px solid #1e1b17", background: "transparent", color: "#6b6860", fontSize: 11, fontWeight: 500, cursor: "pointer", fontFamily: "inherit" }}>Export .md</button>
-          <button onClick={() => { setResult(null); setForm({}); setStep(0); }} style={{ padding: "6px 14px", borderRadius: 3, border: "none", background: "#7A0E18", color: "#E2E4DF", fontSize: 11, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>New Offer</button>
-        </div>}
+        <div style={{ display: "flex", gap: 6 }}>
+          {result && offerId && <button onClick={() => { const url = window.location.origin + "/offer/" + offerId; navigator.clipboard.writeText(url).then(() => { setCopied(true); setTimeout(() => setCopied(false), 2000); }); }} style={{ padding: "6px 14px", borderRadius: 3, border: "1px solid #1e1b17", background: "transparent", color: copied ? "#22c55e" : "#6b6860", fontSize: 11, fontWeight: 500, cursor: "pointer", fontFamily: "inherit" }}>{copied ? "Copied!" : "Share Link"}</button>}
+          {result && <button onClick={exportMd} style={{ padding: "6px 14px", borderRadius: 3, border: "1px solid #1e1b17", background: "transparent", color: "#6b6860", fontSize: 11, fontWeight: 500, cursor: "pointer", fontFamily: "inherit" }}>Export .md</button>}
+          <a href="/dashboard" style={{ padding: "6px 14px", borderRadius: 3, border: "1px solid #1e1b17", background: "transparent", color: "#6b6860", fontSize: 11, fontWeight: 500, cursor: "pointer", fontFamily: "inherit", textDecoration: "none", display: "flex", alignItems: "center" }}>Past Offers</a>
+          {result && <button onClick={() => { setResult(null); setForm({}); setStep(0); setOfferId(null); setCopied(false); }} style={{ padding: "6px 14px", borderRadius: 3, border: "none", background: "#7A0E18", color: "#E2E4DF", fontSize: 11, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>New Offer</button>}
+        </div>
       </div>
 
       <div style={{ maxWidth: 720, margin: "0 auto", padding: "28px 20px 80px" }}>
