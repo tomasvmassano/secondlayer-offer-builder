@@ -19,7 +19,7 @@ export async function POST(request) {
     );
   }
 
-  const { urls } = body;
+  const { urls, creatorName } = body;
   if (!urls || !Array.isArray(urls) || urls.length === 0) {
     return NextResponse.json(
       { error: 'Missing or empty "urls" array' },
@@ -27,7 +27,8 @@ export async function POST(request) {
     );
   }
 
-  const results = await Promise.all(
+  // Step 1: Scrape each platform profile
+  const profileResults = await Promise.all(
     urls.map(async ({ platform, url }) => {
       try {
         const response = await fetch('https://api.anthropic.com/v1/messages', {
@@ -44,45 +45,50 @@ export async function POST(request) {
             messages: [
               {
                 role: 'user',
-                content: `Search the web for detailed information about this ${platform} creator profile: ${url}
+                content: `Do a thorough web search about this ${platform} creator: ${url}
+${creatorName ? `Their name is ${creatorName}.` : ''}
 
-Analyze this creator and structure your response in these exact 5 sections:
+Search for their profile on social media analytics sites, news articles, interviews, and any other public sources. Do MULTIPLE searches to gather comprehensive data.
 
-## What they already do
-- Content format and style (short-form video, long-form, stories, etc.)
-- Posting frequency and consistency
-- Area of expertise and depth of knowledge
-- Whether they are a genuine specialist, not just a pretty face
-- Key moments of visibility (TV appearances, viral content, awards, press)
-- Quality of engagement (genuine comments, questions, tags — not just passive likes)
+Search for:
+1. "${url}" - their actual profile
+2. "${creatorName || 'this creator'} ${platform}" - general info
+3. "${creatorName || 'this creator'} products OR course OR workshop OR ebook OR brand deal" - monetization history
+4. "${creatorName || 'this creator'} interview OR podcast OR feature" - press coverage
 
-## What they have (signs this is the right person)
-- Audience size and engagement rate per platform
-- Proof of monetization: have they sold anything before? (workshops, books, courses, products, events)
-- Reputation: are they a recognized name in their niche or market?
-- Business mindset: do they treat their work as a brand, not just a hobby?
-- Multi-platform presence: Instagram + at least TikTok or YouTube?
+Then provide a DETAILED analysis with EXACT numbers where possible:
 
-## What they DON'T have (gaps we fill)
-- No recurring monthly revenue product — everything is transactional
-- No digital infrastructure: funnels, sales pages, automations, membership platform
-- No paid ads management to acquire community members consistently
-- No time or knowledge to build and manage a paid community
-- No monetization strategy beyond brand deals and one-off products
+## Profile Overview
+- Full name and bio
+- Exact follower/subscriber count (state the number, don't round)
+- Engagement rate (calculate from likes/comments vs followers if possible)
+- Content frequency (posts per week)
+- Primary content themes and format
 
-## Motivations (what makes them say yes)
-- Wants predictable monthly income, not just launch-based revenue
-- Tired of depending on brand deals that can end anytime
-- Feels they have much more to give than free content allows
-- Wants to scale without working double — wants a system, not more hours
-- Proud of their brand and wants to build something meaningful under their name
+## Audience Analysis
+- Estimated demographics (age, gender, location) based on content and comments
+- Quality of engagement: are comments genuine questions/discussions or just emojis?
+- Community sentiment: how do followers talk about this creator?
 
-## Fears (what makes them hesitate)
-- Fear of looking "commercial" and losing authenticity with their audience
-- Unsure if their audience will pay for something beyond free content
-- Has tried or thought about doing it alone and found it too complicated
-- Doesn't want to commit to something that won't deliver results
-- Distrusts agencies that promise a lot without guarantees`,
+## Monetization History
+- EVERYTHING they have ever sold: courses, ebooks, workshops, merch, events, coaching, digital products
+- Brand deals and sponsorships visible in their content
+- Any link-in-bio products, affiliate links, or shop pages
+- Estimated revenue if any data is available
+- If no products found, explicitly state "No products or courses found"
+
+## Online Presence & Reputation
+- Press mentions, interviews, podcast appearances
+- TV appearances, awards, features
+- Other platforms they're active on
+- Website or landing pages
+- How they're perceived in their niche
+
+## Key Numbers for Revenue Projection
+- Total followers across all known platforms
+- Average engagement rate
+- Estimated reach per post
+- Any known conversion data (if they've sold before, what was the response?)`,
               },
             ],
           }),
@@ -94,7 +100,6 @@ Analyze this creator and structure your response in these exact 5 sections:
           return { platform, url, error: data.error?.message || 'API error' };
         }
 
-        // Extract text blocks from the response
         const textContent = (data.content || [])
           .filter((block) => block.type === 'text')
           .map((block) => block.text)
@@ -107,5 +112,96 @@ Analyze this creator and structure your response in these exact 5 sections:
     })
   );
 
-  return NextResponse.json({ results });
+  // Step 2: Synthesize all profiles into a unified creator analysis
+  const allContent = profileResults
+    .filter(r => r.content)
+    .map(r => `## ${r.platform.toUpperCase()} (${r.url})\n${r.content}`)
+    .join('\n\n---\n\n');
+
+  let synthesis = null;
+  if (allContent) {
+    try {
+      const synthResponse = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': apiKey,
+          'anthropic-version': '2023-06-01',
+        },
+        body: JSON.stringify({
+          model: 'claude-sonnet-4-20250514',
+          max_tokens: 8000,
+          messages: [
+            {
+              role: 'user',
+              content: `Based on all this research about ${creatorName || 'this creator'}, create a unified creator intelligence report.
+
+RAW RESEARCH:
+${allContent}
+
+---
+
+Synthesize into these exact sections. Be specific — use real numbers, real product names, real facts. Never assume — if data is missing, say so explicitly.
+
+## What they already do
+- Content format and style (be specific: Reels, TikToks, long-form YouTube, Stories, etc.)
+- Posting frequency and consistency
+- Area of expertise — are they a genuine authority or surface-level?
+- Key visibility moments (TV, viral posts, press, awards)
+- Engagement quality (genuine comments vs passive likes)
+
+## What they have (signs this is the right partner)
+- Exact follower counts per platform
+- Engagement rate with numbers
+- Monetization proof: list EVERY product, course, event, or sale you found with prices if available
+- Reputation in their market
+- Multi-platform presence
+
+## What they DON'T have (gaps Second Layer fills)
+- Assess based on evidence: do they have recurring revenue? Funnels? Sales pages? A membership?
+- Only list gaps that are ACTUALLY confirmed by the research — don't assume
+
+## Previous Sales & Revenue History
+- List every product, course, workshop, ebook, event, or digital product found
+- Include prices, platforms, and any sales volume data
+- If nothing found, state clearly: "No previous digital products or courses found in public data"
+
+## Motivations (based on their content and interviews)
+- What signals suggest they want to monetize further?
+- What have they said in interviews or captions about their goals?
+
+## Fears & Objections (based on evidence)
+- What might hold them back based on how they present themselves?
+- Any evidence of failed launches or negative experiences?
+
+## Key Numbers Summary
+| Metric | Value |
+|--------|-------|
+| Instagram followers | X |
+| TikTok followers | X |
+| YouTube subscribers | X |
+| Avg engagement rate | X% |
+| Products sold before | Yes/No (list) |
+| Estimated audience value | Low/Medium/High |`,
+            },
+          ],
+        }),
+      });
+
+      const synthData = await synthResponse.json();
+      if (synthResponse.ok) {
+        synthesis = (synthData.content || [])
+          .filter((block) => block.type === 'text')
+          .map((block) => block.text)
+          .join('\n\n');
+      }
+    } catch (err) {
+      // Synthesis failed, we'll still return individual results
+    }
+  }
+
+  return NextResponse.json({
+    results: profileResults,
+    synthesis,
+  });
 }

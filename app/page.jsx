@@ -66,7 +66,7 @@ Pricing: Mini-course 27-497 | Course 197-2997 | Coaching 497-9997 | Community 9-
 
 const INTAKE_FIELDS = [
   { section: "Creator Profile", icon: "01", fields: [
-    { key: "creator_name", label: "Creator Name", placeholder: "e.g. Rita Camoesas", type: "text" },
+    { key: "creator_name", label: "Creator Name", placeholder: "e.g. John Smith", type: "text" },
     { key: "niche", label: "Creator's Niche", placeholder: "e.g. Home workouts for busy moms, Street photography for beginners", type: "text" },
     { key: "platforms", label: "Platforms & Audience Size", placeholder: "e.g. Instagram 85K, YouTube 12K, TikTok 200K", type: "text" },
     { key: "engagement", label: "Engagement Rate / Avg Views", placeholder: "e.g. 4.2% IG engagement, 8K avg views on YouTube", type: "text" },
@@ -79,7 +79,6 @@ const INTAKE_FIELDS = [
   { section: "Audience Analysis", icon: "03", fields: [
     { key: "audience_demo", label: "Core Audience Demographics", placeholder: "e.g. Women 25-35, US/UK, middle income", type: "text" },
     { key: "audience_problem", label: "Main Problem / Desire", placeholder: "What does this audience want that the creator solves for free?", type: "textarea" },
-    { key: "past_sales", label: "Previous Sales History", placeholder: "e.g. Sold a 47 EUR ebook, 200 units. Or: Never sold anything.", type: "text" },
   ]},
   { section: "Business Parameters", icon: "04", fields: [
     { key: "format", label: "Delivery Format", placeholder: "Skool community, Course, Membership, Hybrid, or Undecided", type: "text" },
@@ -198,104 +197,68 @@ function extractAudience(platforms) {
   return Math.round(total);
 }
 
-const REVENUE_PROMPT = `You are a revenue analyst for Second Layer, an agency that builds monetization backends for content creators.
+const REVENUE_PROMPT = `You are a revenue projection specialist for Second Layer, an agency that builds monetization backends for content creators.
 
-Given the creator's profile, audience data, niche, and revenue projection inputs, provide a sharp analysis in markdown:
+Given the creator's data, generate a SPECIFIC revenue projection in markdown. Use real numbers. Be conservative.
 
-## Niche Benchmarks
-Compare their niche to typical conversion rates. Be specific — cite the niche, not generic stats.
+## Revenue Projection
+
+Create a table with 3 scenarios. Base your estimates on:
+- Their ACTUAL follower count and engagement rate
+- Market benchmarks for their specific niche
+- Whether they've sold before (higher conversion if yes)
+- Typical price points for their audience's purchasing power
+
+| Metric | Conservative | Moderate | Aggressive |
+|--------|-------------|----------|------------|
+| Followers reached (organic launch) | X | X | X |
+| Email/opt-in leads | X | X | X |
+| Paying customers | X | X | X |
+| Core offer price | X | X | X |
+| Launch revenue | X | X | X |
+| Monthly recurring (if applicable) | X | X | X |
+| Year 1 total revenue | X | X | X |
+| Second Layer commission (25%) | X | X | X |
+
+## How We Got These Numbers
+Explain the conversion rates used and WHY they apply to this specific niche and audience. Reference similar creators who have monetized.
+
+## Recommended Pricing
+Based on audience purchasing power and niche benchmarks, recommend the optimal price point. Use Hormozi's value equation.
 
 ## Risk Factors
-3-5 specific risks that could reduce projected revenue (audience mismatch, price sensitivity, seasonality, etc.)
+3 specific risks for this creator's revenue.
 
 ## Upside Opportunities
-3-5 specific opportunities to exceed projections (viral potential, underserved niche, high pain point, etc.)
+3 specific opportunities to exceed projections.
 
-## Pricing Recommendation
-Based on the niche and audience, recommend optimal price point with reasoning. Reference Hormozi's value equation.
+Be direct and specific. Every number should be justified by the creator's actual data.`;
 
-## Comparison
-Compare to similar creators who have monetized in this niche. What did they charge? What worked?
-
-Be direct, specific to this creator, and use conservative estimates. No filler.`;
-
-function SliderInput({ label, value, onChange, min, max, step, suffix, prefix }) {
-  return (
-    <div style={{ marginBottom: 18 }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
-        <span style={{ fontSize: 10, fontWeight: 600, color: "#4a4840", letterSpacing: "0.05em", textTransform: "uppercase" }}>{label}</span>
-        <span style={{ fontSize: 13, fontWeight: 600, color: "#E2E4DF" }}>{prefix || ""}{typeof value === "number" ? value.toLocaleString() : value}{suffix || ""}</span>
-      </div>
-      <input type="range" min={min} max={max} step={step || 1} value={value} onChange={e => onChange(Number(e.target.value))}
-        style={{ width: "100%", height: 4, appearance: "none", background: "#1e1b17", borderRadius: 2, outline: "none", cursor: "pointer", accentColor: "#7A0E18" }} />
-      <div style={{ display: "flex", justifyContent: "space-between", fontSize: 9, color: "#2a2720", marginTop: 3 }}>
-        <span>{prefix || ""}{min.toLocaleString()}{suffix || ""}</span>
-        <span>{prefix || ""}{max.toLocaleString()}{suffix || ""}</span>
-      </div>
-    </div>
-  );
-}
-
-function ScenarioCard({ title, color, data }) {
-  return (
-    <div style={{ flex: 1, padding: "18px 16px", borderRadius: 4, background: "#080604", border: `1px solid ${color}22` }}>
-      <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color, marginBottom: 14 }}>{title}</div>
-      {data.map((row, i) => (
-        <div key={i} style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", borderBottom: i < data.length - 1 ? "1px solid #0f0d0a" : "none" }}>
-          <span style={{ fontSize: 11, color: "#6b6860" }}>{row.label}</span>
-          <span style={{ fontSize: 13, fontWeight: 600, color: row.highlight ? color : "#E2E4DF" }}>{row.value}</span>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-function RevenueProjector({ form, scraped, systemPrompt }) {
-  const [audience, setAudience] = useState(() => extractAudience(form.platforms) || 50000);
-  const [optIn, setOptIn] = useState(5);
-  const [conversion, setConversion] = useState(5);
-  const [price, setPrice] = useState(197);
-  const [churn, setChurn] = useState(8);
-  const [upsellRate, setUpsellRate] = useState(10);
-  const [upsellPrice, setUpsellPrice] = useState(497);
-  const [commission, setCommission] = useState(25);
+function RevenueProjector({ form, scraped }) {
   const [aiAnalysis, setAiAnalysis] = useState(null);
   const [aiLoading, setAiLoading] = useState(false);
-
-  const calc = (optMult) => {
-    const leads = Math.round(audience * (optIn / 100) * optMult);
-    const customers = Math.round(leads * (conversion / 100) * optMult);
-    const launchRev = customers * price;
-    const upsellCustomers = Math.round(customers * (upsellRate / 100));
-    const upsellRev = upsellCustomers * upsellPrice;
-    const month1 = launchRev + upsellRev;
-    const monthlyRecurring = Math.round(customers * (1 - churn / 100) * (price < 100 ? price : price * 0.15));
-    const year1 = month1 + (monthlyRecurring * 11);
-    const slCommission = Math.round(year1 * (commission / 100));
-    const ltv = churn > 0 ? Math.round(price / (churn / 100)) : price * 12;
-    return { leads, customers, month1, monthlyRecurring, year1, slCommission, ltv };
-  };
-
-  const conservative = calc(0.6);
-  const moderate = calc(1.0);
-  const aggressive = calc(1.5);
-
-  const fmt = (n) => "\u20AC" + n.toLocaleString();
-
-  const rows = (d) => [
-    { label: "Leads (opt-ins)", value: d.leads.toLocaleString() },
-    { label: "Customers", value: d.customers.toLocaleString() },
-    { label: "Launch month", value: fmt(d.month1), highlight: true },
-    { label: "Monthly recurring", value: fmt(d.monthlyRecurring) },
-    { label: "Year 1 total", value: fmt(d.year1), highlight: true },
-    { label: "SL commission", value: fmt(d.slCommission), highlight: true },
-    { label: "LTV / customer", value: fmt(d.ltv) },
-  ];
+  const [hasRun, setHasRun] = useState(false);
 
   const runAi = async () => {
     setAiLoading(true);
     try {
-      const msg = `Creator: ${form.creator_name || "Unknown"}\nNiche: ${form.niche || "Unknown"}\nPlatforms: ${form.platforms || "Unknown"}\nAudience: ${audience.toLocaleString()}\nOpt-in rate: ${optIn}%\nConversion rate: ${conversion}%\nPrice: ${price} EUR\nChurn: ${churn}%/mo\nUpsell rate: ${upsellRate}% at ${upsellPrice} EUR\n\nProjections:\n- Conservative Y1: ${fmt(conservative.year1)}\n- Moderate Y1: ${fmt(moderate.year1)}\n- Aggressive Y1: ${fmt(aggressive.year1)}\n\n${scraped && Object.keys(scraped).length ? "Scraped intelligence:\n" + Object.entries(scraped).map(([p, d]) => `${p}: ${d}`).join("\n\n") : ""}\n\nAnalyze these projections for this specific creator and niche.`;
+      const scrapedText = scraped && Object.keys(scraped).length
+        ? Object.entries(scraped).filter(([k]) => k !== "_synthesis").map(([p, d]) => `${p}: ${d}`).join("\n\n")
+        : "";
+      const synthesis = scraped?._synthesis || "";
+
+      const msg = `Creator: ${form.creator_name || "Unknown"}
+Niche: ${form.niche || "Unknown"}
+Platforms: ${form.platforms || "Unknown"}
+Engagement: ${form.engagement || "Unknown"}
+Target price range: ${form.price_range || "Let the system decide"}
+Delivery format: ${form.format || "Undecided"}
+
+${synthesis ? "## Creator Intelligence Report\n" + synthesis : ""}
+${scrapedText ? "\n## Raw Platform Data\n" + scrapedText : ""}
+
+Generate the revenue projection based on this creator's ACTUAL numbers. If follower counts or engagement rates were found in the research, use those exact numbers.`;
+
       const r = await fetch("/api/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -305,54 +268,50 @@ function RevenueProjector({ form, scraped, systemPrompt }) {
       const d = await r.json();
       const text = d.content?.map(c => c.text || "").join("\n") || "";
       setAiAnalysis(text);
+      setHasRun(true);
     } catch (e) { setAiAnalysis("Error: " + e.message); }
     finally { setAiLoading(false); }
   };
 
   return (
     <div>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20, marginBottom: 28 }}>
-        <div>
-          <SliderInput label="Total Audience" value={audience} onChange={setAudience} min={1000} max={1000000} step={1000} />
-          <SliderInput label="Opt-in Rate" value={optIn} onChange={setOptIn} min={1} max={15} step={0.5} suffix="%" />
-          <SliderInput label="Conversion Rate" value={conversion} onChange={setConversion} min={1} max={40} step={0.5} suffix="%" />
-          <SliderInput label="Core Price" value={price} onChange={setPrice} min={27} max={2997} step={10} prefix={"\u20AC"} />
+      {!hasRun && !aiLoading && (
+        <div style={{ textAlign: "center", padding: "40px 20px" }}>
+          <p style={{ fontSize: 14, color: "#6b6860", margin: "0 0 6px" }}>
+            Revenue projections based on <span style={{ color: "#E2E4DF", fontWeight: 600 }}>{form.creator_name || "this creator"}</span>&apos;s actual audience data
+          </p>
+          <p style={{ fontSize: 11, color: "#2a2720", margin: "0 0 24px" }}>
+            Uses follower counts, engagement rates, and niche benchmarks from the research
+          </p>
+          <button onClick={runAi} style={{
+            padding: "12px 32px", borderRadius: 3, border: "none",
+            background: "#7A0E18", color: "#E2E4DF",
+            fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "inherit",
+          }}>
+            Generate Revenue Projection
+          </button>
         </div>
-        <div>
-          <SliderInput label="Monthly Churn" value={churn} onChange={setChurn} min={1} max={25} step={0.5} suffix="%" />
-          <SliderInput label="Upsell Rate" value={upsellRate} onChange={setUpsellRate} min={0} max={30} step={1} suffix="%" />
-          <SliderInput label="Upsell Price" value={upsellPrice} onChange={setUpsellPrice} min={97} max={9997} step={50} prefix={"\u20AC"} />
-          <SliderInput label="SL Commission" value={commission} onChange={setCommission} min={15} max={35} step={1} suffix="%" />
-        </div>
-      </div>
-
-      <div style={{ display: "flex", gap: 12, marginBottom: 28 }}>
-        <ScenarioCard title="Conservative" color="#6b6860" data={rows(conservative)} />
-        <ScenarioCard title="Moderate" color="#E2E4DF" data={rows(moderate)} />
-        <ScenarioCard title="Aggressive" color="#7A0E18" data={rows(aggressive)} />
-      </div>
-
-      <div style={{ borderTop: "1px solid #141210", paddingTop: 20 }}>
-        <button onClick={runAi} disabled={aiLoading} style={{
-          padding: "10px 24px", borderRadius: 3, border: "none",
-          background: aiLoading ? "#3a1015" : "#7A0E18", color: "#E2E4DF",
-          fontSize: 12, fontWeight: 600, cursor: aiLoading ? "wait" : "pointer", fontFamily: "inherit",
-        }}>
-          {aiLoading ? "Analyzing..." : "Get AI Analysis"}
-        </button>
-        <span style={{ marginLeft: 12, fontSize: 11, color: "#2a2720" }}>Claude will analyze these projections for this specific niche</span>
-      </div>
+      )}
 
       {aiLoading && (
-        <div style={{ marginTop: 20, textAlign: "center", padding: 20 }}>
-          <div style={{ width: 20, height: 20, margin: "0 auto 10px", border: "2px solid #141210", borderTopColor: "#7A0E18", borderRadius: "50%", animation: "sl-spin 0.8s linear infinite" }} />
-          <p style={{ fontSize: 11, color: "#4a4840" }}>Running revenue analysis...</p>
+        <div style={{ textAlign: "center", padding: "40px 20px" }}>
+          <div style={{ width: 20, height: 20, margin: "0 auto 12px", border: "2px solid #141210", borderTopColor: "#7A0E18", borderRadius: "50%", animation: "sl-spin 0.8s linear infinite" }} />
+          <p style={{ fontSize: 12, color: "#4a4840" }}>Calculating revenue projections for {form.creator_name || "this creator"}...</p>
         </div>
       )}
 
       {aiAnalysis && !aiLoading && (
-        <div style={{ marginTop: 20, padding: "20px 22px", borderRadius: 4, background: "#060503", border: "1px solid #141210" }}>
+        <div>
           {renderMd(aiAnalysis)}
+          <div style={{ marginTop: 20, borderTop: "1px solid #141210", paddingTop: 16 }}>
+            <button onClick={runAi} style={{
+              padding: "8px 20px", borderRadius: 3, border: "1px solid #1e1b17",
+              background: "transparent", color: "#6b6860",
+              fontSize: 11, fontWeight: 500, cursor: "pointer", fontFamily: "inherit",
+            }}>
+              Regenerate
+            </button>
+          </div>
         </div>
       )}
     </div>
@@ -374,17 +333,18 @@ export default function OfferBuilder() {
   const scrape = async () => {
     const urls = [["instagram", form.instagram], ["tiktok", form.tiktok], ["youtube", form.youtube]].filter(x => x[1]?.trim());
     if (!urls.length) return {};
-    setPhase("Analyzing social profiles...");
+    setPhase("Researching creator online (this takes 60-90s)...");
     try {
       const r = await fetch("/api/scrape", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ urls: urls.map(([platform, url]) => ({ platform, url })) }),
+        body: JSON.stringify({ urls: urls.map(([platform, url]) => ({ platform, url })), creatorName: form.creator_name || "" }),
       });
       if (!r.ok) throw new Error("Scrape failed");
       const data = await r.json();
       const profiles = {};
       (data.results || []).forEach(r => { if (r.content) profiles[r.platform] = r.content; });
+      if (data.synthesis) profiles._synthesis = data.synthesis;
       return profiles;
     } catch { return {}; }
   };
@@ -397,7 +357,12 @@ export default function OfferBuilder() {
       setPhase("Building Grand Slam Offer...");
       let msg = "## CREATOR INTAKE DATA\n\n";
       INTAKE_FIELDS.forEach(s => { msg += "### " + s.section + "\n"; s.fields.forEach(f => { msg += "**" + f.label + ":** " + (form[f.key]?.trim() || "(not provided)") + "\n"; }); msg += "\n"; });
-      if (Object.keys(scraped).length) { msg += "\n## SCRAPED SOCIAL MEDIA INTELLIGENCE\n\n"; for (const [p, d] of Object.entries(scraped)) msg += "### " + p + "\n" + d + "\n\n"; }
+      if (scraped._synthesis) {
+        msg += "\n## CREATOR INTELLIGENCE REPORT (from web research)\n\n" + scraped._synthesis + "\n\n";
+      } else if (Object.keys(scraped).length) {
+        msg += "\n## SCRAPED SOCIAL MEDIA INTELLIGENCE\n\n";
+        for (const [p, d] of Object.entries(scraped)) { if (p !== "_synthesis") msg += "### " + p + "\n" + d + "\n\n"; }
+      }
       msg += "\n---\nGenerate all three outputs now. Follow system instructions and Hormozi frameworks exactly.";
 
       const r = await fetch("/api/generate", {
@@ -492,10 +457,20 @@ export default function OfferBuilder() {
               <img src={LOGO_B64} alt="Second Layer" style={{ height: 14, opacity: 0.6 }} />
               <span style={{ fontSize: 9, color: "#2a2720", letterSpacing: "0.08em", textTransform: "uppercase" }}>Offer Analysis</span>
             </div>
-            <h2 style={{ fontSize: 22, fontWeight: 300, margin: "0 0 4px", letterSpacing: "-0.01em" }}>
-              {form.creator_name ? <><span style={{ color: "#7A0E18", fontWeight: 600 }}>{form.creator_name}</span> &mdash; </> : ""}Grand Slam Offer
-            </h2>
-            <p style={{ fontSize: 12, color: "#4a4840", margin: 0 }}>
+            {form.creator_name && (
+              <h2 style={{ fontSize: 24, fontWeight: 600, margin: "0 0 2px", color: "#7A0E18", letterSpacing: "-0.01em" }}>
+                {form.creator_name}
+              </h2>
+            )}
+            <p style={{ fontSize: 13, color: "#E2E4DF", margin: "0 0 6px", fontWeight: 300 }}>
+              Grand Slam Offer
+            </p>
+            {(() => {
+              const promiseMatch = (result.raw || "").match(/(?:Core Promise|B\.\s*Core Promise)[:\s]*"?([^"\n]+)"?/i);
+              if (promiseMatch) return <p style={{ fontSize: 12, color: "#7A0E18", margin: "0 0 6px", fontStyle: "italic", maxWidth: 520 }}>&ldquo;{promiseMatch[1].trim()}&rdquo;</p>;
+              return null;
+            })()}
+            <p style={{ fontSize: 11, color: "#4a4840", margin: 0 }}>
               {form.niche || "Creator offer"}{form.platforms ? ` \u00B7 ${form.platforms}` : ""}
             </p>
           </div>
