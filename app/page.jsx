@@ -70,6 +70,8 @@ const INTAKE_FIELDS = [
     { key: "niche", label: "Creator's Niche", placeholder: "e.g. Home workouts for busy moms, Street photography for beginners", type: "text" },
     { key: "platforms", label: "Platforms & Audience Size", placeholder: "e.g. Instagram 85K, YouTube 12K, TikTok 200K", type: "text" },
     { key: "engagement", label: "Engagement Rate / Avg Views", placeholder: "e.g. 4.2% IG engagement, 8K avg views on YouTube", type: "text" },
+    { key: "primary_platform", label: "Primary Platform (buyer audience)", placeholder: "", type: "select", options: ["Instagram", "TikTok", "YouTube"] },
+    { key: "language", label: "Output Language", placeholder: "", type: "select", options: ["English", "Portugu\u00eas"] },
   ]},
   { section: "Social Profiles", icon: "02", fields: [
     { key: "instagram", label: "Instagram", placeholder: "https://instagram.com/username", type: "text" },
@@ -103,6 +105,11 @@ function FieldInput({ field, value, onChange }) {
   const blur = (e) => { e.target.style.borderColor = "#1e1b17"; };
 
   if (field.type === "textarea") return <textarea style={{ ...s, minHeight: 72 }} placeholder={field.placeholder} value={value} onChange={e => onChange(field.key, e.target.value)} onFocus={focus} onBlur={blur} />;
+  if (field.type === "select") return (
+    <select style={{ ...s, cursor: "pointer", appearance: "none", backgroundImage: "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%234a4840' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E\")", backgroundRepeat: "no-repeat", backgroundPosition: "right 12px center" }} value={value || field.options[0]} onChange={e => onChange(field.key, e.target.value)} onFocus={focus} onBlur={blur}>
+      {field.options.map(o => <option key={o} value={o} style={{ background: "#080604" }}>{o}</option>)}
+    </select>
+  );
   return <input type="text" style={s} placeholder={field.placeholder} value={value} onChange={e => onChange(field.key, e.target.value)} onFocus={focus} onBlur={blur} />;
 }
 
@@ -197,50 +204,20 @@ function extractAudience(platforms) {
   return Math.round(total);
 }
 
-const REVENUE_PROMPT = `You are a revenue projection specialist for Second Layer.
-
-CRITICAL: Identify the PRIMARY CONVERSION PLATFORM first. Do NOT sum followers across platforms — most overlap. Use the primary platform's followers as the buyer pool. Other platforms are awareness channels.
-
-Respond with ONLY valid JSON, no markdown, no explanation. The JSON must match this exact structure:
-{
-  "primaryPlatform": "Instagram",
-  "primaryFollowers": 27000,
-  "engagementRate": 3.5,
-  "recommendedPrice": 197,
-  "priceReasoning": "One sentence why this price",
-  "conservative": {
-    "optInRate": 3,
-    "conversionRate": 2,
-    "customers": 16,
-    "monthlyRecurring": 1580,
-    "launchRevenue": 3150,
-    "year1Revenue": 22000,
-    "slCommission": 5500
-  },
-  "moderate": {
-    "optInRate": 5,
-    "conversionRate": 4,
-    "customers": 54,
-    "monthlyRecurring": 5300,
-    "launchRevenue": 10638,
-    "year1Revenue": 69000,
-    "slCommission": 17250
-  },
-  "aggressive": {
-    "optInRate": 8,
-    "conversionRate": 6,
-    "customers": 130,
-    "monthlyRecurring": 12700,
-    "launchRevenue": 25610,
-    "year1Revenue": 165000,
-    "slCommission": 41250
-  },
-  "risks": ["risk 1", "risk 2", "risk 3"],
-  "opportunities": ["opportunity 1", "opportunity 2", "opportunity 3"],
-  "methodology": "2-3 sentences explaining the conversion rates used and why"
-}
-
-Base ALL numbers on the creator's ACTUAL follower count and niche benchmarks. Be conservative. Every number must be justified.`;
+/*
+ * REVENUE PROJECTOR — Deterministic formula, no AI
+ *
+ * Industry-standard creator monetization funnel:
+ *   Reach       = followers × organic reach rate (18%)
+ *   Leads       = reach × opt-in rate (5%)
+ *   Customers   = leads × conversion rate (3%)
+ *   Monthly MRR = active customers × monthly price
+ *   Churn       = 8%/mo industry avg for creator communities
+ *   LTV         = price / churn
+ *
+ * Scenarios apply multipliers to opt-in and conversion:
+ *   Conservative = 0.6x | Moderate = 1.0x | Aggressive = 1.6x
+ */
 
 function SliderInput({ label, value, onChange, min, max, step, suffix, prefix, recommended }) {
   return (
@@ -258,173 +235,109 @@ function SliderInput({ label, value, onChange, min, max, step, suffix, prefix, r
   );
 }
 
-function MetricCard({ label, value, sub, large }) {
-  return (
-    <div style={{ flex: 1, padding: large ? "24px 20px" : "14px 16px", borderRadius: 4, background: "#080604", border: "1px solid #141210", textAlign: "center" }}>
-      <div style={{ fontSize: 9, fontWeight: 600, color: "#4a4840", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: large ? 8 : 4 }}>{label}</div>
-      <div style={{ fontSize: large ? 36 : 20, fontWeight: 300, color: large ? "#7A0E18" : "#E2E4DF", letterSpacing: "-0.02em" }}>{value}</div>
-      {sub && <div style={{ fontSize: 10, color: "#2a2720", marginTop: 4 }}>{sub}</div>}
-    </div>
-  );
-}
+function RevenueProjector({ form }) {
+  const followers = extractAudience(form.platforms) || 10000;
+  const platform = form.primary_platform || "Instagram";
 
-function RevenueProjector({ form, scraped }) {
-  const [data, setData] = useState(null);
-  const [price, setPrice] = useState(null);
+  // Extract primary platform followers from platforms string
+  const getPlatformFollowers = () => {
+    const p = (form.platforms || "").toLowerCase();
+    const platformKey = platform.toLowerCase();
+    const match = p.match(new RegExp(platformKey + "\\s*(\\d+(?:[.,]\\d+)?)\\s*([kKmM])?", "i"));
+    if (match) {
+      let v = parseFloat(match[1].replace(",", "."));
+      if (/k/i.test(match[2] || "")) v *= 1000;
+      if (/m/i.test(match[2] || "")) v *= 1000000;
+      return Math.round(v);
+    }
+    return followers; // fallback to total
+  };
+
+  const primaryFollowers = getPlatformFollowers();
+
+  const [price, setPrice] = useState(197);
   const [commission, setCommission] = useState(25);
-  const [aiLoading, setAiLoading] = useState(false);
-  const [hasRun, setHasRun] = useState(false);
-  const [aiDetail, setAiDetail] = useState(null);
+
+  // Fixed industry benchmarks
+  const REACH_RATE = 0.18;       // 18% organic reach
+  const OPT_IN_RATE = 0.05;     // 5% opt-in from reached
+  const CONVERSION_RATE = 0.03; // 3% of leads convert
+  const CHURN_RATE = 0.08;      // 8%/mo churn
+
+  const calc = (mult) => {
+    const reached = Math.round(primaryFollowers * REACH_RATE);
+    const leads = Math.round(reached * OPT_IN_RATE * mult);
+    const customers = Math.round(leads * CONVERSION_RATE * mult);
+    const launchRevenue = customers * price;
+    // Monthly recurring assumes ~70% stay after month 1, then churn applies
+    const activeM3 = Math.round(customers * Math.pow(1 - CHURN_RATE, 2));
+    const monthlyRecurring = activeM3 * (price < 100 ? price : Math.round(price * 0.15));
+    const year1 = launchRevenue + (monthlyRecurring * 11);
+    const slComm = Math.round(year1 * (commission / 100));
+    const ltv = CHURN_RATE > 0 ? Math.round(price / CHURN_RATE) : price * 12;
+    return { reached, leads, customers, launchRevenue, monthlyRecurring, year1, slComm, ltv };
+  };
+
+  const con = calc(0.6);
+  const mod = calc(1.0);
+  const agg = calc(1.6);
 
   const fmt = (n) => "\u20AC" + Math.round(n).toLocaleString();
 
-  const runProjection = async () => {
-    setAiLoading(true);
-    try {
-      const synthesis = scraped?._synthesis || "";
-      const scrapedText = scraped ? Object.entries(scraped).filter(([k]) => k !== "_synthesis").map(([p, d]) => `${p}: ${d}`).join("\n\n") : "";
-
-      const msg = `Creator: ${form.creator_name || "Unknown"}
-Niche: ${form.niche || "Unknown"}
-Platforms: ${form.platforms || "Unknown"}
-Engagement: ${form.engagement || "Unknown"}
-Target price range: ${form.price_range || "Let the system decide"}
-Format: ${form.format || "Undecided"}
-
-${synthesis ? "## Creator Intelligence\n" + synthesis : ""}
-${scrapedText ? "\n## Platform Data\n" + scrapedText : ""}
-
-Return ONLY the JSON. No markdown fences. No explanation outside JSON.`;
-
-      const r = await fetch("/api/generate", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ system: REVENUE_PROMPT, message: msg }) });
-      if (!r.ok) throw new Error("API error");
-      const d = await r.json();
-      const text = d.content?.map(c => c.text || "").join("") || "";
-      const jsonMatch = text.match(/\{[\s\S]*\}/);
-      if (!jsonMatch) throw new Error("Invalid response");
-      const parsed = JSON.parse(jsonMatch[0]);
-      setData(parsed);
-      setPrice(parsed.recommendedPrice);
-      setHasRun(true);
-    } catch (e) { setAiDetail("Error: " + e.message); }
-    finally { setAiLoading(false); }
-  };
-
-  // Recalculate with adjusted price/commission
-  const adjust = (d, scenario) => {
-    if (!d || !data) return scenario;
-    const ratio = (price || data.recommendedPrice) / data.recommendedPrice;
-    const commRate = commission / 100;
-    return {
-      ...scenario,
-      monthlyRecurring: Math.round(scenario.monthlyRecurring * ratio),
-      launchRevenue: Math.round(scenario.launchRevenue * ratio),
-      year1Revenue: Math.round(scenario.year1Revenue * ratio),
-      slCommission: Math.round(scenario.year1Revenue * ratio * commRate),
-    };
-  };
-
-  const mod = data ? adjust(data, data.moderate) : null;
-  const con = data ? adjust(data, data.conservative) : null;
-  const agg = data ? adjust(data, data.aggressive) : null;
-
   return (
     <div>
-      {!hasRun && !aiLoading && (
-        <div style={{ textAlign: "center", padding: "48px 20px" }}>
-          <p style={{ fontSize: 15, color: "#6b6860", margin: "0 0 6px", fontWeight: 300 }}>
-            Revenue projection for <span style={{ color: "#E2E4DF", fontWeight: 500 }}>{form.creator_name || "this creator"}</span>
-          </p>
-          <p style={{ fontSize: 11, color: "#2a2720", margin: "0 0 28px" }}>
-            Based on actual follower data, engagement rates, and niche benchmarks
-          </p>
-          <button onClick={runProjection} style={{
-            padding: "12px 36px", borderRadius: 3, border: "none",
-            background: "#7A0E18", color: "#E2E4DF",
-            fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "inherit",
-          }}>
-            Generate Projection
-          </button>
+      {/* Hero metric */}
+      <div style={{ textAlign: "center", padding: "32px 20px 28px", marginBottom: 24, background: "linear-gradient(180deg, #0f0806 0%, #080604 100%)", borderRadius: 6, border: "1px solid #1e1b1733" }}>
+        <div style={{ fontSize: 9, fontWeight: 600, color: "#4a4840", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 4 }}>Estimated Monthly Recurring (Month 3+)</div>
+        <div style={{ fontSize: 48, fontWeight: 200, color: "#7A0E18", letterSpacing: "-0.03em", lineHeight: 1.1 }}>
+          {fmt(mod.monthlyRecurring)}
         </div>
-      )}
+        <div style={{ fontSize: 11, color: "#2a2720", marginTop: 6 }}>/month &middot; moderate scenario &middot; {platform} {primaryFollowers.toLocaleString()} followers</div>
+      </div>
 
-      {aiLoading && (
-        <div style={{ textAlign: "center", padding: "48px 20px" }}>
-          <div style={{ width: 22, height: 22, margin: "0 auto 14px", border: "2px solid #141210", borderTopColor: "#7A0E18", borderRadius: "50%", animation: "sl-spin 0.8s linear infinite" }} />
-          <p style={{ fontSize: 12, color: "#4a4840" }}>Projecting revenue...</p>
+      {/* 3 scenario cards */}
+      <div style={{ display: "flex", gap: 10, marginBottom: 24 }}>
+        {[
+          { title: "Conservative", color: "#6b6860", d: con, border: "#141210" },
+          { title: "Moderate", color: "#E2E4DF", d: mod, border: "#7A0E1833" },
+          { title: "Aggressive", color: "#7A0E18", d: agg, border: "#141210" },
+        ].map(({ title, color, d, border }) => (
+          <div key={title} style={{ flex: 1, padding: "16px", borderRadius: 4, background: "#080604", border: `1px solid ${border}` }}>
+            <div style={{ fontSize: 9, fontWeight: 700, color, letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 12 }}>{title}</div>
+            <div style={{ fontSize: 11, color: "#6b6860", marginBottom: 4 }}>Reached: <span style={{ color: "#9a9890" }}>{d.reached.toLocaleString()}</span></div>
+            <div style={{ fontSize: 11, color: "#6b6860", marginBottom: 4 }}>Leads: <span style={{ color: "#9a9890" }}>{d.leads.toLocaleString()}</span></div>
+            <div style={{ fontSize: 11, color: "#6b6860", marginBottom: 4 }}>Customers: <span style={{ color: "#9a9890" }}>{d.customers.toLocaleString()}</span></div>
+            <div style={{ fontSize: 11, color: "#6b6860", marginBottom: 4, paddingTop: 6, borderTop: "1px solid #0f0d0a" }}>Launch: <span style={{ color: "#E2E4DF", fontWeight: 600 }}>{fmt(d.launchRevenue)}</span></div>
+            <div style={{ fontSize: 11, color: "#6b6860", marginBottom: 4 }}>Monthly: <span style={{ color: "#E2E4DF", fontWeight: 600 }}>{fmt(d.monthlyRecurring)}</span></div>
+            <div style={{ fontSize: 11, color: "#6b6860", marginBottom: 4 }}>Year 1: <span style={{ color: "#E2E4DF", fontWeight: 600 }}>{fmt(d.year1)}</span></div>
+            <div style={{ fontSize: 11, color: "#6b6860" }}>SL comm: <span style={{ color: "#7A0E18", fontWeight: 600 }}>{fmt(d.slComm)}</span></div>
+          </div>
+        ))}
+      </div>
+
+      {/* Adjustable sliders */}
+      <div style={{ padding: "20px 22px", borderRadius: 4, background: "#060503", border: "1px solid #141210", marginBottom: 24 }}>
+        <div style={{ fontSize: 9, fontWeight: 600, color: "#4a4840", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 16 }}>Adjust Parameters</div>
+        <SliderInput label="Core Price" value={price} onChange={setPrice} min={27} max={2997} step={10} prefix={"\u20AC"} recommended={price === 197} />
+        <SliderInput label="SL Commission" value={commission} onChange={setCommission} min={15} max={35} step={1} suffix="%" recommended={commission === 25} />
+      </div>
+
+      {/* Methodology */}
+      <div style={{ padding: "18px 22px", borderRadius: 4, background: "#060503", border: "1px solid #141210" }}>
+        <div style={{ fontSize: 9, fontWeight: 600, color: "#4a4840", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 10 }}>Formula</div>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+          {[
+            ["Organic reach", "18% of followers"],
+            ["Opt-in rate", "5% of reached"],
+            ["Conversion rate", "3% of leads"],
+            ["Monthly churn", "8%/mo"],
+            ["LTV / customer", fmt(mod.ltv)],
+            ["Scenarios", "0.6x / 1.0x / 1.6x"],
+          ].map(([k, v]) => (
+            <div key={k} style={{ fontSize: 11, color: "#6b6860" }}>{k}: <span style={{ color: "#9a9890" }}>{v}</span></div>
+          ))}
         </div>
-      )}
-
-      {data && !aiLoading && (
-        <div>
-          {/* Hero metric */}
-          <div style={{ textAlign: "center", padding: "32px 20px 28px", marginBottom: 24, background: "linear-gradient(180deg, #0f0806 0%, #080604 100%)", borderRadius: 6, border: "1px solid #1e1b1733" }}>
-            <div style={{ fontSize: 9, fontWeight: 600, color: "#4a4840", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 4 }}>Estimated Monthly Recurring (Month 3+)</div>
-            <div style={{ fontSize: 48, fontWeight: 200, color: "#7A0E18", letterSpacing: "-0.03em", lineHeight: 1.1 }}>
-              {fmt(mod.monthlyRecurring)}
-            </div>
-            <div style={{ fontSize: 11, color: "#2a2720", marginTop: 6 }}>/month &middot; moderate scenario &middot; {data.primaryPlatform} {data.primaryFollowers?.toLocaleString()} followers</div>
-          </div>
-
-          {/* 3 scenario cards */}
-          <div style={{ display: "flex", gap: 10, marginBottom: 24 }}>
-            <div style={{ flex: 1, padding: "16px", borderRadius: 4, background: "#080604", border: "1px solid #141210" }}>
-              <div style={{ fontSize: 9, fontWeight: 700, color: "#6b6860", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 12 }}>Conservative</div>
-              <div style={{ fontSize: 11, color: "#6b6860", marginBottom: 4 }}>Launch: <span style={{ color: "#9a9890", fontWeight: 600 }}>{fmt(con.launchRevenue)}</span></div>
-              <div style={{ fontSize: 11, color: "#6b6860", marginBottom: 4 }}>Monthly: <span style={{ color: "#9a9890", fontWeight: 600 }}>{fmt(con.monthlyRecurring)}</span></div>
-              <div style={{ fontSize: 11, color: "#6b6860", marginBottom: 4 }}>Year 1: <span style={{ color: "#E2E4DF", fontWeight: 600 }}>{fmt(con.year1Revenue)}</span></div>
-              <div style={{ fontSize: 11, color: "#6b6860" }}>SL: <span style={{ color: "#7A0E18", fontWeight: 600 }}>{fmt(con.slCommission)}</span></div>
-            </div>
-            <div style={{ flex: 1, padding: "16px", borderRadius: 4, background: "#080604", border: "1px solid #7A0E1833" }}>
-              <div style={{ fontSize: 9, fontWeight: 700, color: "#E2E4DF", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 12 }}>Moderate</div>
-              <div style={{ fontSize: 11, color: "#6b6860", marginBottom: 4 }}>Launch: <span style={{ color: "#E2E4DF", fontWeight: 600 }}>{fmt(mod.launchRevenue)}</span></div>
-              <div style={{ fontSize: 11, color: "#6b6860", marginBottom: 4 }}>Monthly: <span style={{ color: "#E2E4DF", fontWeight: 600 }}>{fmt(mod.monthlyRecurring)}</span></div>
-              <div style={{ fontSize: 11, color: "#6b6860", marginBottom: 4 }}>Year 1: <span style={{ color: "#E2E4DF", fontWeight: 600 }}>{fmt(mod.year1Revenue)}</span></div>
-              <div style={{ fontSize: 11, color: "#6b6860" }}>SL: <span style={{ color: "#7A0E18", fontWeight: 600 }}>{fmt(mod.slCommission)}</span></div>
-            </div>
-            <div style={{ flex: 1, padding: "16px", borderRadius: 4, background: "#080604", border: "1px solid #141210" }}>
-              <div style={{ fontSize: 9, fontWeight: 700, color: "#7A0E18", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 12 }}>Aggressive</div>
-              <div style={{ fontSize: 11, color: "#6b6860", marginBottom: 4 }}>Launch: <span style={{ color: "#9a9890", fontWeight: 600 }}>{fmt(agg.launchRevenue)}</span></div>
-              <div style={{ fontSize: 11, color: "#6b6860", marginBottom: 4 }}>Monthly: <span style={{ color: "#9a9890", fontWeight: 600 }}>{fmt(agg.monthlyRecurring)}</span></div>
-              <div style={{ fontSize: 11, color: "#6b6860", marginBottom: 4 }}>Year 1: <span style={{ color: "#E2E4DF", fontWeight: 600 }}>{fmt(agg.year1Revenue)}</span></div>
-              <div style={{ fontSize: 11, color: "#6b6860" }}>SL: <span style={{ color: "#7A0E18", fontWeight: 600 }}>{fmt(agg.slCommission)}</span></div>
-            </div>
-          </div>
-
-          {/* Adjustable sliders */}
-          <div style={{ padding: "20px 22px", borderRadius: 4, background: "#060503", border: "1px solid #141210", marginBottom: 24 }}>
-            <div style={{ fontSize: 9, fontWeight: 600, color: "#4a4840", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 16 }}>Adjust Parameters</div>
-            <SliderInput label="Core Price" value={price || data.recommendedPrice} onChange={setPrice} min={27} max={2997} step={10} prefix={"\u20AC"} recommended={price === data.recommendedPrice || price === null} />
-            <SliderInput label="SL Commission" value={commission} onChange={setCommission} min={15} max={35} step={1} suffix="%" recommended={commission === 25} />
-          </div>
-
-          {/* Methodology + risks */}
-          <div style={{ padding: "18px 22px", borderRadius: 4, background: "#060503", border: "1px solid #141210", marginBottom: 16 }}>
-            <div style={{ fontSize: 9, fontWeight: 600, color: "#4a4840", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 8 }}>How we calculated</div>
-            <p style={{ fontSize: 12, color: "#6b6860", lineHeight: 1.6, margin: 0 }}>{data.methodology}</p>
-            {data.priceReasoning && <p style={{ fontSize: 11, color: "#7A0E18", marginTop: 8, marginBottom: 0 }}>Price: {data.priceReasoning}</p>}
-          </div>
-
-          <div style={{ display: "flex", gap: 10, marginBottom: 20 }}>
-            <div style={{ flex: 1, padding: "16px 18px", borderRadius: 4, background: "#060503", border: "1px solid #141210" }}>
-              <div style={{ fontSize: 9, fontWeight: 600, color: "#dc2626", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 10 }}>Risks</div>
-              {(data.risks || []).map((r, i) => <div key={i} style={{ fontSize: 11, color: "#6b6860", padding: "3px 0" }}><span style={{ color: "#dc2626", marginRight: 6, fontSize: 7 }}>&#9632;</span>{r}</div>)}
-            </div>
-            <div style={{ flex: 1, padding: "16px 18px", borderRadius: 4, background: "#060503", border: "1px solid #141210" }}>
-              <div style={{ fontSize: 9, fontWeight: 600, color: "#22c55e", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 10 }}>Opportunities</div>
-              {(data.opportunities || []).map((o, i) => <div key={i} style={{ fontSize: 11, color: "#6b6860", padding: "3px 0" }}><span style={{ color: "#22c55e", marginRight: 6, fontSize: 7 }}>&#9632;</span>{o}</div>)}
-            </div>
-          </div>
-
-          <button onClick={runProjection} style={{
-            padding: "8px 20px", borderRadius: 3, border: "1px solid #1e1b17",
-            background: "transparent", color: "#6b6860",
-            fontSize: 11, fontWeight: 500, cursor: "pointer", fontFamily: "inherit",
-          }}>
-            Regenerate
-          </button>
-        </div>
-      )}
+      </div>
     </div>
   );
 }
@@ -474,7 +387,8 @@ export default function OfferBuilder() {
         msg += "\n## SCRAPED SOCIAL MEDIA INTELLIGENCE\n\n";
         for (const [p, d] of Object.entries(scraped)) { if (p !== "_synthesis") msg += "### " + p + "\n" + d + "\n\n"; }
       }
-      msg += "\n---\nGenerate all three outputs now. Follow system instructions and Hormozi frameworks exactly.";
+      const lang = form.language || "English";
+      msg += `\n---\nGenerate all three outputs now. Follow system instructions and Hormozi frameworks exactly.\n\n**IMPORTANT: Write the ENTIRE output in ${lang}.** All section titles, analysis, tables, objection scripts — everything must be in ${lang}.`;
 
       const r = await fetch("/api/generate", {
         method: "POST",
@@ -599,7 +513,7 @@ export default function OfferBuilder() {
 
           <div style={{ padding: "22px 24px", borderRadius: 4, background: "#080604", border: "1px solid #141210", minHeight: 280 }}>
             {tab === "revenue"
-              ? <RevenueProjector form={form} scraped={result.scraped} systemPrompt={SYSTEM_PROMPT} />
+              ? <RevenueProjector form={form} />
               : renderMd(result.parsed[tab])}
           </div>
         </div>}
