@@ -44,7 +44,45 @@ export async function POST(request) {
             messages: [
               {
                 role: 'user',
-                content: `Search the web for information about this ${platform} profile or page: ${url}\n\nProvide a detailed summary of:\n- Account/page name and description\n- Follower/subscriber count if available\n- Recent content themes and posting frequency\n- Engagement patterns\n- Any notable information for crafting a partnership offer`,
+                content: `Search the web for detailed information about this ${platform} creator profile: ${url}
+
+Analyze this creator and structure your response in these exact 5 sections:
+
+## What they already do
+- Content format and style (short-form video, long-form, stories, etc.)
+- Posting frequency and consistency
+- Area of expertise and depth of knowledge
+- Whether they are a genuine specialist, not just a pretty face
+- Key moments of visibility (TV appearances, viral content, awards, press)
+- Quality of engagement (genuine comments, questions, tags — not just passive likes)
+
+## What they have (signs this is the right person)
+- Audience size and engagement rate per platform
+- Proof of monetization: have they sold anything before? (workshops, books, courses, products, events)
+- Reputation: are they a recognized name in their niche or market?
+- Business mindset: do they treat their work as a brand, not just a hobby?
+- Multi-platform presence: Instagram + at least TikTok or YouTube?
+
+## What they DON'T have (gaps we fill)
+- No recurring monthly revenue product — everything is transactional
+- No digital infrastructure: funnels, sales pages, automations, membership platform
+- No paid ads management to acquire community members consistently
+- No time or knowledge to build and manage a paid community
+- No monetization strategy beyond brand deals and one-off products
+
+## Motivations (what makes them say yes)
+- Wants predictable monthly income, not just launch-based revenue
+- Tired of depending on brand deals that can end anytime
+- Feels they have much more to give than free content allows
+- Wants to scale without working double — wants a system, not more hours
+- Proud of their brand and wants to build something meaningful under their name
+
+## Fears (what makes them hesitate)
+- Fear of looking "commercial" and losing authenticity with their audience
+- Unsure if their audience will pay for something beyond free content
+- Has tried or thought about doing it alone and found it too complicated
+- Doesn't want to commit to something that won't deliver results
+- Distrusts agencies that promise a lot without guarantees`,
               },
             ],
           }),

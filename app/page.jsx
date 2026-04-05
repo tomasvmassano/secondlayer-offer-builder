@@ -66,6 +66,7 @@ Pricing: Mini-course 27-497 | Course 197-2997 | Coaching 497-9997 | Community 9-
 
 const INTAKE_FIELDS = [
   { section: "Creator Profile", icon: "01", fields: [
+    { key: "creator_name", label: "Creator Name", placeholder: "e.g. Rita Camoesas", type: "text" },
     { key: "niche", label: "Creator's Niche", placeholder: "e.g. Home workouts for busy moms, Street photography for beginners", type: "text" },
     { key: "platforms", label: "Platforms & Audience Size", placeholder: "e.g. Instagram 85K, YouTube 12K, TikTok 200K", type: "text" },
     { key: "engagement", label: "Engagement Rate / Avg Views", placeholder: "e.g. 4.2% IG engagement, 8K avg views on YouTube", type: "text" },
@@ -113,9 +114,9 @@ function Badge({ status }) {
 
 function parseOutput(text) {
   const s = { offer: "", blindspots: "", objections: "" };
-  const a = text.match(/###?\s*OUTPUT 1[:\s\-]*(?:THE )?(?:GRAND SLAM )?OFFER([\s\S]*?)(?=###?\s*OUTPUT 2|$)/i);
-  const b = text.match(/###?\s*OUTPUT 2[:\s\-]*BLIND SPOT AUDIT([\s\S]*?)(?=###?\s*OUTPUT 3|$)/i);
-  const c = text.match(/###?\s*OUTPUT 3[:\s\-]*OBJECTION HANDLING([\s\S]*?)$/i);
+  const a = text.match(/#{1,3}\s*OUTPUT 1[:\s\-]*(?:THE )?(?:GRAND SLAM )?OFFER([\s\S]*?)(?=#{1,3}\s*OUTPUT 2|$)/i);
+  const b = text.match(/#{1,3}\s*OUTPUT 2[:\s\-]*BLIND SPOT AUDIT([\s\S]*?)(?=#{1,3}\s*OUTPUT 3|$)/i);
+  const c = text.match(/#{1,3}\s*OUTPUT 3[:\s\-]*OBJECTION HANDLING([\s\S]*?)$/i);
   if (a) s.offer = a[1].trim();
   if (b) s.blindspots = b[1].trim();
   if (c) s.objections = c[1].trim();
@@ -181,7 +182,182 @@ const TABS = [
   { key: "offer", label: "Grand Slam Offer" },
   { key: "blindspots", label: "Blind Spot Audit" },
   { key: "objections", label: "Objection Playbook" },
+  { key: "revenue", label: "Revenue Projector" },
 ];
+
+function extractAudience(platforms) {
+  if (!platforms) return 0;
+  const nums = platforms.match(/(\d+(?:[.,]\d+)?)\s*[kKmM]?/g) || [];
+  let total = 0;
+  nums.forEach(n => {
+    let v = parseFloat(n.replace(",", "."));
+    if (/k/i.test(n)) v *= 1000;
+    if (/m/i.test(n)) v *= 1000000;
+    total += v;
+  });
+  return Math.round(total);
+}
+
+const REVENUE_PROMPT = `You are a revenue analyst for Second Layer, an agency that builds monetization backends for content creators.
+
+Given the creator's profile, audience data, niche, and revenue projection inputs, provide a sharp analysis in markdown:
+
+## Niche Benchmarks
+Compare their niche to typical conversion rates. Be specific — cite the niche, not generic stats.
+
+## Risk Factors
+3-5 specific risks that could reduce projected revenue (audience mismatch, price sensitivity, seasonality, etc.)
+
+## Upside Opportunities
+3-5 specific opportunities to exceed projections (viral potential, underserved niche, high pain point, etc.)
+
+## Pricing Recommendation
+Based on the niche and audience, recommend optimal price point with reasoning. Reference Hormozi's value equation.
+
+## Comparison
+Compare to similar creators who have monetized in this niche. What did they charge? What worked?
+
+Be direct, specific to this creator, and use conservative estimates. No filler.`;
+
+function SliderInput({ label, value, onChange, min, max, step, suffix, prefix }) {
+  return (
+    <div style={{ marginBottom: 18 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+        <span style={{ fontSize: 10, fontWeight: 600, color: "#4a4840", letterSpacing: "0.05em", textTransform: "uppercase" }}>{label}</span>
+        <span style={{ fontSize: 13, fontWeight: 600, color: "#E2E4DF" }}>{prefix || ""}{typeof value === "number" ? value.toLocaleString() : value}{suffix || ""}</span>
+      </div>
+      <input type="range" min={min} max={max} step={step || 1} value={value} onChange={e => onChange(Number(e.target.value))}
+        style={{ width: "100%", height: 4, appearance: "none", background: "#1e1b17", borderRadius: 2, outline: "none", cursor: "pointer", accentColor: "#7A0E18" }} />
+      <div style={{ display: "flex", justifyContent: "space-between", fontSize: 9, color: "#2a2720", marginTop: 3 }}>
+        <span>{prefix || ""}{min.toLocaleString()}{suffix || ""}</span>
+        <span>{prefix || ""}{max.toLocaleString()}{suffix || ""}</span>
+      </div>
+    </div>
+  );
+}
+
+function ScenarioCard({ title, color, data }) {
+  return (
+    <div style={{ flex: 1, padding: "18px 16px", borderRadius: 4, background: "#080604", border: `1px solid ${color}22` }}>
+      <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color, marginBottom: 14 }}>{title}</div>
+      {data.map((row, i) => (
+        <div key={i} style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", borderBottom: i < data.length - 1 ? "1px solid #0f0d0a" : "none" }}>
+          <span style={{ fontSize: 11, color: "#6b6860" }}>{row.label}</span>
+          <span style={{ fontSize: 13, fontWeight: 600, color: row.highlight ? color : "#E2E4DF" }}>{row.value}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function RevenueProjector({ form, scraped, systemPrompt }) {
+  const [audience, setAudience] = useState(() => extractAudience(form.platforms) || 50000);
+  const [optIn, setOptIn] = useState(5);
+  const [conversion, setConversion] = useState(5);
+  const [price, setPrice] = useState(197);
+  const [churn, setChurn] = useState(8);
+  const [upsellRate, setUpsellRate] = useState(10);
+  const [upsellPrice, setUpsellPrice] = useState(497);
+  const [commission, setCommission] = useState(25);
+  const [aiAnalysis, setAiAnalysis] = useState(null);
+  const [aiLoading, setAiLoading] = useState(false);
+
+  const calc = (optMult) => {
+    const leads = Math.round(audience * (optIn / 100) * optMult);
+    const customers = Math.round(leads * (conversion / 100) * optMult);
+    const launchRev = customers * price;
+    const upsellCustomers = Math.round(customers * (upsellRate / 100));
+    const upsellRev = upsellCustomers * upsellPrice;
+    const month1 = launchRev + upsellRev;
+    const monthlyRecurring = Math.round(customers * (1 - churn / 100) * (price < 100 ? price : price * 0.15));
+    const year1 = month1 + (monthlyRecurring * 11);
+    const slCommission = Math.round(year1 * (commission / 100));
+    const ltv = churn > 0 ? Math.round(price / (churn / 100)) : price * 12;
+    return { leads, customers, month1, monthlyRecurring, year1, slCommission, ltv };
+  };
+
+  const conservative = calc(0.6);
+  const moderate = calc(1.0);
+  const aggressive = calc(1.5);
+
+  const fmt = (n) => "\u20AC" + n.toLocaleString();
+
+  const rows = (d) => [
+    { label: "Leads (opt-ins)", value: d.leads.toLocaleString() },
+    { label: "Customers", value: d.customers.toLocaleString() },
+    { label: "Launch month", value: fmt(d.month1), highlight: true },
+    { label: "Monthly recurring", value: fmt(d.monthlyRecurring) },
+    { label: "Year 1 total", value: fmt(d.year1), highlight: true },
+    { label: "SL commission", value: fmt(d.slCommission), highlight: true },
+    { label: "LTV / customer", value: fmt(d.ltv) },
+  ];
+
+  const runAi = async () => {
+    setAiLoading(true);
+    try {
+      const msg = `Creator: ${form.creator_name || "Unknown"}\nNiche: ${form.niche || "Unknown"}\nPlatforms: ${form.platforms || "Unknown"}\nAudience: ${audience.toLocaleString()}\nOpt-in rate: ${optIn}%\nConversion rate: ${conversion}%\nPrice: ${price} EUR\nChurn: ${churn}%/mo\nUpsell rate: ${upsellRate}% at ${upsellPrice} EUR\n\nProjections:\n- Conservative Y1: ${fmt(conservative.year1)}\n- Moderate Y1: ${fmt(moderate.year1)}\n- Aggressive Y1: ${fmt(aggressive.year1)}\n\n${scraped && Object.keys(scraped).length ? "Scraped intelligence:\n" + Object.entries(scraped).map(([p, d]) => `${p}: ${d}`).join("\n\n") : ""}\n\nAnalyze these projections for this specific creator and niche.`;
+      const r = await fetch("/api/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ system: REVENUE_PROMPT, message: msg }),
+      });
+      if (!r.ok) throw new Error("API error");
+      const d = await r.json();
+      const text = d.content?.map(c => c.text || "").join("\n") || "";
+      setAiAnalysis(text);
+    } catch (e) { setAiAnalysis("Error: " + e.message); }
+    finally { setAiLoading(false); }
+  };
+
+  return (
+    <div>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20, marginBottom: 28 }}>
+        <div>
+          <SliderInput label="Total Audience" value={audience} onChange={setAudience} min={1000} max={1000000} step={1000} />
+          <SliderInput label="Opt-in Rate" value={optIn} onChange={setOptIn} min={1} max={15} step={0.5} suffix="%" />
+          <SliderInput label="Conversion Rate" value={conversion} onChange={setConversion} min={1} max={40} step={0.5} suffix="%" />
+          <SliderInput label="Core Price" value={price} onChange={setPrice} min={27} max={2997} step={10} prefix={"\u20AC"} />
+        </div>
+        <div>
+          <SliderInput label="Monthly Churn" value={churn} onChange={setChurn} min={1} max={25} step={0.5} suffix="%" />
+          <SliderInput label="Upsell Rate" value={upsellRate} onChange={setUpsellRate} min={0} max={30} step={1} suffix="%" />
+          <SliderInput label="Upsell Price" value={upsellPrice} onChange={setUpsellPrice} min={97} max={9997} step={50} prefix={"\u20AC"} />
+          <SliderInput label="SL Commission" value={commission} onChange={setCommission} min={15} max={35} step={1} suffix="%" />
+        </div>
+      </div>
+
+      <div style={{ display: "flex", gap: 12, marginBottom: 28 }}>
+        <ScenarioCard title="Conservative" color="#6b6860" data={rows(conservative)} />
+        <ScenarioCard title="Moderate" color="#E2E4DF" data={rows(moderate)} />
+        <ScenarioCard title="Aggressive" color="#7A0E18" data={rows(aggressive)} />
+      </div>
+
+      <div style={{ borderTop: "1px solid #141210", paddingTop: 20 }}>
+        <button onClick={runAi} disabled={aiLoading} style={{
+          padding: "10px 24px", borderRadius: 3, border: "none",
+          background: aiLoading ? "#3a1015" : "#7A0E18", color: "#E2E4DF",
+          fontSize: 12, fontWeight: 600, cursor: aiLoading ? "wait" : "pointer", fontFamily: "inherit",
+        }}>
+          {aiLoading ? "Analyzing..." : "Get AI Analysis"}
+        </button>
+        <span style={{ marginLeft: 12, fontSize: 11, color: "#2a2720" }}>Claude will analyze these projections for this specific niche</span>
+      </div>
+
+      {aiLoading && (
+        <div style={{ marginTop: 20, textAlign: "center", padding: 20 }}>
+          <div style={{ width: 20, height: 20, margin: "0 auto 10px", border: "2px solid #141210", borderTopColor: "#7A0E18", borderRadius: "50%", animation: "sl-spin 0.8s linear infinite" }} />
+          <p style={{ fontSize: 11, color: "#4a4840" }}>Running revenue analysis...</p>
+        </div>
+      )}
+
+      {aiAnalysis && !aiLoading && (
+        <div style={{ marginTop: 20, padding: "20px 22px", borderRadius: 4, background: "#060503", border: "1px solid #141210" }}>
+          {renderMd(aiAnalysis)}
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function OfferBuilder() {
   const [form, setForm] = useState({});
@@ -207,7 +383,9 @@ export default function OfferBuilder() {
       });
       if (!r.ok) throw new Error("Scrape failed");
       const data = await r.json();
-      return data.profiles || {};
+      const profiles = {};
+      (data.results || []).forEach(r => { if (r.content) profiles[r.platform] = r.content; });
+      return profiles;
     } catch { return {}; }
   };
 
@@ -241,7 +419,7 @@ export default function OfferBuilder() {
     const b = new Blob([result.raw], { type: "text/markdown" });
     const u = URL.createObjectURL(b);
     const a = document.createElement("a"); a.href = u;
-    a.download = "SL-offer-" + (form.niche?.replace(/\s+/g, "-")?.toLowerCase() || "export") + ".md";
+    a.download = "SL-offer-" + (form.creator_name?.replace(/\s+/g, "-")?.toLowerCase() || form.niche?.replace(/\s+/g, "-")?.toLowerCase() || "export") + ".md";
     a.click(); URL.revokeObjectURL(u);
   };
 
@@ -309,9 +487,22 @@ export default function OfferBuilder() {
         </div>}
 
         {result && <div ref={ref}>
+          <div style={{ marginBottom: 28, padding: "28px 24px", borderRadius: 6, background: "#080604", border: "1px solid #141210" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+              <img src={LOGO_B64} alt="Second Layer" style={{ height: 14, opacity: 0.6 }} />
+              <span style={{ fontSize: 9, color: "#2a2720", letterSpacing: "0.08em", textTransform: "uppercase" }}>Offer Analysis</span>
+            </div>
+            <h2 style={{ fontSize: 22, fontWeight: 300, margin: "0 0 4px", letterSpacing: "-0.01em" }}>
+              {form.creator_name ? <><span style={{ color: "#7A0E18", fontWeight: 600 }}>{form.creator_name}</span> &mdash; </> : ""}Grand Slam Offer
+            </h2>
+            <p style={{ fontSize: 12, color: "#4a4840", margin: 0 }}>
+              {form.niche || "Creator offer"}{form.platforms ? ` \u00B7 ${form.platforms}` : ""}
+            </p>
+          </div>
+
           {result.scraped && Object.keys(result.scraped).length > 0 && (
             <div style={{ marginBottom: 16, padding: "8px 14px", borderRadius: 3, background: "#7A0E1808", border: "1px solid #141210", fontSize: 11, color: "#4a4840" }}>
-              Social intelligence: {Object.keys(result.scraped).join(", ")}
+              Social intelligence gathered: {Object.keys(result.scraped).join(", ")}
             </div>
           )}
 
@@ -327,7 +518,9 @@ export default function OfferBuilder() {
           </div>
 
           <div style={{ padding: "22px 24px", borderRadius: 4, background: "#080604", border: "1px solid #141210", minHeight: 280 }}>
-            {renderMd(result.parsed[tab])}
+            {tab === "revenue"
+              ? <RevenueProjector form={form} scraped={result.scraped} systemPrompt={SYSTEM_PROMPT} />
+              : renderMd(result.parsed[tab])}
           </div>
         </div>}
       </div>
