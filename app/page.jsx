@@ -278,15 +278,20 @@ function RevenueProjector({ form }) {
   const [price, setPrice] = useState(197);
   const [commission, setCommission] = useState(25);
 
-  // Scenario parameters: [VR, LR, CR, P, Churn]
+  // Scenario multipliers (% of followers that become active paying clients)
+  // Based on: Active Clients ≈ F × multiplier
+  // Moderate multiplier 0.00675 derived from VR=15%, LR=3%, CR=8%, P=15, Churn=8%
   const scenarios = {
-    conservative: { VR: 0.10, LR: 0.02, CR: 0.05, P: 10, churn: 0.10, label: "Conservative", pctRange: "0.2% - 0.4%", color: "#6b6860", border: "#141210" },
-    moderate:     { VR: 0.15, LR: 0.03, CR: 0.08, P: 15, churn: 0.08, label: "Moderate",     pctRange: "0.5% - 1.0%", color: "#E2E4DF", border: "#7A0E1833" },
-    aggressive:   { VR: 0.22, LR: 0.05, CR: 0.12, P: 20, churn: 0.06, label: "Aggressive",   pctRange: "1.0% - 3.0%", color: "#7A0E18", border: "#141210" },
+    conservative: { mult: 0.003,   label: "Conservative", pctRange: "0.2% - 0.4%", churn: 0.10, color: "#6b6860", border: "#141210",
+                    VR: 0.10, LR: 0.02, CR: 0.05, P: 10 },
+    moderate:     { mult: 0.00675, label: "Moderate",     pctRange: "0.5% - 1.0%", churn: 0.08, color: "#E2E4DF", border: "#7A0E1833",
+                    VR: 0.15, LR: 0.03, CR: 0.08, P: 15 },
+    aggressive:   { mult: 0.02,    label: "Aggressive",   pctRange: "1.0% - 3.0%", churn: 0.06, color: "#7A0E18", border: "#141210",
+                    VR: 0.22, LR: 0.05, CR: 0.12, P: 20 },
   };
 
   const calc = (s) => {
-    const activeClients = Math.round((F * s.VR * s.LR * s.CR * s.P) / s.churn);
+    const activeClients = Math.round(F * s.mult);
     const monthlyRevenue = activeClients * price;
     const year1 = monthlyRevenue * 12;
     const slComm = Math.round(year1 * (commission / 100));
