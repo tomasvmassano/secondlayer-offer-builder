@@ -174,13 +174,25 @@ Synthesize into these exact sections. Be specific — use real numbers, real pro
 - What might hold them back based on how they present themselves?
 - Any evidence of failed launches or negative experiences?
 
+## Primary Conversion Platform
+Determine which platform is this creator's PRIMARY conversion channel — where their most engaged, loyal, ready-to-buy audience lives. Consider:
+- Niche type: visual/lifestyle → Instagram, education/tutorials → YouTube, trend/entertainment → TikTok
+- Engagement depth: which platform has the most genuine comments, questions, saves?
+- Content depth: where do they share the most valuable, in-depth content?
+- Audience intent: where are followers most likely to buy?
+
+State clearly: "Primary platform: [PLATFORM] with [X] followers — this is the buyer pool."
+Other platforms are awareness/funnel channels that drive people to the primary.
+
 ## Key Numbers Summary
 | Metric | Value |
 |--------|-------|
+| Primary platform | X |
+| Primary platform followers (buyer pool) | X |
 | Instagram followers | X |
 | TikTok followers | X |
 | YouTube subscribers | X |
-| Avg engagement rate | X% |
+| Primary platform engagement rate | X% |
 | Products sold before | Yes/No (list) |
 | Estimated audience value | Low/Medium/High |`,
             },

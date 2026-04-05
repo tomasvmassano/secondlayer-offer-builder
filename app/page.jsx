@@ -197,121 +197,232 @@ function extractAudience(platforms) {
   return Math.round(total);
 }
 
-const REVENUE_PROMPT = `You are a revenue projection specialist for Second Layer, an agency that builds monetization backends for content creators.
+const REVENUE_PROMPT = `You are a revenue projection specialist for Second Layer.
 
-Given the creator's data, generate a SPECIFIC revenue projection in markdown. Use real numbers. Be conservative.
+CRITICAL: Identify the PRIMARY CONVERSION PLATFORM first. Do NOT sum followers across platforms — most overlap. Use the primary platform's followers as the buyer pool. Other platforms are awareness channels.
 
-## Revenue Projection
+Respond with ONLY valid JSON, no markdown, no explanation. The JSON must match this exact structure:
+{
+  "primaryPlatform": "Instagram",
+  "primaryFollowers": 27000,
+  "engagementRate": 3.5,
+  "recommendedPrice": 197,
+  "priceReasoning": "One sentence why this price",
+  "conservative": {
+    "optInRate": 3,
+    "conversionRate": 2,
+    "customers": 16,
+    "monthlyRecurring": 1580,
+    "launchRevenue": 3150,
+    "year1Revenue": 22000,
+    "slCommission": 5500
+  },
+  "moderate": {
+    "optInRate": 5,
+    "conversionRate": 4,
+    "customers": 54,
+    "monthlyRecurring": 5300,
+    "launchRevenue": 10638,
+    "year1Revenue": 69000,
+    "slCommission": 17250
+  },
+  "aggressive": {
+    "optInRate": 8,
+    "conversionRate": 6,
+    "customers": 130,
+    "monthlyRecurring": 12700,
+    "launchRevenue": 25610,
+    "year1Revenue": 165000,
+    "slCommission": 41250
+  },
+  "risks": ["risk 1", "risk 2", "risk 3"],
+  "opportunities": ["opportunity 1", "opportunity 2", "opportunity 3"],
+  "methodology": "2-3 sentences explaining the conversion rates used and why"
+}
 
-Create a table with 3 scenarios. Base your estimates on:
-- Their ACTUAL follower count and engagement rate
-- Market benchmarks for their specific niche
-- Whether they've sold before (higher conversion if yes)
-- Typical price points for their audience's purchasing power
+Base ALL numbers on the creator's ACTUAL follower count and niche benchmarks. Be conservative. Every number must be justified.`;
 
-| Metric | Conservative | Moderate | Aggressive |
-|--------|-------------|----------|------------|
-| Followers reached (organic launch) | X | X | X |
-| Email/opt-in leads | X | X | X |
-| Paying customers | X | X | X |
-| Core offer price | X | X | X |
-| Launch revenue | X | X | X |
-| Monthly recurring (if applicable) | X | X | X |
-| Year 1 total revenue | X | X | X |
-| Second Layer commission (25%) | X | X | X |
+function SliderInput({ label, value, onChange, min, max, step, suffix, prefix, recommended }) {
+  return (
+    <div style={{ marginBottom: 16 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 5 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          <span style={{ fontSize: 10, fontWeight: 600, color: "#4a4840", letterSpacing: "0.05em", textTransform: "uppercase" }}>{label}</span>
+          {recommended && <span style={{ fontSize: 8, fontWeight: 600, color: "#7A0E18", letterSpacing: "0.06em", padding: "1px 5px", borderRadius: 2, border: "1px solid #7A0E1833", textTransform: "uppercase" }}>Recommended</span>}
+        </div>
+        <span style={{ fontSize: 13, fontWeight: 600, color: "#E2E4DF" }}>{prefix || ""}{typeof value === "number" ? value.toLocaleString() : value}{suffix || ""}</span>
+      </div>
+      <input type="range" min={min} max={max} step={step || 1} value={value} onChange={e => onChange(Number(e.target.value))}
+        style={{ width: "100%", height: 4, appearance: "none", background: "#1e1b17", borderRadius: 2, outline: "none", cursor: "pointer", accentColor: "#7A0E18" }} />
+    </div>
+  );
+}
 
-## How We Got These Numbers
-Explain the conversion rates used and WHY they apply to this specific niche and audience. Reference similar creators who have monetized.
-
-## Recommended Pricing
-Based on audience purchasing power and niche benchmarks, recommend the optimal price point. Use Hormozi's value equation.
-
-## Risk Factors
-3 specific risks for this creator's revenue.
-
-## Upside Opportunities
-3 specific opportunities to exceed projections.
-
-Be direct and specific. Every number should be justified by the creator's actual data.`;
+function MetricCard({ label, value, sub, large }) {
+  return (
+    <div style={{ flex: 1, padding: large ? "24px 20px" : "14px 16px", borderRadius: 4, background: "#080604", border: "1px solid #141210", textAlign: "center" }}>
+      <div style={{ fontSize: 9, fontWeight: 600, color: "#4a4840", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: large ? 8 : 4 }}>{label}</div>
+      <div style={{ fontSize: large ? 36 : 20, fontWeight: 300, color: large ? "#7A0E18" : "#E2E4DF", letterSpacing: "-0.02em" }}>{value}</div>
+      {sub && <div style={{ fontSize: 10, color: "#2a2720", marginTop: 4 }}>{sub}</div>}
+    </div>
+  );
+}
 
 function RevenueProjector({ form, scraped }) {
-  const [aiAnalysis, setAiAnalysis] = useState(null);
+  const [data, setData] = useState(null);
+  const [price, setPrice] = useState(null);
+  const [commission, setCommission] = useState(25);
   const [aiLoading, setAiLoading] = useState(false);
   const [hasRun, setHasRun] = useState(false);
+  const [aiDetail, setAiDetail] = useState(null);
 
-  const runAi = async () => {
+  const fmt = (n) => "\u20AC" + Math.round(n).toLocaleString();
+
+  const runProjection = async () => {
     setAiLoading(true);
     try {
-      const scrapedText = scraped && Object.keys(scraped).length
-        ? Object.entries(scraped).filter(([k]) => k !== "_synthesis").map(([p, d]) => `${p}: ${d}`).join("\n\n")
-        : "";
       const synthesis = scraped?._synthesis || "";
+      const scrapedText = scraped ? Object.entries(scraped).filter(([k]) => k !== "_synthesis").map(([p, d]) => `${p}: ${d}`).join("\n\n") : "";
 
       const msg = `Creator: ${form.creator_name || "Unknown"}
 Niche: ${form.niche || "Unknown"}
 Platforms: ${form.platforms || "Unknown"}
 Engagement: ${form.engagement || "Unknown"}
 Target price range: ${form.price_range || "Let the system decide"}
-Delivery format: ${form.format || "Undecided"}
+Format: ${form.format || "Undecided"}
 
-${synthesis ? "## Creator Intelligence Report\n" + synthesis : ""}
-${scrapedText ? "\n## Raw Platform Data\n" + scrapedText : ""}
+${synthesis ? "## Creator Intelligence\n" + synthesis : ""}
+${scrapedText ? "\n## Platform Data\n" + scrapedText : ""}
 
-Generate the revenue projection based on this creator's ACTUAL numbers. If follower counts or engagement rates were found in the research, use those exact numbers.`;
+Return ONLY the JSON. No markdown fences. No explanation outside JSON.`;
 
-      const r = await fetch("/api/generate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ system: REVENUE_PROMPT, message: msg }),
-      });
+      const r = await fetch("/api/generate", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ system: REVENUE_PROMPT, message: msg }) });
       if (!r.ok) throw new Error("API error");
       const d = await r.json();
-      const text = d.content?.map(c => c.text || "").join("\n") || "";
-      setAiAnalysis(text);
+      const text = d.content?.map(c => c.text || "").join("") || "";
+      const jsonMatch = text.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) throw new Error("Invalid response");
+      const parsed = JSON.parse(jsonMatch[0]);
+      setData(parsed);
+      setPrice(parsed.recommendedPrice);
       setHasRun(true);
-    } catch (e) { setAiAnalysis("Error: " + e.message); }
+    } catch (e) { setAiDetail("Error: " + e.message); }
     finally { setAiLoading(false); }
   };
+
+  // Recalculate with adjusted price/commission
+  const adjust = (d, scenario) => {
+    if (!d || !data) return scenario;
+    const ratio = (price || data.recommendedPrice) / data.recommendedPrice;
+    const commRate = commission / 100;
+    return {
+      ...scenario,
+      monthlyRecurring: Math.round(scenario.monthlyRecurring * ratio),
+      launchRevenue: Math.round(scenario.launchRevenue * ratio),
+      year1Revenue: Math.round(scenario.year1Revenue * ratio),
+      slCommission: Math.round(scenario.year1Revenue * ratio * commRate),
+    };
+  };
+
+  const mod = data ? adjust(data, data.moderate) : null;
+  const con = data ? adjust(data, data.conservative) : null;
+  const agg = data ? adjust(data, data.aggressive) : null;
 
   return (
     <div>
       {!hasRun && !aiLoading && (
-        <div style={{ textAlign: "center", padding: "40px 20px" }}>
-          <p style={{ fontSize: 14, color: "#6b6860", margin: "0 0 6px" }}>
-            Revenue projections based on <span style={{ color: "#E2E4DF", fontWeight: 600 }}>{form.creator_name || "this creator"}</span>&apos;s actual audience data
+        <div style={{ textAlign: "center", padding: "48px 20px" }}>
+          <p style={{ fontSize: 15, color: "#6b6860", margin: "0 0 6px", fontWeight: 300 }}>
+            Revenue projection for <span style={{ color: "#E2E4DF", fontWeight: 500 }}>{form.creator_name || "this creator"}</span>
           </p>
-          <p style={{ fontSize: 11, color: "#2a2720", margin: "0 0 24px" }}>
-            Uses follower counts, engagement rates, and niche benchmarks from the research
+          <p style={{ fontSize: 11, color: "#2a2720", margin: "0 0 28px" }}>
+            Based on actual follower data, engagement rates, and niche benchmarks
           </p>
-          <button onClick={runAi} style={{
-            padding: "12px 32px", borderRadius: 3, border: "none",
+          <button onClick={runProjection} style={{
+            padding: "12px 36px", borderRadius: 3, border: "none",
             background: "#7A0E18", color: "#E2E4DF",
             fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "inherit",
           }}>
-            Generate Revenue Projection
+            Generate Projection
           </button>
         </div>
       )}
 
       {aiLoading && (
-        <div style={{ textAlign: "center", padding: "40px 20px" }}>
-          <div style={{ width: 20, height: 20, margin: "0 auto 12px", border: "2px solid #141210", borderTopColor: "#7A0E18", borderRadius: "50%", animation: "sl-spin 0.8s linear infinite" }} />
-          <p style={{ fontSize: 12, color: "#4a4840" }}>Calculating revenue projections for {form.creator_name || "this creator"}...</p>
+        <div style={{ textAlign: "center", padding: "48px 20px" }}>
+          <div style={{ width: 22, height: 22, margin: "0 auto 14px", border: "2px solid #141210", borderTopColor: "#7A0E18", borderRadius: "50%", animation: "sl-spin 0.8s linear infinite" }} />
+          <p style={{ fontSize: 12, color: "#4a4840" }}>Projecting revenue...</p>
         </div>
       )}
 
-      {aiAnalysis && !aiLoading && (
+      {data && !aiLoading && (
         <div>
-          {renderMd(aiAnalysis)}
-          <div style={{ marginTop: 20, borderTop: "1px solid #141210", paddingTop: 16 }}>
-            <button onClick={runAi} style={{
-              padding: "8px 20px", borderRadius: 3, border: "1px solid #1e1b17",
-              background: "transparent", color: "#6b6860",
-              fontSize: 11, fontWeight: 500, cursor: "pointer", fontFamily: "inherit",
-            }}>
-              Regenerate
-            </button>
+          {/* Hero metric */}
+          <div style={{ textAlign: "center", padding: "32px 20px 28px", marginBottom: 24, background: "linear-gradient(180deg, #0f0806 0%, #080604 100%)", borderRadius: 6, border: "1px solid #1e1b1733" }}>
+            <div style={{ fontSize: 9, fontWeight: 600, color: "#4a4840", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 4 }}>Estimated Monthly Recurring (Month 3+)</div>
+            <div style={{ fontSize: 48, fontWeight: 200, color: "#7A0E18", letterSpacing: "-0.03em", lineHeight: 1.1 }}>
+              {fmt(mod.monthlyRecurring)}
+            </div>
+            <div style={{ fontSize: 11, color: "#2a2720", marginTop: 6 }}>/month &middot; moderate scenario &middot; {data.primaryPlatform} {data.primaryFollowers?.toLocaleString()} followers</div>
           </div>
+
+          {/* 3 scenario cards */}
+          <div style={{ display: "flex", gap: 10, marginBottom: 24 }}>
+            <div style={{ flex: 1, padding: "16px", borderRadius: 4, background: "#080604", border: "1px solid #141210" }}>
+              <div style={{ fontSize: 9, fontWeight: 700, color: "#6b6860", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 12 }}>Conservative</div>
+              <div style={{ fontSize: 11, color: "#6b6860", marginBottom: 4 }}>Launch: <span style={{ color: "#9a9890", fontWeight: 600 }}>{fmt(con.launchRevenue)}</span></div>
+              <div style={{ fontSize: 11, color: "#6b6860", marginBottom: 4 }}>Monthly: <span style={{ color: "#9a9890", fontWeight: 600 }}>{fmt(con.monthlyRecurring)}</span></div>
+              <div style={{ fontSize: 11, color: "#6b6860", marginBottom: 4 }}>Year 1: <span style={{ color: "#E2E4DF", fontWeight: 600 }}>{fmt(con.year1Revenue)}</span></div>
+              <div style={{ fontSize: 11, color: "#6b6860" }}>SL: <span style={{ color: "#7A0E18", fontWeight: 600 }}>{fmt(con.slCommission)}</span></div>
+            </div>
+            <div style={{ flex: 1, padding: "16px", borderRadius: 4, background: "#080604", border: "1px solid #7A0E1833" }}>
+              <div style={{ fontSize: 9, fontWeight: 700, color: "#E2E4DF", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 12 }}>Moderate</div>
+              <div style={{ fontSize: 11, color: "#6b6860", marginBottom: 4 }}>Launch: <span style={{ color: "#E2E4DF", fontWeight: 600 }}>{fmt(mod.launchRevenue)}</span></div>
+              <div style={{ fontSize: 11, color: "#6b6860", marginBottom: 4 }}>Monthly: <span style={{ color: "#E2E4DF", fontWeight: 600 }}>{fmt(mod.monthlyRecurring)}</span></div>
+              <div style={{ fontSize: 11, color: "#6b6860", marginBottom: 4 }}>Year 1: <span style={{ color: "#E2E4DF", fontWeight: 600 }}>{fmt(mod.year1Revenue)}</span></div>
+              <div style={{ fontSize: 11, color: "#6b6860" }}>SL: <span style={{ color: "#7A0E18", fontWeight: 600 }}>{fmt(mod.slCommission)}</span></div>
+            </div>
+            <div style={{ flex: 1, padding: "16px", borderRadius: 4, background: "#080604", border: "1px solid #141210" }}>
+              <div style={{ fontSize: 9, fontWeight: 700, color: "#7A0E18", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 12 }}>Aggressive</div>
+              <div style={{ fontSize: 11, color: "#6b6860", marginBottom: 4 }}>Launch: <span style={{ color: "#9a9890", fontWeight: 600 }}>{fmt(agg.launchRevenue)}</span></div>
+              <div style={{ fontSize: 11, color: "#6b6860", marginBottom: 4 }}>Monthly: <span style={{ color: "#9a9890", fontWeight: 600 }}>{fmt(agg.monthlyRecurring)}</span></div>
+              <div style={{ fontSize: 11, color: "#6b6860", marginBottom: 4 }}>Year 1: <span style={{ color: "#E2E4DF", fontWeight: 600 }}>{fmt(agg.year1Revenue)}</span></div>
+              <div style={{ fontSize: 11, color: "#6b6860" }}>SL: <span style={{ color: "#7A0E18", fontWeight: 600 }}>{fmt(agg.slCommission)}</span></div>
+            </div>
+          </div>
+
+          {/* Adjustable sliders */}
+          <div style={{ padding: "20px 22px", borderRadius: 4, background: "#060503", border: "1px solid #141210", marginBottom: 24 }}>
+            <div style={{ fontSize: 9, fontWeight: 600, color: "#4a4840", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 16 }}>Adjust Parameters</div>
+            <SliderInput label="Core Price" value={price || data.recommendedPrice} onChange={setPrice} min={27} max={2997} step={10} prefix={"\u20AC"} recommended={price === data.recommendedPrice || price === null} />
+            <SliderInput label="SL Commission" value={commission} onChange={setCommission} min={15} max={35} step={1} suffix="%" recommended={commission === 25} />
+          </div>
+
+          {/* Methodology + risks */}
+          <div style={{ padding: "18px 22px", borderRadius: 4, background: "#060503", border: "1px solid #141210", marginBottom: 16 }}>
+            <div style={{ fontSize: 9, fontWeight: 600, color: "#4a4840", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 8 }}>How we calculated</div>
+            <p style={{ fontSize: 12, color: "#6b6860", lineHeight: 1.6, margin: 0 }}>{data.methodology}</p>
+            {data.priceReasoning && <p style={{ fontSize: 11, color: "#7A0E18", marginTop: 8, marginBottom: 0 }}>Price: {data.priceReasoning}</p>}
+          </div>
+
+          <div style={{ display: "flex", gap: 10, marginBottom: 20 }}>
+            <div style={{ flex: 1, padding: "16px 18px", borderRadius: 4, background: "#060503", border: "1px solid #141210" }}>
+              <div style={{ fontSize: 9, fontWeight: 600, color: "#dc2626", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 10 }}>Risks</div>
+              {(data.risks || []).map((r, i) => <div key={i} style={{ fontSize: 11, color: "#6b6860", padding: "3px 0" }}><span style={{ color: "#dc2626", marginRight: 6, fontSize: 7 }}>&#9632;</span>{r}</div>)}
+            </div>
+            <div style={{ flex: 1, padding: "16px 18px", borderRadius: 4, background: "#060503", border: "1px solid #141210" }}>
+              <div style={{ fontSize: 9, fontWeight: 600, color: "#22c55e", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 10 }}>Opportunities</div>
+              {(data.opportunities || []).map((o, i) => <div key={i} style={{ fontSize: 11, color: "#6b6860", padding: "3px 0" }}><span style={{ color: "#22c55e", marginRight: 6, fontSize: 7 }}>&#9632;</span>{o}</div>)}
+            </div>
+          </div>
+
+          <button onClick={runProjection} style={{
+            padding: "8px 20px", borderRadius: 3, border: "1px solid #1e1b17",
+            background: "transparent", color: "#6b6860",
+            fontSize: 11, fontWeight: 500, cursor: "pointer", fontFamily: "inherit",
+          }}>
+            Regenerate
+          </button>
         </div>
       )}
     </div>
@@ -453,26 +564,20 @@ export default function OfferBuilder() {
 
         {result && <div ref={ref}>
           <div style={{ marginBottom: 28, padding: "28px 24px", borderRadius: 6, background: "#080604", border: "1px solid #141210" }}>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
               <img src={LOGO_B64} alt="Second Layer" style={{ height: 14, opacity: 0.6 }} />
               <span style={{ fontSize: 9, color: "#2a2720", letterSpacing: "0.08em", textTransform: "uppercase" }}>Offer Analysis</span>
             </div>
             {form.creator_name && (
-              <h2 style={{ fontSize: 24, fontWeight: 600, margin: "0 0 2px", color: "#7A0E18", letterSpacing: "-0.01em" }}>
+              <h2 style={{ fontSize: 26, fontWeight: 600, margin: "0 0 10px", color: "#E2E4DF", letterSpacing: "-0.02em" }}>
                 {form.creator_name}
               </h2>
             )}
-            <p style={{ fontSize: 13, color: "#E2E4DF", margin: "0 0 6px", fontWeight: 300 }}>
-              Grand Slam Offer
-            </p>
             {(() => {
               const promiseMatch = (result.raw || "").match(/(?:Core Promise|B\.\s*Core Promise)[:\s]*"?([^"\n]+)"?/i);
-              if (promiseMatch) return <p style={{ fontSize: 12, color: "#7A0E18", margin: "0 0 6px", fontStyle: "italic", maxWidth: 520 }}>&ldquo;{promiseMatch[1].trim()}&rdquo;</p>;
+              if (promiseMatch) return <p style={{ fontSize: 14, color: "#7A0E18", margin: 0, fontWeight: 400, lineHeight: 1.5, maxWidth: 560 }}>{promiseMatch[1].trim()}</p>;
               return null;
             })()}
-            <p style={{ fontSize: 11, color: "#4a4840", margin: 0 }}>
-              {form.niche || "Creator offer"}{form.platforms ? ` \u00B7 ${form.platforms}` : ""}
-            </p>
           </div>
 
           {result.scraped && Object.keys(result.scraped).length > 0 && (
