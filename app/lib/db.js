@@ -1,35 +1,57 @@
-import { kv } from '@vercel/kv';
+import { Redis } from '@upstash/redis';
 import { nanoid } from 'nanoid';
 
-// In-memory fallback for local dev (no KV configured)
+// In-memory fallback for local dev (no Redis configured)
 const memStore = new Map();
 const memIndex = [];
 
+function getRedisConfig() {
+  // Try all possible env var names that Vercel/Upstash might set
+  const url = process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL || null;
+  const token = process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN || null;
+  if (url && token) return { url, token };
+  return null;
+}
+
 function useMemory() {
-  return !process.env.KV_REST_API_URL;
+  return !getRedisConfig();
+}
+
+let _redis = null;
+function getRedis() {
+  if (!_redis) {
+    const config = getRedisConfig();
+    if (!config) throw new Error('Redis not configured');
+    _redis = new Redis({ url: config.url, token: config.token });
+  }
+  return _redis;
 }
 
 export async function saveOffer(data) {
   const id = nanoid(9);
-  const offer = {
+  const summary = {
     id,
     creatorName: data.formData?.creator_name || 'Unknown',
     niche: data.formData?.niche || '',
     primaryPlatform: data.formData?.primary_platform || 'Instagram',
+    createdAt: new Date().toISOString(),
+  };
+  const offer = {
+    ...summary,
     language: data.formData?.language || 'English',
     formData: data.formData,
     rawOutput: data.rawOutput,
     parsed: data.parsed,
     scraped: data.scraped,
-    createdAt: new Date().toISOString(),
   };
 
   if (useMemory()) {
     memStore.set(`offer:${id}`, JSON.stringify(offer));
-    memIndex.unshift({ id, creatorName: offer.creatorName, niche: offer.niche, primaryPlatform: offer.primaryPlatform, createdAt: offer.createdAt });
+    memIndex.unshift(summary);
   } else {
-    await kv.set(`offer:${id}`, JSON.stringify(offer));
-    await kv.zadd('offers:index', { score: Date.now(), member: JSON.stringify({ id, creatorName: offer.creatorName, niche: offer.niche, primaryPlatform: offer.primaryPlatform, createdAt: offer.createdAt }) });
+    const redis = getRedis();
+    await redis.set(`offer:${id}`, JSON.stringify(offer));
+    await redis.zadd('offers:index', { score: Date.now(), member: JSON.stringify(summary) });
   }
   return { id };
 }
@@ -39,7 +61,8 @@ export async function getOffer(id) {
     const raw = memStore.get(`offer:${id}`);
     return raw ? JSON.parse(raw) : null;
   }
-  const raw = await kv.get(`offer:${id}`);
+  const redis = getRedis();
+  const raw = await redis.get(`offer:${id}`);
   if (!raw) return null;
   return typeof raw === 'string' ? JSON.parse(raw) : raw;
 }
@@ -48,6 +71,7 @@ export async function listOffers() {
   if (useMemory()) {
     return memIndex;
   }
-  const members = await kv.zrange('offers:index', 0, -1, { rev: true });
+  const redis = getRedis();
+  const members = await redis.zrange('offers:index', 0, -1, { rev: true });
   return members.map(m => typeof m === 'string' ? JSON.parse(m) : m);
 }
