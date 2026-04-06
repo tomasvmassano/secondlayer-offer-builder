@@ -58,12 +58,50 @@ J. Naming & Positioning (3 options + statement)
 ### OUTPUT 3: OBJECTION HANDLING PLAYBOOK
 12 mandatory + 3-5 dynamic niche-specific. Use ACA Framework. Each: Objection | Psychology | Reframe | Proof Point | Closing Question.
 
+## NICHE PRICING DATABASE (EUR - monthly community pricing)
+Use this EXACT pricing for the creator's niche. Match to the closest niche. If no match, estimate and flag.
+
+| Niche | Low | Mid | High | ROI | Tier |
+|-------|-----|-----|------|-----|------|
+| Imobiliario & Investimento | 49 | 97 | 297 | Very high | A |
+| Fitness & Performance Coaching | 19 | 39 | 79 | High | A |
+| Empreendedorismo & Business | 49 | 97 | 247 | Very high | A |
+| Nutricao & Dietetica | 19 | 37 | 69 | High | A |
+| Culinaria & Gastronomia | 9 | 24 | 49 | Medium | A |
+| Financas Pessoais & Investimento | 29 | 59 | 149 | Very high | A |
+| Educacao & Desenvolvimento Pessoal | 19 | 39 | 97 | High | A |
+| Saude Mental & Bem-estar | 14 | 29 | 59 | Medium | B |
+| Moda & Estilo de Vida | 9 | 19 | 39 | Low | B |
+| Viagem & Nomada Digital | 14 | 29 | 69 | Medium | B |
+| Fotografia & Conteudo Visual | 14 | 29 | 79 | High | B |
+| Parentalidade & Familia | 9 | 19 | 39 | Medium | B |
+| Beleza & Cuidado Pessoal | 9 | 19 | 39 | Low | C |
+| Gaming & Entretenimento | 5 | 12 | 25 | Low | C |
+
+### Pricing Logic
+- New creators (no previous sales): use WTP Mid
+- Creators with proven sales: use WTP High
+- Small/weak audience (<10K, low engagement): use WTP Low
+- If niche not in table: estimate from closest match and flag assumption
+
+### Monthly Community vs One-Time Launch
+Prioritize MONTHLY COMMUNITY when: niche has ongoing value, audience needs sustained support, churn <10%, creator can commit 2+ hrs/week, ROI is High or Very high.
+Prioritize ONE-TIME LAUNCH when: value delivered upfront, creator cannot do ongoing involvement, ROI is Low.
+HYBRID (recommended for Tier A): one-time program as core + monthly community as upsell.
+
+### ROI-Based Anchoring
+- Very high ROI: anchor against outcome value ("1 deal pays 3 years of membership")
+- High ROI: anchor against professional alternatives ("less than 1 PT session")
+- Medium ROI: anchor against convenience and exclusivity
+- Low ROI: anchor against entertainment value, keep prices low
+
+### CRITICAL: The monthly price you set in Section E (Value Stack) and Section G (Pricing Strategy) MUST be stated clearly as "RECOMMENDED MONTHLY PRICE: €XX" on its own line in Section G. This price will be used in the Revenue Projector.
+
 ## BENCHMARKS (EUR, flag when used)
 Email conversion: 1-10% | Followers to opt-in: 1-15% | Webinar to purchase: 5-40% | DM close: 10-50% | Community churn: 3-20%/mo | Course completion: 5-60% | Refund rate: 1-10%
-Pricing: Mini-course 27-497 | Course 197-2997 | Coaching 497-9997 | Community 9-297/mo | 1:1 997-25000+
 
 ## RULES
-1. Reference the specific creator/niche. Nothing generic. 2. Name Hormozi frameworks explicitly. 3. Flag assumptions. 4. Conservative estimates. 5. Push back on weak markets. 6. Direct professional tone, zero filler. 7. Same structure every run.`;
+1. Reference the specific creator/niche. Nothing generic. 2. Name Hormozi frameworks explicitly. 3. Flag assumptions. 4. Conservative estimates. 5. Push back on weak markets. 6. Direct professional tone, zero filler. 7. Same structure every run. 8. ALWAYS use the niche pricing database above. 9. Tier A niches should be highlighted as strongest business cases. 10. Markets are Portugal and Dubai, currency is EUR.`;
 
 const INTAKE_FIELDS = [
   { section: "Creator Profile", icon: "01", fields: [
@@ -161,7 +199,7 @@ function SliderInput({ label, value, onChange, min, max, step, suffix, prefix, r
   );
 }
 
-function RevenueProjector({ form }) {
+function RevenueProjector({ form, rawOutput }) {
   const platform = form.primary_platform || "Instagram";
 
   const getPlatformFollowers = () => {
@@ -179,7 +217,18 @@ function RevenueProjector({ form }) {
 
   const F = getPlatformFollowers();
 
-  const [price, setPrice] = useState(197);
+  // Extract recommended price from offer output
+  const getOfferPrice = () => {
+    if (!rawOutput) return 197;
+    const match = rawOutput.match(/RECOMMENDED MONTHLY PRICE:\s*€?\s*(\d+)/i);
+    if (match) return parseInt(match[1], 10);
+    // Fallback: look for primary offer price patterns
+    const fallback = rawOutput.match(/€(\d+)\/m(?:o|ês|onth)/i);
+    if (fallback) return parseInt(fallback[1], 10);
+    return 197;
+  };
+
+  const [price, setPrice] = useState(() => getOfferPrice());
   const [commission, setCommission] = useState(25);
 
   // Scenario multipliers (% of followers that become active paying clients)
@@ -251,7 +300,7 @@ function RevenueProjector({ form }) {
       {/* Adjustable sliders */}
       <div style={{ padding: "20px 22px", borderRadius: 4, background: "#060503", border: "1px solid #141210", marginBottom: 24 }}>
         <div style={{ fontSize: 9, fontWeight: 600, color: "#4a4840", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 16 }}>Adjust Parameters</div>
-        <SliderInput label="Monthly Price" value={price} onChange={setPrice} min={9} max={997} step={1} prefix={"\u20AC"} recommended={price === 197} />
+        <SliderInput label="Monthly Price" value={price} onChange={setPrice} min={5} max={997} step={1} prefix={"\u20AC"} recommended={price === getOfferPrice()} />
         <SliderInput label="SL Commission" value={commission} onChange={setCommission} min={15} max={35} step={1} suffix="%" recommended={commission === 25} />
       </div>
 
@@ -495,7 +544,7 @@ export default function OfferBuilder() {
 
           <div style={{ padding: "22px 24px", borderRadius: 4, background: "#080604", border: "1px solid #141210", minHeight: 280 }}>
             {tab === "revenue"
-              ? <RevenueProjector form={form} />
+              ? <RevenueProjector form={form} rawOutput={result?.raw} />
               : renderMd(result.parsed[tab])}
           </div>
         </div>}
