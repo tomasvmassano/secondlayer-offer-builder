@@ -214,6 +214,39 @@ export default function OfferView() {
           {promiseMatch && <p style={{ fontSize: 14, color: "#7A0E18", margin: 0, fontWeight: 400, lineHeight: 1.5, maxWidth: 560 }}>{promiseMatch[1].trim().replace(/^[""]|[""]$/g, "")}</p>}
         </div>
 
+        {offer.scraped?._profiles?.instagram && (
+          <div style={{ marginBottom: 20, padding: "18px 22px", borderRadius: 6, background: "#080604", border: "1px solid #141210" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#E2E4DF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="2" width="20" height="20" rx="5" ry="5"/><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"/></svg>
+              <span style={{ fontSize: 11, fontWeight: 600, color: "#E2E4DF", letterSpacing: "0.04em", textTransform: "uppercase" }}>Instagram Profile</span>
+              {offer.scraped._profiles.instagram.verified && <span style={{ fontSize: 8, fontWeight: 600, color: "#3b82f6", letterSpacing: "0.06em", padding: "1px 5px", borderRadius: 2, border: "1px solid #3b82f633", textTransform: "uppercase" }}>Verified</span>}
+            </div>
+            {offer.scraped._profiles.instagram.biography && (
+              <p style={{ fontSize: 13, color: "#c5c3be", margin: "0 0 12px", lineHeight: 1.6, whiteSpace: "pre-line" }}>
+                {offer.scraped._profiles.instagram.biography}
+              </p>
+            )}
+            {offer.scraped._profiles.instagram.externalUrls?.length > 0 && (
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                {offer.scraped._profiles.instagram.externalUrls.map((url, i) => (
+                  <a key={i} href={url} target="_blank" rel="noopener noreferrer" style={{ fontSize: 12, color: "#7A0E18", textDecoration: "none", display: "flex", alignItems: "center", gap: 6 }}>
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+                    {url}
+                  </a>
+                ))}
+              </div>
+            )}
+            <div style={{ display: "flex", gap: 16, marginTop: 12, paddingTop: 10, borderTop: "1px solid #141210" }}>
+              {offer.scraped._profiles.instagram.followersCount != null && (
+                <span style={{ fontSize: 11, color: "#6b6860" }}>Followers: <span style={{ color: "#E2E4DF", fontWeight: 600 }}>{offer.scraped._profiles.instagram.followersCount.toLocaleString()}</span></span>
+              )}
+              {offer.scraped._profiles.instagram.postsCount != null && (
+                <span style={{ fontSize: 11, color: "#6b6860" }}>Posts: <span style={{ color: "#E2E4DF", fontWeight: 600 }}>{offer.scraped._profiles.instagram.postsCount.toLocaleString()}</span></span>
+              )}
+            </div>
+          </div>
+        )}
+
         <div style={{ display: "flex", gap: 0, marginBottom: 20, borderBottom: "1px solid #141210" }}>
           {TABS.map(t => <button key={t.key} onClick={() => setTab(t.key)} style={{
             padding: "11px 18px", border: "none", background: "transparent",

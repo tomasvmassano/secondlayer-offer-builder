@@ -212,8 +212,26 @@ Other platforms are awareness/funnel channels that drive people to the primary.
     }
   }
 
+  // Extract structured profile data for display (biography, externalUrls, etc.)
+  // When using Apify, these come directly from the scraper response.
+  // Map platform -> key fields for the frontend.
+  const profiles = {};
+  profileResults.forEach(r => {
+    if (r.profileData) {
+      profiles[r.platform] = {
+        biography: r.profileData.biography || null,
+        externalUrls: r.profileData.externalUrls || [],
+        followersCount: r.profileData.followersCount ?? null,
+        postsCount: r.profileData.postsCount ?? null,
+        verified: r.profileData.verified || false,
+        fullName: r.profileData.fullName || null,
+      };
+    }
+  });
+
   return NextResponse.json({
     results: profileResults,
     synthesis,
+    profiles,
   });
 }
