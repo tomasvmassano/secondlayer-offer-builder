@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getOffer } from '../../../lib/db';
+import { getOffer } from '../../../offer-builder/lib/db';
 
 export async function GET(request, { params }) {
   try {
