@@ -1,7 +1,8 @@
 "use client";
 import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
-import { renderMd, extractAudience } from "../../lib/shared";
+import { renderMd, extractAudience } from "../../offer-builder/lib/shared";
+import { SCENARIOS as SHARED_SCENARIOS, calculateSteadyMRR } from "../../lib/revenue";
 
 const TABS = [
   { key: "offer", label: "Grand Slam Offer" },
@@ -47,26 +48,37 @@ function RevenueProjector({ form }) {
   const [price, setPrice] = useState(197);
   const [commission, setCommission] = useState(25);
 
+  // Use SHARED revenue scenarios + Hormozi 5-step formula — single source of truth.
+  // Same numbers as Pitch deck and Creator page Revenue Projector.
   const scenarios = {
-    conservative: { mult: 0.003, label: "Conservative", pctRange: "0.2% - 0.4%", churn: 0.10, color: "#6b6860", border: "#141210", VR: 0.10, LR: 0.02, CR: 0.05, P: 10 },
-    moderate: { mult: 0.00675, label: "Moderate", pctRange: "0.5% - 1.0%", churn: 0.08, color: "#E2E4DF", border: "#7A0E1833", VR: 0.15, LR: 0.03, CR: 0.08, P: 15 },
-    aggressive: { mult: 0.02, label: "Aggressive", pctRange: "1.0% - 3.0%", churn: 0.06, color: "#7A0E18", border: "#141210", VR: 0.22, LR: 0.05, CR: 0.12, P: 20 },
+    conservative: { ...SHARED_SCENARIOS.conservador, label: "Conservative", pctRange: "0.2% - 0.4%", color: "#6b6860", border: "#141210" },
+    moderate:     { ...SHARED_SCENARIOS.moderado,    label: "Moderate",     pctRange: "0.5% - 1.0%", color: "#E2E4DF", border: "#7A0E1833" },
+    aggressive:   { ...SHARED_SCENARIOS.agressivo,   label: "Aggressive",   pctRange: "1.0% - 3.0%", color: "#7A0E18", border: "#141210" },
   };
 
+  // Default engagement of 2% if not available from form (matches benchmark)
+  const engagementRate = 2.0;
+
   const calc = (s) => {
-    const activeClients = Math.round(F * s.mult);
-    const monthlyRevenue = activeClients * price;
-    const year1 = monthlyRevenue * 12;
+    const steady = calculateSteadyMRR({ audience: F, price, engagementRate, scenario: s });
+    const year1 = steady.annualRevenue;
     const slComm = Math.round(year1 * (commission / 100));
     const ltv = s.churn > 0 ? Math.round(price / s.churn) : price * 12;
-    const pctOfFollowers = F > 0 ? ((activeClients / F) * 100).toFixed(2) : "0";
-    return { activeClients, monthlyRevenue, year1, slComm, ltv, pctOfFollowers };
+    const pctOfFollowers = F > 0 ? ((steady.activeMembers / F) * 100).toFixed(2) : "0";
+    return {
+      activeClients: steady.activeMembers,
+      monthlyRevenue: steady.monthlyRevenue,
+      year1,
+      slComm,
+      ltv,
+      pctOfFollowers,
+    };
   };
 
   const con = calc(scenarios.conservative);
   const mod = calc(scenarios.moderate);
   const agg = calc(scenarios.aggressive);
-  const simplified = Math.round(F * 0.00675);
+  const simplified = mod.activeClients;
   const fmt = (n) => "\u20AC" + Math.round(n).toLocaleString();
 
   return (
@@ -178,7 +190,7 @@ export default function OfferView() {
     <div style={{ minHeight: "100vh", background: "#010300", color: "#E2E4DF", fontFamily: "'Helvetica Neue',Helvetica,Arial,sans-serif", display: "flex", alignItems: "center", justifyContent: "center" }}>
       <div style={{ textAlign: "center" }}>
         <p style={{ fontSize: 14, color: "#dc2626", marginBottom: 16 }}>Offer not found</p>
-        <a href="/" style={{ color: "#7A0E18", fontSize: 12, textDecoration: "none" }}>Back to Builder</a>
+        <a href="/offer-builder" style={{ color: "#7A0E18", fontSize: 12, textDecoration: "none" }}>Back to Builder</a>
       </div>
     </div>
   );
@@ -197,7 +209,7 @@ export default function OfferView() {
           <span style={{ fontSize: 10, fontWeight: 600, letterSpacing: "0.12em", textTransform: "uppercase", color: "#4a4840" }}>Offer Builder</span>
         </div>
         <div style={{ display: "flex", gap: 6 }}>
-          <a href="/" style={{ padding: "6px 14px", borderRadius: 3, border: "1px solid #1e1b17", background: "transparent", color: "#6b6860", fontSize: 11, fontWeight: 500, cursor: "pointer", fontFamily: "inherit", textDecoration: "none" }}>Back to Builder</a>
+          <a href="/offer-builder" style={{ padding: "6px 14px", borderRadius: 3, border: "1px solid #1e1b17", background: "transparent", color: "#6b6860", fontSize: 11, fontWeight: 500, cursor: "pointer", fontFamily: "inherit", textDecoration: "none" }}>Back to Builder</a>
           <a href="/dashboard" style={{ padding: "6px 14px", borderRadius: 3, border: "1px solid #1e1b17", background: "transparent", color: "#6b6860", fontSize: 11, fontWeight: 500, cursor: "pointer", fontFamily: "inherit", textDecoration: "none" }}>Dashboard</a>
         </div>
       </div>
@@ -213,39 +225,6 @@ export default function OfferView() {
           )}
           {promiseMatch && <p style={{ fontSize: 14, color: "#7A0E18", margin: 0, fontWeight: 400, lineHeight: 1.5, maxWidth: 560 }}>{promiseMatch[1].trim().replace(/^[""]|[""]$/g, "")}</p>}
         </div>
-
-        {offer.scraped?._profiles?.instagram && (
-          <div style={{ marginBottom: 20, padding: "18px 22px", borderRadius: 6, background: "#080604", border: "1px solid #141210" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#E2E4DF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="2" width="20" height="20" rx="5" ry="5"/><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"/></svg>
-              <span style={{ fontSize: 11, fontWeight: 600, color: "#E2E4DF", letterSpacing: "0.04em", textTransform: "uppercase" }}>Instagram Profile</span>
-              {offer.scraped._profiles.instagram.verified && <span style={{ fontSize: 8, fontWeight: 600, color: "#3b82f6", letterSpacing: "0.06em", padding: "1px 5px", borderRadius: 2, border: "1px solid #3b82f633", textTransform: "uppercase" }}>Verified</span>}
-            </div>
-            {offer.scraped._profiles.instagram.biography && (
-              <p style={{ fontSize: 13, color: "#c5c3be", margin: "0 0 12px", lineHeight: 1.6, whiteSpace: "pre-line" }}>
-                {offer.scraped._profiles.instagram.biography}
-              </p>
-            )}
-            {offer.scraped._profiles.instagram.externalUrls?.length > 0 && (
-              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                {offer.scraped._profiles.instagram.externalUrls.map((url, i) => (
-                  <a key={i} href={url} target="_blank" rel="noopener noreferrer" style={{ fontSize: 12, color: "#7A0E18", textDecoration: "none", display: "flex", alignItems: "center", gap: 6 }}>
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
-                    {url}
-                  </a>
-                ))}
-              </div>
-            )}
-            <div style={{ display: "flex", gap: 16, marginTop: 12, paddingTop: 10, borderTop: "1px solid #141210" }}>
-              {offer.scraped._profiles.instagram.followersCount != null && (
-                <span style={{ fontSize: 11, color: "#6b6860" }}>Followers: <span style={{ color: "#E2E4DF", fontWeight: 600 }}>{offer.scraped._profiles.instagram.followersCount.toLocaleString()}</span></span>
-              )}
-              {offer.scraped._profiles.instagram.postsCount != null && (
-                <span style={{ fontSize: 11, color: "#6b6860" }}>Posts: <span style={{ color: "#E2E4DF", fontWeight: 600 }}>{offer.scraped._profiles.instagram.postsCount.toLocaleString()}</span></span>
-              )}
-            </div>
-          </div>
-        )}
 
         <div style={{ display: "flex", gap: 0, marginBottom: 20, borderBottom: "1px solid #141210" }}>
           {TABS.map(t => <button key={t.key} onClick={() => setTab(t.key)} style={{

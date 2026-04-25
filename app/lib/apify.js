@@ -43,7 +43,7 @@ async function runApifyActor(actorId, input) {
  * Scrape Instagram profile via Apify
  * Returns structured creator data
  */
-async function scrapeInstagram(username) {
+export async function scrapeInstagram(username) {
   // Run Instagram scraper and bot detector in parallel
   const [items, botResult] = await Promise.all([
     runApifyActor('apify~instagram-scraper', {
@@ -75,7 +75,8 @@ async function scrapeInstagram(username) {
   const botScore = botData?.botScore ?? botData?.bot_score ?? null;
 
   // Related profiles (competitors suggested by Instagram)
-  const related = (p.relatedProfiles || p.similarAccounts || []).slice(0, 5).map(r => ({
+  // Capture up to 15 — Instagram typically returns 8-12, we keep whatever is available.
+  const related = (p.relatedProfiles || p.similarAccounts || []).slice(0, 15).map(r => ({
     username: r.username || '',
     fullName: r.fullName || r.full_name || '',
     followers: r.followersCount || r.edge_followed_by?.count || 0,
@@ -112,9 +113,60 @@ async function scrapeInstagram(username) {
 }
 
 /**
+ * Lean Instagram scrape for discovery pipeline — skips bot detector and
+ * related profiles lookup. Returns just what's needed for deal scoring.
+ * ~€0.15 per call vs ~€0.30 for full scrapeInstagram.
+ */
+export async function scrapeInstagramBasic(username) {
+  if (!APIFY_TOKEN) return null;
+
+  const items = await runApifyActor('apify~instagram-scraper', {
+    directUrls: [`https://www.instagram.com/${username}/`],
+    resultsType: 'details',
+    resultsLimit: 1,
+  }).catch(() => null);
+
+  if (!items || items.length === 0) return null;
+  const p = items[0];
+
+  const posts = p.latestPosts || p.recentPosts || [];
+  let avgLikes = 0, avgComments = 0;
+  if (posts.length > 0) {
+    avgLikes = Math.round(posts.reduce((s, post) => s + (post.likesCount || post.likes || 0), 0) / posts.length);
+    avgComments = Math.round(posts.reduce((s, post) => s + (post.commentsCount || post.comments || 0), 0) / posts.length);
+  }
+  const followers = p.followersCount || p.followers || 0;
+  const following = p.followsCount || p.followingCount || p.following || 0;
+  const engagementRate = followers > 0 ? (((avgLikes + avgComments) / followers) * 100).toFixed(2) + '%' : '0%';
+
+  return {
+    username,
+    name: p.fullName || p.name || p.username || username,
+    bio: p.biography || p.bio || p.description || '',
+    followers,
+    following,
+    postCount: p.postsCount || p.mediaCount || p.postCount || 0,
+    isVerified: p.verified || p.isVerified || false,
+    isBusinessAccount: p.isBusinessAccount || p.isBusiness || false,
+    externalUrl: p.externalUrl || p.externalUrlShimmed || p.website || '',
+    profilePicUrl: p.profilePicUrlHD || p.profilePicUrl || p.profilePic || '',
+    engagementRate,
+    avgLikes,
+    avgComments,
+    followerFollowingRatio: following > 0 ? (followers / following).toFixed(1) : '0',
+    recentPosts: posts.slice(0, 6).map(post => ({
+      caption: (post.caption || '').slice(0, 200),
+      likes: post.likesCount || post.likes || 0,
+      comments: post.commentsCount || post.comments || 0,
+      type: post.type || 'image',
+    })),
+  };
+}
+
+/**
  * Scrape Linktree / bio link pages for product URLs
  */
-async function scrapeBioLinks(url) {
+export async function scrapeBioLinks(url) {
   if (!url) return [];
   // Only scrape known link-in-bio services
   const bioServices = ['linktr.ee', 'linktree.com', 'beacons.ai', 'stan.store', 'carrd.co', 'taplink.cc', 'allmylinks.com', 'linkin.bio', 'bio.link', 'linkr.bio'];

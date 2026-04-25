@@ -3,6 +3,7 @@
 import { useState, useCallback } from "react";
 import { calculateDealScore } from "../../../lib/dealScore";
 import { renderMd } from "../../../offer-builder/lib/shared";
+import KickoffSection from "./KickoffSection";
 
 // ─── Constants ───
 const LAUNCH_PHASES = [
@@ -36,6 +37,7 @@ const TIMELINE_PHASES = [
 
 const SIDEBAR_TABS = [
   { key: "overview", label: "Overview", icon: "◻" },
+  { key: "kickoff", label: "Kickoff", icon: "✦" },
   { key: "strategy", label: "Strategy", icon: "◈" },
   { key: "brand", label: "Brand", icon: "◉" },
   { key: "build", label: "Build", icon: "▤" },
@@ -563,6 +565,11 @@ export default function WorkspaceDashboard({ creator, params, patchCreator, savi
                 </div>
               ))}
             </div>
+          )}
+
+          {/* ════════════ KICKOFF TAB ════════════ */}
+          {wsTab === "kickoff" && (
+            <KickoffSection creator={creator} params={params} patchCreator={patchCreator} />
           )}
 
           {/* ════════════ ANALYTICS TAB ════════════ */}

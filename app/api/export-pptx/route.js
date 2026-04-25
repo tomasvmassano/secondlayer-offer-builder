@@ -1,318 +1,697 @@
 import PptxGenJS from "pptxgenjs";
 
-const LOGO_B64 =
-  "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAMgAAAAlCAAAAAAi6fkeAAAAAmJLR0QA/4ePzL8AAAAHdElNRQfqBAUPLQic+FFWAAAMFklEQVRYw9WZa5RVxZXHf1V17u3m0djIw+ahIMjwUERNWhF1RE2MGXVgotEYkYUzLsaMOk5MUNFgcAZxEoKDS8UHiHGJ6FLBKGrQJqCiYAMqKCgSlIciCA1N87qPc6r+8+He7ttgs2Y+gGtmf7nrVu29q/5Vu/brGAAwgmOP67D3q7VA2Q9eE4ebOp7QoWu/kwcNX3zYNTcnAyMX5CQlX0354TlzNx72BSzDazZIqq9k/LRp99gjhqP9PGnl9dUDzhpbJ+lJ3BFYpeyDOHkVNkrbj4R6AJN6U/6ZCICK2jj5JdHhX8OyROE27IdxvOYIAXHcqLiukpS1Nk11oqEc/rs3dNoVwmDMR9JfjxAQY1d6/aloTobVSSfMETitv5O+ag1HCEgERl36oG2msHnrP229ncPvteBCsXS/DYeaNhaDCAIwHLgF0/jXWEwjU2ncGhOBUYdyH3VSKE7tWI3zhx2Gt+dj5nMoIJZQXNOYwLcOsgmGL3BZqTTufKDwqnPB6azKBlOYbNhcOiQTMAql/whDCaU1zQeMNSEU2GjGhEPGxif0M34hh8IR6DLguM7Ubf1snWyw7QPZTGm6VTnUgw2+w2m9KxvWv7+9cCJt0mSy1qdOH3A0AG2/CXk93uiq2lcU99VoyaYJxkGrN70kA65p9iC2ohYzWmG1o+U3Yjn3pV2SJGUXXoCNFtXtWJoqTb+zo+4RnOP4R7+RJNVN7YzF8ciOHbcYrvlUhQtyPK58ooOcroV2Vz02b/59pxWQOKgaPePV15+4uMRw4p1P/3nB/T8qYLU9fjjmDykc7W947oVri/ANlP/kifl/voo5ITxI1CIQyzg1kpeuhtsUdG7xDCzVki4izZU7m9jWV2Mdz0i/ZZKUT7KFxXru9kms65ojcXS6p+GLu3/+mnLnYsHSe0b2g3F/f/Hrer7cgIGhNXrt2otuy2v+sRw9edHGjDSXNFfslaSbcYDF/OJrP2vUmH0//VQajmsJiOU6xcrX/G7M2IfXKBf2dKfr7jg8WgTi+H3wn0aWEQrKvjz+1gc+UV47+5HiKe+vv1yJ5HcUNV2l2CcaVUJi+elGPRJBt32ag8Nww26NBBiZaCzO0nqqchcDnJHVqnYV1/5mjbLJTyx36InfNuSSJRhwnLBAS3sDl2/drYbOmBaAGCq3x37FIADKpiqr0fC0/Ja2RYbU2qBxmIHZWO8MBEjflMupNoqYqfDoJu2bNqzvMY3Hf4fyPtHIRiSWCdJESEcDYl+Ds0xVdjA2cmUr49xbRHSr1e7vETmbYmGiu4Argt9Vxe27quElhbcwOM7eqoVlRJHrnFVYgGnpjTguC7nsyUQuiiKiTT5MgqHK67Lipf6tQrYXzJf/oA3OOQeX+byugZmKM/pk0AHK7lXeJ0VZHPdJL+NMxL9Kk0kzTRpBCijbKj2E6bJG4UpSQGSmBL/KlkX3hDCPK/aeQJmrCeExnOWsPVrfGYeh214f7iRqCUjEvdKaoo9I8ap0P859FMJsLOB4IIRX4Qx5fyYpAJNmpnytZabyYcfxpJwxJSQPK+999kwsOG5RXFeFtRy1wef7wW3ys4kAy/AFD1Wa9GKFWYXri/i9QkMnWCqN6JodQoqyTQXYvbYrOR8HlpO8D4OxtGhaJ5w39FRjXeQM8HHQFMr5N/ndVRig1cagy2Fy0HslkcEh5PsxSxmNI3WANsfTihNt6miM5XSf06+IHMyWboTTEp/p09yvTlK+oVvBHzseDWFvd3pmQqbL8luIDCcmyhyHS70nTScCHJdKm8qB/yFFKT91lnKaQoqqBq/RRDguVPiqDbwbwoPp1ul0Op1Ol6U7bg+6mmeV5PscFBaMtXOVxPojzrjl8l8flYJ2Lyh/MxFvKjzTGBCsSZlBSU6/a/KOrwdtO5prpNkTa4iIGK2whIjbFe/qYgwQMT6EWQWBFoCYFNDr4lunz1vrpbymEDmeCmEhBsf0oMmY8i/ld36x/osirc/m/XieldY2+SfT9Nt6uZIkGQBXKqOJEF2zTW8OIcU5inVRqUaxvKBkX49GyfR6hVp4MsRzVneyBsvzIUzEdG2IdV9ByvC2NOrQQBjwhw/2FgLE1rqkAOQchdzfYGm7JSSDoMNOeTWnoMd5VqHm25m6pU+Dz+lOzKIQZ87+0WNb9MbF4BzTQ9jerhniHplELxUVWE5K8mESrb5QJvkHHNB6s3QeTFCc74sFLL0yyh5f0NBSHPlVRlK8ftGsCVdVvSFNIcLYFUF3UMYwhXewVG6X37+zRPV1DQ/zjPRi0wHfVd24xYiJyoTn6JcPIfvRqjn/3B2wEH0mLaCZX/gXZZpiTsQvlQ/VnB7yerXwsM+WtlZQviFoUWNS8BuFZUUNLbjff5TXupsGtAHgraApRDhuUlhpHbOCriMi+qvC5I5VHYvUqaqqS3tmSi80AVlxYePlWHNKiPU6o5QNd3cBsA4MPbI+zChZlmNmiON+RSlDbdACuDXkfTUWIu4KYQ6crVy4gwgwps0mH+4tIv/2jVRsSZIPOwG4KGUXFIAYOu8K4Qw6bA91HTCWmqAHDzaiZkBsWdfyxsOWtu5z2kNfGTN3i3XOBI+JaF/mzdamG3GBXibauqGQyFoNqfaMgx+YaMkyE8BzPqYGhkhmGQKcbjg2MfNRi3Wn5dSq4P5je5kBnyShorCQ3LY/wQh+3JGXdjhZlsEQnClS+c9GjOzRvP6zXTqd3MxqnFhFJVZZg/cCqxhBs1TeizZoS7bxwdylaOq7dKyWeRoHRlXfM8lC6G5c+BKBTXqN96m65YSiEmGNbdyRcaZzMPrCxQIi9R2YFPYjpsMwO1z8ERF4xfhTzvGRJMnp9GeeerLNAUD6aFhj2WJN71bBzGMfgYpCrIxCu6vZmXWmW4HJWF1aQVZmT8GyIn/Zhfb9X0ecWcn+V/BgGdyWz9YaO1gu5BBWqYfXY2obnEYVIolRrNDkfWJlrDc9feQiZ5LU1LSXIgvBLP6QY0dV8/G7JhDMe+8bTa2MrXMuSrgziRd80ry6sf35/hU+Xdzk6BDV1LLCBDMs2Mg5khNX9ufrdehMgzUmUrhvrGe11BoBUXLcA2bd8IzlAlH7ZaEyO09aJD06yAd3DGkX9PqqT5zeMv6hc/MOQOnePUvUq2c2OE3olfeJ1xnzzzfOtErygA0zjL+vyswMFjDhdhuftHBI8N4nR0+/0KcmH2iij8TZb04Baw38PK/dfeHoOp/ffylAekw8gRRjtF+jAWj13Oq2MFRJfQdSLqJimVb0wGJXhFCoZwyLgkby8CsjlAkvAD2XLGZD0EX811JjDKz0sc82o73ZKS8rq/qZd429f1GszJrEb/73qzAYOtYHhX3dCxZkGa9Y4S8Tb/z1jM3KalohjW/yWvMlxTe0A6rGJ6q/AGsZISXJ8zdfP3Vb7hqcMeWLley/rXenAWM2v9EKY3lIeghg0FrNOApr6OsV+hf92Iokt/gva1qVfamc3po0W0vL2+3O599f+lEhFK3WwTS1544mU2u45HplYj2HA8cM7Q9zGp2qY2xSEprmbHRAHMk++7Pb31N2+fyVkub2L9RQV2+UJOUe64YDQ+WTWUnS5hvAgOHObfrg7jte3FFzHhgc/5TJ1JricuMkLWoP3/9MkjQpIr1S0outCyf7bn3dzua0beeD9J9diOtfP96P7mslPVKISGf4vC5pcvyW6ufqJUmZN4cDjsfq659sDAP/eTvQ75KhPbWxdt6yQk1vQ8V5/VI71yzf09T16DO4a/nOD99VsUFBxyGnVe79fOGGYj+jfWv21zda67CuH7+DQW1+3Dd8/vZWbOj/i71zl1CQrTw4YzSZ/eK4gcem937+UT3Ot7+kcsvb2wDnL3rNrB+QLT3oQNXAnq3iLavWFZS1LSe3p2nalTQ3pvWNDt8d3HdwB/2aQ7UkTVMSZ0sjh6QmNdY047O8Ik1o3oe29mCBkgrnC/IBc0Djp9QsKw2U5jHWgEoMzTtqrjHsOFNkMbYUib4NqMhhVGiGGAtBNjj1/CTtB645oBXWcoPu/zpNUph3BNrQ3ylVnJhufW0mrwuOyBeO74wMfbLrNimvuf/PL8TQW1LQx8eYw/9d4LsF0nVdLt72eOf//feN/waj4NX4IhohZQAAAB50RVh0aWNjOmNvcHlyaWdodABHb29nbGUgSW5jLiAyMDE2rAszOAAAABR0RVh0aWNjOmRlc2NyaXB0aW9uAHNSR0K6kHMHAAAAAElFTkSuQmCC";
+// ─────────────────────────────────────────────────────────────────
+// PPTX EXPORT — 10 slides + optional slide 11 (Investimento)
+// Dark theme (#0a0a0a), accent red #7A0E18, "Inter" font.
+// Uses native pptxgenjs line chart for slide 7 (editable, vector).
+// ─────────────────────────────────────────────────────────────────
+
+const COLORS = {
+  bg: "0a0a0a",
+  surface: "141414",
+  surfaceAlt: "1a1a1a",
+  accent: "7A0E18",
+  accentLight: "C94553",
+  success: "22C55E",
+  text: "F5F5F5",
+  textMuted: "AAAAAA",
+  textDim: "666666",
+  textSubdim: "888888",
+  border: "222222",
+};
+
+const FONT = "Inter";
+
+const fmtEuro = (n) => "€" + Math.round(n || 0).toLocaleString("pt-PT");
+const fmtNum = (n) => Math.round(n || 0).toLocaleString("pt-PT");
 
 export async function POST(request) {
   try {
-    const { slides } = await request.json();
-    if (!slides || !Array.isArray(slides)) {
+    const body = await request.json();
+    const { slides, projections, audience, price, moderateYear12MRR, moderateCumulative, creator, showInvestimento } = body;
+
+    if (!slides) {
       return new Response(JSON.stringify({ error: "Missing slides data" }), {
-        status: 400,
-        headers: { "Content-Type": "application/json" },
+        status: 400, headers: { "Content-Type": "application/json" },
       });
     }
 
-    const pptx = new PptxGenJS();
-    pptx.layout = "LAYOUT_WIDE";
-    pptx.defineLayout({ name: "CUSTOM", width: 13.33, height: 7.5 });
-    pptx.layout = "CUSTOM";
+    // Compatibility shims — fill missing fields so the existing render code
+    // (which references old field names) doesn't crash on the new shape.
+    const lang = creator?.primaryLanguage === 'en' ? 'en' : 'pt';
+    const labels = {
+      today: lang === 'en' ? 'Today' : 'Hoje',
+      withSL: lang === 'en' ? 'With Second Layer' : 'Com a Second Layer',
+      build: lang === 'en' ? 'We Build (one time)' : 'Construímos (uma vez)',
+      operate: lang === 'en' ? 'We Operate (every month)' : 'Operamos (todos os meses)',
+      audience: lang === 'en' ? 'Estimated Audience' : 'Audiência Estimada',
+      from: lang === 'en' ? 'FROM' : 'DE',
+      to: lang === 'en' ? 'TO' : 'PARA',
+      assumptions: lang === 'en' ? 'Assumptions (live editable)' : 'Premissas (ajustáveis ao vivo)',
+      youKey: lang === 'en' ? 'You' : 'Tu',
+      usKey: lang === 'en' ? 'Us' : 'Nós',
+      setupNote: lang === 'en' ? 'One-time investment' : 'Investimento único',
+      commissionNote: lang === 'en' ? 'Monthly revenue share' : 'Revenue share mensal',
+      includedTitle: lang === 'en' ? 'What\'s included' : 'O que está incluído',
+    };
+    // Fill safe defaults for fields removed/renamed in the new design
+    if (slides.audience && slides.audience.closer === undefined) slides.audience.closer = '';
+    if (slides.close) {
+      slides.close.body1 = slides.close.body1 || '';
+      slides.close.body2 = slides.close.body2 || '';
+      slides.close.cta = slides.close.cta || '';
+      slides.close.bottom = slides.close.bottom || '';
+    }
+    if (slides.buildOperate && !slides.buildOperate.title) {
+      slides.buildOperate.title = lang === 'en' ? 'What We Build & Operate' : 'O Que Construímos + O Que Operamos';
+    }
 
-    const addSlide = (fields, type) => {
-      const s = pptx.addSlide();
-      s.background = { color: "0a0a0a" };
+    const pres = new PptxGenJS();
+    pres.layout = "LAYOUT_WIDE"; // 16:9, 13.33 x 7.5 inches
+    pres.defineLayout({ name: "CUSTOM", width: 13.33, height: 7.5 });
 
-      switch (type) {
-        case "cover":
-          s.addImage({ data: LOGO_B64, x: 5.5, y: 1.0, w: 2.3, h: 0.5 });
-          s.addText(fields.creatorName, {
-            x: 0.5, y: 2.5, w: 12.33, h: 1.2,
-            fontSize: 44, fontFace: "Inter", color: "f5f5f5", bold: true, align: "center",
-          });
-          s.addText(fields.subtitle, {
-            x: 0.5, y: 3.8, w: 12.33, h: 0.6,
-            fontSize: 20, fontFace: "Inter", color: "888888", align: "center",
-          });
-          s.addShape(pptx.ShapeType.rect, {
-            x: 6.15, y: 5.0, w: 1.0, h: 0.05, fill: { color: "7A0E18" },
-          });
-          break;
+    const W = 13.33, H = 7.5;
 
-        case "problem":
-          s.addText(fields.heading, {
-            x: 0.8, y: 0.6, w: 11, h: 0.8,
-            fontSize: 28, fontFace: "Inter", color: "f5f5f5", bold: true,
-          });
-          fields.bullets.forEach((b, i) => {
-            s.addShape(pptx.ShapeType.ellipse, {
-              x: 1.0, y: 2.0 + i * 1.0, w: 0.15, h: 0.15, fill: { color: "7A0E18" },
-            });
-            s.addText(b, {
-              x: 1.4, y: 1.85 + i * 1.0, w: 10, h: 0.5,
-              fontSize: 16, fontFace: "Inter", color: "888888",
-            });
-          });
-          break;
-
-        case "audience":
-          s.addText(fields.heading, {
-            x: 0.8, y: 0.6, w: 11, h: 0.8,
-            fontSize: 28, fontFace: "Inter", color: "f5f5f5", bold: true,
-          });
-          const metrics = [
-            { label: "PLATAFORMA", val: fields.primaryPlatform },
-            { label: "ENGAGEMENT", val: fields.engagement },
-            { label: "NICHO", val: fields.niche },
-          ];
-          metrics.forEach((m, i) => {
-            const xPos = 0.8 + i * 4.0;
-            s.addShape(pptx.ShapeType.roundRect, {
-              x: xPos, y: 2.0, w: 3.5, h: 1.8, fill: { color: "1a0508" }, rectRadius: 0.15,
-            });
-            s.addText(m.label, {
-              x: xPos, y: 2.2, w: 3.5, h: 0.4,
-              fontSize: 10, fontFace: "Inter", color: "555555", align: "center", bold: true,
-            });
-            s.addText(m.val, {
-              x: xPos, y: 2.7, w: 3.5, h: 0.6,
-              fontSize: 20, fontFace: "Inter", color: "f5f5f5", align: "center", bold: true,
-            });
-          });
-          s.addText(fields.platforms, {
-            x: 0.8, y: 4.5, w: 11.5, h: 1.0,
-            fontSize: 14, fontFace: "Inter", color: "f5f5f5",
-          });
-          break;
-
-        case "offer":
-          s.addText(fields.heading, {
-            x: 0.8, y: 0.5, w: 11, h: 0.7,
-            fontSize: 28, fontFace: "Inter", color: "f5f5f5", bold: true,
-          });
-          s.addText(fields.offerName, {
-            x: 0.8, y: 1.3, w: 11, h: 0.6,
-            fontSize: 22, fontFace: "Inter", color: "7A0E18", bold: true,
-          });
-          s.addText(fields.corePromise, {
-            x: 0.8, y: 2.0, w: 11, h: 0.5,
-            fontSize: 14, fontFace: "Inter", color: "888888",
-          });
-          fields.valueStack.forEach((item, i) => {
-            s.addShape(pptx.ShapeType.roundRect, {
-              x: 0.8, y: 3.0 + i * 0.75, w: 11.5, h: 0.6, fill: { color: "1a0508" }, rectRadius: 0.08,
-            });
-            s.addText(`${i + 1}.  ${item}`, {
-              x: 1.0, y: 3.0 + i * 0.75, w: 11, h: 0.6,
-              fontSize: 14, fontFace: "Inter", color: "f5f5f5",
-            });
-          });
-          break;
-
-        case "revenue":
-          s.addText(fields.heading, {
-            x: 0.8, y: 0.5, w: 11, h: 0.7,
-            fontSize: 28, fontFace: "Inter", color: "f5f5f5", bold: true,
-          });
-          s.addShape(pptx.ShapeType.roundRect, {
-            x: 2.5, y: 1.5, w: 8.3, h: 2.2, fill: { color: "1a0508" }, rectRadius: 0.15,
-          });
-          s.addText("RECEITA MENSAL ESTIMADA", {
-            x: 2.5, y: 1.7, w: 8.3, h: 0.4,
-            fontSize: 10, fontFace: "Inter", color: "555555", align: "center", bold: true,
-          });
-          s.addText(fields.heroMRR, {
-            x: 2.5, y: 2.1, w: 8.3, h: 1.0,
-            fontSize: 42, fontFace: "Inter", color: "7A0E18", align: "center",
-          });
-          s.addText(`${fields.followers} seguidores -> ${fields.activeClients} clientes ativos`, {
-            x: 2.5, y: 3.0, w: 8.3, h: 0.4,
-            fontSize: 11, fontFace: "Inter", color: "555555", align: "center",
-          });
-          const scenarios = [
-            { label: "CONSERVADOR", val: fields.conservative, color: "555555" },
-            { label: "MODERADO", val: fields.moderate, color: "7A0E18" },
-            { label: "AGRESSIVO", val: fields.aggressive, color: "f5f5f5" },
-          ];
-          scenarios.forEach((sc, i) => {
-            const xPos = 1.5 + i * 3.8;
-            s.addShape(pptx.ShapeType.roundRect, {
-              x: xPos, y: 4.3, w: 3.3, h: 1.8, fill: { color: "141414" }, rectRadius: 0.1,
-              line: { color: sc.color === "7A0E18" ? "7A0E1855" : "1a1a1a", width: 1 },
-            });
-            s.addText(sc.label, {
-              x: xPos, y: 4.5, w: 3.3, h: 0.4,
-              fontSize: 10, fontFace: "Inter", color: sc.color, align: "center", bold: true,
-            });
-            s.addText(sc.val, {
-              x: xPos, y: 5.0, w: 3.3, h: 0.6,
-              fontSize: 20, fontFace: "Inter", color: "f5f5f5", align: "center", bold: true,
-            });
-          });
-          s.addText(fields.note, {
-            x: 0.8, y: 6.5, w: 11.5, h: 0.4,
-            fontSize: 11, fontFace: "Inter", color: "555555", align: "center", italic: true,
-          });
-          break;
-
-        case "deliverables":
-          s.addText(fields.heading, {
-            x: 0.8, y: 0.5, w: 11, h: 0.7,
-            fontSize: 28, fontFace: "Inter", color: "f5f5f5", bold: true,
-          });
-          fields.items.forEach((item, i) => {
-            const col = i % 2;
-            const row = Math.floor(i / 2);
-            const xPos = 0.8 + col * 6.2;
-            const yPos = 1.8 + row * 1.1;
-            s.addShape(pptx.ShapeType.roundRect, {
-              x: xPos, y: yPos, w: 5.8, h: 0.85, fill: { color: "141414" }, rectRadius: 0.08,
-            });
-            s.addText(`\u2713  ${item}`, {
-              x: xPos + 0.3, y: yPos, w: 5.2, h: 0.85,
-              fontSize: 14, fontFace: "Inter", color: "f5f5f5",
-            });
-          });
-          break;
-
-        case "timeline":
-          s.addText(fields.heading, {
-            x: 0.8, y: 0.5, w: 11, h: 0.7,
-            fontSize: 28, fontFace: "Inter", color: "f5f5f5", bold: true,
-          });
-          fields.weeks.forEach((w, i) => {
-            const xPos = 0.8 + i * 3.1;
-            s.addShape(pptx.ShapeType.roundRect, {
-              x: xPos, y: 1.6, w: 2.8, h: 1.6, fill: { color: "1a0508" }, rectRadius: 0.08,
-            });
-            s.addShape(pptx.ShapeType.rect, {
-              x: xPos, y: 1.6, w: 0.06, h: 1.6, fill: { color: "7A0E18" },
-            });
-            s.addText(w.week, {
-              x: xPos + 0.2, y: 1.7, w: 2.4, h: 0.4,
-              fontSize: 12, fontFace: "Inter", color: "7A0E18", bold: true,
-            });
-            s.addText(w.task, {
-              x: xPos + 0.2, y: 2.1, w: 2.4, h: 0.8,
-              fontSize: 12, fontFace: "Inter", color: "888888",
-            });
-          });
-          // You vs We
-          s.addShape(pptx.ShapeType.roundRect, {
-            x: 0.8, y: 3.8, w: 5.8, h: 2.8, fill: { color: "141414" }, rectRadius: 0.1,
-          });
-          s.addText("TU FAZES", {
-            x: 0.8, y: 4.0, w: 5.8, h: 0.4,
-            fontSize: 10, fontFace: "Inter", color: "555555", align: "center", bold: true,
-          });
-          fields.youDo.forEach((item, i) => {
-            s.addText(`\u2022  ${item}`, {
-              x: 1.2, y: 4.5 + i * 0.55, w: 5.0, h: 0.4,
-              fontSize: 14, fontFace: "Inter", color: "888888",
-            });
-          });
-          s.addShape(pptx.ShapeType.roundRect, {
-            x: 7.0, y: 3.8, w: 5.8, h: 2.8, fill: { color: "1a0508" }, rectRadius: 0.1,
-          });
-          s.addText("NOS FAZEMOS", {
-            x: 7.0, y: 4.0, w: 5.8, h: 0.4,
-            fontSize: 10, fontFace: "Inter", color: "7A0E18", align: "center", bold: true,
-          });
-          fields.weDo.forEach((item, i) => {
-            s.addText(`\u2022  ${item}`, {
-              x: 7.4, y: 4.5 + i * 0.55, w: 5.0, h: 0.4,
-              fontSize: 14, fontFace: "Inter", color: "f5f5f5", bold: true,
-            });
-          });
-          break;
-
-        case "investment":
-          s.addText(fields.heading, {
-            x: 0.8, y: 0.5, w: 11, h: 0.7,
-            fontSize: 28, fontFace: "Inter", color: "f5f5f5", bold: true,
-          });
-          s.addShape(pptx.ShapeType.roundRect, {
-            x: 0.8, y: 1.6, w: 5.8, h: 2.4, fill: { color: "1a0508" }, rectRadius: 0.12,
-          });
-          s.addText("SETUP FEE (ONE-TIME)", {
-            x: 0.8, y: 1.8, w: 5.8, h: 0.4,
-            fontSize: 10, fontFace: "Inter", color: "555555", align: "center", bold: true,
-          });
-          s.addText(fields.setupFee, {
-            x: 0.8, y: 2.4, w: 5.8, h: 1.0,
-            fontSize: 36, fontFace: "Inter", color: "7A0E18", align: "center", bold: true,
-          });
-          s.addShape(pptx.ShapeType.roundRect, {
-            x: 7.0, y: 1.6, w: 5.8, h: 2.4, fill: { color: "141414" }, rectRadius: 0.12,
-          });
-          s.addText("COMMISSION", {
-            x: 7.0, y: 1.8, w: 5.8, h: 0.4,
-            fontSize: 10, fontFace: "Inter", color: "555555", align: "center", bold: true,
-          });
-          s.addText(fields.commission, {
-            x: 7.0, y: 2.4, w: 5.8, h: 1.0,
-            fontSize: 36, fontFace: "Inter", color: "f5f5f5", align: "center", bold: true,
-          });
-          s.addText("INCLUIDO NO SETUP", {
-            x: 0.8, y: 4.4, w: 11.5, h: 0.4,
-            fontSize: 10, fontFace: "Inter", color: "555555", bold: true,
-          });
-          const inclText = fields.includes.join("  |  ");
-          s.addText(inclText, {
-            x: 0.8, y: 4.9, w: 11.5, h: 0.5,
-            fontSize: 13, fontFace: "Inter", color: "888888",
-          });
-          s.addText(fields.alignment, {
-            x: 0.8, y: 5.8, w: 11.5, h: 0.6,
-            fontSize: 16, fontFace: "Inter", color: "888888", align: "center", italic: true,
-          });
-          break;
-
-        case "nextsteps":
-          s.addText(fields.heading, {
-            x: 0.5, y: 0.8, w: 12.33, h: 0.7,
-            fontSize: 28, fontFace: "Inter", color: "f5f5f5", bold: true, align: "center",
-          });
-          fields.steps.forEach((st, i) => {
-            const xPos = 2.0 + i * 3.5;
-            s.addShape(pptx.ShapeType.ellipse, {
-              x: xPos + 0.9, y: 2.2, w: 0.9, h: 0.9, fill: { color: "7A0E18" },
-            });
-            s.addText(st.num, {
-              x: xPos + 0.9, y: 2.2, w: 0.9, h: 0.9,
-              fontSize: 20, fontFace: "Inter", color: "ffffff", align: "center", valign: "middle", bold: true,
-            });
-            s.addText(st.text, {
-              x: xPos, y: 3.4, w: 2.7, h: 0.6,
-              fontSize: 15, fontFace: "Inter", color: "f5f5f5", align: "center", bold: true,
-            });
-          });
-          s.addText(fields.contact, {
-            x: 0.5, y: 5.0, w: 12.33, h: 0.5,
-            fontSize: 14, fontFace: "Inter", color: "888888", align: "center",
-          });
-          s.addImage({ data: LOGO_B64, x: 5.8, y: 5.8, w: 1.7, h: 0.4 });
-          break;
-      }
+    // Helper to apply dark background
+    const newSlide = () => {
+      const s = pres.addSlide();
+      s.background = { color: COLORS.bg };
+      return s;
     };
 
-    slides.forEach((sl) => addSlide(sl.fields, sl.id));
+    // ═══════════════════════════════════════════════
+    // SLIDE 1: COVER
+    // ═══════════════════════════════════════════════
+    {
+      const s = newSlide();
+      s.addText(`Second Layer × ${creator?.name || slides.cover.title}`, {
+        x: 0.5, y: 0.6, w: W - 1, h: 0.4,
+        fontFace: FONT, fontSize: 12, color: COLORS.accent, bold: true,
+        align: "center", charSpacing: 5,
+      });
+      s.addText(slides.cover.title, {
+        x: 0.5, y: H / 2 - 1.2, w: W - 1, h: 1.6,
+        fontFace: FONT, fontSize: 72, color: COLORS.text, bold: true,
+        align: "center", valign: "middle",
+      });
+      s.addShape(pres.ShapeType.rect, {
+        x: W / 2 - 0.4, y: H / 2 + 0.6, w: 0.8, h: 0.04,
+        fill: { color: COLORS.accent }, line: { type: "none" },
+      });
+      s.addText(slides.cover.subtitle, {
+        x: 0.5, y: H / 2 + 0.9, w: W - 1, h: 0.5,
+        fontFace: FONT, fontSize: 18, color: COLORS.textSubdim,
+        align: "center",
+      });
+    }
 
-    const buffer = await pptx.write({ outputType: "nodebuffer" });
-    const fileName = `Second_Layer_Pitch_${slides[0]?.fields?.creatorName || "Creator"}.pptx`;
+    // ═══════════════════════════════════════════════
+    // SLIDE 2: CORE PROMISE (NEW)
+    // ═══════════════════════════════════════════════
+    if (slides.corePromise) {
+      const s = newSlide();
+      s.addText(slides.corePromise.eyebrow || '', {
+        x: 0.5, y: 1.8, w: W - 1, h: 0.5,
+        fontFace: FONT, fontSize: 14, color: COLORS.accent, bold: true,
+        align: "center", charSpacing: 7,
+      });
+      s.addText(slides.corePromise.headline || '', {
+        x: 1, y: 2.6, w: W - 2, h: 2.4,
+        fontFace: FONT, fontSize: 48, color: COLORS.text, bold: true,
+        align: "center", valign: "middle",
+      });
+      s.addShape(pres.ShapeType.rect, {
+        x: W / 2 - 0.3, y: 5.2, w: 0.6, h: 0.03,
+        fill: { color: COLORS.accent }, line: { type: "none" },
+      });
+      s.addText(slides.corePromise.sub || '', {
+        x: 1, y: 5.5, w: W - 2, h: 0.8,
+        fontFace: FONT, fontSize: 22, color: COLORS.textMuted, italic: true,
+        align: "center",
+      });
+    }
+
+    // ═══════════════════════════════════════════════
+    // SLIDE 3: TRANSFORMATION
+    // ═══════════════════════════════════════════════
+    {
+      const s = newSlide();
+      s.addText(slides.transformation.title, {
+        x: 0.8, y: 0.6, w: W - 1.6, h: 0.9,
+        fontFace: FONT, fontSize: 32, color: COLORS.text, bold: true,
+      });
+
+      // Before column
+      s.addShape(pres.ShapeType.roundRect, {
+        x: 0.8, y: 2, w: 5.7, h: 4.5, rectRadius: 0.15,
+        fill: { color: COLORS.surface }, line: { color: COLORS.border, width: 0.5 },
+      });
+      s.addText("Hoje", {
+        x: 1.1, y: 2.25, w: 5.1, h: 0.4,
+        fontFace: FONT, fontSize: 11, color: COLORS.textDim, bold: true, charSpacing: 5,
+      });
+      slides.transformation.before.forEach((item, i) => {
+        s.addText("×", {
+          x: 1.1, y: 2.85 + i * 0.55, w: 0.3, h: 0.4,
+          fontFace: FONT, fontSize: 18, color: COLORS.textDim,
+        });
+        s.addText(item, {
+          x: 1.5, y: 2.85 + i * 0.55, w: 4.7, h: 0.4,
+          fontFace: FONT, fontSize: 15, color: COLORS.textSubdim,
+        });
+      });
+
+      // After column
+      s.addShape(pres.ShapeType.roundRect, {
+        x: 6.8, y: 2, w: 5.7, h: 4.5, rectRadius: 0.15,
+        fill: { color: "1a0a0d" }, line: { color: COLORS.accent, width: 0.5, transparency: 60 },
+      });
+      s.addText("Com a Second Layer", {
+        x: 7.1, y: 2.25, w: 5.1, h: 0.4,
+        fontFace: FONT, fontSize: 11, color: COLORS.accent, bold: true, charSpacing: 5,
+      });
+      slides.transformation.after.forEach((item, i) => {
+        s.addText("→", {
+          x: 7.1, y: 2.85 + i * 0.55, w: 0.3, h: 0.4,
+          fontFace: FONT, fontSize: 18, color: COLORS.accent,
+        });
+        s.addText(item, {
+          x: 7.5, y: 2.85 + i * 0.55, w: 4.7, h: 0.4,
+          fontFace: FONT, fontSize: 15, color: COLORS.text,
+        });
+      });
+    }
+
+    // ═══════════════════════════════════════════════
+    // SLIDE 3: WHAT YOU GET
+    // ═══════════════════════════════════════════════
+    {
+      const s = newSlide();
+      s.addText(slides.whatYouGet.hero, {
+        x: 0.8, y: 0.6, w: W - 1.6, h: 1.5,
+        fontFace: FONT, fontSize: 40, color: COLORS.text, bold: true,
+      });
+
+      const pillars = slides.whatYouGet.pillars || [];
+      const pillarW = 3.9, pillarH = 3.5, gap = 0.2;
+      const startX = (W - (pillarW * 3 + gap * 2)) / 2;
+
+      pillars.forEach((pillar, i) => {
+        const x = startX + i * (pillarW + gap);
+        s.addShape(pres.ShapeType.roundRect, {
+          x, y: 2.6, w: pillarW, h: pillarH, rectRadius: 0.15,
+          fill: { color: COLORS.surface }, line: { color: COLORS.border, width: 0.5 },
+        });
+        s.addText(`0${i + 1}`, {
+          x: x + 0.3, y: 2.8, w: 1.5, h: 0.7,
+          fontFace: FONT, fontSize: 32, color: COLORS.accent, bold: true,
+        });
+        s.addText(pillar.title, {
+          x: x + 0.3, y: 3.7, w: pillarW - 0.6, h: 0.6,
+          fontFace: FONT, fontSize: 18, color: COLORS.text, bold: true,
+        });
+        s.addText(pillar.desc, {
+          x: x + 0.3, y: 4.4, w: pillarW - 0.6, h: 1.5,
+          fontFace: FONT, fontSize: 12, color: COLORS.textMuted,
+          valign: "top",
+        });
+      });
+
+      if (slides.whatYouGet.closer) {
+        s.addText(slides.whatYouGet.closer, {
+          x: 1.5, y: 6.4, w: W - 3, h: 0.6,
+          fontFace: FONT, fontSize: 13, color: COLORS.textSubdim, italic: true, align: "center",
+        });
+      }
+    }
+
+    // ═══════════════════════════════════════════════
+    // SLIDE 4: AUDIENCE
+    // ═══════════════════════════════════════════════
+    {
+      const s = newSlide();
+      s.addText(slides.audience.title, {
+        x: 0.8, y: 0.6, w: W - 1.6, h: 0.8,
+        fontFace: FONT, fontSize: 32, color: COLORS.text, bold: true,
+      });
+
+      const metrics = [
+        { label: "Audiência Total", value: formatFollowers(audience), accent: true },
+        { label: "Plataforma", value: creator?.primaryPlatform || 'Instagram' },
+        { label: "Engagement", value: creator?.engagement || 'N/A' },
+        { label: "Nicho", value: creator?.niche || 'N/A' },
+      ];
+
+      const mW = 2.85, mH = 1.5, mGap = 0.2;
+      const mStart = (W - (mW * 4 + mGap * 3)) / 2;
+      metrics.forEach((m, i) => {
+        const x = mStart + i * (mW + mGap);
+        s.addShape(pres.ShapeType.roundRect, {
+          x, y: 2, w: mW, h: mH, rectRadius: 0.12,
+          fill: { color: m.accent ? "1a0a0d" : COLORS.surface },
+          line: { color: m.accent ? COLORS.accent : COLORS.border, width: 0.5, transparency: m.accent ? 60 : 0 },
+        });
+        s.addText(m.label, {
+          x: x + 0.25, y: 2.2, w: mW - 0.5, h: 0.3,
+          fontFace: FONT, fontSize: 10, color: COLORS.textDim, bold: true, charSpacing: 5,
+        });
+        s.addText(m.value, {
+          x: x + 0.25, y: 2.6, w: mW - 0.5, h: 0.8,
+          fontFace: FONT, fontSize: 26, color: COLORS.text, bold: true,
+        });
+      });
+
+      if (creator?.audienceEstimate) {
+        const ae = creator.audienceEstimate;
+        s.addShape(pres.ShapeType.roundRect, {
+          x: 0.8, y: 4.1, w: W - 1.6, h: 1.8, rectRadius: 0.12,
+          fill: { color: COLORS.surface }, line: { color: COLORS.border, width: 0.5 },
+        });
+        s.addText("Audiência Estimada", {
+          x: 1.1, y: 4.3, w: 4, h: 0.3,
+          fontFace: FONT, fontSize: 10, color: COLORS.textDim, bold: true, charSpacing: 5,
+        });
+        const items = [
+          { label: "Idade", val: ae.age },
+          { label: "Género", val: ae.gender },
+          { label: "Localização", val: ae.location },
+          { label: "Idioma", val: ae.language },
+        ].filter(i => i.val);
+        const iw = (W - 1.6) / items.length;
+        items.forEach((it, idx) => {
+          const ix = 0.8 + idx * iw + 0.3;
+          s.addText(it.label, {
+            x: ix, y: 4.9, w: iw - 0.3, h: 0.25,
+            fontFace: FONT, fontSize: 10, color: COLORS.textDim,
+          });
+          s.addText(it.val, {
+            x: ix, y: 5.15, w: iw - 0.3, h: 0.5,
+            fontFace: FONT, fontSize: 13, color: COLORS.textMuted,
+          });
+        });
+      }
+
+      if (slides.audience.closer) {
+        s.addText(slides.audience.closer, {
+          x: 1.5, y: 6.4, w: W - 3, h: 0.6,
+          fontFace: FONT, fontSize: 16, color: COLORS.text, bold: true, align: "center",
+        });
+      }
+    }
+
+    // ═══════════════════════════════════════════════
+    // SLIDE 5: BUILD + OPERATE
+    // ═══════════════════════════════════════════════
+    {
+      const s = newSlide();
+      s.addText(slides.buildOperate.title, {
+        x: 0.8, y: 0.5, w: W - 1.6, h: 0.8,
+        fontFace: FONT, fontSize: 30, color: COLORS.text, bold: true,
+      });
+
+      // Build column
+      s.addShape(pres.ShapeType.roundRect, {
+        x: 0.8, y: 1.6, w: 5.9, h: 5.2, rectRadius: 0.15,
+        fill: { color: COLORS.surface }, line: { color: COLORS.border, width: 0.5 },
+      });
+      s.addText("Construímos (uma vez)", {
+        x: 1.1, y: 1.8, w: 5.3, h: 0.4,
+        fontFace: FONT, fontSize: 11, color: COLORS.accent, bold: true, charSpacing: 5,
+      });
+      slides.buildOperate.build.forEach((item, i) => {
+        s.addText([
+          { text: item.title, options: { bold: true, color: COLORS.text, fontSize: 12 } },
+          { text: ": " + item.desc, options: { color: COLORS.textMuted, fontSize: 12 } },
+        ], {
+          x: 1.1, y: 2.4 + i * 0.7, w: 5.3, h: 0.65,
+          fontFace: FONT, valign: "top",
+        });
+      });
+
+      // Operate column
+      s.addShape(pres.ShapeType.roundRect, {
+        x: 6.9, y: 1.6, w: 5.6, h: 5.2, rectRadius: 0.15,
+        fill: { color: "0d1410" }, line: { color: COLORS.success, width: 0.5, transparency: 70 },
+      });
+      s.addText("Operamos (todos os meses)", {
+        x: 7.2, y: 1.8, w: 5.0, h: 0.4,
+        fontFace: FONT, fontSize: 11, color: COLORS.success, bold: true, charSpacing: 5,
+      });
+      slides.buildOperate.operate.slice(0, 8).forEach((item, i) => {
+        s.addText(item, {
+          x: 7.2, y: 2.4 + i * 0.55, w: 5.0, h: 0.5,
+          fontFace: FONT, fontSize: 12, color: COLORS.textMuted, valign: "top",
+        });
+      });
+
+      if (slides.buildOperate.closer) {
+        s.addText(slides.buildOperate.closer, {
+          x: 1.5, y: 7.0, w: W - 3, h: 0.4,
+          fontFace: FONT, fontSize: 13, color: COLORS.text, bold: true, align: "center",
+        });
+      }
+    }
+
+    // ═══════════════════════════════════════════════
+    // SLIDE 6: LAUNCH
+    // ═══════════════════════════════════════════════
+    {
+      const s = newSlide();
+      s.addText(slides.launch.title, {
+        x: 0.8, y: 0.6, w: W - 1.6, h: 0.8,
+        fontFace: FONT, fontSize: 32, color: COLORS.text, bold: true,
+      });
+
+      const phases = slides.launch.phases || [];
+      const pW = 3.9, pH = 4, gap = 0.2;
+      const pStart = (W - (pW * 3 + gap * 2)) / 2;
+
+      phases.forEach((phase, i) => {
+        const x = pStart + i * (pW + gap);
+        s.addShape(pres.ShapeType.roundRect, {
+          x, y: 2, w: pW, h: pH, rectRadius: 0.15,
+          fill: { color: COLORS.surface }, line: { color: COLORS.border, width: 0.5 },
+        });
+        s.addText(String(i + 1), {
+          x: x + pW - 1, y: 2.1, w: 0.8, h: 0.8,
+          fontFace: FONT, fontSize: 46, color: COLORS.accent, bold: true, align: "right",
+          transparency: 70,
+        });
+        s.addText(phase.title, {
+          x: x + 0.3, y: 2.4, w: pW - 0.6, h: 0.6,
+          fontFace: FONT, fontSize: 16, color: COLORS.text, bold: true,
+        });
+        s.addText(phase.desc, {
+          x: x + 0.3, y: 3.15, w: pW - 0.6, h: 2.6,
+          fontFace: FONT, fontSize: 12, color: COLORS.textMuted, valign: "top",
+        });
+      });
+
+      if (slides.launch.closer) {
+        s.addText(slides.launch.closer, {
+          x: 1.5, y: 6.6, w: W - 3, h: 0.4,
+          fontFace: FONT, fontSize: 13, color: COLORS.textSubdim, italic: true, align: "center",
+        });
+      }
+    }
+
+    // ═══════════════════════════════════════════════
+    // SLIDE 7: NUMBERS + CHART (native line chart)
+    // ═══════════════════════════════════════════════
+    {
+      const s = newSlide();
+      s.addText(slides.numbers.title, {
+        x: 0.8, y: 0.5, w: W - 1.6, h: 0.7,
+        fontFace: FONT, fontSize: 26, color: COLORS.text, bold: true,
+      });
+
+      // Hero MRR
+      s.addShape(pres.ShapeType.roundRect, {
+        x: 0.8, y: 1.35, w: W - 1.6, h: 1.5, rectRadius: 0.15,
+        fill: { color: "1a0a0d" }, line: { color: COLORS.accent, width: 0.5, transparency: 55 },
+      });
+      s.addText("Projeção Mês 12 · Cenário Moderado", {
+        x: 0.8, y: 1.5, w: W - 1.6, h: 0.3,
+        fontFace: FONT, fontSize: 11, color: COLORS.accent, bold: true, charSpacing: 5, align: "center",
+      });
+      s.addText([
+        { text: fmtEuro(moderateYear12MRR), options: { fontSize: 54, color: COLORS.text, bold: true } },
+        { text: "/mês", options: { fontSize: 18, color: COLORS.textSubdim } },
+      ], {
+        x: 0.8, y: 1.85, w: W - 1.6, h: 0.9,
+        fontFace: FONT, align: "center", valign: "middle",
+      });
+      s.addText([
+        { text: "Receita acumulada Ano 1: ", options: { color: COLORS.textSubdim } },
+        { text: fmtEuro(moderateCumulative), options: { color: COLORS.text, bold: true } },
+      ], {
+        x: 0.8, y: 2.52, w: W - 1.6, h: 0.3,
+        fontFace: FONT, fontSize: 12, align: "center",
+      });
+
+      // Native line chart
+      const chartData = [];
+      const monthLabels = Array.from({ length: 12 }, (_, i) => `M${i + 1}`);
+      const scenarioOrder = ['agressivo', 'moderado', 'conservador'];
+      const scenarioColors = { agressivo: COLORS.success, moderado: COLORS.accent, conservador: "888888" };
+
+      scenarioOrder.forEach(key => {
+        const scen = projections?.[key];
+        if (!scen) return;
+        chartData.push({
+          name: scen.label,
+          labels: monthLabels,
+          values: scen.months.map(m => Math.round(m.mrr)),
+        });
+      });
+
+      if (chartData.length > 0) {
+        s.addChart(pres.ChartType.line, chartData, {
+          x: 0.8, y: 3.1, w: W - 1.6, h: 3.4,
+          chartColors: scenarioOrder.filter(k => projections?.[k]).map(k => scenarioColors[k]),
+          showLegend: true,
+          legendPos: "b",
+          legendColor: COLORS.textMuted,
+          legendFontFace: FONT,
+          legendFontSize: 11,
+          catAxisLabelColor: COLORS.textSubdim,
+          catAxisLabelFontFace: FONT,
+          catAxisLabelFontSize: 10,
+          valAxisLabelColor: COLORS.textSubdim,
+          valAxisLabelFontFace: FONT,
+          valAxisLabelFontSize: 10,
+          valAxisMinVal: 0,
+          dataLabelColor: COLORS.text,
+          lineSize: 2,
+          lineDataSymbol: "circle",
+          lineDataSymbolSize: 6,
+          showValue: false,
+          plotArea: { fill: { color: COLORS.bg } },
+        });
+      }
+
+      if (slides.numbers.closer) {
+        s.addText(slides.numbers.closer, {
+          x: 1.5, y: 6.65, w: W - 3, h: 0.5,
+          fontFace: FONT, fontSize: 13, color: COLORS.text, bold: true, align: "center",
+        });
+      }
+    }
+
+    // ═══════════════════════════════════════════════
+    // SLIDE 8: PARTNERSHIP
+    // ═══════════════════════════════════════════════
+    {
+      const s = newSlide();
+      s.addText(slides.partnership.title, {
+        x: 0.8, y: 0.6, w: W - 1.6, h: 0.8,
+        fontFace: FONT, fontSize: 32, color: COLORS.text, bold: true,
+      });
+
+      // You
+      s.addShape(pres.ShapeType.roundRect, {
+        x: 0.8, y: 1.9, w: 5.9, h: 3.8, rectRadius: 0.15,
+        fill: { color: COLORS.surface }, line: { color: COLORS.border, width: 0.5 },
+      });
+      s.addText("Tu", {
+        x: 1.1, y: 2.1, w: 5.3, h: 0.4,
+        fontFace: FONT, fontSize: 11, color: COLORS.accent, bold: true, charSpacing: 5,
+      });
+      s.addText(slides.partnership.you, {
+        x: 1.1, y: 2.7, w: 5.3, h: 2.8,
+        fontFace: FONT, fontSize: 15, color: COLORS.text, valign: "top",
+      });
+
+      // Us
+      s.addShape(pres.ShapeType.roundRect, {
+        x: 6.9, y: 1.9, w: 5.6, h: 3.8, rectRadius: 0.15,
+        fill: { color: "1a0a0d" }, line: { color: COLORS.accent, width: 0.5, transparency: 60 },
+      });
+      s.addText("Nós", {
+        x: 7.2, y: 2.1, w: 5, h: 0.4,
+        fontFace: FONT, fontSize: 11, color: COLORS.success, bold: true, charSpacing: 5,
+      });
+      s.addText(slides.partnership.us, {
+        x: 7.2, y: 2.7, w: 5, h: 2.8,
+        fontFace: FONT, fontSize: 15, color: COLORS.text, valign: "top",
+      });
+
+      // Alignment
+      s.addShape(pres.ShapeType.roundRect, {
+        x: 0.8, y: 6, w: W - 1.6, h: 0.9, rectRadius: 0.12,
+        fill: { color: "0d1410" }, line: { color: COLORS.success, width: 0.5, transparency: 65 },
+      });
+      s.addText(slides.partnership.alignment, {
+        x: 0.8, y: 6, w: W - 1.6, h: 0.9,
+        fontFace: FONT, fontSize: 16, color: COLORS.text, bold: true, align: "center", valign: "middle",
+      });
+    }
+
+    // ═══════════════════════════════════════════════
+    // SLIDE 9: RECAP
+    // ═══════════════════════════════════════════════
+    {
+      const s = newSlide();
+      s.addText(slides.recap.title, {
+        x: 0.8, y: 0.6, w: W - 1.6, h: 0.8,
+        fontFace: FONT, fontSize: 32, color: COLORS.text, bold: true,
+      });
+
+      const pairs = slides.recap.pairs || [];
+      pairs.forEach((pair, i) => {
+        const y = 2 + i * 0.9;
+        s.addText("DE", {
+          x: 0.8, y, w: 0.8, h: 0.3,
+          fontFace: FONT, fontSize: 10, color: COLORS.textDim, bold: true, charSpacing: 5, align: "right",
+        });
+        s.addText(pair.from, {
+          x: 1.7, y, w: 5, h: 0.5,
+          fontFace: FONT, fontSize: 17, color: COLORS.textSubdim, align: "right",
+        });
+        s.addText("→", {
+          x: 6.8, y, w: 0.5, h: 0.5,
+          fontFace: FONT, fontSize: 22, color: COLORS.accent, bold: true, align: "center",
+        });
+        s.addText("PARA", {
+          x: 7.4, y, w: 1, h: 0.3,
+          fontFace: FONT, fontSize: 10, color: COLORS.accent, bold: true, charSpacing: 5,
+        });
+        s.addText(pair.to, {
+          x: 7.4, y: y + 0.25, w: 5, h: 0.5,
+          fontFace: FONT, fontSize: 17, color: COLORS.text, bold: true,
+        });
+      });
+
+      if (slides.recap.closer) {
+        s.addText(slides.recap.closer, {
+          x: 1.5, y: 6.5, w: W - 3, h: 0.6,
+          fontFace: FONT, fontSize: 16, color: COLORS.text, bold: true, italic: true, align: "center",
+        });
+      }
+    }
+
+    // ═══════════════════════════════════════════════
+    // SLIDE 12 (LAST): CLOSE — single big centered question
+    // (Investimento, when shown, comes BEFORE this slide)
+    // ═══════════════════════════════════════════════
+    const renderCloseSlide = () => {
+      const s = newSlide();
+      s.addText(slides.close.title || '', {
+        x: 0.5, y: 0.5, w: W - 1, h: H - 1,
+        fontFace: FONT, fontSize: 64, color: COLORS.text, bold: true,
+        align: "center", valign: "middle",
+      });
+    };
+
+    // ═══════════════════════════════════════════════
+    // SLIDE 11 (OPTIONAL): INVESTIMENTO — render BEFORE close
+    // ═══════════════════════════════════════════════
+    if (showInvestimento && slides.investment) {
+      const s = newSlide();
+      s.addText(slides.investment.title, {
+        x: 0.8, y: 0.6, w: W - 1.6, h: 0.8,
+        fontFace: FONT, fontSize: 32, color: COLORS.text, bold: true,
+      });
+
+      // Setup
+      s.addShape(pres.ShapeType.roundRect, {
+        x: 0.8, y: 1.9, w: 5.9, h: 2.8, rectRadius: 0.15,
+        fill: { color: "1a0a0d" }, line: { color: COLORS.accent, width: 0.5, transparency: 60 },
+      });
+      s.addText("Setup", {
+        x: 1.1, y: 2.1, w: 5.3, h: 0.4,
+        fontFace: FONT, fontSize: 11, color: COLORS.accent, bold: true, charSpacing: 5,
+      });
+      s.addText(slides.investment.setupAmount, {
+        x: 1.1, y: 2.6, w: 5.3, h: 1,
+        fontFace: FONT, fontSize: 42, color: COLORS.text, bold: true,
+      });
+      s.addText("Investimento único", {
+        x: 1.1, y: 3.6, w: 5.3, h: 0.3,
+        fontFace: FONT, fontSize: 11, color: COLORS.textSubdim,
+      });
+      s.addText(slides.investment.setupDesc, {
+        x: 1.1, y: 3.95, w: 5.3, h: 0.75,
+        fontFace: FONT, fontSize: 11, color: COLORS.textMuted, valign: "top",
+      });
+
+      // Commission
+      s.addShape(pres.ShapeType.roundRect, {
+        x: 6.9, y: 1.9, w: 5.6, h: 2.8, rectRadius: 0.15,
+        fill: { color: "0d1410" }, line: { color: COLORS.success, width: 0.5, transparency: 65 },
+      });
+      s.addText("Parceria", {
+        x: 7.2, y: 2.1, w: 5, h: 0.4,
+        fontFace: FONT, fontSize: 11, color: COLORS.success, bold: true, charSpacing: 5,
+      });
+      s.addText(slides.investment.commissionAmount, {
+        x: 7.2, y: 2.6, w: 5, h: 1,
+        fontFace: FONT, fontSize: 42, color: COLORS.text, bold: true,
+      });
+      s.addText("Revenue share mensal", {
+        x: 7.2, y: 3.6, w: 5, h: 0.3,
+        fontFace: FONT, fontSize: 11, color: COLORS.textSubdim,
+      });
+      s.addText(slides.investment.commissionDesc, {
+        x: 7.2, y: 3.95, w: 5, h: 0.75,
+        fontFace: FONT, fontSize: 11, color: COLORS.textMuted, valign: "top",
+      });
+
+      // Included
+      s.addShape(pres.ShapeType.roundRect, {
+        x: 0.8, y: 4.9, w: W - 1.6, h: 1.9, rectRadius: 0.12,
+        fill: { color: COLORS.surface }, line: { color: COLORS.border, width: 0.5 },
+      });
+      s.addText("O que está incluído", {
+        x: 1.1, y: 5.05, w: 10, h: 0.3,
+        fontFace: FONT, fontSize: 11, color: COLORS.textSubdim, bold: true, charSpacing: 5,
+      });
+      const incItems = (slides.investment.included || []).slice(0, 10);
+      const colW = (W - 2.2) / 2;
+      incItems.forEach((item, i) => {
+        const col = i % 2;
+        const row = Math.floor(i / 2);
+        const x = 1.1 + col * colW;
+        const y = 5.45 + row * 0.28;
+        s.addText(`✓  ${item}`, {
+          x, y, w: colW - 0.1, h: 0.26,
+          fontFace: FONT, fontSize: 11, color: COLORS.textMuted,
+        });
+      });
+
+      if (slides.investment.closer) {
+        s.addText(slides.investment.closer, {
+          x: 1.5, y: 6.95, w: W - 3, h: 0.35,
+          fontFace: FONT, fontSize: 13, color: COLORS.text, bold: true, italic: true, align: "center",
+        });
+      }
+    }
+
+    // ═══════════════════════════════════════════════
+    // FINAL SLIDE: CLOSE — single big centered question (always last)
+    // ═══════════════════════════════════════════════
+    renderCloseSlide();
+
+    const buffer = await pres.write({ outputType: "nodebuffer" });
 
     return new Response(buffer, {
       status: 200,
       headers: {
-        "Content-Type":
-          "application/vnd.openxmlformats-officedocument.presentationml.presentation",
-        "Content-Disposition": `attachment; filename="${fileName}"`,
+        "Content-Type": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+        "Content-Disposition": `attachment; filename="pitch.pptx"`,
       },
     });
   } catch (err) {
-    console.error("PPTX generation error:", err);
-    return new Response(JSON.stringify({ error: err.message }), {
-      status: 500,
-      headers: { "Content-Type": "application/json" },
+    console.error("PPTX export error:", err);
+    return new Response(JSON.stringify({ error: err.message || "Export failed" }), {
+      status: 500, headers: { "Content-Type": "application/json" },
     });
   }
+}
+
+function formatFollowers(n) {
+  if (!n && n !== 0) return "0";
+  if (n >= 1000000) return (n / 1000000).toFixed(1).replace(/\.0$/, "") + "M";
+  if (n >= 1000) return (n / 1000).toFixed(1).replace(/\.0$/, "") + "K";
+  return String(n);
 }

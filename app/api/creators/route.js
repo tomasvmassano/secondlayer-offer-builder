@@ -1,9 +1,10 @@
 import { NextResponse } from 'next/server';
 import { saveCreator, listCreators, searchCreators } from '../../lib/creators';
 import { scrapeCreator, apifyToCreatorProfile, scrapeMultiplePlatforms } from '../../lib/apify';
+import { resolvePrimaryLanguage } from '../../lib/language';
 
-// Allow up to 60 seconds for Apify scraping
-export const maxDuration = 60;
+// Allow up to 120 seconds for Apify scraping + intelligence analysis
+export const maxDuration = 120;
 
 export async function GET(request) {
   try {
@@ -73,15 +74,24 @@ export async function POST(request) {
         }
         if (tiktokUrl) profile.tiktokUrl = tiktokUrl;
 
-        // Step 2: Use Claude to analyze the raw data (niche, products, reputation)
+        // Step 2: Use Claude to analyze the raw data (niche, products, reputation, intelligence)
         if (apiKey && profile) {
           try {
             const igRaw = multiResult.igRaw;
             const tkRaw = multiResult.tkRaw;
-            const recentContent = [
-              ...(igRaw?.recentPosts || []).slice(0, 3).map(p => p.caption),
-              ...(tkRaw?.recentVideos || []).slice(0, 3).map(v => v.caption),
-            ].filter(Boolean).join(' | ');
+            const allPosts = [
+              ...(igRaw?.recentPosts || []).map(p => ({ caption: p.caption, likes: p.likes, comments: p.comments, type: p.type || 'image', platform: 'Instagram' })),
+              ...(tkRaw?.recentVideos || []).map(v => ({ caption: v.caption, likes: v.likes, comments: v.comments, views: v.views, shares: v.shares, platform: 'TikTok' })),
+            ];
+            const recentContent = allPosts.slice(0, 6).map(p => p.caption).filter(Boolean).join(' | ');
+
+            // Build post performance data for content analysis
+            const postPerformanceData = allPosts.slice(0, 12).map((p, i) =>
+              `Post ${i + 1} [${p.platform}${p.type ? '/' + p.type : ''}]: "${(p.caption || '').slice(0, 100)}" — ${p.likes || 0} likes, ${p.comments || 0} comments${p.views ? ', ' + p.views + ' views' : ''}`
+            ).join('\n');
+
+            // Build bio links data
+            const bioLinksData = (profile.bioLinks || []).map(l => `- ${l.title || 'Link'}: ${l.url}`).join('\n') || 'None found';
 
             const analysisResponse = await fetch('https://api.anthropic.com/v1/messages', {
               method: 'POST',
@@ -92,21 +102,53 @@ export async function POST(request) {
               },
               body: JSON.stringify({
                 model: 'claude-sonnet-4-20250514',
-                max_tokens: 1500,
+                max_tokens: 4000,
+                tools: [{ type: 'web_search_20250305', name: 'web_search' }],
                 messages: [{
                   role: 'user',
-                  content: `Analyze this creator's profile data and respond with ONLY these lines:
+                  content: `You are analyzing a content creator's profile to build a complete intelligence report. Respond with ONLY the lines below, filled in accurately.
 
+=== BASIC ANALYSIS ===
 NICHE: [their niche, e.g. "Food / Baking", "Fitness", "Photography", "Business"]
-PRODUCTS: [comma-separated list of anything they sell: courses, workshops, ebooks, merch, or "None found"]
-REPUTATION: [any notable achievements, or "No notable mentions"]
-AUDIENCE_GENDER: [estimated gender split, e.g. "70% Female, 30% Male" — infer from niche and content style]
-AUDIENCE_AGE: [estimated primary age range, e.g. "25-34" — infer from content topics and language style]
-AUDIENCE_LOCATION: [estimated primary countries/regions, e.g. "Portugal 60%, Brazil 25%, Other 15%" — infer from bio language, location hints]
-AUDIENCE_LANGUAGE: [primary language of content, e.g. "Portuguese 70%, English 20%, Spanish 10%"]
-AUDIENCE_INTERESTS: [5 comma-separated audience interest categories, e.g. "Healthy Lifestyle, Meal Prep, Weight Loss, Home Cooking, Fitness" — infer from content themes]
+PRODUCTS: [comma-separated list of anything they sell: courses, workshops, ebooks, merch, communities, or "None found"]
+REPUTATION: [any notable achievements, media mentions, awards, or "No notable mentions"]
 
-Creator data:
+=== AUDIENCE ESTIMATE ===
+AUDIENCE_GENDER: [estimated gender split, e.g. "70% Female, 30% Male"]
+AUDIENCE_AGE: [estimated primary age range, e.g. "25-34"]
+AUDIENCE_LOCATION: [estimated primary countries, e.g. "Portugal 60%, Brazil 25%, Other 15%"]
+AUDIENCE_LANGUAGE: [primary language of content, e.g. "Portuguese 80%, English 20%"]
+AUDIENCE_INTERESTS: [5 comma-separated audience interest categories]
+
+=== CONTENT ANALYSIS ===
+TOP_POST_1: [caption snippet]|||[engagement rate vs avg]|||[format: reel/carousel/static/video]|||[topic]
+TOP_POST_2: [caption snippet]|||[engagement rate vs avg]|||[format]|||[topic]
+TOP_POST_3: [caption snippet]|||[engagement rate vs avg]|||[format]|||[topic]
+FORMAT_REELS: [estimated % of content that is reels/videos, e.g. "60"]
+FORMAT_CAROUSELS: [estimated % carousels, e.g. "25"]
+FORMAT_STATIC: [estimated % static/single image, e.g. "15"]
+POSTS_PER_WEEK: [estimated average posts per week, e.g. "4.2"]
+
+=== BIO LINK PRODUCTS ===
+IMPORTANT: If the creator has an External URL (especially Linktree, Stan Store, Beacons, or similar), you MUST search for that URL to find all their links and products. Visit/search "${profile.externalUrl || 'none'}" to discover what they sell.
+For each product/service found, detect the platform (Skool, Hotmart, Gumroad, Teachable, Kajabi, Stan Store, Shopify, Linktree, personal site) and pricing if visible.
+BIO_PRODUCT_1: [url]|||[platform detected]|||[product name]|||[price or "Unknown"]|||[currency or "EUR"]
+BIO_PRODUCT_2: [url]|||[platform]|||[product name]|||[price]|||[currency]
+BIO_PRODUCT_3: [url]|||[platform]|||[product name]|||[price]|||[currency]
+BIO_PRODUCT_4: [url]|||[platform]|||[product name]|||[price]|||[currency]
+BIO_PRODUCT_5: [url]|||[platform]|||[product name]|||[price]|||[currency]
+(Include ALL links/products found on their Linktree or bio page. Write "NONE" only if genuinely no products detected.)
+
+=== COMPETITORS ===
+Search for the top 3-5 creators/businesses in this creator's niche who sell courses, communities, or digital products in the same language/market. Include pricing if you can find it.
+COMPETITOR_1: [name]|||[platform: Skool/Hotmart/YouTube/Instagram/Website]|||[price or "Unknown"]|||[currency]|||[estimated community size or "Unknown"]|||[url]
+COMPETITOR_2: [name]|||[platform]|||[price]|||[currency]|||[size]|||[url]
+COMPETITOR_3: [name]|||[platform]|||[price]|||[currency]|||[size]|||[url]
+COMPETITOR_4: [name]|||[platform]|||[price]|||[currency]|||[size]|||[url]
+COMPETITOR_5: [name]|||[platform]|||[price]|||[currency]|||[size]|||[url]
+(Include as many as found, up to 5.)
+
+=== CREATOR DATA ===
 Name: ${profile.name}
 Bio: ${profile.bio || 'No bio'}
 External URL: ${profile.externalUrl || 'None'}
@@ -116,8 +158,12 @@ TikTok Followers: ${tkRaw?.followers || 0}
 Engagement: ${profile.engagement || 'Unknown'}
 Is verified: ${profile.isVerified}
 Is business account: ${profile.isBusinessAccount}
-Recent content: ${recentContent}
-Bio links found: ${(profile.bioLinks || []).map(l => l.title || l.url).join(', ') || 'None'}`,
+
+Bio links found:
+${bioLinksData}
+
+Recent posts with performance:
+${postPerformanceData || 'No post data available'}`,
                 }],
               }),
             });
@@ -129,6 +175,7 @@ Bio links found: ${(profile.bioLinks || []).map(l => l.title || l.url).join(', '
                 .map(b => b.text)
                 .join('\n');
 
+              // Basic analysis
               const getNiche = analysisText.match(/^NICHE:\s*(.+)/mi);
               const getProducts = analysisText.match(/^PRODUCTS:\s*(.+)/mi);
               const getReputation = analysisText.match(/^REPUTATION:\s*(.+)/mi);
@@ -146,7 +193,7 @@ Bio links found: ${(profile.bioLinks || []).map(l => l.title || l.url).join(', '
                 profile.reputation = getReputation[1].trim();
               }
 
-              // Audience estimate from AI inference
+              // Audience estimate
               profile.audienceEstimate = {
                 gender: getGender ? getGender[1].trim() : null,
                 age: getAge ? getAge[1].trim() : null,
@@ -154,6 +201,91 @@ Bio links found: ${(profile.bioLinks || []).map(l => l.title || l.url).join(', '
                 language: getLanguage ? getLanguage[1].trim() : null,
                 interests: getInterests ? getInterests[1].trim().split(',').map(i => i.trim()).filter(Boolean) : [],
               };
+
+              // === INTELLIGENCE: Content Analysis ===
+              const topPosts = [];
+              for (let i = 1; i <= 3; i++) {
+                const match = analysisText.match(new RegExp(`^TOP_POST_${i}:\\s*(.+)`, 'mi'));
+                if (match) {
+                  const parts = match[1].split('|||').map(s => s.trim());
+                  if (parts.length >= 4) {
+                    topPosts.push({ caption: parts[0], engagementRate: parts[1], format: parts[2], topic: parts[3] });
+                  }
+                }
+              }
+
+              const getReels = analysisText.match(/^FORMAT_REELS:\s*(\d+)/mi);
+              const getCarousels = analysisText.match(/^FORMAT_CAROUSELS:\s*(\d+)/mi);
+              const getStatic = analysisText.match(/^FORMAT_STATIC:\s*(\d+)/mi);
+              const getPostsPerWeek = analysisText.match(/^POSTS_PER_WEEK:\s*([\d.]+)/mi);
+
+              const contentStyle = {
+                formatBreakdown: {
+                  reels: getReels ? parseInt(getReels[1]) : 0,
+                  carousels: getCarousels ? parseInt(getCarousels[1]) : 0,
+                  static: getStatic ? parseInt(getStatic[1]) : 0,
+                },
+                postsPerWeek: getPostsPerWeek ? parseFloat(getPostsPerWeek[1]) : 0,
+              };
+
+              // === INTELLIGENCE: Bio Link Products ===
+              const isNone = (s) => !s || /^none$/i.test(s) || /^n\/?a$/i.test(s) || /^\[/.test(s) || s === '-';
+              const bioLinkProducts = [];
+              for (let i = 1; i <= 10; i++) {
+                const match = analysisText.match(new RegExp(`^BIO_PRODUCT_${i}:\\s*(.+)`, 'mi'));
+                if (match) {
+                  const raw = match[1].trim();
+                  if (isNone(raw)) continue; // "NONE" as whole value
+                  const parts = raw.split('|||').map(s => s.trim());
+                  if (parts.length >= 3 && !isNone(parts[0]) && !isNone(parts[2])) {
+                    bioLinkProducts.push({
+                      url: isNone(parts[0]) ? null : parts[0],
+                      platform: isNone(parts[1]) ? 'Unknown' : parts[1],
+                      productName: parts[2],
+                      price: (parts[3] && !isNone(parts[3]) && parts[3] !== 'Unknown') ? parts[3] : null,
+                      currency: (parts[4] && !isNone(parts[4])) ? parts[4] : 'EUR',
+                    });
+                  }
+                }
+              }
+
+              // === INTELLIGENCE: Competitors ===
+              const competitors = [];
+              for (let i = 1; i <= 5; i++) {
+                const match = analysisText.match(new RegExp(`^COMPETITOR_${i}:\\s*(.+)`, 'mi'));
+                if (match) {
+                  const raw = match[1].trim();
+                  if (isNone(raw)) continue;
+                  const parts = raw.split('|||').map(s => s.trim());
+                  if (parts.length >= 2 && !isNone(parts[0])) {
+                    competitors.push({
+                      name: parts[0],
+                      platform: isNone(parts[1]) ? 'Unknown' : parts[1],
+                      price: (parts[2] && !isNone(parts[2]) && parts[2] !== 'Unknown') ? parts[2] : null,
+                      currency: (parts[3] && !isNone(parts[3])) ? parts[3] : 'EUR',
+                      estimatedSize: (parts[4] && !isNone(parts[4]) && parts[4] !== 'Unknown') ? parts[4] : null,
+                      url: (parts[5] && !isNone(parts[5])) ? parts[5] : null,
+                    });
+                  }
+                }
+              }
+
+              // Store intelligence
+              const audienceLanguage = getLanguage ? getLanguage[1].trim() : null;
+              profile.intelligence = {
+                bioLinks: bioLinkProducts,
+                topPosts,
+                contentStyle,
+                competitors,
+                audience: {
+                  primaryCountry: getLocation ? getLocation[1].trim() : null,
+                  primaryLanguage: audienceLanguage,
+                  estimatedAgeRange: getAge ? getAge[1].trim() : null,
+                },
+              };
+
+              // Resolve deliverable language (pt/en/null) for all asset generation routing
+              profile.primaryLanguage = resolvePrimaryLanguage(audienceLanguage);
             }
           } catch {
             // Analysis failed, we still have the raw Apify data

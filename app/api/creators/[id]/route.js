@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getCreator, updateCreator, deleteCreator } from '../../../lib/creators';
+import { sendWelcomeEmail } from '../../../lib/welcomeEmail';
 
 export async function GET(request, { params }) {
   try {
@@ -24,10 +25,21 @@ export async function PATCH(request, { params }) {
       return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 });
     }
 
+    const before = await getCreator(id);
     const updated = await updateCreator(id, body);
     if (!updated) {
       return NextResponse.json({ error: 'Creator not found' }, { status: 404 });
     }
+
+    // Phase 1 trigger — first transition into "signed" sends the welcome / kickoff email.
+    const wasSigned = before?.pipelineStatus === 'signed';
+    const isSigned = updated?.pipelineStatus === 'signed';
+    if (!wasSigned && isSigned) {
+      sendWelcomeEmail(updated, request).catch(err => {
+        console.error('[creators PATCH] welcome email failed:', err.message);
+      });
+    }
+
     return NextResponse.json(updated);
   } catch (err) {
     return NextResponse.json({ error: err.message }, { status: 500 });

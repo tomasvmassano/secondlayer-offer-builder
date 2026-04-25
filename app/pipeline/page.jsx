@@ -130,9 +130,18 @@ export default function PipelinePage() {
                         <span style={{ fontSize: 16, fontWeight: 700, color: "#f5f5f5" }}>{c.name}</span>
                         {c.niche && <span style={{ fontSize: 11, color: "#666" }}>{c.niche}</span>}
                       </div>
-                      <div style={{ display: "flex", gap: 12, marginTop: 2 }}>
+                      <div style={{ display: "flex", gap: 12, marginTop: 2, alignItems: "center" }}>
                         {followers > 0 && <span style={{ fontSize: 11, color: "#888" }}>{formatFollowers(followers)} followers</span>}
                         {signedDate && <span style={{ fontSize: 11, color: "#444" }}>Signed {signedDate}</span>}
+                        {(() => {
+                          const ks = c.onboarding?.status;
+                          if (!ks || ks === 'not_started') return <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", padding: "2px 7px", borderRadius: 4, background: "rgba(234,179,8,0.1)", color: "#eab308", border: "1px solid rgba(234,179,8,0.2)" }}>Form pending</span>;
+                          if (ks === 'form_pending') return <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", padding: "2px 7px", borderRadius: 4, background: "rgba(234,179,8,0.1)", color: "#eab308", border: "1px solid rgba(234,179,8,0.2)" }}>Form in progress</span>;
+                          if (ks === 'form_complete') return <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", padding: "2px 7px", borderRadius: 4, background: "rgba(34,197,94,0.1)", color: "#22c55e", border: "1px solid rgba(34,197,94,0.2)" }}>Form complete</span>;
+                          if (ks === 'call_scheduled') return <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", padding: "2px 7px", borderRadius: 4, background: "rgba(59,130,246,0.1)", color: "#3b82f6", border: "1px solid rgba(59,130,246,0.2)" }}>Call scheduled</span>;
+                          if (ks === 'brief_signed') return <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", padding: "2px 7px", borderRadius: 4, background: "rgba(168,85,247,0.1)", color: "#a855f7", border: "1px solid rgba(168,85,247,0.2)" }}>Brief signed</span>;
+                          return null;
+                        })()}
                       </div>
                     </div>
                     <span style={{ fontSize: 11, color: "#7A0E18", fontWeight: 600 }}>Abrir workspace &rarr;</span>

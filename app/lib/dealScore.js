@@ -104,6 +104,14 @@ const NICHE_ALIASES = {
   'design':            'fotografia',
 };
 
+// Look up pricing for a niche (returns { low, mid, high } or a sensible default).
+// Used by the pitch deck + revenue projector to auto-populate €/member.
+export function getNichePricing(niche) {
+  const matched = matchNiche(niche);
+  if (matched) return { low: matched.low, mid: matched.mid, high: matched.high };
+  return { low: 19, mid: 39, high: 79 }; // neutral default
+}
+
 function matchNiche(niche) {
   if (!niche) return null;
   const lower = niche.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');

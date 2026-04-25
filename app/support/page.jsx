@@ -114,17 +114,20 @@ export default function SupportPage() {
     } catch { /* ignore */ }
   };
 
+  const HIDDEN_FROM_ALL = ["done", "wont_do"];
   const filtered = tickets.filter(t => {
+    if (filter === "all" && HIDDEN_FROM_ALL.includes(t.status)) return false;
     if (filter !== "all" && t.status !== filter) return false;
     if (typeFilter !== "all" && t.type !== typeFilter) return false;
     return true;
   });
 
   const counts = {
-    all: tickets.length,
+    all: tickets.filter(t => t.status !== "wont_do").length,
     new: tickets.filter(t => t.status === "new").length,
     reviewing: tickets.filter(t => t.status === "reviewing").length,
     building: tickets.filter(t => t.status === "building").length,
+    done: tickets.filter(t => t.status === "done").length,
   };
 
   return (
@@ -152,12 +155,12 @@ export default function SupportPage() {
             {/* Type */}
             <div style={{ display: "flex", gap: 8, marginBottom: 20 }}>
               {[
-                { key: "suggestion", label: "Sugestão", icon: "💡" },
-                { key: "bug", label: "Bug Report", icon: "🐛" },
+                { key: "suggestion", label: "Sugestão" },
+                { key: "bug", label: "Bug Report" },
               ].map(t => (
                 <button key={t.key} onClick={() => setForm(f => ({ ...f, type: t.key }))}
                   style={{ flex: 1, padding: "14px 16px", borderRadius: 8, border: `1px solid ${form.type === t.key ? "rgba(122,14,24,0.3)" : "rgba(255,255,255,0.06)"}`, background: form.type === t.key ? "rgba(122,14,24,0.08)" : "#141414", color: form.type === t.key ? "#f5f5f5" : "#888", fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", textAlign: "left" }}>
-                  <span style={{ marginRight: 8 }}>{t.icon}</span>{t.label}
+                  {t.label}
                 </button>
               ))}
             </div>
@@ -244,7 +247,7 @@ export default function SupportPage() {
               {/* Header */}
               <div style={{ marginBottom: 20 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
-                  <span style={{ fontSize: 16 }}>{t.type === "bug" ? "🐛" : "💡"}</span>
+                  <span style={{ fontSize: 10, fontWeight: 700, color: t.type === "bug" ? "#ef4444" : "#3b82f6", padding: "2px 6px", background: t.type === "bug" ? "rgba(239,68,68,0.1)" : "rgba(59,130,246,0.1)", borderRadius: 4, textTransform: "uppercase" }}>{t.type === "bug" ? "Bug" : "Idea"}</span>
                   <span style={{ fontSize: 8, fontWeight: 700, padding: "2px 8px", borderRadius: 4, background: pri.bg, border: `1px solid ${pri.border}`, color: pri.color, letterSpacing: "0.06em", textTransform: "uppercase" }}>{pri.label}</span>
                   <span style={{ fontSize: 9, color: "#555" }}>{t.area}</span>
                 </div>
@@ -303,28 +306,13 @@ export default function SupportPage() {
               </button>
             </div>
 
-            {/* Stats */}
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 10, marginBottom: 20 }}>
-              {[
-                { label: "Total", value: counts.all, color: "#f5f5f5" },
-                { label: "New", value: counts.new, color: "#3b82f6" },
-                { label: "Reviewing", value: counts.reviewing, color: "#eab308" },
-                { label: "Building", value: counts.building, color: "#7A0E18" },
-              ].map(s => (
-                <div key={s.label} style={{ padding: "12px 14px", background: "#141414", border: "1px solid rgba(255,255,255,0.04)", borderRadius: 8, textAlign: "center" }}>
-                  <div style={{ fontSize: 20, fontWeight: 700, color: s.color }}>{s.value}</div>
-                  <div style={{ fontSize: 9, fontWeight: 600, color: "#555", textTransform: "uppercase", letterSpacing: "0.06em" }}>{s.label}</div>
-                </div>
-              ))}
-            </div>
-
             {/* Filters */}
             <div style={{ display: "flex", gap: 6, marginBottom: 16, flexWrap: "wrap" }}>
               <div style={{ display: "flex", gap: 4, marginRight: 12 }}>
                 {["all", "suggestion", "bug"].map(t => (
                   <button key={t} onClick={() => setTypeFilter(t)}
                     style={{ padding: "5px 10px", borderRadius: 5, border: `1px solid ${typeFilter === t ? "rgba(122,14,24,0.3)" : "rgba(255,255,255,0.06)"}`, background: typeFilter === t ? "rgba(122,14,24,0.08)" : "transparent", color: typeFilter === t ? "#f5f5f5" : "#555", fontSize: 10, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>
-                    {t === "all" ? "Todos" : t === "suggestion" ? "💡 Sugestões" : "🐛 Bugs"}
+                    {t === "all" ? "Todos" : t === "suggestion" ? "Sugestões" : "Bugs"}
                   </button>
                 ))}
               </div>
@@ -366,7 +354,7 @@ export default function SupportPage() {
                       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12 }}>
                         <div style={{ flex: 1, minWidth: 0 }}>
                           <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
-                            <span style={{ fontSize: 14 }}>{t.type === "bug" ? "🐛" : "💡"}</span>
+                            <span style={{ fontSize: 10, fontWeight: 700, color: t.type === "bug" ? "#ef4444" : "#3b82f6", padding: "2px 6px", background: t.type === "bug" ? "rgba(239,68,68,0.1)" : "rgba(59,130,246,0.1)", borderRadius: 4, textTransform: "uppercase" }}>{t.type === "bug" ? "Bug" : "Idea"}</span>
                             <span style={{ fontSize: 13, fontWeight: 600, color: "#f5f5f5", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{t.title}</span>
                           </div>
                           <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 10, color: "#555" }}>

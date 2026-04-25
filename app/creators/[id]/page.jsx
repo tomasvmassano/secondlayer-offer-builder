@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { calculateDealScore } from "../../lib/dealScore";
+import { SCENARIOS as REVENUE_SCENARIOS, calculateSteadyMRR as sharedCalcMRR } from "../../lib/revenue";
 import { renderMd, parseOutput, extractAudience } from "../../offer-builder/lib/shared";
 import { OFFER_SYSTEM_PROMPT } from "../../lib/systemPrompt";
 import WorkspaceDashboard from "./workspace/WorkspaceDashboard";
@@ -127,6 +128,32 @@ export default function CreatorProfilePage({ params: paramsPromise }) {
   const [revenuePrice, setRevenuePrice] = useState(null);
   const [revenueCommission, setRevenueCommission] = useState(30);
   const [engagementRate, setEngagementRate] = useState(null);
+  // Hydrate revenue inputs from creator record on load (single source of truth)
+  useEffect(() => {
+    if (!creator) return;
+    if (revenuePrice == null && creator.revenuePrice != null) setRevenuePrice(creator.revenuePrice);
+    if (creator.revenueCommission != null) setRevenueCommission(creator.revenueCommission);
+    if (engagementRate == null && creator.revenueEngagement != null) setEngagementRate(creator.revenueEngagement);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [creator?.id]);
+  // Debounced save-back so the Pitch deck reads the same numbers
+  useEffect(() => {
+    if (!params?.id || !creator) return;
+    const handle = setTimeout(() => {
+      const payload = {};
+      if (revenuePrice != null) payload.revenuePrice = revenuePrice;
+      if (engagementRate != null) payload.revenueEngagement = engagementRate;
+      payload.revenueCommission = revenueCommission;
+      fetch(`/api/creators/${params.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      }).catch(() => {});
+    }, 800);
+    return () => clearTimeout(handle);
+  }, [revenuePrice, revenueCommission, engagementRate, params?.id, creator?.id]);
+  const [findingSimilar, setFindingSimilar] = useState(false);
+  const [similarResult, setSimilarResult] = useState("");
 
   // Launch state
   const [launchGenerating, setLaunchGenerating] = useState(null);
@@ -206,9 +233,9 @@ export default function CreatorProfilePage({ params: paramsPromise }) {
       handle_instagram: handle,
       seguidores: followers ? followers.toLocaleString() : "",
       nicho: creator.niche || "",
-      peca_recente: "",
-      observacao_real: "",
-      buraco_identificado: buraco,
+      como_cheguei: "",
+      reacao_pessoal: "",
+      observacao_dor: buraco,
     });
   }, [creator, dmInputs._filled]);
 
@@ -249,9 +276,9 @@ export default function CreatorProfilePage({ params: paramsPromise }) {
             handle_instagram: dmInputs.handle_instagram || "",
             seguidores: dmInputs.seguidores || "",
             nicho: dmInputs.nicho || "",
-            peca_recente: dmInputs.peca_recente || "",
-            observacao_real: dmInputs.observacao_real || "",
-            buraco_identificado: dmInputs.buraco_identificado || "",
+            como_cheguei: dmInputs.como_cheguei || "",
+            reacao_pessoal: dmInputs.reacao_pessoal || "",
+            observacao_dor: dmInputs.observacao_dor || "",
           },
           notes: dmNotes,
           creatorProfile: {
@@ -260,12 +287,16 @@ export default function CreatorProfilePage({ params: paramsPromise }) {
             bio: creator.bio,
             engagement: creator.engagement,
             isVerified: creator.isVerified,
+            isBusinessAccount: creator.isBusinessAccount,
             products: creator.products,
             bioLinks: creator.bioLinks,
             externalUrl: creator.externalUrl,
             reputation: creator.reputation,
             research: creator.research,
             platforms: creator.platforms,
+            primaryLanguage: creator.primaryLanguage,
+            intelligence: creator.intelligence,
+            audienceEstimate: creator.audienceEstimate,
           },
         }),
       });
@@ -287,7 +318,7 @@ export default function CreatorProfilePage({ params: paramsPromise }) {
           creatorReply: replyText,
           originalDm: creator.dmSequence.dm || "",
           creatorName: creator.name,
-          buraco: creator.dmSequence.inputs?.buraco_identificado || "",
+          buraco: creator.dmSequence.inputs?.observacao_dor || creator.dmSequence.inputs?.buraco_identificado || "",
         }),
       });
       if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || "Failed");
@@ -295,6 +326,45 @@ export default function CreatorProfilePage({ params: paramsPromise }) {
       setReplyResult(data);
     } catch (e) { setReplyError(e.message); } finally { setReplyLoading(false); }
   }, [replyText, creator, patchCreator]);
+
+  const findSimilar = useCallback(async () => {
+    if (!params?.id || findingSimilar) return;
+    setFindingSimilar(true); setSimilarResult("");
+    try {
+      const r = await fetch("/api/discovery", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ creatorId: params.id, max: 5 }),
+      });
+      const data = await r.json();
+      if (!r.ok) throw new Error(data.error || "Erro");
+      const parts = [`${data.queued || 0} qualificados`];
+      if (data.dismissedNiche) parts.push(`${data.dismissedNiche} fora do nicho`);
+      if (data.dismissedLanguage) parts.push(`${data.dismissedLanguage} idioma errado`);
+      if (data.dismissedNoBusiness) parts.push(`${data.dismissedNoBusiness} sem monetização`);
+      if (data.dismissedLowTier) parts.push(`${data.dismissedLowTier} C/D tier`);
+      if (data.dismissedOutOfRange) {
+        const rng = [];
+        if (data.tooSmall) rng.push(`${data.tooSmall} <50K`);
+        if (data.tooBig) rng.push(`${data.tooBig} too big`);
+        parts.push(`${data.dismissedOutOfRange} fora do range${rng.length ? ` (${rng.join(", ")})` : ""}`);
+      }
+      if (data.failed) parts.push(`${data.failed} falharam`);
+      const d = data.drops || {};
+      let msg = parts.join(" · ");
+      const totalDismissed = (data.dismissedLowTier || 0) + (data.dismissedOutOfRange || 0) + (data.dismissedLanguage || 0) + (data.dismissedNiche || 0) + (data.dismissedNoBusiness || 0);
+      if ((data.queued || 0) === 0 && totalDismissed === 0) {
+        if (d.totalRelated === 0) msg = "Nenhum similar no perfil (precisa re-scrape o creator)";
+        else msg = `Sem candidatos novos: ${d.totalRelated} encontrados, ${d.inCRM || 0} já no CRM, ${d.dismissed || 0} dispensados antes, ${d.inQueue || 0} em queue`;
+      }
+      setSimilarResult(msg);
+      setTimeout(() => setSimilarResult(""), 20000);
+    } catch (e) {
+      setSimilarResult(`Erro: ${e.message}`);
+    } finally {
+      setFindingSimilar(false);
+    }
+  }, [params, findingSimilar]);
 
   // — Launch asset generate (streaming) —
   const generateLaunchAsset = useCallback(async (assetKey) => {
@@ -514,6 +584,31 @@ export default function CreatorProfilePage({ params: paramsPromise }) {
             <div style={{ display: "flex", gap: 6, marginTop: 4, flexWrap: "wrap", alignItems: "center" }}>
               {creator.pipelineStatus === 'signed' && <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", padding: "3px 8px", borderRadius: 4, background: "rgba(34,197,94,0.1)", color: "#22c55e", border: "1px solid rgba(34,197,94,0.25)" }}>Signed</span>}
               {creator.niche && <span style={{ fontSize: 11, color: "#888", padding: "3px 8px", background: "rgba(255,255,255,0.03)", borderRadius: 4 }}>{creator.niche}</span>}
+              {(() => {
+                const lang = creator.primaryLanguage;
+                const audienceHint = creator.intelligence?.audience?.primaryLanguage || creator.audienceEstimate?.language || '';
+                const toggleLanguage = () => {
+                  const next = lang === 'en' ? 'pt' : 'en';
+                  if (window.confirm(`Mudar idioma para ${next === 'en' ? 'English' : 'Portuguese'}? Todos os assets (DM, emails, offer, etc.) vão ser gerados em ${next === 'en' ? 'inglês' : 'português'}.`)) {
+                    patchCreator({ primaryLanguage: next });
+                  }
+                };
+                return (
+                  <button
+                    onClick={toggleLanguage}
+                    title={audienceHint ? `Audiência: ${audienceHint}\nClica para mudar o idioma de todos os assets.` : 'Clica para mudar o idioma de todos os assets.'}
+                    style={{
+                      fontSize: 11, fontWeight: 700, padding: "3px 8px",
+                      background: lang === 'en' ? "rgba(59,130,246,0.1)" : lang === 'pt' ? "rgba(34,197,94,0.1)" : "rgba(255,255,255,0.03)",
+                      color: lang === 'en' ? "#3b82f6" : lang === 'pt' ? "#22c55e" : "#888",
+                      border: `1px solid ${lang === 'en' ? "rgba(59,130,246,0.25)" : lang === 'pt' ? "rgba(34,197,94,0.25)" : "rgba(255,255,255,0.08)"}`,
+                      borderRadius: 4, cursor: "pointer", fontFamily: "inherit"
+                    }}
+                  >
+                    {lang === 'en' ? 'EN' : lang === 'pt' ? 'PT' : 'Lang ?'}
+                  </button>
+                );
+              })()}
               {dealScore && <span style={{ fontSize: 11, fontWeight: 700, color: dealScore.colors.color, padding: "3px 8px", background: dealScore.colors.bg, border: `1px solid ${dealScore.colors.border}`, borderRadius: 4 }}>Score {dealScore.grade} ({dealScore.score})</span>}
               {dealScore?.nicheData && <span style={{ fontSize: 11, color: "#555", padding: "3px 8px", background: "rgba(255,255,255,0.02)", borderRadius: 4 }}>€{dealScore.nicheData.mid}/mês</span>}
               {creator.pipelineStatus !== 'signed' && (
@@ -704,31 +799,159 @@ export default function CreatorProfilePage({ params: paramsPromise }) {
             </div>
           )}
 
-          {/* Competitors */}
-          {creator.competitors?.length > 0 && (
+          {/* Content Analysis */}
+          {(creator.intelligence?.topPosts?.length > 0 || creator.intelligence?.contentStyle) && (
             <div style={{ marginBottom: 24 }}>
-              <h3 style={sectionTitleStyle}>Criadores Similares</h3>
-              <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                {creator.competitors.slice(0, 5).map((c, i) => (
-                  <a key={i} href={c.url || `https://instagram.com/${c.username}`} target="_blank" rel="noopener noreferrer" style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 12px", background: "#141414", border: "1px solid rgba(255,255,255,0.03)", borderRadius: 6, textDecoration: "none" }}>
-                    <div style={{ fontSize: 12, color: "#ccc", flex: 1 }}>{c.fullName || c.username} <span style={{ color: "#555" }}>@{c.username}</span></div>
-                    {c.followers > 0 && <span style={{ fontSize: 11, color: "#888", fontWeight: 600 }}>{formatFollowers(c.followers)}</span>}
-                  </a>
-                ))}
-              </div>
+              <h3 style={sectionTitleStyle}>Análise de Conteúdo <span style={{ fontSize: 8, color: "#555", padding: "2px 6px", background: "rgba(255,255,255,0.04)", borderRadius: 4, textTransform: "uppercase", fontWeight: 400, marginLeft: 8 }}>AI</span></h3>
+
+              {/* Format breakdown */}
+              {creator.intelligence.contentStyle && (
+                <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
+                  {[
+                    { label: "Reels", value: creator.intelligence.contentStyle.formatBreakdown?.reels, color: "#7A0E18" },
+                    { label: "Carousels", value: creator.intelligence.contentStyle.formatBreakdown?.carousels, color: "#3b82f6" },
+                    { label: "Estático", value: creator.intelligence.contentStyle.formatBreakdown?.static, color: "#555" },
+                  ].filter(f => f.value > 0).map((f, i) => (
+                    <div key={i} style={{ flex: 1, padding: "10px 12px", background: "#141414", border: "1px solid rgba(255,255,255,0.04)", borderRadius: 8, textAlign: "center" }}>
+                      <div style={{ fontSize: 18, fontWeight: 700, color: f.color }}>{f.value}%</div>
+                      <div style={{ fontSize: 9, color: "#555", textTransform: "uppercase", marginTop: 2 }}>{f.label}</div>
+                    </div>
+                  ))}
+                  {creator.intelligence.contentStyle.postsPerWeek > 0 && (
+                    <div style={{ flex: 1, padding: "10px 12px", background: "#141414", border: "1px solid rgba(255,255,255,0.04)", borderRadius: 8, textAlign: "center" }}>
+                      <div style={{ fontSize: 18, fontWeight: 700, color: "#22c55e" }}>{creator.intelligence.contentStyle.postsPerWeek}</div>
+                      <div style={{ fontSize: 9, color: "#555", textTransform: "uppercase", marginTop: 2 }}>Posts/semana</div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Top posts */}
+              {creator.intelligence.topPosts?.length > 0 && (
+                <div>
+                  <div style={{ fontSize: 10, fontWeight: 600, color: "#444", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>Top Posts</div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                    {creator.intelligence.topPosts.map((p, i) => (
+                      <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 12px", background: "#141414", border: "1px solid rgba(255,255,255,0.03)", borderRadius: 6 }}>
+                        <span style={{ fontSize: 10, fontWeight: 700, color: "#22c55e", minWidth: 16 }}>#{i + 1}</span>
+                        <span style={{ flex: 1, fontSize: 11, color: "#ccc", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.caption}</span>
+                        {p.format && <span style={{ fontSize: 9, color: "#444", padding: "1px 5px", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 3 }}>{p.format}</span>}
+                        {p.topic && <span style={{ fontSize: 9, color: "#888", padding: "1px 6px", background: "rgba(122,14,24,0.15)", borderRadius: 3 }}>{p.topic}</span>}
+                        {p.engagementRate && <span style={{ fontSize: 10, color: "#22c55e", fontWeight: 600, whiteSpace: "nowrap" }}>{p.engagementRate}</span>}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
-          {/* Products + Bio Links */}
-          {(creator.products?.length > 0 || creator.bioLinks?.length > 0) && (
+          {/* Products & Revenue Signals */}
+          {(creator.intelligence?.bioLinks?.length > 0 || creator.products?.length > 0 || creator.bioLinks?.length > 0) && (
             <div style={{ marginBottom: 24 }}>
-              <h3 style={sectionTitleStyle}>Produtos Encontrados</h3>
-              {creator.bioLinks?.length > 0 && <div style={{ display: "flex", flexDirection: "column", gap: 3, marginBottom: 8 }}>
-                {creator.bioLinks.map((l, i) => <a key={i} href={l.url?.startsWith("http") ? l.url : "https://" + l.url} target="_blank" rel="noopener noreferrer" style={{ fontSize: 11, color: "#7A0E18", textDecoration: "none", padding: "6px 10px", background: "#141414", borderRadius: 6, wordBreak: "break-all" }}>{l.title || l.url}</a>)}
-              </div>}
-              {creator.products?.length > 0 && <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                {creator.products.map((p, i) => <span key={i} style={{ fontSize: 11, color: "#f5f5f5", padding: "4px 10px", background: "rgba(122,14,24,0.15)", border: "1px solid rgba(122,14,24,0.25)", borderRadius: 4 }}>{p}</span>)}
-              </div>}
+              <h3 style={sectionTitleStyle}>Produtos & Revenue <span style={{ fontSize: 8, color: "#555", padding: "2px 6px", background: "rgba(255,255,255,0.04)", borderRadius: 4, textTransform: "uppercase", fontWeight: 400, marginLeft: 8 }}>AI</span></h3>
+
+              {/* Intelligence bio link products (with platform + pricing) */}
+              {creator.intelligence?.bioLinks?.length > 0 && (
+                <div style={{ display: "flex", flexDirection: "column", gap: 4, marginBottom: 10 }}>
+                  {creator.intelligence.bioLinks.map((p, i) => (
+                    <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 14px", background: "#141414", border: "1px solid rgba(255,255,255,0.04)", borderRadius: 8 }}>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontSize: 12, fontWeight: 600, color: "#f5f5f5" }}>{p.productName}</div>
+                        <div style={{ fontSize: 10, color: "#555", marginTop: 2 }}>{p.platform}{p.url ? ` — ${p.url}` : ''}</div>
+                      </div>
+                      {p.price && (
+                        <div style={{ padding: "4px 10px", background: "rgba(34,197,94,0.1)", border: "1px solid rgba(34,197,94,0.2)", borderRadius: 6, fontSize: 13, fontWeight: 700, color: "#22c55e" }}>
+                          {p.currency === 'EUR' || !p.currency ? '€' : p.currency}{p.price}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Raw bio links (from Linktree scraper) */}
+              {creator.bioLinks?.length > 0 && (
+                <div style={{ marginBottom: 8 }}>
+                  <div style={{ fontSize: 10, fontWeight: 600, color: "#444", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>Links na Bio</div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
+                    {creator.bioLinks.map((l, i) => <a key={i} href={l.url?.startsWith("http") ? l.url : "https://" + l.url} target="_blank" rel="noopener noreferrer" style={{ fontSize: 11, color: "#7A0E18", textDecoration: "none", padding: "6px 10px", background: "#141414", borderRadius: 6, wordBreak: "break-all" }}>{l.title || l.url}</a>)}
+                  </div>
+                </div>
+              )}
+
+              {/* AI-detected products */}
+              {creator.products?.length > 0 && (
+                <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                  {creator.products.map((p, i) => <span key={i} style={{ fontSize: 11, color: "#f5f5f5", padding: "4px 10px", background: "rgba(122,14,24,0.15)", border: "1px solid rgba(122,14,24,0.25)", borderRadius: 4 }}>{p}</span>)}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Discovery — always visible */}
+          <div style={{ marginBottom: 24, padding: "14px 16px", background: "#141414", border: "1px solid rgba(255,255,255,0.04)", borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 12, fontWeight: 600, color: "#f5f5f5", marginBottom: 2 }}>Descobrir similares</div>
+              <div style={{ fontSize: 10, color: "#666" }}>
+                Scanear 5 creators similares no Instagram e adicionar ao Discovery queue. ~€0.75
+              </div>
+              {similarResult && (
+                <div style={{ fontSize: 10, color: similarResult.startsWith("Erro") ? "#ef4444" : "#22c55e", marginTop: 4 }}>{similarResult}</div>
+              )}
+            </div>
+            <button
+              onClick={findSimilar}
+              disabled={findingSimilar}
+              style={{ fontSize: 11, fontWeight: 600, padding: "8px 14px", background: findingSimilar ? "#222" : "#7A0E18", border: "none", borderRadius: 6, color: findingSimilar ? "#555" : "#fff", cursor: findingSimilar ? "wait" : "pointer", fontFamily: "inherit", whiteSpace: "nowrap" }}
+            >
+              {findingSimilar ? "A descobrir..." : "Find 5 similar"}
+            </button>
+          </div>
+
+          {/* Competitors (intelligence version + Instagram similar) */}
+          {(creator.intelligence?.competitors?.length > 0 || creator.competitors?.length > 0) && (
+            <div style={{ marginBottom: 24 }}>
+              <h3 style={sectionTitleStyle}>Competidores no Nicho <span style={{ fontSize: 8, color: "#555", padding: "2px 6px", background: "rgba(255,255,255,0.04)", borderRadius: 4, textTransform: "uppercase", fontWeight: 400, marginLeft: 8 }}>AI</span></h3>
+
+              {/* Intelligence competitors (with pricing) */}
+              {creator.intelligence?.competitors?.length > 0 && (
+                <div style={{ display: "flex", flexDirection: "column", gap: 4, marginBottom: 10 }}>
+                  {creator.intelligence.competitors.map((c, i) => (
+                    <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 14px", background: "#141414", border: "1px solid rgba(255,255,255,0.04)", borderRadius: 8 }}>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontSize: 12, fontWeight: 600, color: "#ccc" }}>
+                          {c.url ? <a href={c.url.startsWith("http") ? c.url : "https://" + c.url} target="_blank" rel="noopener noreferrer" style={{ color: "#ccc", textDecoration: "none" }}>{c.name}</a> : c.name}
+                        </div>
+                        <div style={{ fontSize: 10, color: "#555", marginTop: 2 }}>
+                          {c.platform}
+                          {c.estimatedSize && <span style={{ marginLeft: 8 }}>{c.estimatedSize} membros</span>}
+                        </div>
+                      </div>
+                      {c.price && (
+                        <div style={{ padding: "4px 10px", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 6, fontSize: 12, fontWeight: 600, color: "#eab308" }}>
+                          {c.currency === 'EUR' || !c.currency ? '€' : c.currency}{c.price}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Instagram similar profiles (existing data) */}
+              {creator.competitors?.length > 0 && creator.competitors[0]?.username && (
+                <div>
+                  <div style={{ fontSize: 10, fontWeight: 600, color: "#444", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>Instagram Similares</div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                    {creator.competitors.slice(0, 5).map((c, i) => (
+                      <a key={i} href={c.url || `https://instagram.com/${c.username}`} target="_blank" rel="noopener noreferrer" style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 12px", background: "#141414", border: "1px solid rgba(255,255,255,0.03)", borderRadius: 6, textDecoration: "none" }}>
+                        <div style={{ fontSize: 12, color: "#ccc", flex: 1 }}>{c.fullName || c.username} <span style={{ color: "#555" }}>@{c.username}</span></div>
+                        {c.followers > 0 && <span style={{ fontSize: 11, color: "#888", fontWeight: 600 }}>{formatFollowers(c.followers)}</span>}
+                      </a>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
@@ -797,9 +1020,9 @@ export default function CreatorProfilePage({ params: paramsPromise }) {
                 ))}
               </div>
               {[
-                { key: "peca_recente", label: "Peça Recente", placeholder: "Referência a conteúdo dos últimos 14 dias (título, tema). Deixa vazio para auto-preencher." },
-                { key: "observacao_real", label: "Observação Real", placeholder: "Observação genuína sobre essa peça. Deixa vazio para auto-preencher." },
-                { key: "buraco_identificado", label: "Buraco Identificado", placeholder: "O gap no setup do criador. Deixa vazio para auto-preencher." },
+                { key: "como_cheguei", label: "Como Cheguei Até Ti", placeholder: "Como o Raul descobriu o creator + conteúdo concreto (ex: 'através da receita do pudim de laranja e coco'). Começa com preposição (através, por, porque vi...). Deixa vazio para auto-preencher." },
+                { key: "reacao_pessoal", label: "Reação Pessoal", placeholder: "Reação/ligação genuína (ex: 'é a minha sobremesa favorita 😅' ou 'identifico-me com esse processo'). Max 1 emoji. Deixa vazio para auto-preencher." },
+                { key: "observacao_dor", label: "Observação / Dor", placeholder: "Observação sobre o negócio em PT europeu (ex: 'tens uma audiência gigante que interage bem, mas só vejo parcerias pontuais'). Sem menções a 'receita recorrente' ou 'monetizar' aqui. Deixa vazio para auto-preencher." },
               ].map(f => (
                 <div key={f.key} style={{ marginBottom: 12 }}>
                   <label style={{ display: "block", fontSize: 10, fontWeight: 600, color: "#555", marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.05em" }}>{f.label}</label>
@@ -985,39 +1208,35 @@ export default function CreatorProfilePage({ params: paramsPromise }) {
               </div>
               <div style={{ padding: 20, background: "#141414", border: "1px solid rgba(255,255,255,0.04)", borderRadius: 10, minHeight: 200 }}>
                 {offerTab === "revenue" ? (() => {
-                  const primaryF = igData?.followers || tkData?.followers || ytData?.subscribers || 10000;
+                  // Audience: use creator.revenueAudience override if set, else scraped data
+                  const scrapedF = igData?.followers || tkData?.followers || ytData?.subscribers || 10000;
+                  const primaryF = creator.revenueAudience ?? scrapedF;
                   const nichePrice = dealScore?.nicheData?.mid || 39;
                   const rawPriceMatch = creator.offer?.raw?.match(/RECOMMENDED MONTHLY PRICE:\s*€?\s*(\d+)/i);
                   const defaultPrice = rawPriceMatch ? parseInt(rawPriceMatch[1], 10) : nichePrice;
-                  const price = revenuePrice ?? defaultPrice;
+                  const price = revenuePrice ?? creator.revenuePrice ?? defaultPrice;
                   const fmt = (n) => "€" + Math.round(n).toLocaleString();
 
-                  // Parse engagement rate from creator data or state override
+                  // Engagement rate
                   const rawEng = creator.engagement || igData?.engagementRate || "";
                   const defaultEng = parseFloat(String(rawEng).replace(/[^0-9.]/g, "")) || 2.0;
-                  const eng = engagementRate ?? defaultEng;
+                  const eng = engagementRate ?? creator.revenueEngagement ?? defaultEng;
 
-                  // Engagement multiplier: benchmark = 2%, half-weight smoothing, clamped [0.3, 3.0]
-                  const benchmark = 2.0;
-                  const rawMult = eng / benchmark;
-                  const engMultiplier = Math.min(3.0, Math.max(0.3, 1 + (rawMult - 1) * 0.5));
-
+                  // Use SHARED revenue lib — same scenarios + same formula as the Pitch deck
                   const scenarios = [
-                    { label: "Conservative", vr: 0.10, lr: 0.02, cr: 0.05, p: 12, churn: 0.12, cap: 0.03, color: "#888", border: "rgba(255,255,255,0.04)" },
-                    { label: "Moderate", vr: 0.15, lr: 0.03, cr: 0.08, p: 15, churn: 0.08, cap: 0.05, color: "#f5f5f5", border: "rgba(122,14,24,0.2)" },
-                    { label: "Aggressive", vr: 0.20, lr: 0.05, cr: 0.12, p: 18, churn: 0.05, cap: 0.08, color: "#7A0E18", border: "rgba(255,255,255,0.04)" },
+                    { ...REVENUE_SCENARIOS.conservador, label: "Conservative", color: "#888", border: "rgba(255,255,255,0.04)" },
+                    { ...REVENUE_SCENARIOS.moderado, label: "Moderate", color: "#f5f5f5", border: "rgba(122,14,24,0.2)" },
+                    { ...REVENUE_SCENARIOS.agressivo, label: "Aggressive", color: "#7A0E18", border: "rgba(255,255,255,0.04)" },
                   ];
 
-                  const calcClients = (s) => {
-                    const vrAdj = s.vr * engMultiplier;
-                    const raw = Math.round(primaryF * vrAdj * s.lr * s.cr * s.p * (1 - s.churn));
-                    const maxClients = Math.round(primaryF * s.cap);
-                    return Math.min(raw, maxClients);
-                  };
+                  const calcSteady = (s) => sharedCalcMRR({ audience: primaryF, price, engagementRate: eng, scenario: s });
+                  const calcClients = (s) => calcSteady(s).activeMembers;
+                  const engMultiplier = sharedCalcMRR({ audience: primaryF, price, engagementRate: eng, scenario: scenarios[1] }).engMultiplier;
 
                   const modScenario = scenarios[1];
-                  const modClients = calcClients(modScenario);
-                  const modRevenue = modClients * price;
+                  const modSteady = calcSteady(modScenario);
+                  const modClients = modSteady.activeMembers;
+                  const modRevenue = modSteady.monthlyRevenue;
 
                   return (
                     <div>

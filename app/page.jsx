@@ -101,7 +101,7 @@ export default function Hub() {
             onMouseLeave={e => e.currentTarget.style.borderColor = "rgba(255,255,255,0.04)"}
           >
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-              <span style={{ fontSize: 14, opacity: 0.6 }}>💡</span>
+              <span style={{ fontSize: 11, color: "#555" }}>+</span>
               <span style={{ fontSize: 12, fontWeight: 600, color: "#888" }}>Feedback & Support</span>
             </div>
             <span style={{ fontSize: 10, color: "#333" }}>&rarr;</span>
