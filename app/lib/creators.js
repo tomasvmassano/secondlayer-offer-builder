@@ -172,14 +172,39 @@ export async function findByOnboardingToken(token) {
 }
 
 export async function getCreator(id) {
+  let creator;
   if (useMemory()) {
     const raw = memStore.get(`creator:${id}`);
-    return raw ? JSON.parse(raw) : null;
+    creator = raw ? JSON.parse(raw) : null;
+  } else {
+    const redis = getRedis();
+    const raw = await redis.get(`creator:${id}`);
+    if (!raw) return null;
+    creator = typeof raw === 'string' ? JSON.parse(raw) : raw;
   }
-  const redis = getRedis();
-  const raw = await redis.get(`creator:${id}`);
-  if (!raw) return null;
-  return typeof raw === 'string' ? JSON.parse(raw) : raw;
+  if (!creator) return null;
+
+  // Backfill onboarding for legacy creators signed before Phase 1.
+  if (!creator.onboarding?.token) {
+    const onboarding = {
+      token: nanoid(16),
+      status: 'not_started',
+      formStartedAt: null,
+      formCompletedAt: null,
+      responses: {},
+      kickoff: { decisions: {}, actionItems: [] },
+      ...(creator.onboarding || {}),
+    };
+    if (!onboarding.token) onboarding.token = nanoid(16);
+    creator = { ...creator, onboarding };
+    // Persist so the same token is reused next time.
+    if (useMemory()) {
+      memStore.set(`creator:${id}`, JSON.stringify(creator));
+    } else {
+      await getRedis().set(`creator:${id}`, JSON.stringify(creator));
+    }
+  }
+  return creator;
 }
 
 export async function listCreators() {

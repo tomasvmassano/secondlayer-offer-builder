@@ -48,13 +48,27 @@ const ONBOARDING_SECTIONS = [
 const REQUIRED_KEYS = ['logo','topQuestions','painPoints','revenueStreams','emailList','revenueTarget','launchDate','hoursPerWeek','hardNos','preferredLanguage'];
 
 const DECISION_FIELDS = [
-  { key: "positioning", label: "Positioning sentence", textarea: true },
-  { key: "communityName", label: "Community name" },
-  { key: "pricing", label: "Pricing (€/month)" },
-  { key: "launchDate", label: "Launch date" },
-  { key: "techStack", label: "Tech stack (community / payments / email / ads)" },
-  { key: "rolesSplit", label: "Roles split (Creator / Second Layer)" },
-  { key: "commsCadence", label: "Comms cadence" },
+  { key: "positioning", label: "Positioning sentence", textarea: true,
+    hint: "One sentence: who it's for + transformation + how. Goes on sales page H1, IG bio, ads.",
+    placeholder: "e.g. The community for Portuguese home cooks who want to master traditional recipes — with weekly live classes and a private chef chat." },
+  { key: "communityName", label: "Community name",
+    hint: "Final brand name for the community/product. Used on Skool, checkout, emails.",
+    placeholder: "e.g. Cozinha do Rui · Mesa Portuguesa" },
+  { key: "pricing", label: "Pricing (€/month)",
+    hint: "Locked monthly price. Anchors revenue projector + checkout.",
+    placeholder: "e.g. 39" },
+  { key: "launchDate", label: "Launch date",
+    hint: "Public open-cart date. Backwards from here drives the build timeline.",
+    placeholder: "e.g. 2026-06-15" },
+  { key: "techStack", label: "Tech stack",
+    hint: "Pick one per slot: Community / Payments / Email / Ads.",
+    placeholder: "e.g. Skool · Stripe · Resend · Meta Ads" },
+  { key: "rolesSplit", label: "Roles split (Creator vs Second Layer)",
+    hint: "Who does what each week. Avoids ambiguity post-launch.",
+    placeholder: "e.g. Creator: 1 live/wk + DMs · SL: ops, ads, content, support" },
+  { key: "commsCadence", label: "Comms cadence",
+    hint: "How often you sync, on which channel, who's required.",
+    placeholder: "e.g. Weekly 30-min Mon 10h on Slack (Tomas + Raul + Creator)" },
 ];
 
 const STATUS_LABELS = {
@@ -174,11 +188,12 @@ export default function KickoffSection({ creator, params, patchCreator }) {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
           {DECISION_FIELDS.map(f => (
             <div key={f.key}>
-              <label style={{ display: 'block', fontSize: 10, color: '#888', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>{f.label}</label>
+              <label style={{ display: 'block', fontSize: 10, color: '#888', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 }}>{f.label}</label>
+              {f.hint && <div style={{ fontSize: 11, color: '#555', marginBottom: 6, lineHeight: 1.5 }}>{f.hint}</div>}
               {f.textarea ? (
-                <textarea defaultValue={decisions[f.key] || ''} onBlur={(e) => saveDecision(f.key, e.target.value)} rows={2} style={{ ...inputStyle, resize: 'vertical' }} />
+                <textarea defaultValue={decisions[f.key] || ''} placeholder={f.placeholder} onBlur={(e) => saveDecision(f.key, e.target.value)} rows={2} style={{ ...inputStyle, resize: 'vertical' }} />
               ) : (
-                <input defaultValue={decisions[f.key] || ''} onBlur={(e) => saveDecision(f.key, e.target.value)} style={inputStyle} />
+                <input defaultValue={decisions[f.key] || ''} placeholder={f.placeholder} onBlur={(e) => saveDecision(f.key, e.target.value)} style={inputStyle} />
               )}
             </div>
           ))}
