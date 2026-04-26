@@ -301,6 +301,18 @@ function PitchPageContent() {
   const [translatedAudience, setTranslatedAudience] = useState(null);
   const [translatingAudience, setTranslatingAudience] = useState(false);
 
+  // Scale fixed-size 1920×1080 slides to fit the current viewport.
+  // PDF export resets the transform during capture so output is always 1920×1080.
+  useEffect(() => {
+    const setScale = () => {
+      const w = Math.min(window.innerWidth, 1920);
+      document.documentElement.style.setProperty('--pitch-scale', String(w / 1920));
+    };
+    setScale();
+    window.addEventListener('resize', setScale);
+    return () => window.removeEventListener('resize', setScale);
+  }, []);
+
   useEffect(() => {
     if (!creatorId) {
       setSlides(buildDefaultSlides({ name: 'Creator', niche: '' }));
@@ -491,21 +503,34 @@ function PitchPageContent() {
         hotfixes: ['px_scaling'],
       });
 
-      for (let i = 0; i < slideEls.length; i++) {
-        const el = slideEls[i];
-        // 2x scale for sharp text and chart rendering on HD displays
-        const canvas = await html2canvas(el, {
-          scale: 2,
-          backgroundColor: '#0a0a0a',
-          logging: false,
-          useCORS: true,
-          allowTaint: false,
-          windowWidth: el.scrollWidth,
-          windowHeight: el.scrollHeight,
-        });
-        const imgData = canvas.toDataURL('image/jpeg', 0.92);
-        if (i > 0) pdf.addPage([pdfWidth, pdfHeight], 'landscape');
-        pdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, pdfHeight, undefined, 'FAST');
+      // Reset viewport scale on every slide so we capture at native 1920×1080.
+      // The on-screen scale (transform: scale(--pitch-scale)) is for fitting the
+      // browser window — for PDF we want the real, unscaled stage.
+      const originalTransforms = [];
+      slideEls.forEach(el => {
+        originalTransforms.push(el.style.transform);
+        el.style.transform = 'none';
+      });
+      try {
+        for (let i = 0; i < slideEls.length; i++) {
+          const el = slideEls[i];
+          const canvas = await html2canvas(el, {
+            scale: 2,
+            backgroundColor: '#0a0a0a',
+            logging: false,
+            useCORS: true,
+            allowTaint: false,
+            width: 1920,
+            height: 1080,
+            windowWidth: 1920,
+            windowHeight: 1080,
+          });
+          const imgData = canvas.toDataURL('image/jpeg', 0.92);
+          if (i > 0) pdf.addPage([pdfWidth, pdfHeight], 'landscape');
+          pdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, pdfHeight, undefined, 'FAST');
+        }
+      } finally {
+        slideEls.forEach((el, i) => { el.style.transform = originalTransforms[i]; });
       }
 
       const filename = `${(creator?.name || 'Pitch').replace(/\s+/g, '_')}_pitch.pdf`;
@@ -556,6 +581,21 @@ function PitchPageContent() {
         }
         [contenteditable]:hover { background: rgba(255,255,255,0.02); }
         [contenteditable]:focus { background: rgba(122,14,24,0.08); }
+
+        /* ========= SLIDE FRAME (fixed 1920×1080, viewport-fit scale) ========= */
+        .slide-frame {
+          width: 100%;
+          max-width: 1920px;
+          margin: 0 auto;
+          position: relative;
+          overflow: hidden;
+          /* derived from --pitch-scale set by JS on resize */
+          height: calc(1080px * var(--pitch-scale, 1));
+        }
+        .slide {
+          transform: scale(var(--pitch-scale, 1));
+          transform-origin: top left;
+        }
 
         /* ========= CINEMATIC LAYER ========= */
         /* Film-grain on every slide */
@@ -711,10 +751,12 @@ function PitchPageContent() {
         /* Iso veil to keep foreground readable */
         .iso-veil {
           position: absolute; inset: 0;
-          background: linear-gradient(180deg, rgba(10,10,10,0.7) 0%, rgba(10,10,10,0.3) 35%, rgba(10,10,10,0.85) 100%);
+          background: linear-gradient(180deg, rgba(10,10,10,0.55) 0%, rgba(10,10,10,0.15) 35%, rgba(10,10,10,0.7) 100%);
           z-index: 1;
           pointer-events: none;
         }
+        /* Make the iso world more visible — was 0.55 */
+        .iso-world { opacity: 0.85 !important; }
 
         /* Animated chart paths (slide 8) */
         .chart-line { stroke-dasharray: 2000; stroke-dashoffset: 2000; animation: sl-draw 2.5s ease-out forwards; }
@@ -803,15 +845,28 @@ function PitchPageContent() {
           <div className="cin-tag"><span className="red-dot" />Confidencial · 001</div>
         </>
       }>
-        <div style={slideInnerCentered}>
-          <img src={LOGO_B64} alt="Second Layer" style={{ height: 32, opacity: 0.95, marginBottom: 56 }} />
-          <h1 className="anim-up" style={{ fontSize: 92, fontWeight: 800, margin: 0, lineHeight: 1.05, letterSpacing: "-0.03em", textAlign: "center", textShadow: "0 0 60px rgba(0,0,0,0.5)" }}>
-            <Editable value={slides.cover.title} onChange={v => updateSlide('cover', 'title', v)} />
-          </h1>
-          <div style={{ width: 140, height: 5, background: "#B11E2F", margin: "44px auto" }} />
-          <p style={{ fontSize: 28, color: "#aaa", margin: 0, textAlign: "center" }}>
-            <StyledLastWord text={slides.cover.subtitle} italicStyle={{ color: "#B11E2F", fontSize: 40 }} />
-          </p>
+        <div style={{ ...slideInnerCentered, justifyContent: "space-between", paddingTop: 0, paddingBottom: 0 }}>
+          {/* Top spacer for cinematic balance */}
+          <div style={{ flex: 1 }} />
+
+          {/* Centered cluster: logo, name, rule, subtitle */}
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
+            <img src={LOGO_B64} alt="Second Layer" style={{ height: 28, opacity: 0.95, marginBottom: 64 }} />
+            <h1 style={{ fontSize: 196, fontWeight: 800, margin: 0, lineHeight: 0.96, letterSpacing: "-0.035em", textAlign: "center", color: "#f5f5f5", textShadow: "0 0 60px rgba(0,0,0,0.5)" }}>
+              <Editable value={slides.cover.title} onChange={v => updateSlide('cover', 'title', v)} />
+            </h1>
+            <div style={{ width: 140, height: 5, background: "#B11E2F", margin: "56px auto" }} />
+            <p style={{ fontSize: 60, color: "#f5f5f5", margin: 0, textAlign: "center", letterSpacing: "-0.02em", fontWeight: 500 }}>
+              <StyledLastWord text={slides.cover.subtitle} italicStyle={{ color: "#B11E2F", fontSize: 72 }} />
+            </p>
+          </div>
+
+          {/* Bottom mono footer */}
+          <div style={{ flex: 1, display: "flex", alignItems: "flex-end", justifyContent: "space-between", width: "100%", fontFamily: "'JetBrains Mono', ui-monospace, monospace", fontSize: 13, letterSpacing: "0.22em", textTransform: "uppercase", color: "#8A8A8A", fontWeight: 500 }}>
+            <div>Lisboa · PT</div>
+            <div>—</div>
+            <div>{new Date().toLocaleDateString('pt-PT', { month: 'long', year: 'numeric' })}</div>
+          </div>
         </div>
       </Slide>
 
@@ -1114,7 +1169,7 @@ function PitchPageContent() {
               <Editable value={slides.numbers.heroLabel} onChange={v => updateSlide('numbers', 'heroLabel', v)} />
             </div>
             <div style={{ lineHeight: 1, letterSpacing: "-0.03em" }}>
-              <span className="hero-num" style={{ ...italicSerif, fontSize: 96, fontWeight: 400 }}>{formatEuro(moderateSteadyMRR)}</span>
+              <span style={{ ...italicSerif, fontSize: 124, fontWeight: 400, color: "#fff" }}>{formatEuro(moderateSteadyMRR)}</span>
               <span style={{ fontSize: 24, color: "#888", fontWeight: 400, marginLeft: 4 }}>/{creator?.primaryLanguage === 'en' ? 'mo' : 'mês'}</span>
             </div>
             <div style={{ fontSize: 13, color: "#888", marginTop: 8 }}>
@@ -1339,13 +1394,13 @@ function PitchPageContent() {
         </>
       }>
         <div style={slideInnerCentered}>
-          <h1 className="anim-up" style={{ fontSize: 96, fontWeight: 700, margin: 0, lineHeight: 1.05, letterSpacing: "-0.03em", textAlign: "center", maxWidth: 1400 }}>
+          <h1 style={{ fontSize: 156, fontWeight: 800, margin: 0, lineHeight: 1, letterSpacing: "-0.035em", textAlign: "center", maxWidth: 1700, color: "#f5f5f5" }}>
             <StyledLastWord
               text={slides.close.title}
-              italicStyle={{ fontSize: 124, color: "#B11E2F", letterSpacing: "-0.02em" }}
+              italicStyle={{ fontSize: 168, color: "#B11E2F", letterSpacing: "-0.02em" }}
             />
           </h1>
-          <div style={{ marginTop: 56, fontFamily: "'JetBrains Mono', ui-monospace, monospace", fontSize: 12, letterSpacing: "0.32em", textTransform: "uppercase", color: "#8A8A8A" }}>
+          <div style={{ marginTop: 56, fontFamily: "'JetBrains Mono', ui-monospace, monospace", fontSize: 14, letterSpacing: "0.32em", textTransform: "uppercase", color: "#8A8A8A" }}>
             SecondLayer · Lisboa · 2026
           </div>
         </div>
@@ -1616,16 +1671,21 @@ function buildDefaultSlides(creator) {
 // ─────────────────────────────────────────────────────────────────
 
 function Slide({ children, decor, num, total = 12, hidePageMark }) {
+  // Each slide is a fixed 1920×1080 stage. The wrapper scales it to fit viewport
+  // via CSS (transform: scale on the inner .slide). PDF export resets the transform
+  // and captures at native 1920×1080 — no stretching, no aspect-ratio distortion.
   return (
-    <div className="slide" style={{ minHeight: "100vh", padding: "80px 60px", display: "flex", flexDirection: "column", boxSizing: "border-box" }}>
-      {decor}
-      {children}
-      {!hidePageMark && num && (
-        <>
-          <div className="page-mark"><span className="sl-no">{String(num).padStart(2, '0')}</span> &nbsp;/&nbsp; {total}</div>
-          <div className="top-mark">Second<b>Layer</b></div>
-        </>
-      )}
+    <div className="slide-frame">
+      <div className="slide" style={{ width: 1920, height: 1080, padding: "80px 100px", display: "flex", flexDirection: "column", boxSizing: "border-box", position: "relative" }}>
+        {decor}
+        {children}
+        {!hidePageMark && num && (
+          <>
+            <div className="page-mark"><span className="sl-no">{String(num).padStart(2, '0')}</span> &nbsp;/&nbsp; {total}</div>
+            <div className="top-mark">Second<b>Layer</b></div>
+          </>
+        )}
+      </div>
     </div>
   );
 }
