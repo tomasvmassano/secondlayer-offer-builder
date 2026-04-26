@@ -1460,63 +1460,80 @@ function PitchPageContent() {
             <h1 style={{ ...italicSerif, fontSize: 88, margin: 0, lineHeight: 1.0, color: "#B11E2F", marginBottom: 36 }}>
               <Editable value={slides.investment.title} onChange={v => updateSlide('investment', 'title', v)} />
             </h1>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 28 }}>
-              <div style={{ padding: "36px 32px", background: "rgba(122,14,24,0.05)", border: "1px solid rgba(122,14,24,0.2)", borderRadius: 14, textAlign: "center" }}>
-                <div style={{ fontSize: 13, fontWeight: 700, color: "#7A0E18", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 16 }}>
-                  <Editable value={slides.investment.setupLabel} onChange={v => updateSlide('investment', 'setupLabel', v)} />
-                </div>
-                <div style={{ fontSize: 56, fontWeight: 800, color: "#f5f5f5", lineHeight: 1, marginBottom: 10 }}>
-                  <Editable value={slides.investment.setupAmount} onChange={v => updateSlide('investment', 'setupAmount', v)} />
-                </div>
-                <div style={{ fontSize: 13, color: "#888", marginBottom: 18 }}>
-                  <Editable value={slides.investment.setupNote} onChange={v => updateSlide('investment', 'setupNote', v)} />
-                </div>
-                <p style={{ margin: 0, fontSize: 15, color: "#aaa", lineHeight: 1.6, textAlign: "left" }}>
-                  <Editable value={slides.investment.setupDesc} onChange={v => updateSlide('investment', 'setupDesc', v)} multiline />
-                </p>
-              </div>
-              <div style={{ padding: "36px 32px", background: "rgba(34,197,94,0.05)", border: "1px solid rgba(34,197,94,0.2)", borderRadius: 14, textAlign: "center" }}>
-                <div style={{ fontSize: 13, fontWeight: 700, color: "#22c55e", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 16 }}>
-                  <Editable value={slides.investment.commissionLabel} onChange={v => updateSlide('investment', 'commissionLabel', v)} />
-                </div>
-                <div style={{ fontSize: 56, fontWeight: 800, color: "#f5f5f5", lineHeight: 1, marginBottom: 10 }}>
-                  <Editable value={slides.investment.commissionAmount} onChange={v => updateSlide('investment', 'commissionAmount', v)} />
-                </div>
-                <div style={{ fontSize: 13, color: "#888", marginBottom: 18 }}>
-                  <Editable value={slides.investment.commissionNote} onChange={v => updateSlide('investment', 'commissionNote', v)} />
-                </div>
-                <p style={{ margin: 0, fontSize: 15, color: "#aaa", lineHeight: 1.6, textAlign: "left" }}>
-                  <Editable value={slides.investment.commissionDesc} onChange={v => updateSlide('investment', 'commissionDesc', v)} multiline />
-                </p>
-              </div>
-            </div>
-            <div style={{ marginTop: 36, display: "flex", justifyContent: "center" }}>
-              <div className="receipt" style={{ width: "min(560px, 90%)" }}>
-                <div style={{ textAlign: "center", marginBottom: 18 }}>
-                  <div style={{ fontFamily: "'Instrument Serif', serif", fontStyle: "italic", fontSize: 28, color: "#B11E2F", lineHeight: 1 }}>SecondLayer</div>
-                  <div style={{ fontSize: 10, letterSpacing: "0.32em", marginTop: 8, color: "#555" }}>RECIBO DE PARCERIA · 001</div>
-                </div>
-                {slides.investment.included.map((item, i) => (
-                  <div key={i} className={`r-line ${i === slides.investment.included.length - 1 ? 'no-b' : ''}`}>
-                    <span>
-                      <Editable value={item} onChange={v => {
-                        const next = [...slides.investment.included]; next[i] = v;
-                        updateSlide('investment', 'included', next);
-                      }} />
-                    </span>
-                    <span>✓</span>
+            {/* Side-by-side: stacked pricing cards on LEFT, receipt on RIGHT */}
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 36, alignItems: "flex-start", flex: 1 }}>
+              {/* LEFT — stacked pricing cards */}
+              <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+                <div style={{ padding: "32px 36px", background: "rgba(15,15,15,0.78)", border: "1px solid rgba(177,30,47,0.65)", borderRadius: 14 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+                    <div>
+                      <div style={{ fontSize: 16, fontWeight: 600, color: "#B11E2F", letterSpacing: "0.22em", textTransform: "uppercase", marginBottom: 12 }}>
+                        <Editable value={slides.investment.setupLabel} onChange={v => updateSlide('investment', 'setupLabel', v)} />
+                      </div>
+                      <div style={{ fontSize: 80, fontWeight: 800, color: "#f5f5f5", lineHeight: 0.95, letterSpacing: "-0.04em" }}>
+                        <Editable value={slides.investment.setupAmount} onChange={v => updateSlide('investment', 'setupAmount', v)} />
+                      </div>
+                    </div>
+                    <div style={{ fontFamily: "'JetBrains Mono', ui-monospace, monospace", fontSize: 14, color: "#8A8A8A", letterSpacing: "0.16em", textTransform: "uppercase" }}>
+                      <Editable value={slides.investment.setupNote} onChange={v => updateSlide('investment', 'setupNote', v)} />
+                    </div>
                   </div>
-                ))}
-                <div className="r-total"><span>Setup</span><span><Editable value={slides.investment.setupAmount} onChange={v => updateSlide('investment', 'setupAmount', v)} /></span></div>
-                <div className="r-total" style={{ color: "#B11E2F" }}>
-                  <span>+ Revenue share</span>
-                  <span><Editable value={slides.investment.commissionAmount} onChange={v => updateSlide('investment', 'commissionAmount', v)} /></span>
+                  <p style={{ margin: "18px 0 0", fontSize: 17, color: "#B8B8B8", lineHeight: 1.5 }}>
+                    <Editable value={slides.investment.setupDesc} onChange={v => updateSlide('investment', 'setupDesc', v)} multiline />
+                  </p>
                 </div>
-                <div style={{ textAlign: "center", marginTop: 18, fontSize: 10, letterSpacing: "0.32em", color: "#555" }}>— OBRIGADO —</div>
+                <div style={{ padding: "32px 36px", background: "rgba(15,15,15,0.78)", border: "1px solid rgba(31,138,76,0.65)", borderRadius: 14 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+                    <div>
+                      <div style={{ fontSize: 16, fontWeight: 600, color: "#1F8A4C", letterSpacing: "0.22em", textTransform: "uppercase", marginBottom: 12 }}>
+                        <Editable value={slides.investment.commissionLabel} onChange={v => updateSlide('investment', 'commissionLabel', v)} />
+                      </div>
+                      <div style={{ fontSize: 80, fontWeight: 800, color: "#f5f5f5", lineHeight: 0.95, letterSpacing: "-0.04em" }}>
+                        <Editable value={slides.investment.commissionAmount} onChange={v => updateSlide('investment', 'commissionAmount', v)} />
+                      </div>
+                    </div>
+                    <div style={{ fontFamily: "'JetBrains Mono', ui-monospace, monospace", fontSize: 14, color: "#8A8A8A", letterSpacing: "0.16em", textTransform: "uppercase" }}>
+                      <Editable value={slides.investment.commissionNote} onChange={v => updateSlide('investment', 'commissionNote', v)} />
+                    </div>
+                  </div>
+                  <p style={{ margin: "18px 0 0", fontSize: 17, color: "#B8B8B8", lineHeight: 1.5 }}>
+                    <Editable value={slides.investment.commissionDesc} onChange={v => updateSlide('investment', 'commissionDesc', v)} multiline />
+                  </p>
+                </div>
+              </div>
+
+              {/* RIGHT — receipt */}
+              <div style={{ padding: "16px 8px" }}>
+                <div className="receipt">
+                  <div style={{ textAlign: "center", marginBottom: 22 }}>
+                    <div style={{ fontFamily: "'Instrument Serif', serif", fontStyle: "italic", fontSize: 32, color: "#B11E2F", lineHeight: 1 }}>SecondLayer</div>
+                    <div style={{ fontSize: 11, letterSpacing: "0.32em", marginTop: 8, color: "#555" }}>RECIBO DE PARCERIA · 001</div>
+                  </div>
+                  {slides.investment.included.map((item, i) => (
+                    <div key={i} className={`r-line ${i === slides.investment.included.length - 1 ? 'no-b' : ''}`}>
+                      <span>
+                        <Editable value={item} onChange={v => {
+                          const next = [...slides.investment.included]; next[i] = v;
+                          updateSlide('investment', 'included', next);
+                        }} />
+                      </span>
+                      <span>✓</span>
+                    </div>
+                  ))}
+                  <div className="r-total"><span>Setup</span><span>{slides.investment.setupAmount}</span></div>
+                  <div className="r-total" style={{ color: "#B11E2F" }}>
+                    <span>+ Revenue share</span>
+                    <span>{slides.investment.commissionAmount}</span>
+                  </div>
+                  <div style={{ textAlign: "center", marginTop: 22, fontSize: 11, letterSpacing: "0.32em", color: "#555" }}>— OBRIGADO —</div>
+                </div>
               </div>
             </div>
-            <p style={{ marginTop: 32, fontSize: 18, color: "#f5f5f5", fontWeight: 600, textAlign: "center", fontStyle: "italic" }}>
-              <Editable value={slides.investment.closer} onChange={v => updateSlide('investment', 'closer', v)} multiline />
+            <p style={{ marginTop: 18, fontSize: 20, fontWeight: 700, letterSpacing: "-0.01em", color: "#f5f5f5" }}>
+              <StyledLastWord
+                text={slides.investment.closer}
+                italicStyle={{ ...italicSerif, color: "#B11E2F", fontSize: 24 }}
+              />
             </p>
           </div>
         </Slide>
