@@ -673,13 +673,18 @@ function PitchPageContent() {
           pointer-events: none;
         }
 
-        /* Hero gradient number (slide 8) */
+        /* Hero gradient number (slide 8) — display:inline-block helps html2canvas
+           apply the text-clip mask reliably; falls back to solid red if not supported. */
         .hero-num {
+          display: inline-block;
+          color: #B11E2F;
           background: linear-gradient(180deg, #FFFFFF 0%, #FF6478 60%, #B11E2F 100%);
           -webkit-background-clip: text;
           background-clip: text;
           -webkit-text-fill-color: transparent;
-          color: transparent;
+        }
+        @supports not ((-webkit-background-clip: text) or (background-clip: text)) {
+          .hero-num { color: #B11E2F; -webkit-text-fill-color: #B11E2F; background: none; }
         }
 
         /* Audience dot grid */
@@ -889,21 +894,24 @@ function PitchPageContent() {
           <div className="cin-tag"><span className="red-dot" />Promessa · 02</div>
         </>
       }>
-        <div style={slideInnerCentered}>
-          <div style={{ fontSize: 13, fontWeight: 700, color: "#7A0E18", letterSpacing: "0.18em", textTransform: "uppercase", marginBottom: 36 }}>
+        <div style={{ flex: 1, display: "flex", flexDirection: "column", width: "100%" }}>
+          <div style={{ fontSize: 18, fontWeight: 600, color: "#B11E2F", letterSpacing: "0.28em", textTransform: "uppercase", marginTop: 30 }}>
             <Editable value={slides.corePromise.eyebrow} onChange={v => updateSlide('corePromise', 'eyebrow', v)} />
           </div>
-          <h1 style={{ fontSize: 68, fontWeight: 700, margin: 0, lineHeight: 1.15, letterSpacing: "-0.03em", maxWidth: 1300, textAlign: "center" }}>
+          <div style={{ height: 60 }} />
+          <h1 style={{ fontSize: 124, fontWeight: 800, margin: 0, lineHeight: 0.96, letterSpacing: "-0.035em", color: "#f5f5f5", maxWidth: 1500 }}>
             <StyledKeyword
               text={slides.corePromise.headline}
               keyword={creator?.primaryLanguage === 'en' ? 'business' : 'negócio'}
-              italicStyle={{ color: "#7A0E18", fontSize: 84 }}
+              italicStyle={{ color: "#B11E2F", fontSize: 124 }}
             />
           </h1>
-          <div style={{ width: 60, height: 2, background: "rgba(122,14,24,0.5)", margin: "48px auto" }} />
-          <p style={{ ...italicSerif, fontSize: 30, color: "#aaa", margin: 0, maxWidth: 900, textAlign: "center", letterSpacing: "0.005em" }}>
-            <Editable value={slides.corePromise.sub} onChange={v => updateSlide('corePromise', 'sub', v)} multiline />
-          </p>
+          <div style={{ marginTop: "auto", paddingTop: 28 }}>
+            <div style={{ width: 96, height: 4, background: "#B11E2F", border: "none", marginBottom: 32 }} />
+            <p style={{ ...italicSerif, fontSize: 44, color: "#B0B0B0", margin: 0, maxWidth: 1200 }}>
+              <Editable value={slides.corePromise.sub} onChange={v => updateSlide('corePromise', 'sub', v)} multiline />
+            </p>
+          </div>
         </div>
       </Slide>
 
@@ -1158,22 +1166,35 @@ function PitchPageContent() {
           <div className="aurora deep" style={{ left: -100, bottom: -200, width: 700, height: 700 }} />
         </>
       }>
-        <div style={{ ...slideInnerCentered, alignItems: "stretch" }}>
-          <h1 style={{ fontSize: 44, fontWeight: 800, margin: 0, lineHeight: 1.15, letterSpacing: "-0.02em", textAlign: "center", marginBottom: 16 }}>
-            <Editable value={slides.numbers.title} onChange={v => updateSlide('numbers', 'title', v)} />
+        <div style={{ flex: 1, display: "flex", flexDirection: "column", width: "100%" }}>
+          <div style={{ fontSize: 18, fontWeight: 600, color: "#B11E2F", letterSpacing: "0.28em", textTransform: "uppercase" }}>
+            {creator?.primaryLanguage === 'en' ? 'Projection' : 'Projecção'}
+          </div>
+          <div style={{ height: 14 }} />
+          <h1 style={{ fontSize: 68, fontWeight: 800, margin: 0, lineHeight: 1.0, letterSpacing: "-0.03em", color: "#f5f5f5" }}>
+            <StyledKeyword
+              text={slides.numbers.title}
+              keyword={creator?.primaryLanguage === 'en' ? 'numbers' : 'números'}
+              italicStyle={{ color: "#B11E2F", fontSize: 76 }}
+            />
           </h1>
 
-          {/* Hero MRR — full width above split */}
-          <div style={{ marginTop: 18, padding: "26px 32px", background: "rgba(122,14,24,0.08)", border: "1px solid rgba(122,14,24,0.25)", borderRadius: 14, textAlign: "center" }}>
-            <div style={{ fontSize: 12, fontWeight: 700, color: "#7A0E18", letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 8 }}>
-              <Editable value={slides.numbers.heroLabel} onChange={v => updateSlide('numbers', 'heroLabel', v)} />
+          {/* Hero MRR — split layout: monthly LEFT, accumulated Year 1 RIGHT */}
+          <div style={{ marginTop: 32, padding: "36px 44px", background: "rgba(122,14,24,0.08)", border: "1px solid rgba(122,14,24,0.55)", borderRadius: 14, boxShadow: "inset 0 0 0 1px rgba(177,30,47,0.18), 0 0 80px rgba(177,30,47,0.18)", display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 40 }}>
+            <div>
+              <div style={{ fontSize: 16, fontWeight: 600, color: "#B11E2F", letterSpacing: "0.22em", textTransform: "uppercase", marginBottom: 14 }}>
+                <Editable value={slides.numbers.heroLabel} onChange={v => updateSlide('numbers', 'heroLabel', v)} />
+              </div>
+              <div style={{ lineHeight: 0.9, letterSpacing: "-0.02em" }}>
+                <span className="hero-num" style={{ ...italicSerif, fontSize: 124, fontWeight: 400 }}>{formatEuro(moderateSteadyMRR)}</span>
+                <span style={{ fontSize: 38, color: "#8A8A8A", fontWeight: 500, marginLeft: 4 }}>/{creator?.primaryLanguage === 'en' ? 'mo' : 'mês'}</span>
+              </div>
             </div>
-            <div style={{ lineHeight: 1, letterSpacing: "-0.03em" }}>
-              <span style={{ ...italicSerif, fontSize: 124, fontWeight: 400, color: "#fff" }}>{formatEuro(moderateSteadyMRR)}</span>
-              <span style={{ fontSize: 24, color: "#888", fontWeight: 400, marginLeft: 4 }}>/{creator?.primaryLanguage === 'en' ? 'mo' : 'mês'}</span>
-            </div>
-            <div style={{ fontSize: 13, color: "#888", marginTop: 8 }}>
-              <Editable value={slides.numbers.cumulativeLabel} onChange={v => updateSlide('numbers', 'cumulativeLabel', v)} />: <strong style={{ color: "#f5f5f5" }}>{formatEuro(moderateCumulative)}</strong>
+            <div style={{ textAlign: "right" }}>
+              <div style={{ fontSize: 16, fontWeight: 600, color: "#8A8A8A", letterSpacing: "0.22em", textTransform: "uppercase", marginBottom: 10, whiteSpace: "nowrap" }}>
+                {creator?.primaryLanguage === 'en' ? 'Cumulative · Year 1' : 'Receita acumulada · Ano 1'}
+              </div>
+              <div style={{ fontSize: 38, fontWeight: 600, letterSpacing: "-0.01em", color: "#f5f5f5" }}>{formatEuro(moderateCumulative)}</div>
             </div>
           </div>
 
@@ -1315,8 +1336,12 @@ function PitchPageContent() {
             <div className="aurora deep" style={{ left: -200, bottom: -100, width: 700, height: 700 }} />
           </>
         }>
-          <div style={{ ...slideInnerCentered, alignItems: "stretch" }}>
-            <h1 style={{ fontSize: 44, fontWeight: 800, margin: 0, lineHeight: 1.15, letterSpacing: "-0.02em", textAlign: "center", marginBottom: 48 }}>
+          <div style={{ flex: 1, display: "flex", flexDirection: "column", width: "100%" }}>
+            <div style={{ fontSize: 18, fontWeight: 600, color: "#B11E2F", letterSpacing: "0.28em", textTransform: "uppercase" }}>
+              {creator?.primaryLanguage === 'en' ? 'Investment structure' : 'Estrutura de investimento'}
+            </div>
+            <div style={{ height: 18 }} />
+            <h1 style={{ ...italicSerif, fontSize: 88, margin: 0, lineHeight: 1.0, color: "#B11E2F", marginBottom: 36 }}>
               <Editable value={slides.investment.title} onChange={v => updateSlide('investment', 'title', v)} />
             </h1>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 28 }}>
