@@ -919,42 +919,54 @@ function PitchPageContent() {
       <Slide num={3} decor={
         <div className="aurora red" style={{ right: -200, top: "20%", width: 700, height: 700, opacity: 0.35 }} />
       }>
-        <div style={{ ...slideInnerCentered, alignItems: "stretch" }}>
-          <h1 style={{ fontSize: 44, fontWeight: 800, margin: 0, lineHeight: 1.15, letterSpacing: "-0.02em", textAlign: "center", marginBottom: 56 }}>
-            <Editable value={slides.transformation.title} onChange={v => updateSlide('transformation', 'title', v)} />
+        <div style={{ flex: 1, display: "flex", flexDirection: "column", width: "100%" }}>
+          <div style={{ fontSize: 18, fontWeight: 600, color: "#B11E2F", letterSpacing: "0.28em", textTransform: "uppercase" }}>
+            {creator?.primaryLanguage === 'en' ? 'Diagnosis' : 'Diagnóstico'}
+          </div>
+          <div style={{ height: 28 }} />
+          <h1 style={{ fontSize: 88, fontWeight: 800, margin: 0, lineHeight: 1.0, letterSpacing: "-0.03em", color: "#f5f5f5" }}>
+            <StyledLastWord
+              text={slides.transformation.title}
+              italicStyle={{ ...italicSerif, color: "#B11E2F", fontSize: 92 }}
+            />
           </h1>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 40 }}>
-            <div style={{ padding: "44px 36px", background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.04)", borderRadius: 14 }}>
-              <div style={{ fontSize: 14, fontWeight: 700, color: "#666", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 32, textAlign: "center" }}>
+
+          <div style={{ marginTop: 64, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 36, flex: 1 }}>
+            <div style={{ padding: 44, background: "rgba(15,15,15,0.78)", border: "1px solid #1F1F1F", borderRadius: 14 }}>
+              <div style={{ fontSize: 16, fontWeight: 600, color: "#8A8A8A", letterSpacing: "0.22em", textTransform: "uppercase", marginBottom: 28 }}>
                 <Editable value={slides.transformation.beforeLabel} onChange={v => updateSlide('transformation', 'beforeLabel', v)} />
               </div>
-              {slides.transformation.before.map((item, i) => (
-                <div key={i} style={{ display: "flex", gap: 16, marginBottom: 22, alignItems: "flex-start" }}>
-                  <span style={{ color: "#666", fontSize: 26, lineHeight: 1 }}>×</span>
-                  <p style={{ margin: 0, fontSize: 22, color: "#888", lineHeight: 1.45 }}>
-                    <Editable value={item} onChange={v => {
-                      const next = [...slides.transformation.before]; next[i] = v;
-                      updateSlide('transformation', 'before', next);
-                    }} />
-                  </p>
-                </div>
-              ))}
+              <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 26 }}>
+                {slides.transformation.before.map((item, i) => (
+                  <li key={i} style={{ display: "flex", gap: 16 }}>
+                    <span style={{ color: "#8A8A8A", width: 28, flexShrink: 0, fontSize: 22, lineHeight: 1.45 }}>✕</span>
+                    <span style={{ fontSize: 28, color: "#D9D9D9", lineHeight: 1.45 }}>
+                      <Editable value={item} onChange={v => {
+                        const next = [...slides.transformation.before]; next[i] = v;
+                        updateSlide('transformation', 'before', next);
+                      }} />
+                    </span>
+                  </li>
+                ))}
+              </ul>
             </div>
-            <div style={{ padding: "44px 36px", background: "rgba(122,14,24,0.05)", border: "1px solid rgba(122,14,24,0.2)", borderRadius: 14 }}>
-              <div style={{ fontSize: 14, fontWeight: 700, color: "#7A0E18", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 32, textAlign: "center" }}>
+            <div style={{ padding: 44, background: "linear-gradient(180deg, rgba(177,30,47,0.10), rgba(15,15,15,0.85))", border: "1px solid rgba(177,30,47,0.65)", borderRadius: 14 }}>
+              <div style={{ fontSize: 16, fontWeight: 600, color: "#B11E2F", letterSpacing: "0.22em", textTransform: "uppercase", marginBottom: 28 }}>
                 <Editable value={slides.transformation.afterLabel} onChange={v => updateSlide('transformation', 'afterLabel', v)} />
               </div>
-              {slides.transformation.after.map((item, i) => (
-                <div key={i} style={{ display: "flex", gap: 16, marginBottom: 22, alignItems: "flex-start" }}>
-                  <span style={{ color: "#7A0E18", fontSize: 26, lineHeight: 1 }}>→</span>
-                  <p style={{ margin: 0, fontSize: 22, color: "#f5f5f5", lineHeight: 1.45 }}>
-                    <Editable value={item} onChange={v => {
-                      const next = [...slides.transformation.after]; next[i] = v;
-                      updateSlide('transformation', 'after', next);
-                    }} />
-                  </p>
-                </div>
-              ))}
+              <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 26 }}>
+                {slides.transformation.after.map((item, i) => (
+                  <li key={i} style={{ display: "flex", gap: 16 }}>
+                    <span style={{ color: "#B11E2F", width: 28, flexShrink: 0, fontWeight: 700, fontSize: 22, lineHeight: 1.45 }}>→</span>
+                    <span style={{ fontSize: 28, color: "#f5f5f5", lineHeight: 1.45 }}>
+                      <Editable value={item} onChange={v => {
+                        const next = [...slides.transformation.after]; next[i] = v;
+                        updateSlide('transformation', 'after', next);
+                      }} />
+                    </span>
+                  </li>
+                ))}
+              </ul>
             </div>
           </div>
         </div>
@@ -964,21 +976,35 @@ function PitchPageContent() {
       <Slide num={4} decor={
         <div className="aurora deep" style={{ left: -200, bottom: -150, width: 700, height: 700 }} />
       }>
-        <div style={{ ...slideInnerCentered, alignItems: "stretch" }}>
-          <h1 style={{ fontSize: 48, fontWeight: 800, margin: 0, lineHeight: 1.15, letterSpacing: "-0.02em", color: "#f5f5f5", textAlign: "center", marginBottom: 56 }}>
-            <Editable value={slides.whatYouGet.hero} onChange={v => updateSlide('whatYouGet', 'hero', v)} multiline />
+        <div style={{ flex: 1, display: "flex", flexDirection: "column", width: "100%" }}>
+          <div style={{ fontSize: 18, fontWeight: 600, color: "#B11E2F", letterSpacing: "0.28em", textTransform: "uppercase" }}>
+            {creator?.primaryLanguage === 'en' ? 'What you get' : 'O que recebes'}
+          </div>
+          <div style={{ height: 28 }} />
+          <h1 style={{ fontSize: 76, fontWeight: 800, margin: 0, lineHeight: 1.0, letterSpacing: "-0.03em", color: "#f5f5f5", maxWidth: 1500 }}>
+            <StyledKeyword
+              text={slides.whatYouGet.hero}
+              keyword={creator?.primaryLanguage === 'en' ? 'real business' : 'negócio a sério'}
+              italicStyle={{ ...italicSerif, color: "#B11E2F" }}
+            />
           </h1>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 24 }}>
+
+          <div style={{ marginTop: 56, display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 28, flex: 1 }}>
             {slides.whatYouGet.pillars.map((pillar, i) => (
-              <div key={i} style={{ padding: "36px 28px", background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.05)", borderRadius: 14, textAlign: "center" }}>
-                <div style={{ fontSize: 38, fontWeight: 800, color: "#7A0E18", marginBottom: 18 }}>0{i + 1}</div>
-                <h3 style={{ fontSize: 22, fontWeight: 700, margin: "0 0 14px", color: "#f5f5f5" }}>
+              <div key={i} style={{ padding: 44, background: "rgba(15,15,15,0.78)", border: "1px solid #1F1F1F", borderRadius: 14, display: "flex", flexDirection: "column" }}>
+                <div style={{ ...italicSerif, fontSize: 96, color: "#B11E2F", lineHeight: 1, marginBottom: 18 }}>0{i + 1}</div>
+                <div style={{ fontSize: 16, fontWeight: 600, color: "#B11E2F", letterSpacing: "0.22em", textTransform: "uppercase", marginBottom: 14 }}>
+                  {i === 0 ? (creator?.primaryLanguage === 'en' ? 'Community' : 'Comunidade')
+                  : i === 1 ? (creator?.primaryLanguage === 'en' ? 'System' : 'Sistema')
+                            : (creator?.primaryLanguage === 'en' ? 'Team' : 'Equipa')}
+                </div>
+                <h3 style={{ fontSize: 38, fontWeight: 700, margin: "0 0 18px", color: "#f5f5f5", lineHeight: 1.15, letterSpacing: "-0.01em" }}>
                   <Editable value={pillar.title} onChange={v => {
                     const next = [...slides.whatYouGet.pillars]; next[i] = { ...pillar, title: v };
                     updateSlide('whatYouGet', 'pillars', next);
                   }} />
                 </h3>
-                <p style={{ margin: 0, fontSize: 16, color: "#aaa", lineHeight: 1.6 }}>
+                <p style={{ margin: 0, fontSize: 22, color: "#B8B8B8", lineHeight: 1.5 }}>
                   <Editable value={pillar.desc} onChange={v => {
                     const next = [...slides.whatYouGet.pillars]; next[i] = { ...pillar, desc: v };
                     updateSlide('whatYouGet', 'pillars', next);
@@ -987,7 +1013,7 @@ function PitchPageContent() {
               </div>
             ))}
           </div>
-          <p style={{ marginTop: 48, fontSize: 18, color: "#888", fontStyle: "italic", textAlign: "center" }}>
+          <p style={{ ...italicSerif, marginTop: 32, fontSize: 24, color: "#A8A8A8" }}>
             <Editable value={slides.whatYouGet.closer} onChange={v => updateSlide('whatYouGet', 'closer', v)} multiline />
           </p>
         </div>
@@ -997,34 +1023,77 @@ function PitchPageContent() {
       <Slide num={5} decor={
         <div className="aurora red" style={{ left: -200, top: -100, width: 600, height: 600, opacity: 0.3 }} />
       }>
-        <div style={{ ...slideInnerCentered, alignItems: "stretch" }}>
-          <h1 style={{ fontSize: 44, fontWeight: 800, margin: 0, lineHeight: 1.15, letterSpacing: "-0.02em", textAlign: "center", marginBottom: 48 }}>
-            <Editable value={slides.audience.title} onChange={v => updateSlide('audience', 'title', v)} />
-          </h1>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 20 }}>
-            <MetricCard label={creator?.primaryLanguage === 'en' ? 'Total Audience' : 'Audiência Total'} value={formatFollowers(audience)} accent />
-            <MetricCard label={creator?.primaryLanguage === 'en' ? 'Primary Platform' : 'Plataforma Principal'} value={creator?.primaryPlatform || 'Instagram'} />
-            <MetricCard label="Engagement" value={creator?.engagement || 'N/A'} />
-            <MetricCard label={creator?.primaryLanguage === 'en' ? 'Niche' : 'Nicho'} value={creator?.niche || 'N/A'} />
+        <div style={{ flex: 1, display: "flex", flexDirection: "column", width: "100%" }}>
+          {/* Top row: eyebrow + headline LEFT, "1 ponto = 1k seguidores" RIGHT */}
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
+            <div>
+              <div style={{ fontSize: 18, fontWeight: 600, color: "#B11E2F", letterSpacing: "0.28em", textTransform: "uppercase" }}>
+                {creator?.primaryLanguage === 'en' ? 'Audit' : 'Auditoria'}
+              </div>
+              <div style={{ height: 18 }} />
+              <h1 style={{ fontSize: 88, fontWeight: 800, margin: 0, lineHeight: 1.0, letterSpacing: "-0.03em", color: "#f5f5f5" }}>
+                <StyledLastWord
+                  text={slides.audience.title}
+                  italicStyle={{ ...italicSerif, color: "#B11E2F", fontSize: 92 }}
+                />
+              </h1>
+            </div>
+            <div style={{ textAlign: "right" }}>
+              <div style={{ fontSize: 16, fontWeight: 600, color: "#8A8A8A", letterSpacing: "0.22em", textTransform: "uppercase", marginBottom: 6 }}>
+                {creator?.primaryLanguage === 'en' ? 'Each dot =' : 'Cada ponto ='}
+              </div>
+              <div style={{ fontFamily: "'JetBrains Mono', ui-monospace, monospace", fontSize: 22, color: "#f5f5f5" }}>1 000 {creator?.primaryLanguage === 'en' ? 'followers' : 'seguidores'}</div>
+            </div>
           </div>
 
+          {/* Stat strip — full-width 4-card row */}
+          <div style={{ marginTop: 36, display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 18 }}>
+            <div style={{ padding: "28px 32px", background: "rgba(15,15,15,0.78)", border: "1px solid rgba(177,30,47,0.55)", borderRadius: 14, boxShadow: "inset 0 0 0 1px rgba(177,30,47,0.18), 0 0 80px rgba(177,30,47,0.18)" }}>
+              <div style={{ fontSize: 16, fontWeight: 600, color: "#B11E2F", letterSpacing: "0.22em", textTransform: "uppercase", marginBottom: 14 }}>
+                {creator?.primaryLanguage === 'en' ? 'Total audience' : 'Audiência total'}
+              </div>
+              <div style={{ fontSize: 64, fontWeight: 700, letterSpacing: "-0.03em", lineHeight: 1, color: "#f5f5f5" }}>{formatFollowers(audience)}</div>
+            </div>
+            <div style={{ padding: "28px 32px", background: "rgba(15,15,15,0.78)", border: "1px solid #1F1F1F", borderRadius: 14 }}>
+              <div style={{ fontSize: 16, fontWeight: 600, color: "#8A8A8A", letterSpacing: "0.22em", textTransform: "uppercase", marginBottom: 14 }}>
+                {creator?.primaryLanguage === 'en' ? 'Platform' : 'Plataforma'}
+              </div>
+              <div style={{ fontSize: 40, fontWeight: 600, letterSpacing: "-0.02em", lineHeight: 1, color: "#f5f5f5" }}>{creator?.primaryPlatform || 'Instagram'}</div>
+            </div>
+            <div style={{ padding: "28px 32px", background: "rgba(15,15,15,0.78)", border: "1px solid #1F1F1F", borderRadius: 14 }}>
+              <div style={{ fontSize: 16, fontWeight: 600, color: "#8A8A8A", letterSpacing: "0.22em", textTransform: "uppercase", marginBottom: 14 }}>Engagement</div>
+              <div style={{ fontSize: 64, fontWeight: 700, letterSpacing: "-0.03em", lineHeight: 1, color: "#f5f5f5" }}>{creator?.engagement || '—'}</div>
+            </div>
+            <div style={{ padding: "28px 32px", background: "rgba(15,15,15,0.78)", border: "1px solid #1F1F1F", borderRadius: 14 }}>
+              <div style={{ fontSize: 16, fontWeight: 600, color: "#8A8A8A", letterSpacing: "0.22em", textTransform: "uppercase", marginBottom: 14 }}>
+                {creator?.primaryLanguage === 'en' ? 'Niche' : 'Nicho'}
+              </div>
+              <div style={{ fontSize: 32, fontWeight: 600, letterSpacing: "-0.02em", lineHeight: 1.1, color: "#f5f5f5" }}>{creator?.niche || '—'}</div>
+            </div>
+          </div>
+
+          {/* Dot grid */}
           <DotGrid audience={audience} />
 
+          {/* Audience estimate split into 4 columns inside the card */}
           {(translatedAudience || creator?.audienceEstimate) && (() => {
             const aud = translatedAudience || creator.audienceEstimate;
             const en = creator?.primaryLanguage === 'en';
+            const fields = [
+              aud.age      && [en ? 'Age'      : 'Idade',       aud.age],
+              aud.gender   && [en ? 'Gender'   : 'Género',      aud.gender],
+              aud.location && [en ? 'Location' : 'Localização', aud.location],
+              aud.language && [en ? 'Language' : 'Idioma',      aud.language],
+            ].filter(Boolean);
+            if (fields.length === 0) return null;
             return (
-              <div style={{ marginTop: 36, padding: "32px 36px", background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.04)", borderRadius: 12 }}>
-                <div style={{ fontSize: 13, fontWeight: 700, color: "#666", letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 24, textAlign: "center" }}>
-                  {en ? 'Estimated Audience' : 'Audiência Estimada'}
-                  {translatingAudience && <span style={{ marginLeft: 10, color: "#444", textTransform: "none", letterSpacing: 0 }}>(a traduzir...)</span>}
-                </div>
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 28 }}>
-                  {aud.age && <div style={{ textAlign: "center" }}><div style={{ fontSize: 12, color: "#555", marginBottom: 6, letterSpacing: "0.06em", textTransform: "uppercase" }}>{en ? 'Age' : 'Idade'}</div><div style={{ fontSize: 18, color: "#ddd" }}>{aud.age}</div></div>}
-                  {aud.gender && <div style={{ textAlign: "center" }}><div style={{ fontSize: 12, color: "#555", marginBottom: 6, letterSpacing: "0.06em", textTransform: "uppercase" }}>{en ? 'Gender' : 'Género'}</div><div style={{ fontSize: 18, color: "#ddd" }}>{aud.gender}</div></div>}
-                  {aud.location && <div style={{ textAlign: "center" }}><div style={{ fontSize: 12, color: "#555", marginBottom: 6, letterSpacing: "0.06em", textTransform: "uppercase" }}>{en ? 'Location' : 'Localização'}</div><div style={{ fontSize: 18, color: "#ddd" }}>{aud.location}</div></div>}
-                  {aud.language && <div style={{ textAlign: "center" }}><div style={{ fontSize: 12, color: "#555", marginBottom: 6, letterSpacing: "0.06em", textTransform: "uppercase" }}>{en ? 'Language' : 'Idioma'}</div><div style={{ fontSize: 18, color: "#ddd" }}>{aud.language}</div></div>}
-                </div>
+              <div style={{ marginTop: 22, padding: "28px 36px", background: "rgba(15,15,15,0.78)", border: "1px solid #1F1F1F", borderRadius: 14, display: "flex", gap: 0 }}>
+                {fields.map(([label, val], i) => (
+                  <div key={i} style={{ flex: 1, paddingLeft: i === 0 ? 0 : 24, paddingRight: i === fields.length - 1 ? 0 : 24, borderRight: i < fields.length - 1 ? "1px solid #1F1F1F" : "none" }}>
+                    <div style={{ fontSize: 12, fontWeight: 600, color: "#8A8A8A", letterSpacing: "0.22em", textTransform: "uppercase", marginBottom: 10 }}>{label}</div>
+                    <div style={{ fontSize: 28, fontWeight: 600, letterSpacing: "-0.01em", color: "#f5f5f5" }}>{val}</div>
+                  </div>
+                ))}
               </div>
             );
           })()}
@@ -1052,59 +1121,72 @@ function PitchPageContent() {
           <div className="iso-veil" />
         </>
       }>
-        <div style={{ ...slideInnerCentered, alignItems: "stretch" }}>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 28 }}>
+        <div style={{ flex: 1, display: "flex", flexDirection: "column", width: "100%" }}>
+          <div style={{ fontSize: 18, fontWeight: 600, color: "#B11E2F", letterSpacing: "0.28em", textTransform: "uppercase" }}>
+            {creator?.primaryLanguage === 'en' ? 'How we work' : 'Como trabalhamos'}
+          </div>
+          <div style={{ height: 28 }} />
+          <h1 style={{ fontSize: 76, fontWeight: 800, margin: 0, lineHeight: 1.0, letterSpacing: "-0.03em", color: "#f5f5f5" }}>
+            {creator?.primaryLanguage === 'en' ? <>We build once. <span style={{ ...italicSerif, color: "#B11E2F", fontSize: 80 }}>We operate forever.</span></> : <>Construímos uma vez. <span style={{ ...italicSerif, color: "#B11E2F", fontSize: 80 }}>Operamos para sempre.</span></>}
+          </h1>
+
+          <div style={{ marginTop: 56, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 28, flex: 1 }}>
             {/* Box 1: BUILD */}
-            <div style={{ padding: "44px 36px", background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 16 }}>
-              <h2 style={{ fontSize: 32, fontWeight: 800, margin: "0 0 8px", color: "#f5f5f5", textAlign: "center", letterSpacing: "-0.02em" }}>
+            <div style={{ padding: 44, background: "rgba(15,15,15,0.78)", border: "1px solid #1F1F1F", borderRadius: 14, display: "flex", flexDirection: "column" }}>
+              <h2 style={{ fontSize: 34, fontWeight: 700, margin: 0, color: "#f5f5f5", letterSpacing: "-0.01em" }}>
                 <Editable value={slides.buildOperate.buildTitle} onChange={v => updateSlide('buildOperate', 'buildTitle', v)} />
               </h2>
-              <div style={{ fontSize: 13, color: "#7A0E18", letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 28, textAlign: "center", fontWeight: 600 }}>
+              <div style={{ fontSize: 16, fontWeight: 600, color: "#B11E2F", letterSpacing: "0.22em", textTransform: "uppercase", marginTop: 8, marginBottom: 28 }}>
                 <Editable value={slides.buildOperate.buildSub} onChange={v => updateSlide('buildOperate', 'buildSub', v)} />
               </div>
-              {slides.buildOperate.build.map((item, i) => (
-                <div key={i} style={{ marginBottom: 16 }}>
-                  <p style={{ margin: 0, fontSize: 16, color: "#ddd", lineHeight: 1.5 }}>
-                    <strong style={{ color: "#f5f5f5", fontWeight: 700 }}>
+              <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 16 }}>
+                {slides.buildOperate.build.map((item, i) => (
+                  <li key={i}>
+                    <div style={{ fontSize: 22, fontWeight: 600, color: "#f5f5f5" }}>
                       <Editable value={item.title} onChange={v => {
                         const next = [...slides.buildOperate.build]; next[i] = { ...item, title: v };
                         updateSlide('buildOperate', 'build', next);
                       }} />
-                    </strong>
-                    <span style={{ color: "#999" }}>{": "}
-                    <Editable value={item.desc} onChange={v => {
-                      const next = [...slides.buildOperate.build]; next[i] = { ...item, desc: v };
-                      updateSlide('buildOperate', 'build', next);
-                    }} multiline />
-                    </span>
-                  </p>
-                </div>
-              ))}
+                    </div>
+                    <div style={{ fontSize: 17, color: "#888", lineHeight: 1.45, marginTop: 2 }}>
+                      <Editable value={item.desc} onChange={v => {
+                        const next = [...slides.buildOperate.build]; next[i] = { ...item, desc: v };
+                        updateSlide('buildOperate', 'build', next);
+                      }} multiline />
+                    </div>
+                  </li>
+                ))}
+              </ul>
             </div>
 
             {/* Box 2: OPERATE */}
-            <div style={{ padding: "44px 36px", background: "rgba(122,14,24,0.05)", border: "1px solid rgba(122,14,24,0.2)", borderRadius: 16 }}>
-              <h2 style={{ fontSize: 32, fontWeight: 800, margin: "0 0 8px", color: "#f5f5f5", textAlign: "center", letterSpacing: "-0.02em" }}>
+            <div style={{ padding: 44, background: "rgba(15,15,15,0.78)", border: "1px solid rgba(31,138,76,0.65)", borderRadius: 14, display: "flex", flexDirection: "column" }}>
+              <h2 style={{ fontSize: 34, fontWeight: 700, margin: 0, color: "#f5f5f5", letterSpacing: "-0.01em" }}>
                 <Editable value={slides.buildOperate.operateTitle} onChange={v => updateSlide('buildOperate', 'operateTitle', v)} />
               </h2>
-              <div style={{ fontSize: 13, color: "#22c55e", letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 28, textAlign: "center", fontWeight: 600 }}>
+              <div style={{ fontSize: 16, fontWeight: 600, color: "#1F8A4C", letterSpacing: "0.22em", textTransform: "uppercase", marginTop: 8, marginBottom: 28 }}>
                 <Editable value={slides.buildOperate.operateSub} onChange={v => updateSlide('buildOperate', 'operateSub', v)} />
               </div>
-              {slides.buildOperate.operate.map((item, i) => (
-                <div key={i} style={{ marginBottom: 14, display: "flex", gap: 12, alignItems: "flex-start" }}>
-                  <span style={{ color: "#22c55e", fontSize: 16, lineHeight: 1.5 }}>•</span>
-                  <p style={{ margin: 0, fontSize: 16, color: "#ddd", lineHeight: 1.5, flex: 1 }}>
-                    <Editable value={item} onChange={v => {
-                      const next = [...slides.buildOperate.operate]; next[i] = v;
-                      updateSlide('buildOperate', 'operate', next);
-                    }} multiline />
-                  </p>
-                </div>
-              ))}
+              <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 14 }}>
+                {slides.buildOperate.operate.map((item, i) => (
+                  <li key={i} style={{ display: "flex", gap: 14 }}>
+                    <span style={{ color: "#1F8A4C", width: 28, flexShrink: 0 }}>●</span>
+                    <span style={{ fontSize: 22, color: "#D5D5D5", lineHeight: 1.5, flex: 1 }}>
+                      <Editable value={item} onChange={v => {
+                        const next = [...slides.buildOperate.operate]; next[i] = v;
+                        updateSlide('buildOperate', 'operate', next);
+                      }} multiline />
+                    </span>
+                  </li>
+                ))}
+              </ul>
             </div>
           </div>
-          <p style={{ marginTop: 36, fontSize: 18, color: "#f5f5f5", fontWeight: 600, textAlign: "center" }}>
-            <Editable value={slides.buildOperate.closer} onChange={v => updateSlide('buildOperate', 'closer', v)} multiline />
+          <p style={{ marginTop: 28, fontSize: 26, fontWeight: 700, letterSpacing: "-0.01em", color: "#f5f5f5" }}>
+            <StyledLastWord
+              text={slides.buildOperate.closer}
+              italicStyle={{ ...italicSerif, color: "#B11E2F", fontSize: 30 }}
+            />
           </p>
         </div>
       </Slide>
@@ -1113,33 +1195,46 @@ function PitchPageContent() {
       <Slide num={7} decor={
         <div className="aurora red" style={{ left: "30%", top: -200, width: 700, height: 700, opacity: 0.3 }} />
       }>
-        <div style={{ ...slideInnerCentered, alignItems: "stretch" }}>
-          <h1 style={{ fontSize: 44, fontWeight: 800, margin: 0, lineHeight: 1.15, letterSpacing: "-0.02em", textAlign: "center", marginBottom: 56 }}>
-            <Editable value={slides.launch.title} onChange={v => updateSlide('launch', 'title', v)} />
+        <div style={{ flex: 1, display: "flex", flexDirection: "column", width: "100%" }}>
+          <div style={{ fontSize: 18, fontWeight: 600, color: "#B11E2F", letterSpacing: "0.28em", textTransform: "uppercase" }}>
+            {creator?.primaryLanguage === 'en' ? 'Launch plan' : 'Plano de lançamento'}
+          </div>
+          <div style={{ height: 28 }} />
+          <h1 style={{ fontSize: 88, fontWeight: 800, margin: 0, lineHeight: 1.0, letterSpacing: "-0.03em", color: "#f5f5f5" }}>
+            <StyledLastWord
+              text={slides.launch.title}
+              italicStyle={{ ...italicSerif, color: "#B11E2F", fontSize: 92 }}
+            />
           </h1>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 24 }}>
+
+          <div style={{ marginTop: 56, display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 24, flex: 1 }}>
             {slides.launch.phases.map((phase, i) => (
-              <div key={i} style={{ padding: "36px 28px", background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.05)", borderRadius: 14, position: "relative", textAlign: "center" }}>
-                <div style={{ fontSize: 64, fontWeight: 800, color: "#7A0E18", opacity: 0.25, position: "absolute", top: 12, right: 18, lineHeight: 1 }}>{i + 1}</div>
-                <h3 style={{ fontSize: 20, fontWeight: 700, margin: "0 0 14px", color: "#f5f5f5", position: "relative" }}>
+              <div key={i} style={{ padding: 44, background: "rgba(15,15,15,0.78)", border: "1px solid #1F1F1F", borderRadius: 14, position: "relative", display: "flex", flexDirection: "column" }}>
+                <div style={{ ...italicSerif, fontSize: 220, color: "#B11E2F", opacity: 0.25, position: "absolute", top: -40, right: 24, lineHeight: 1, pointerEvents: "none" }}>{i + 1}</div>
+                <div style={{ fontSize: 16, fontWeight: 600, color: "#B11E2F", letterSpacing: "0.22em", textTransform: "uppercase", marginBottom: 14, position: "relative" }}>
+                  {i === 0 ? (creator?.primaryLanguage === 'en' ? 'Validate' : 'Validar')
+                  : i === 1 ? (creator?.primaryLanguage === 'en' ? 'Launch' : 'Lançar')
+                            : (creator?.primaryLanguage === 'en' ? 'Scale' : 'Escalar')}
+                </div>
+                <h3 style={{ fontSize: 30, fontWeight: 700, margin: "0 0 14px", color: "#f5f5f5", lineHeight: 1.15, letterSpacing: "-0.01em", position: "relative" }}>
                   <Editable value={phase.title} onChange={v => {
                     const next = [...slides.launch.phases]; next[i] = { ...phase, title: v };
                     updateSlide('launch', 'phases', next);
                   }} />
                 </h3>
-                <p style={{ margin: "0 0 18px", fontSize: 14, color: "#aaa", lineHeight: 1.6, textAlign: "left" }}>
+                <p style={{ margin: "0 0 28px", fontSize: 19, color: "#B8B8B8", lineHeight: 1.5, position: "relative" }}>
                   <Editable value={phase.desc} onChange={v => {
                     const next = [...slides.launch.phases]; next[i] = { ...phase, desc: v };
                     updateSlide('launch', 'phases', next);
                   }} multiline />
                 </p>
                 {phase.assets && phase.assets.length > 0 && (
-                  <div style={{ paddingTop: 18, borderTop: "1px solid rgba(255,255,255,0.06)", textAlign: "left" }}>
-                    <div style={{ fontSize: 10, fontWeight: 700, color: "#7A0E18", letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 10 }}>Assets</div>
+                  <div style={{ marginTop: "auto", position: "relative" }}>
+                    <div style={{ fontSize: 12, fontWeight: 600, color: "#8A8A8A", letterSpacing: "0.22em", textTransform: "uppercase", marginBottom: 12 }}>Assets</div>
                     {phase.assets.map((asset, j) => (
-                      <div key={j} style={{ display: "flex", gap: 8, marginBottom: 6, alignItems: "flex-start" }}>
-                        <span style={{ color: "#7A0E18", fontSize: 12, lineHeight: 1.4 }}>›</span>
-                        <span style={{ fontSize: 13, color: "#ccc", lineHeight: 1.4, flex: 1 }}>
+                      <div key={j} style={{ display: "flex", gap: 10, marginBottom: 8, alignItems: "flex-start" }}>
+                        <span style={{ color: "#B11E2F", fontSize: 14, lineHeight: 1.5, fontWeight: 700 }}>›</span>
+                        <span style={{ fontSize: 17, color: "#D5D5D5", lineHeight: 1.5, flex: 1 }}>
                           <Editable value={asset} onChange={v => {
                             const nextAssets = [...phase.assets]; nextAssets[j] = v;
                             const next = [...slides.launch.phases]; next[i] = { ...phase, assets: nextAssets };
@@ -1153,7 +1248,7 @@ function PitchPageContent() {
               </div>
             ))}
           </div>
-          <p style={{ marginTop: 48, fontSize: 16, color: "#888", fontStyle: "italic", textAlign: "center" }}>
+          <p style={{ ...italicSerif, marginTop: 28, fontSize: 28, color: "#A8A8A8" }}>
             <Editable value={slides.launch.closer} onChange={v => updateSlide('launch', 'closer', v)} multiline />
           </p>
         </div>
@@ -1255,31 +1350,51 @@ function PitchPageContent() {
           <div className="aurora green" style={{ right: -200, top: "30%", width: 600, height: 600 }} />
         </>
       }>
-        <div style={{ ...slideInnerCentered, alignItems: "stretch" }}>
-          <h1 style={{ fontSize: 44, fontWeight: 800, margin: 0, lineHeight: 1.15, letterSpacing: "-0.02em", textAlign: "center", marginBottom: 56 }}>
-            <Editable value={slides.partnership.title} onChange={v => updateSlide('partnership', 'title', v)} />
+        <div style={{ flex: 1, display: "flex", flexDirection: "column", width: "100%" }}>
+          <div style={{ fontSize: 18, fontWeight: 600, color: "#B11E2F", letterSpacing: "0.28em", textTransform: "uppercase" }}>
+            {creator?.primaryLanguage === 'en' ? 'The partnership' : 'A parceria'}
+          </div>
+          <div style={{ height: 28 }} />
+          <h1 style={{ fontSize: 88, fontWeight: 800, margin: 0, lineHeight: 1.0, letterSpacing: "-0.03em", color: "#f5f5f5" }}>
+            <StyledKeyword
+              text={slides.partnership.title}
+              keyword={creator?.primaryLanguage === 'en' ? 'works' : 'funciona'}
+              italicStyle={{ ...italicSerif, color: "#B11E2F" }}
+            />
           </h1>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 28 }}>
-            <div style={{ padding: "44px 36px", background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 14, textAlign: "center" }}>
-              <div style={{ fontSize: 14, fontWeight: 700, color: "#7A0E18", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 24 }}>
+
+          <div style={{ marginTop: 56, display: "grid", gridTemplateColumns: "1fr 80px 1fr", gap: 28, alignItems: "stretch", flex: 1 }}>
+            <div style={{ padding: 44, background: "linear-gradient(180deg, rgba(177,30,47,0.10), rgba(15,15,15,0.85))", border: "1px solid rgba(177,30,47,0.65)", borderRadius: 14, display: "flex", flexDirection: "column" }}>
+              <div style={{ fontSize: 16, fontWeight: 600, color: "#B11E2F", letterSpacing: "0.22em", textTransform: "uppercase", marginBottom: 28 }}>
                 <Editable value={slides.partnership.youLabel} onChange={v => updateSlide('partnership', 'youLabel', v)} />
               </div>
-              <p style={{ margin: 0, fontSize: 20, color: "#f5f5f5", lineHeight: 1.6, textAlign: "left" }}>
+              <p style={{ margin: 0, fontSize: 32, color: "#f5f5f5", lineHeight: 1.4, letterSpacing: "-0.01em", fontWeight: 500 }}>
                 <Editable value={slides.partnership.you} onChange={v => updateSlide('partnership', 'you', v)} multiline />
               </p>
             </div>
-            <div style={{ padding: "44px 36px", background: "rgba(122,14,24,0.05)", border: "1px solid rgba(122,14,24,0.2)", borderRadius: 14, textAlign: "center" }}>
-              <div style={{ fontSize: 14, fontWeight: 700, color: "#22c55e", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 24 }}>
+
+            {/* Center connector — serif "+" */}
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <div style={{ ...italicSerif, fontSize: 80, color: "#f5f5f5", lineHeight: 1 }}>+</div>
+            </div>
+
+            <div style={{ padding: 44, background: "linear-gradient(180deg, rgba(31,138,76,0.10), rgba(15,15,15,0.85))", border: "1px solid rgba(31,138,76,0.65)", borderRadius: 14, display: "flex", flexDirection: "column" }}>
+              <div style={{ fontSize: 16, fontWeight: 600, color: "#1F8A4C", letterSpacing: "0.22em", textTransform: "uppercase", marginBottom: 28 }}>
                 <Editable value={slides.partnership.usLabel} onChange={v => updateSlide('partnership', 'usLabel', v)} />
               </div>
-              <p style={{ margin: 0, fontSize: 20, color: "#f5f5f5", lineHeight: 1.6, textAlign: "left" }}>
+              <p style={{ margin: 0, fontSize: 32, color: "#f5f5f5", lineHeight: 1.4, letterSpacing: "-0.01em", fontWeight: 500 }}>
                 <Editable value={slides.partnership.us} onChange={v => updateSlide('partnership', 'us', v)} multiline />
               </p>
             </div>
           </div>
-          <div style={{ marginTop: 44, padding: "26px 36px", background: "rgba(34,197,94,0.06)", border: "1px solid rgba(34,197,94,0.2)", borderRadius: 12, textAlign: "center" }}>
-            <p style={{ margin: 0, fontSize: 22, color: "#f5f5f5", fontWeight: 700 }}>
-              <Editable value={slides.partnership.alignment} onChange={v => updateSlide('partnership', 'alignment', v)} />
+
+          {/* Alignment banner */}
+          <div style={{ marginTop: 28, padding: "32px 44px", background: "linear-gradient(90deg, rgba(31,138,76,0.08), rgba(31,138,76,0.18), rgba(31,138,76,0.08))", border: "1px solid rgba(31,138,76,0.65)", borderRadius: 14, textAlign: "center" }}>
+            <p style={{ margin: 0, fontSize: 38, color: "#f5f5f5", fontWeight: 600, letterSpacing: "-0.01em" }}>
+              <StyledLastWord
+                text={slides.partnership.alignment}
+                italicStyle={{ ...italicSerif, color: "#1F8A4C" }}
+              />
             </p>
           </div>
         </div>
@@ -1289,41 +1404,42 @@ function PitchPageContent() {
       <Slide num={10} decor={
         <div className="aurora red" style={{ right: -200, top: "50%", width: 700, height: 700, opacity: 0.3 }} />
       }>
-        <div style={{ ...slideInnerCentered, alignItems: "stretch" }}>
-          <h1 style={{ fontSize: 44, fontWeight: 800, margin: 0, lineHeight: 1.15, letterSpacing: "-0.02em", textAlign: "center", marginBottom: 48 }}>
-            <Editable value={slides.recap.title} onChange={v => updateSlide('recap', 'title', v)} />
+        <div style={{ flex: 1, display: "flex", flexDirection: "column", width: "100%" }}>
+          <div style={{ fontSize: 18, fontWeight: 600, color: "#B11E2F", letterSpacing: "0.28em", textTransform: "uppercase" }}>
+            {creator?.primaryLanguage === 'en' ? 'The transformation' : 'A transformação'}
+          </div>
+          <div style={{ height: 28 }} />
+          <h1 style={{ fontSize: 88, fontWeight: 800, margin: 0, lineHeight: 1.0, letterSpacing: "-0.03em", color: "#f5f5f5" }}>
+            {creator?.primaryLanguage === 'en' ? 'From ' : 'De '}<span style={{ color: "#B11E2F", fontWeight: 800 }}>→</span> <span style={{ ...italicSerif, color: "#f5f5f5" }}>{creator?.primaryLanguage === 'en' ? 'To.' : 'Para.'}</span>
           </h1>
-          <div style={{ maxWidth: 1100, margin: "0 auto", width: "100%" }}>
+
+          <div style={{ marginTop: 48 }}>
             {slides.recap.pairs.map((pair, i) => (
-              <div key={i} style={{ display: "grid", gridTemplateColumns: "1fr auto 1fr", gap: 32, alignItems: "center", padding: "26px 0", borderBottom: i < slides.recap.pairs.length - 1 ? "1px solid rgba(255,255,255,0.06)" : "none" }}>
-                <div style={{ textAlign: "right" }}>
-                  <div style={{ fontSize: 12, color: "#666", marginBottom: 6, letterSpacing: "0.12em", textTransform: "uppercase" }}>
-                    <Editable value={slides.recap.fromLabel} onChange={v => updateSlide('recap', 'fromLabel', v)} />
-                  </div>
-                  <div style={{ fontSize: 22, color: "#888" }}>
-                    <Editable value={pair.from} onChange={v => {
-                      const next = [...slides.recap.pairs]; next[i] = { ...pair, from: v };
-                      updateSlide('recap', 'pairs', next);
-                    }} />
-                  </div>
+              <div key={i} style={{ display: "grid", gridTemplateColumns: "90px 1fr 80px 1fr", alignItems: "baseline", padding: "30px 0", borderTop: "1px solid #1F1F1F", borderBottom: i === slides.recap.pairs.length - 1 ? "1px solid #1F1F1F" : "none", gap: 24 }}>
+                <div style={{ fontSize: 14, fontWeight: 600, color: "#B11E2F", letterSpacing: "0.24em", textTransform: "uppercase" }}>
+                  <Editable value={slides.recap.fromLabel} onChange={v => updateSlide('recap', 'fromLabel', v)} />
                 </div>
-                <div style={{ fontSize: 32, color: "#7A0E18", fontWeight: 700 }}>→</div>
-                <div>
-                  <div style={{ fontSize: 12, color: "#7A0E18", marginBottom: 6, letterSpacing: "0.12em", textTransform: "uppercase" }}>
-                    <Editable value={slides.recap.toLabel} onChange={v => updateSlide('recap', 'toLabel', v)} />
-                  </div>
-                  <div style={{ ...italicSerif, fontSize: 32, color: "#f5f5f5", fontWeight: 400, lineHeight: 1.2 }}>
-                    <Editable value={pair.to} onChange={v => {
-                      const next = [...slides.recap.pairs]; next[i] = { ...pair, to: v };
-                      updateSlide('recap', 'pairs', next);
-                    }} />
-                  </div>
+                <div style={{ fontSize: 36, color: "#C9C9C9", fontWeight: 500, letterSpacing: "-0.01em" }}>
+                  <Editable value={pair.from} onChange={v => {
+                    const next = [...slides.recap.pairs]; next[i] = { ...pair, from: v };
+                    updateSlide('recap', 'pairs', next);
+                  }} />
+                </div>
+                <div style={{ ...italicSerif, fontSize: 44, color: "#B11E2F", textAlign: "center" }}>→</div>
+                <div style={{ ...italicSerif, fontSize: 48, color: "#f5f5f5", letterSpacing: "-0.005em" }}>
+                  <Editable value={pair.to} onChange={v => {
+                    const next = [...slides.recap.pairs]; next[i] = { ...pair, to: v };
+                    updateSlide('recap', 'pairs', next);
+                  }} />
                 </div>
               </div>
             ))}
           </div>
-          <p style={{ marginTop: 48, fontSize: 20, color: "#f5f5f5", fontWeight: 600, textAlign: "center", fontStyle: "italic" }}>
-            <Editable value={slides.recap.closer} onChange={v => updateSlide('recap', 'closer', v)} multiline />
+          <p style={{ marginTop: "auto", paddingTop: 28, fontSize: 36, color: "#f5f5f5", fontWeight: 400 }}>
+            <StyledLastWord
+              text={slides.recap.closer}
+              italicStyle={{ ...italicSerif, color: "#B11E2F" }}
+            />
           </p>
         </div>
       </Slide>
