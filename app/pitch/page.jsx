@@ -518,12 +518,14 @@ function PitchPageContent() {
   };
 
   if (loading || !slides) {
-    return <div style={{ minHeight: "100vh", background: "#0a0a0a", color: "#555", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif" }}>A carregar...</div>;
+    return <div style={{ minHeight: "100vh", background: "#0a0a0a", color: "#555", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'Geist', 'Helvetica Neue', Helvetica, Arial, sans-serif" }}>A carregar...</div>;
   }
 
   return (
-    <div style={{ minHeight: "100vh", background: "#0a0a0a", color: "#f5f5f5", fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", paddingBottom: 80 }}>
-      <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet" />
+    <div style={{ minHeight: "100vh", background: "#0a0a0a", color: "#f5f5f5", fontFamily: "'Geist', 'Helvetica Neue', Helvetica, Arial, sans-serif", paddingBottom: 80 }}>
+      <link rel="preconnect" href="https://fonts.googleapis.com" />
+      <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
+      <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Geist:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
 
       {/* Toolbar */}
       <div className="no-print" style={{ position: "sticky", top: 0, zIndex: 10, background: "rgba(10,10,10,0.95)", backdropFilter: "blur(10px)", borderBottom: "1px solid rgba(255,255,255,0.05)", padding: "12px 24px", display: "flex", gap: 12, alignItems: "center", justifyContent: "space-between" }}>
@@ -547,27 +549,291 @@ function PitchPageContent() {
           .no-print { display: none !important; }
           .slide { page-break-after: always; min-height: auto !important; }
           body { background: #0a0a0a !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+          .aurora, .cover-orb, .spotlight { animation: none !important; }
+          .chart-line { stroke-dasharray: none !important; stroke-dashoffset: 0 !important; animation: none !important; }
+          .chart-dot, .pulse-dot, .iso-pulse { animation: none !important; opacity: 1 !important; }
+          .slide::after { opacity: 0.04 !important; }
         }
         [contenteditable]:hover { background: rgba(255,255,255,0.02); }
         [contenteditable]:focus { background: rgba(122,14,24,0.08); }
+
+        /* ========= CINEMATIC LAYER ========= */
+        /* Film-grain on every slide */
+        .slide { position: relative; overflow: hidden; }
+        .slide > * { position: relative; z-index: 2; }
+        .slide::after {
+          content: "";
+          position: absolute; inset: 0;
+          pointer-events: none;
+          background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='240' height='240'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 0.55 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
+          opacity: 0.06;
+          mix-blend-mode: overlay;
+          z-index: 50;
+        }
+
+        /* Aurora orbs (drifting red/deep/green glows) */
+        .aurora {
+          position: absolute;
+          pointer-events: none;
+          border-radius: 50%;
+          filter: blur(120px);
+          opacity: 0.5;
+          z-index: 0;
+          animation: sl-drift 14s ease-in-out infinite alternate;
+        }
+        .aurora.red   { background: radial-gradient(circle, rgba(177,30,47,0.85), rgba(177,30,47,0) 70%); }
+        .aurora.deep  { background: radial-gradient(circle, rgba(120,15,30,0.9), rgba(120,15,30,0) 70%); }
+        .aurora.green { background: radial-gradient(circle, rgba(31,138,76,0.6), rgba(31,138,76,0) 70%); }
+        @keyframes sl-drift {
+          0%   { transform: translate(0,0) scale(1); }
+          50%  { transform: translate(40px,-30px) scale(1.08); }
+          100% { transform: translate(-30px,40px) scale(0.95); }
+        }
+
+        /* Cover orb + concentric rings */
+        .cover-orb {
+          position: absolute; left: 50%; top: 50%;
+          transform: translate(-50%,-50%);
+          width: 1100px; height: 1100px;
+          border-radius: 50%;
+          background: radial-gradient(circle at 50% 50%, rgba(255,80,100,0.45), rgba(177,30,47,0.25) 35%, rgba(20,5,8,0) 65%);
+          filter: blur(40px);
+          z-index: 0;
+          animation: sl-drift 18s ease-in-out infinite alternate;
+        }
+        .cover-rings {
+          position: absolute; left: 50%; top: 50%;
+          width: 900px; height: 900px;
+          transform: translate(-50%,-50%);
+          z-index: 1;
+          opacity: 0.5;
+          pointer-events: none;
+        }
+
+        /* Promise waveform */
+        .promise-wave {
+          position: absolute; inset: 0;
+          width: 100%; height: 100%;
+          z-index: 0; opacity: 0.45;
+          pointer-events: none;
+        }
+
+        /* Spotlight (closing slide) */
+        .spotlight {
+          position: absolute; inset: 0;
+          background: radial-gradient(ellipse at 50% 60%, rgba(177,30,47,0.35), transparent 55%);
+          z-index: 0;
+          pointer-events: none;
+        }
+        .closing-rings {
+          position: absolute; left: 50%; top: 50%;
+          width: 1100px; height: 1100px;
+          transform: translate(-50%,-50%);
+          z-index: 0; opacity: 0.4;
+          pointer-events: none;
+        }
+
+        /* Hero gradient number (slide 8) */
+        .hero-num {
+          background: linear-gradient(180deg, #FFFFFF 0%, #FF6478 60%, #B11E2F 100%);
+          -webkit-background-clip: text;
+          background-clip: text;
+          -webkit-text-fill-color: transparent;
+          color: transparent;
+        }
+
+        /* Audience dot grid */
+        .dot-grid {
+          display: grid;
+          grid-template-columns: repeat(40, 1fr);
+          gap: 6px;
+          width: 100%;
+        }
+        .dot {
+          width: 100%; aspect-ratio: 1;
+          border-radius: 50%;
+          background: #2A2A2A;
+        }
+        .dot.pt    { background: #B11E2F; box-shadow: 0 0 6px rgba(177,30,47,0.6); }
+        .dot.br    { background: #E8B14E; }
+        .dot.other { background: #5A5A5A; }
+        .dot.faded { background: #1F1F1F; }
+
+        /* Iso machine (slide 6) */
+        .iso-stage {
+          position: absolute; inset: 0;
+          perspective: 1800px;
+          pointer-events: none;
+          z-index: 0;
+        }
+        .iso-world {
+          position: absolute; left: 50%; top: 50%;
+          transform: translate(-50%,-50%) rotateX(58deg) rotateZ(-32deg);
+          transform-style: preserve-3d;
+          width: 1200px; height: 1200px;
+          opacity: 0.55;
+        }
+        .iso-grid {
+          position: absolute; inset: 0;
+          background-image:
+            linear-gradient(rgba(177,30,47,0.10) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(177,30,47,0.10) 1px, transparent 1px);
+          background-size: 80px 80px;
+          opacity: 0.7;
+        }
+        .iso-panel {
+          position: absolute;
+          border: 1px solid rgba(177,30,47,0.5);
+          background: rgba(177,30,47,0.06);
+          border-radius: 6px;
+          box-shadow: 0 0 30px rgba(177,30,47,0.15);
+        }
+        .iso-flow {
+          position: absolute;
+          height: 2px;
+          background: linear-gradient(90deg, transparent, #B11E2F, transparent);
+          box-shadow: 0 0 10px rgba(177,30,47,0.5);
+        }
+        .iso-pulse {
+          position: absolute; width: 12px; height: 12px;
+          background: #B11E2F;
+          border-radius: 50%;
+          box-shadow: 0 0 14px #B11E2F;
+          animation: sl-iso-pulse 3s linear infinite;
+        }
+        @keyframes sl-iso-pulse {
+          0%   { opacity: 0; transform: translateX(0); }
+          20%  { opacity: 1; }
+          80%  { opacity: 1; }
+          100% { opacity: 0; transform: translateX(360px); }
+        }
+
+        /* Iso veil to keep foreground readable */
+        .iso-veil {
+          position: absolute; inset: 0;
+          background: linear-gradient(180deg, rgba(10,10,10,0.7) 0%, rgba(10,10,10,0.3) 35%, rgba(10,10,10,0.85) 100%);
+          z-index: 1;
+          pointer-events: none;
+        }
+
+        /* Animated chart paths (slide 8) */
+        .chart-line { stroke-dasharray: 2000; stroke-dashoffset: 2000; animation: sl-draw 2.5s ease-out forwards; }
+        .chart-line.delay-1 { animation-delay: 0.3s; }
+        .chart-line.delay-2 { animation-delay: 0.6s; }
+        @keyframes sl-draw { to { stroke-dashoffset: 0; } }
+        .pulse-dot { animation: sl-pulse-dot 1.6s ease-in-out infinite; }
+        @keyframes sl-pulse-dot {
+          0%, 100% { r: 5; opacity: 1; }
+          50%      { r: 9; opacity: 0.55; }
+        }
+
+        /* Receipt graphic (slide 11) */
+        .receipt {
+          background: #F5F0E6;
+          color: #1A1A1A;
+          font-family: 'JetBrains Mono', ui-monospace, monospace;
+          padding: 40px 36px;
+          border-radius: 4px;
+          position: relative;
+          box-shadow: 0 30px 60px rgba(0,0,0,0.6), inset 0 0 0 1px rgba(0,0,0,0.05);
+          transform: rotate(-1.2deg);
+        }
+        .receipt::before, .receipt::after {
+          content: "";
+          position: absolute; left: 0; right: 0;
+          height: 16px;
+          background-image: radial-gradient(circle at 8px 8px, #0A0A0A 6px, transparent 6.5px);
+          background-size: 16px 16px;
+          background-repeat: repeat-x;
+        }
+        .receipt::before { top: -8px; }
+        .receipt::after  { bottom: -8px; }
+        .receipt .r-line { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px dashed rgba(0,0,0,0.18); font-size: 14px; }
+        .receipt .r-line.no-b { border: none; }
+        .receipt .r-total { display: flex; justify-content: space-between; padding-top: 12px; font-weight: 700; font-size: 16px; }
+
+        /* Slide enter animation */
+        .anim-up { animation: sl-up-in 0.9s cubic-bezier(0.2, 0.7, 0.1, 1) both; }
+        @keyframes sl-up-in { from { opacity: 0; transform: translateY(28px); } to { opacity: 1; transform: none; } }
+
+        /* Cinematic top tag */
+        .cin-tag {
+          position: absolute; top: 30px; left: 60px;
+          font-family: 'JetBrains Mono', ui-monospace, monospace;
+          font-size: 11px; letter-spacing: 0.24em; text-transform: uppercase;
+          color: #8A8A8A; z-index: 5;
+        }
+        .cin-tag .red-dot {
+          display: inline-block; width: 6px; height: 6px;
+          background: #B11E2F; border-radius: 50%;
+          vertical-align: middle; margin-right: 8px;
+          animation: sl-blink 1.6s ease-in-out infinite;
+        }
+        @keyframes sl-blink { 0%,100% { opacity: 1; } 50% { opacity: 0.25; } }
+
+        /* Page mark (bottom) */
+        .page-mark {
+          position: absolute; left: 60px; bottom: 30px;
+          font-size: 11px; letter-spacing: 0.22em; text-transform: uppercase;
+          color: #8A8A8A; font-weight: 500; z-index: 5;
+          font-family: 'JetBrains Mono', ui-monospace, monospace;
+        }
+        .page-mark .sl-no { color: #f5f5f5; }
+        .top-mark {
+          position: absolute; right: 60px; top: 30px;
+          font-size: 11px; letter-spacing: 0.22em; text-transform: uppercase;
+          color: #8A8A8A; font-weight: 500; z-index: 5;
+          font-family: 'JetBrains Mono', ui-monospace, monospace;
+        }
+        .top-mark b { color: #f5f5f5; font-weight: 700; }
       `}</style>
 
-      {/* SLIDE 1: COVER — logo + centered subtitle */}
-      <Slide>
+      {/* SLIDE 1: COVER — logo + centered subtitle + cinematic orb */}
+      <Slide num={1} hidePageMark decor={
+        <>
+          <div className="cover-orb" />
+          <div className="aurora red"  style={{ left: -200, top: -200, width: 700, height: 700 }} />
+          <div className="aurora deep" style={{ right: -150, bottom: -200, width: 700, height: 700 }} />
+          <svg className="cover-rings" viewBox="0 0 900 900" fill="none">
+            <circle cx="450" cy="450" r="180" stroke="rgba(177,30,47,0.35)" strokeWidth="1" />
+            <circle cx="450" cy="450" r="280" stroke="rgba(177,30,47,0.22)" strokeWidth="1" />
+            <circle cx="450" cy="450" r="380" stroke="rgba(177,30,47,0.14)" strokeWidth="1" strokeDasharray="4 8" />
+            <circle cx="450" cy="450" r="440" stroke="rgba(177,30,47,0.08)" strokeWidth="1" />
+          </svg>
+          <div className="cin-tag"><span className="red-dot" />Confidencial · 001</div>
+        </>
+      }>
         <div style={slideInnerCentered}>
           <img src={LOGO_B64} alt="Second Layer" style={{ height: 32, opacity: 0.95, marginBottom: 56 }} />
-          <h1 style={{ fontSize: 92, fontWeight: 800, margin: 0, lineHeight: 1.05, letterSpacing: "-0.03em", textAlign: "center" }}>
+          <h1 className="anim-up" style={{ fontSize: 92, fontWeight: 800, margin: 0, lineHeight: 1.05, letterSpacing: "-0.03em", textAlign: "center", textShadow: "0 0 60px rgba(0,0,0,0.5)" }}>
             <Editable value={slides.cover.title} onChange={v => updateSlide('cover', 'title', v)} />
           </h1>
-          <div style={{ width: 80, height: 3, background: "#7A0E18", margin: "44px auto" }} />
+          <div style={{ width: 140, height: 5, background: "#B11E2F", margin: "44px auto" }} />
           <p style={{ fontSize: 28, color: "#aaa", margin: 0, textAlign: "center" }}>
-            <StyledLastWord text={slides.cover.subtitle} italicStyle={{ color: "#f5f5f5", fontSize: 36 }} />
+            <StyledLastWord text={slides.cover.subtitle} italicStyle={{ color: "#B11E2F", fontSize: 40 }} />
           </p>
         </div>
       </Slide>
 
-      {/* SLIDE 2: CORE PROMISE — new */}
-      <Slide>
+      {/* SLIDE 2: CORE PROMISE — waveform + aurora */}
+      <Slide num={2} decor={
+        <>
+          <div className="aurora red" style={{ right: -300, top: "30%", width: 900, height: 900 }} />
+          <svg className="promise-wave" viewBox="0 0 1920 1080" preserveAspectRatio="none">
+            <defs>
+              <linearGradient id="wave-grad" x1="0" x2="1">
+                <stop offset="0%"   stopColor="#B11E2F" stopOpacity="0" />
+                <stop offset="50%"  stopColor="#E0354A" stopOpacity="0.7" />
+                <stop offset="100%" stopColor="#B11E2F" stopOpacity="0" />
+              </linearGradient>
+            </defs>
+            <path d="M 0 880 Q 240 820, 480 860 T 960 880 T 1440 860 T 1920 880" fill="none" stroke="url(#wave-grad)" strokeWidth="1.2" />
+            <path d="M 0 920 Q 240 880, 480 910 T 960 920 T 1440 910 T 1920 920" fill="none" stroke="url(#wave-grad)" strokeWidth="1" />
+            <path d="M 0 960 Q 240 940, 480 950 T 960 960 T 1440 950 T 1920 960" fill="none" stroke="url(#wave-grad)" strokeWidth="0.8" />
+          </svg>
+          <div className="cin-tag"><span className="red-dot" />Promessa · 02</div>
+        </>
+      }>
         <div style={slideInnerCentered}>
           <div style={{ fontSize: 13, fontWeight: 700, color: "#7A0E18", letterSpacing: "0.18em", textTransform: "uppercase", marginBottom: 36 }}>
             <Editable value={slides.corePromise.eyebrow} onChange={v => updateSlide('corePromise', 'eyebrow', v)} />
@@ -586,8 +852,10 @@ function PitchPageContent() {
         </div>
       </Slide>
 
-      {/* SLIDE 3: TRANSFORMATION — bigger text */}
-      <Slide>
+      {/* SLIDE 3: TRANSFORMATION — bigger text + aurora */}
+      <Slide num={3} decor={
+        <div className="aurora red" style={{ right: -200, top: "20%", width: 700, height: 700, opacity: 0.35 }} />
+      }>
         <div style={{ ...slideInnerCentered, alignItems: "stretch" }}>
           <h1 style={{ fontSize: 44, fontWeight: 800, margin: 0, lineHeight: 1.15, letterSpacing: "-0.02em", textAlign: "center", marginBottom: 56 }}>
             <Editable value={slides.transformation.title} onChange={v => updateSlide('transformation', 'title', v)} />
@@ -629,8 +897,10 @@ function PitchPageContent() {
         </div>
       </Slide>
 
-      {/* SLIDE 4: WHAT YOU GET — centered */}
-      <Slide>
+      {/* SLIDE 4: WHAT YOU GET — deep aurora */}
+      <Slide num={4} decor={
+        <div className="aurora deep" style={{ left: -200, bottom: -150, width: 700, height: 700 }} />
+      }>
         <div style={{ ...slideInnerCentered, alignItems: "stretch" }}>
           <h1 style={{ fontSize: 48, fontWeight: 800, margin: 0, lineHeight: 1.15, letterSpacing: "-0.02em", color: "#f5f5f5", textAlign: "center", marginBottom: 56 }}>
             <Editable value={slides.whatYouGet.hero} onChange={v => updateSlide('whatYouGet', 'hero', v)} multiline />
@@ -660,8 +930,10 @@ function PitchPageContent() {
         </div>
       </Slide>
 
-      {/* SLIDE 5: AUDIENCE — translated, no closer line */}
-      <Slide>
+      {/* SLIDE 5: AUDIENCE — aurora + dot grid */}
+      <Slide num={5} decor={
+        <div className="aurora red" style={{ left: -200, top: -100, width: 600, height: 600, opacity: 0.3 }} />
+      }>
         <div style={{ ...slideInnerCentered, alignItems: "stretch" }}>
           <h1 style={{ fontSize: 44, fontWeight: 800, margin: 0, lineHeight: 1.15, letterSpacing: "-0.02em", textAlign: "center", marginBottom: 48 }}>
             <Editable value={slides.audience.title} onChange={v => updateSlide('audience', 'title', v)} />
@@ -672,6 +944,9 @@ function PitchPageContent() {
             <MetricCard label="Engagement" value={creator?.engagement || 'N/A'} />
             <MetricCard label={creator?.primaryLanguage === 'en' ? 'Niche' : 'Nicho'} value={creator?.niche || 'N/A'} />
           </div>
+
+          <DotGrid audience={audience} />
+
           {(translatedAudience || creator?.audienceEstimate) && (() => {
             const aud = translatedAudience || creator.audienceEstimate;
             const en = creator?.primaryLanguage === 'en';
@@ -693,8 +968,27 @@ function PitchPageContent() {
         </div>
       </Slide>
 
-      {/* SLIDE 6: BUILD + OPERATE — two SEPARATE boxes with own titles */}
-      <Slide>
+      {/* SLIDE 6: BUILD + OPERATE — iso machine backdrop */}
+      <Slide num={6} decor={
+        <>
+          <div className="iso-stage">
+            <div className="iso-world">
+              <div className="iso-grid" />
+              <div className="iso-panel" style={{ left: 80,  top: 180, width: 260, height: 160 }} />
+              <div className="iso-panel" style={{ left: 420, top: 180, width: 260, height: 160 }} />
+              <div className="iso-panel" style={{ left: 760, top: 180, width: 260, height: 160 }} />
+              <div className="iso-panel" style={{ left: 250, top: 460, width: 280, height: 200, background: "rgba(177,30,47,0.12)", borderColor: "rgba(177,30,47,0.7)" }} />
+              <div className="iso-panel" style={{ left: 600, top: 460, width: 280, height: 200 }} />
+              <div className="iso-panel" style={{ left: 350, top: 760, width: 460, height: 140, borderColor: "rgba(31,138,76,0.6)", background: "rgba(31,138,76,0.06)" }} />
+              <div className="iso-flow"  style={{ left: 80, top: 360, width: 940 }} />
+              <div className="iso-pulse" style={{ left: 80, top: 354 }} />
+              <div className="iso-flow"  style={{ left: 350, top: 660, width: 460 }} />
+              <div className="iso-pulse" style={{ left: 350, top: 654, animationDelay: "1.2s" }} />
+            </div>
+          </div>
+          <div className="iso-veil" />
+        </>
+      }>
         <div style={{ ...slideInnerCentered, alignItems: "stretch" }}>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 28 }}>
             {/* Box 1: BUILD */}
@@ -752,8 +1046,10 @@ function PitchPageContent() {
         </div>
       </Slide>
 
-      {/* SLIDE 7: LAUNCH — phases with assets, centered */}
-      <Slide>
+      {/* SLIDE 7: LAUNCH — phases with assets, aurora */}
+      <Slide num={7} decor={
+        <div className="aurora red" style={{ left: "30%", top: -200, width: 700, height: 700, opacity: 0.3 }} />
+      }>
         <div style={{ ...slideInnerCentered, alignItems: "stretch" }}>
           <h1 style={{ fontSize: 44, fontWeight: 800, margin: 0, lineHeight: 1.15, letterSpacing: "-0.02em", textAlign: "center", marginBottom: 56 }}>
             <Editable value={slides.launch.title} onChange={v => updateSlide('launch', 'title', v)} />
@@ -800,8 +1096,13 @@ function PitchPageContent() {
         </div>
       </Slide>
 
-      {/* SLIDE 8: NUMBERS — split layout: chart on one side, formula+inputs on the other */}
-      <Slide>
+      {/* SLIDE 8: NUMBERS — dual aurora */}
+      <Slide num={8} decor={
+        <>
+          <div className="aurora red"  style={{ right: 0, top: -200, width: 800, height: 800, opacity: 0.4 }} />
+          <div className="aurora deep" style={{ left: -100, bottom: -200, width: 700, height: 700 }} />
+        </>
+      }>
         <div style={{ ...slideInnerCentered, alignItems: "stretch" }}>
           <h1 style={{ fontSize: 44, fontWeight: 800, margin: 0, lineHeight: 1.15, letterSpacing: "-0.02em", textAlign: "center", marginBottom: 16 }}>
             <Editable value={slides.numbers.title} onChange={v => updateSlide('numbers', 'title', v)} />
@@ -813,7 +1114,7 @@ function PitchPageContent() {
               <Editable value={slides.numbers.heroLabel} onChange={v => updateSlide('numbers', 'heroLabel', v)} />
             </div>
             <div style={{ lineHeight: 1, letterSpacing: "-0.03em" }}>
-              <span style={{ ...italicSerif, fontSize: 96, color: "#f5f5f5", fontWeight: 400 }}>{formatEuro(moderateSteadyMRR)}</span>
+              <span className="hero-num" style={{ ...italicSerif, fontSize: 96, fontWeight: 400 }}>{formatEuro(moderateSteadyMRR)}</span>
               <span style={{ fontSize: 24, color: "#888", fontWeight: 400, marginLeft: 4 }}>/{creator?.primaryLanguage === 'en' ? 'mo' : 'mês'}</span>
             </div>
             <div style={{ fontSize: 13, color: "#888", marginTop: 8 }}>
@@ -871,8 +1172,13 @@ function PitchPageContent() {
         </div>
       </Slide>
 
-      {/* SLIDE 9: PARTNERSHIP — centered */}
-      <Slide>
+      {/* SLIDE 9: PARTNERSHIP — red + green dual aurora */}
+      <Slide num={9} decor={
+        <>
+          <div className="aurora red"   style={{ left: -200, top: "30%", width: 600, height: 600, opacity: 0.3 }} />
+          <div className="aurora green" style={{ right: -200, top: "30%", width: 600, height: 600 }} />
+        </>
+      }>
         <div style={{ ...slideInnerCentered, alignItems: "stretch" }}>
           <h1 style={{ fontSize: 44, fontWeight: 800, margin: 0, lineHeight: 1.15, letterSpacing: "-0.02em", textAlign: "center", marginBottom: 56 }}>
             <Editable value={slides.partnership.title} onChange={v => updateSlide('partnership', 'title', v)} />
@@ -903,8 +1209,10 @@ function PitchPageContent() {
         </div>
       </Slide>
 
-      {/* SLIDE 10: RECAP — centered */}
-      <Slide>
+      {/* SLIDE 10: RECAP — aurora */}
+      <Slide num={10} decor={
+        <div className="aurora red" style={{ right: -200, top: "50%", width: 700, height: 700, opacity: 0.3 }} />
+      }>
         <div style={{ ...slideInnerCentered, alignItems: "stretch" }}>
           <h1 style={{ fontSize: 44, fontWeight: 800, margin: 0, lineHeight: 1.15, letterSpacing: "-0.02em", textAlign: "center", marginBottom: 48 }}>
             <Editable value={slides.recap.title} onChange={v => updateSlide('recap', 'title', v)} />
@@ -944,9 +1252,14 @@ function PitchPageContent() {
         </div>
       </Slide>
 
-      {/* SLIDE 11 (OPTIONAL): INVESTIMENTO — moved up, before close */}
+      {/* SLIDE 11 (OPTIONAL): INVESTIMENTO — aurora + receipt */}
       {showInvestimento && (
-        <Slide>
+        <Slide num={11} decor={
+          <>
+            <div className="aurora red"  style={{ right: -200, top: -100, width: 700, height: 700, opacity: 0.35 }} />
+            <div className="aurora deep" style={{ left: -200, bottom: -100, width: 700, height: 700 }} />
+          </>
+        }>
           <div style={{ ...slideInnerCentered, alignItems: "stretch" }}>
             <h1 style={{ fontSize: 44, fontWeight: 800, margin: 0, lineHeight: 1.15, letterSpacing: "-0.02em", textAlign: "center", marginBottom: 48 }}>
               <Editable value={slides.investment.title} onChange={v => updateSlide('investment', 'title', v)} />
@@ -981,22 +1294,29 @@ function PitchPageContent() {
                 </p>
               </div>
             </div>
-            <div style={{ marginTop: 28, padding: "26px 32px", background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.05)", borderRadius: 12 }}>
-              <div style={{ fontSize: 13, fontWeight: 700, color: "#888", letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 18, textAlign: "center" }}>
-                <Editable value={slides.investment.includedTitle} onChange={v => updateSlide('investment', 'includedTitle', v)} />
-              </div>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+            <div style={{ marginTop: 36, display: "flex", justifyContent: "center" }}>
+              <div className="receipt" style={{ width: "min(560px, 90%)" }}>
+                <div style={{ textAlign: "center", marginBottom: 18 }}>
+                  <div style={{ fontFamily: "'Instrument Serif', serif", fontStyle: "italic", fontSize: 28, color: "#B11E2F", lineHeight: 1 }}>SecondLayer</div>
+                  <div style={{ fontSize: 10, letterSpacing: "0.32em", marginTop: 8, color: "#555" }}>RECIBO DE PARCERIA · 001</div>
+                </div>
                 {slides.investment.included.map((item, i) => (
-                  <div key={i} style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
-                    <span style={{ color: "#22c55e", fontSize: 16 }}>✓</span>
-                    <span style={{ fontSize: 14, color: "#ccc" }}>
+                  <div key={i} className={`r-line ${i === slides.investment.included.length - 1 ? 'no-b' : ''}`}>
+                    <span>
                       <Editable value={item} onChange={v => {
                         const next = [...slides.investment.included]; next[i] = v;
                         updateSlide('investment', 'included', next);
                       }} />
                     </span>
+                    <span>✓</span>
                   </div>
                 ))}
+                <div className="r-total"><span>Setup</span><span><Editable value={slides.investment.setupAmount} onChange={v => updateSlide('investment', 'setupAmount', v)} /></span></div>
+                <div className="r-total" style={{ color: "#B11E2F" }}>
+                  <span>+ Revenue share</span>
+                  <span><Editable value={slides.investment.commissionAmount} onChange={v => updateSlide('investment', 'commissionAmount', v)} /></span>
+                </div>
+                <div style={{ textAlign: "center", marginTop: 18, fontSize: 10, letterSpacing: "0.32em", color: "#555" }}>— OBRIGADO —</div>
               </div>
             </div>
             <p style={{ marginTop: 32, fontSize: 18, color: "#f5f5f5", fontWeight: 600, textAlign: "center", fontStyle: "italic" }}>
@@ -1006,15 +1326,28 @@ function PitchPageContent() {
         </Slide>
       )}
 
-      {/* SLIDE 12 (LAST): CLOSE — single big centered question */}
-      <Slide>
+      {/* SLIDE 12 (LAST): CLOSE — spotlight + concentric rings */}
+      <Slide hidePageMark decor={
+        <>
+          <div className="spotlight" />
+          <div className="aurora red" style={{ left: "50%", top: "50%", width: 1100, height: 1100, transform: "translate(-50%,-50%)", opacity: 0.35 }} />
+          <svg className="closing-rings" viewBox="0 0 1100 1100" fill="none">
+            <circle cx="550" cy="550" r="220" stroke="rgba(177,30,47,0.4)" strokeWidth="1" />
+            <circle cx="550" cy="550" r="340" stroke="rgba(177,30,47,0.25)" strokeWidth="1" strokeDasharray="4 8" />
+            <circle cx="550" cy="550" r="460" stroke="rgba(177,30,47,0.15)" strokeWidth="1" />
+          </svg>
+        </>
+      }>
         <div style={slideInnerCentered}>
-          <h1 style={{ fontSize: 88, fontWeight: 700, margin: 0, lineHeight: 1.15, letterSpacing: "-0.03em", textAlign: "center", maxWidth: 1400 }}>
+          <h1 className="anim-up" style={{ fontSize: 96, fontWeight: 700, margin: 0, lineHeight: 1.05, letterSpacing: "-0.03em", textAlign: "center", maxWidth: 1400 }}>
             <StyledLastWord
               text={slides.close.title}
-              italicStyle={{ fontSize: 112, color: "#7A0E18", letterSpacing: "-0.02em" }}
+              italicStyle={{ fontSize: 124, color: "#B11E2F", letterSpacing: "-0.02em" }}
             />
           </h1>
+          <div style={{ marginTop: 56, fontFamily: "'JetBrains Mono', ui-monospace, monospace", fontSize: 12, letterSpacing: "0.32em", textTransform: "uppercase", color: "#8A8A8A" }}>
+            SecondLayer · Lisboa · 2026
+          </div>
         </div>
       </Slide>
     </div>
@@ -1282,10 +1615,17 @@ function buildDefaultSlides(creator) {
 // SHARED
 // ─────────────────────────────────────────────────────────────────
 
-function Slide({ children }) {
+function Slide({ children, decor, num, total = 12, hidePageMark }) {
   return (
     <div className="slide" style={{ minHeight: "100vh", padding: "80px 60px", display: "flex", flexDirection: "column", boxSizing: "border-box" }}>
+      {decor}
       {children}
+      {!hidePageMark && num && (
+        <>
+          <div className="page-mark"><span className="sl-no">{String(num).padStart(2, '0')}</span> &nbsp;/&nbsp; {total}</div>
+          <div className="top-mark">Second<b>Layer</b></div>
+        </>
+      )}
     </div>
   );
 }
@@ -1295,6 +1635,44 @@ function SlideTitle({ value, onChange }) {
     <h1 style={{ fontSize: 32, fontWeight: 800, margin: 0, lineHeight: 1.15, letterSpacing: "-0.02em", color: "#f5f5f5" }}>
       <Editable value={value} onChange={onChange} />
     </h1>
+  );
+}
+
+function DotGrid({ audience }) {
+  // Map every ~1k followers to a colored dot. PT majority, BR minority, others.
+  const total = 200;
+  const k = Math.max(1, Math.round(audience / 1000));
+  const ptCount = Math.min(total, Math.round(k * 0.75));
+  const brCount = Math.min(total - ptCount, Math.round(k * 0.15));
+  const otherCount = Math.min(total - ptCount - brCount, Math.max(0, k - ptCount - brCount));
+  const fadedCount = Math.max(0, total - ptCount - brCount - otherCount);
+  const cells = [
+    ...Array(ptCount).fill('pt'),
+    ...Array(brCount).fill('br'),
+    ...Array(otherCount).fill('other'),
+    ...Array(fadedCount).fill('faded'),
+  ];
+  // Stable shuffle (deterministic per audience size — avoids hydration mismatch)
+  let seed = audience || 1;
+  const rand = () => { seed = (seed * 9301 + 49297) % 233280; return seed / 233280; };
+  for (let i = cells.length - 1; i > 0; i--) {
+    const j = Math.floor(rand() * (i + 1));
+    [cells[i], cells[j]] = [cells[j], cells[i]];
+  }
+  return (
+    <div style={{ marginTop: 24, padding: "26px 28px", background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.04)", borderRadius: 12 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 18 }}>
+        <div style={{ fontSize: 11, fontWeight: 600, color: "#666", letterSpacing: "0.16em", textTransform: "uppercase" }}>{k} pontos · 1 ponto = 1 000 seguidores</div>
+        <div style={{ display: "flex", gap: 18, fontSize: 11, letterSpacing: "0.14em", textTransform: "uppercase", color: "#aaa" }}>
+          <span><span style={{ display: "inline-block", width: 8, height: 8, background: "#B11E2F", borderRadius: "50%", marginRight: 6, verticalAlign: "middle" }} />PT 75%</span>
+          <span><span style={{ display: "inline-block", width: 8, height: 8, background: "#E8B14E", borderRadius: "50%", marginRight: 6, verticalAlign: "middle" }} />BR 15%</span>
+          <span style={{ color: "#666" }}><span style={{ display: "inline-block", width: 8, height: 8, background: "#5A5A5A", borderRadius: "50%", marginRight: 6, verticalAlign: "middle" }} />Outros 10%</span>
+        </div>
+      </div>
+      <div className="dot-grid">
+        {cells.map((cls, i) => <div key={i} className={`dot ${cls}`} />)}
+      </div>
+    </div>
   );
 }
 
