@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect, useCallback, useRef, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { calculateDealScore } from "../../lib/dealScore";
 import { SCENARIOS as REVENUE_SCENARIOS, calculateSteadyMRR as sharedCalcMRR } from "../../lib/revenue";
 import { renderMd, parseOutput, extractAudience } from "../../offer-builder/lib/shared";
@@ -99,14 +99,17 @@ const metricValueStyle = { fontSize: 16, fontWeight: 700, color: "#f5f5f5" };
 const sectionTitleStyle = { fontSize: 11, fontWeight: 600, color: "#555", textTransform: "uppercase", letterSpacing: "0.08em", margin: "0 0 12px" };
 const inputStyle = { width: "100%", padding: "10px 14px", background: "#1a1a1a", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 8, color: "#f5f5f5", fontSize: 13, fontFamily: "inherit", outline: "none", boxSizing: "border-box", resize: "vertical" };
 
-export default function CreatorProfilePage({ params: paramsPromise }) {
+function CreatorProfilePageImpl({ params: paramsPromise }) {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const forcedCrmView = searchParams?.get('view') === 'crm';
+  const initialTab = searchParams?.get('tab') || 'perfil';
   const [params, setParams] = useState(null);
   const [creator, setCreator] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [saving, setSaving] = useState("");
-  const [tab, setTab] = useState("perfil");
+  const [tab, setTab] = useState(initialTab);
   const [editName, setEditName] = useState(false);
   const [showResearch, setShowResearch] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -531,6 +534,9 @@ export default function CreatorProfilePage({ params: paramsPromise }) {
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           {saving && <span style={{ fontSize: 11, color: saving.includes("Erro") ? "#ef4444" : "#22c55e" }}>{saving}</span>}
+          {forcedCrmView && creator.pipelineStatus === 'signed' && (
+            <a href={`/creators/${params?.id}`} style={{ fontSize: 11, color: "#aaa", textDecoration: "none", padding: "6px 12px", borderRadius: 6, border: "1px solid rgba(122,14,24,0.4)", background: "rgba(122,14,24,0.08)" }}>← Workspace</a>
+          )}
           {creator.pipelineStatus === 'signed' ? (
             <a href="/pipeline" style={{ fontSize: 11, color: "#555", textDecoration: "none", padding: "6px 12px", borderRadius: 6, border: "1px solid rgba(255,255,255,0.06)" }}>Pipeline</a>
           ) : (
@@ -539,7 +545,7 @@ export default function CreatorProfilePage({ params: paramsPromise }) {
         </div>
       </div>
 
-      {creator.pipelineStatus === 'signed' ? (
+      {creator.pipelineStatus === 'signed' && !forcedCrmView ? (
         <WorkspaceDashboard
           creator={creator}
           params={params}
@@ -1577,5 +1583,13 @@ export default function CreatorProfilePage({ params: paramsPromise }) {
       </div>
       )}
     </div>
+  );
+}
+
+export default function CreatorProfilePage(props) {
+  return (
+    <Suspense fallback={<div style={{ minHeight: "100vh", background: "#0a0a0a", color: "#555", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif" }}>A carregar...</div>}>
+      <CreatorProfilePageImpl {...props} />
+    </Suspense>
   );
 }

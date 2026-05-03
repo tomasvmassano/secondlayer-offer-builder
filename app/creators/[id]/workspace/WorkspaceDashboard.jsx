@@ -157,7 +157,7 @@ export default function WorkspaceDashboard({ creator, params, patchCreator, savi
         </div>
 
         {/* Navigation */}
-        <div style={{ padding: "12px 10px", flex: 1 }}>
+        <div style={{ padding: "12px 10px", flex: 1, display: "flex", flexDirection: "column" }}>
           {SIDEBAR_TABS.map(t => (
             <button key={t.key} onClick={() => setWsTab(t.key)} style={{
               display: "flex", alignItems: "center", gap: 10, width: "100%",
@@ -175,6 +175,29 @@ export default function WorkspaceDashboard({ creator, params, patchCreator, savi
               )}
             </button>
           ))}
+
+          {/* CRM tools — pre-signing assets stay reachable after signing */}
+          <div style={{ marginTop: 18, paddingTop: 14, borderTop: "1px solid rgba(255,255,255,0.04)" }}>
+            <div style={{ fontSize: 9, fontWeight: 700, color: "#444", letterSpacing: "0.14em", textTransform: "uppercase", padding: "0 12px 8px" }}>CRM Tools</div>
+            {[
+              { key: "perfil", label: "Perfil", icon: "◐", desc: "Audience, deal score, intelligence" },
+              { key: "dm",     label: "DM Writer", icon: "✉", desc: "Sequência de DMs e emails", filled: !!creator?.dmSequence },
+              { key: "oferta", label: "Oferta + Revenue", icon: "€", desc: "Hormozi offer + Revenue Projector", filled: !!creator?.offer },
+              { key: "launch", label: "Launch Assets", icon: "▤", desc: "Pre-signing launch assets" },
+              { key: "pitch",  label: "Pitch Deck", icon: "▦", desc: "Pitch deck (read/edit)" },
+            ].map(t => (
+              <a key={t.key} href={`/creators/${params?.id}?view=crm&tab=${t.key}`} title={t.desc} style={{
+                display: "flex", alignItems: "center", gap: 10, width: "100%",
+                padding: "10px 12px", borderRadius: 8, textDecoration: "none",
+                color: "#666", fontSize: 13, fontWeight: 400,
+                fontFamily: "inherit", marginBottom: 2,
+              }}>
+                <span style={{ fontSize: 14, opacity: 0.7, width: 20, textAlign: "center" }}>{t.icon}</span>
+                {t.label}
+                {t.filled && <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#22c55e", marginLeft: "auto" }} />}
+              </a>
+            ))}
+          </div>
         </div>
 
         {/* Bottom links */}
