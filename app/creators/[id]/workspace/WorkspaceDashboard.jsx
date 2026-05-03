@@ -183,7 +183,6 @@ export default function WorkspaceDashboard({ creator, params, patchCreator, savi
               { key: "perfil", label: "Perfil", icon: "◐", desc: "Audience, deal score, intelligence" },
               { key: "dm",     label: "DM Writer", icon: "✉", desc: "Sequência de DMs e emails", filled: !!creator?.dmSequence },
               { key: "oferta", label: "Oferta + Revenue", icon: "€", desc: "Hormozi offer + Revenue Projector", filled: !!creator?.offer },
-              { key: "launch", label: "Launch Assets", icon: "▤", desc: "Pre-signing launch assets" },
               { key: "pitch",  label: "Pitch Deck", icon: "▦", desc: "Pitch deck (read/edit)" },
             ].map(t => (
               <a key={t.key} href={`/creators/${params?.id}?view=crm&tab=${t.key}`} title={t.desc} style={{
