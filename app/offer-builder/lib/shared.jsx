@@ -39,83 +39,126 @@ function splitByOutputs(text) {
   return sections;
 }
 
-// Extract the value of `**Field Name:** value` (single line). Case-insensitive.
-function extractField(block, label) {
-  const re = new RegExp(`\\*\\*${escapeRegex(label)}\\*\\*\\s*[:\\-]?\\s*([^\\n]+)`, 'i');
-  const m = block.match(re);
-  return m ? m[1].trim() : '';
-}
-
-// Extract a bullet list following `**Label:**` until the next `**` or blank line.
-function extractList(block, label) {
-  const re = new RegExp(`\\*\\*${escapeRegex(label)}\\*\\*\\s*[:\\-]?\\s*\\n((?:\\s*[-•]\\s*[^\\n]+\\n?)+)`, 'i');
-  const m = block.match(re);
-  if (!m) return [];
-  return m[1].split('\n').map(l => l.replace(/^\s*[-•]\s*/, '').trim()).filter(Boolean);
-}
-
-// Extract a sub-block: contents of a `**Tier 1 — Recommended:**` header until the next `**Tier` or `**`.
-function extractSubBlock(block, label) {
-  const re = new RegExp(`\\*\\*${escapeRegex(label)}\\*\\*\\s*[:\\-]?\\s*\\n([\\s\\S]*?)(?=\\n\\s*\\*\\*|$)`, 'i');
-  const m = block.match(re);
-  return m ? m[1].trim() : '';
-}
+// ─── Tolerant matchers ─────────────────────────────────────────
+// Handles all of these LLM output variations:
+//   **Field Name:** value
+//   Field Name: value
+//   **Nome do Campo:** valor       (PT translation, with markers)
+//   Nome do Campo: valor           (PT translation, no markers)
+// Bullets: -  *  •  ■  →  any of these counts as a bullet.
 
 function escapeRegex(s) {
   return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
-// Parse a tier sub-block ("- Name: X\n- Price: €Y/mês\n- Note: Z") into {name, price, note}.
+function normalize(s) {
+  // Lowercase + strip diacritics for label matching.
+  return (s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+}
+
+const BULLET = '[-*•■]';   // any single-char bullet
+const FIELD_PREFIX = '\\**';  // optional ** before label
+
+function tryLabels(labels) {
+  // Build alternation of all label variants, escaped.
+  return labels.map(l => escapeRegex(l)).join('|');
+}
+
+// Extract the value of `Label: value` (single line). Accepts PT/EN aliases.
+function extractField(block, ...labels) {
+  if (!block) return '';
+  const alt = tryLabels(labels);
+  // Match: optional ** + label + optional ** + colon (or dash) + rest of line
+  const re = new RegExp(`${FIELD_PREFIX}\\s*(?:${alt})\\s*${FIELD_PREFIX}\\s*[:\\-]\\s*([^\\n]+)`, 'i');
+  const m = block.match(re);
+  return m ? m[1].trim().replace(/\*\*/g, '') : '';
+}
+
+// Extract a bullet list following `Label:` until the next bold/header line or blank line.
+function extractList(block, ...labels) {
+  if (!block) return [];
+  const alt = tryLabels(labels);
+  // Find the label line, then capture all following lines that start with a bullet.
+  const re = new RegExp(`${FIELD_PREFIX}\\s*(?:${alt})\\s*${FIELD_PREFIX}\\s*[:\\-]?\\s*\\n((?:\\s*${BULLET}\\s*[^\\n]+\\n?)+)`, 'i');
+  const m = block.match(re);
+  if (!m) return [];
+  return m[1].split('\n').map(l => l.replace(new RegExp(`^\\s*${BULLET}\\s*`), '').trim()).filter(Boolean);
+}
+
+// Extract a sub-block (e.g., everything under "Tier 1 — Recommended:" until the next bold/blank-line section).
+function extractSubBlock(block, ...labels) {
+  if (!block) return '';
+  const alt = tryLabels(labels);
+  // Consume until next bold-marker line, or a heading-like line, or end.
+  const re = new RegExp(`${FIELD_PREFIX}\\s*(?:${alt})\\s*${FIELD_PREFIX}\\s*[:\\-]?\\s*\\n([\\s\\S]*?)(?=\\n\\s*\\*\\*|\\n\\s*[A-Z][^\\n]{0,40}:\\s*\\n|$)`, 'i');
+  const m = block.match(re);
+  return m ? m[1].trim() : '';
+}
+
+// Parse a tier sub-block (lines like "- Name: X" or "Nome: X") into {name, price, note}.
+// Tolerant to any bullet prefix and EN/PT field labels.
 function parseTier(subBlock) {
   if (!subBlock) return null;
-  const grab = (key) => {
-    const m = subBlock.match(new RegExp(`-\\s*${key}\\s*:\\s*([^\\n]+)`, 'i'));
-    return m ? m[1].trim() : '';
+  const grab = (...keys) => {
+    for (const key of keys) {
+      const re = new RegExp(`(?:^|\\n)\\s*${BULLET}?\\s*${escapeRegex(key)}\\s*[:\\-]\\s*([^\\n]+)`, 'i');
+      const m = subBlock.match(re);
+      if (m) return m[1].trim().replace(/\*\*/g, '');
+    }
+    return '';
   };
-  return { name: grab('Name'), price: grab('Price'), note: grab('Note') };
+  const name  = grab('Name', 'Nome');
+  const price = grab('Price', 'Preço', 'Preco');
+  const note  = grab('Note', 'Nota', 'Inclui');
+  if (!name && !price && !note) return null;
+  return { name, price, note };
 }
 
 // ─── Output 1: COMMUNITY ───
 function parseCommunity(block) {
   if (!block) return null;
-  return {
-    primaryName: extractField(block, 'Community Name (Primary)') || extractField(block, 'Primary Name'),
-    nameCandidates: extractList(block, 'Community Name (Candidates)') || extractList(block, 'Name Candidates'),
-    platform: extractField(block, 'Platform'),
-    mechanic: extractField(block, 'Core Mechanic'),
+  const c = {
+    primaryName: extractField(block, 'Community Name (Primary)', 'Nome da Comunidade (Principal)', 'Nome (Principal)', 'Primary Name'),
+    nameCandidates: extractList(block, 'Community Name (Candidates)', 'Nomes da Comunidade (Candidatos)', 'Candidatos', 'Name Candidates'),
+    platform: extractField(block, 'Platform', 'Plataforma'),
+    mechanic: extractField(block, 'Core Mechanic', 'Mecânica Central', 'Mecanica Central', 'Mecânica'),
     tiers: [
-      parseTier(extractSubBlock(block, 'Tier 1 — Recommended')) || parseTier(extractSubBlock(block, 'Tier 1')),
-      parseTier(extractSubBlock(block, 'Tier 2 — Annual Prepay')) || parseTier(extractSubBlock(block, 'Tier 2')),
-      parseTier(extractSubBlock(block, 'Tier 3 — Anchor (Ultra-High-Ticket)')) || parseTier(extractSubBlock(block, 'Tier 3')),
+      parseTier(extractSubBlock(block, 'Tier 1 — Recommended', 'Tier 1 — Recomendado', 'Tier 1 - Recomendado', 'Tier 1')),
+      parseTier(extractSubBlock(block, 'Tier 2 — Annual Prepay', 'Tier 2 — Pagamento Anual', 'Tier 2 - Pagamento Anual', 'Tier 2 — Anual', 'Tier 2')),
+      parseTier(extractSubBlock(block, 'Tier 3 — Anchor (Ultra-High-Ticket)', 'Tier 3 — Âncora (Ultra-Premium)', 'Tier 3 - Âncora (Ultra-Premium)', 'Tier 3 — Âncora', 'Tier 3')),
     ].filter(Boolean),
-    weeklyRhythm: extractList(block, 'Weekly Rhythm') || extractList(block, 'Ritmo Semanal'),
-    bonuses: extractList(block, 'Bonuses Unlocked Over Time') || extractList(block, 'Bonuses') || extractList(block, 'Bonus Stack'),
-    differentiator: extractField(block, 'Differentiator') || extractField(block, 'Diferencial'),
+    weeklyRhythm: extractList(block, 'Weekly Rhythm', 'Ritmo Semanal', 'Ritmo'),
+    bonuses: extractList(block, 'Bonuses Unlocked Over Time', 'Bónus Desbloqueados ao Longo do Tempo', 'Bonus Desbloqueados', 'Bónus', 'Bonuses'),
+    differentiator: extractField(block, 'Differentiator', 'Diferenciador', 'Diferencial', 'O que torna isto diferente'),
   };
+  return c;
 }
 
 // ─── Output 2: CASES ───
 function parseCases(block) {
   if (!block) return [];
   const cases = [];
-  // Match "**Case 1:**" through "**Case 3:**"
   for (let i = 1; i <= 5; i++) {
-    const re = new RegExp(`\\*\\*Case\\s*${i}\\s*[:\\-]?\\*\\*\\s*\\n([\\s\\S]*?)(?=\\n\\s*\\*\\*Case\\s*${i + 1}|$)`, 'i');
+    // Tolerant to **Case N:**, Caso N:, Case N -, etc.
+    const re = new RegExp(`${FIELD_PREFIX}\\s*(?:Case|Caso)\\s*${i}\\s*[:\\-]?\\s*${FIELD_PREFIX}\\s*\\n([\\s\\S]*?)(?=\\n\\s*${FIELD_PREFIX}\\s*(?:Case|Caso)\\s*${i + 1}|\\n\\s*\\*\\*[A-ZÁÉÍÓÚ]|$)`, 'i');
     const m = block.match(re);
     if (!m) break;
     const sub = m[1];
-    const grab = (key) => {
-      const fm = sub.match(new RegExp(`-\\s*${key}\\s*:\\s*([^\\n]+)`, 'i'));
-      return fm ? fm[1].trim() : '';
+    const grab = (...keys) => {
+      for (const key of keys) {
+        const fm = sub.match(new RegExp(`(?:^|\\n)\\s*${BULLET}?\\s*${escapeRegex(key)}\\s*[:\\-]\\s*([^\\n]+)`, 'i'));
+        if (fm) return fm[1].trim().replace(/\*\*/g, '');
+      }
+      return '';
     };
     cases.push({
-      name: grab('Name'),
-      niche: grab('Niche'),
-      members: grab('Members'),
-      price: grab('Price'),
-      mrr: grab('MRR'),
-      resume: grab('Resume') || grab('Resumo'),
-      why: grab('Why this matters') || grab('Why'),
+      name:    grab('Name', 'Nome'),
+      niche:   grab('Niche', 'Nicho'),
+      members: grab('Members', 'Membros'),
+      price:   grab('Price', 'Preço', 'Preco'),
+      mrr:     grab('MRR'),
+      resume:  grab('Resume', 'Resumo', 'Descrição', 'Descricao'),
+      why:     grab('Why this matters', 'Why', 'Porque importa', 'Porque é importante'),
     });
   }
   return cases;
@@ -124,17 +167,18 @@ function parseCases(block) {
 // ─── Output 4: GRAND SLAM (Unique Mechanism + Value Stack) ───
 function parseUniqueMechanism(block) {
   if (!block) return null;
-  const name = extractField(block, 'Unique Mechanism Name');
-  const description = extractField(block, 'Unique Mechanism Description');
-  const lettersListRaw = extractList(block, 'Unique Mechanism Letters');
+  const name = extractField(block, 'Unique Mechanism Name', 'Nome do Mecanismo Único', 'Nome do Mecanismo', 'Mecanismo Único', 'Mechanism Name');
+  const description = extractField(block, 'Unique Mechanism Description', 'Descrição do Mecanismo Único', 'Descrição do Mecanismo', 'Descricao do Mecanismo', 'Mechanism Description', 'Explicação');
+  const lettersListRaw = extractList(block, 'Unique Mechanism Letters', 'Letras do Mecanismo', 'Mechanism Letters', 'Letras');
   const letters = lettersListRaw.map(line => {
-    // Format: "X — Word: 1 sentence what this step does"
-    const m = line.match(/^([A-Z])\s*[—\-:]\s*([^:]+?)\s*[:\-]\s*(.+)$/);
+    const cleaned = line.replace(/\*\*/g, '').trim();
+    // Format: "X — Word: 1 sentence" OR "X - Word: 1 sentence"
+    let m = cleaned.match(/^([A-Za-zÁÉÍÓÚ])\s*[—\-:]\s*([^:]+?)\s*[:\-]\s*(.+)$/);
     if (m) return { letter: m[1].trim(), word: m[2].trim(), explanation: m[3].trim() };
     // Fallback: "X — Word — explanation"
-    const m2 = line.match(/^([A-Z])\s*[—\-]\s*([^—\-]+)\s*[—\-]\s*(.+)$/);
-    if (m2) return { letter: m2[1].trim(), word: m2[2].trim(), explanation: m2[3].trim() };
-    return { letter: '', word: line, explanation: '' };
+    m = cleaned.match(/^([A-Za-zÁÉÍÓÚ])\s*[—\-]\s*([^—\-]+)\s*[—\-]\s*(.+)$/);
+    if (m) return { letter: m[1].trim(), word: m[2].trim(), explanation: m[3].trim() };
+    return { letter: '', word: cleaned, explanation: '' };
   });
   if (!name && letters.length === 0 && !description) return null;
   return { name, letters, description };
@@ -142,23 +186,44 @@ function parseUniqueMechanism(block) {
 
 function parseValueStack(block) {
   if (!block) return null;
-  // Find the Value Stack section
-  const stackMatch = block.match(/\*\*Value Stack[:\*]*\*\*\s*\n([\s\S]*?)(?=\n\s*\*\*Value Stack Total|\n\s*\*\*[A-Z]|\*\*F\.\s|$)/i);
-  if (!stackMatch) return null;
-  const tableText = stackMatch[1];
+  // Find the Value Stack section header (multilang, with or without bold)
+  const headerRe = new RegExp(`${FIELD_PREFIX}\\s*(?:Value Stack|Stack de Valor|Value Stack Problema-Solução|Value Stack Problema-Solucao)\\s*[:]?${FIELD_PREFIX}\\s*\\n`, 'i');
+  const hMatch = block.match(headerRe);
+  if (!hMatch) return null;
+  const startIdx = hMatch.index + hMatch[0].length;
+  // Stop at "Value Stack Total" (or PT variant) or next major bold heading.
+  const stopRe = new RegExp(`\\n\\s*${FIELD_PREFIX}\\s*(?:Value Stack Total|Total do Stack|Total Empilhado|Valor Total|F\\.|G\\.|H\\.)`, 'i');
+  const stopMatch = block.slice(startIdx).match(stopRe);
+  const endIdx = stopMatch ? startIdx + stopMatch.index : block.length;
+  const tableText = block.slice(startIdx, endIdx);
+
   const items = [];
-  // Parse markdown table rows: | # | Problem | Solution | Delivery | Perceived value |
-  const rowMatches = [...tableText.matchAll(/^\s*\|\s*(\d+)\s*\|([^|]+)\|([^|]+)\|([^|]+)\|([^|]+)\|/gm)];
-  for (const m of rowMatches) {
-    items.push({
-      problem: m[2].trim(),
-      solution: m[3].trim(),
-      delivery: m[4].trim(),
-      dollarValue: m[5].trim(),
-    });
+  // Markdown table rows: | # | Problem | Solution | (optional Sexy Name) | Delivery | Value |
+  // Be flexible — count pipes per row, take last col as price, second-to-last as delivery.
+  const rows = tableText.split('\n').filter(l => /^\s*\|/.test(l));
+  for (const row of rows) {
+    const cells = row.split('|').map(c => c.trim()).filter((_, i, arr) => i > 0 && i < arr.length - 1 || (i > 0 && arr[arr.length - 1] !== ''));
+    // Skip header / separator rows
+    if (cells.length < 3) continue;
+    if (cells.every(c => /^[-:\s]+$/.test(c))) continue;
+    if (cells[0].toLowerCase().match(/^(#|problem|problema|solu|delivery|entrega|value|valor)/)) continue;
+    // Strip leading number column if present.
+    if (/^\d+$/.test(cells[0])) cells.shift();
+    if (cells.length < 3) continue;
+    const dollarValue = cells[cells.length - 1];
+    const delivery = cells[cells.length - 2];
+    const problem = cells[0];
+    // If 4 remaining cols (problem, solution, sexy-name, delivery, value), merge solution+sexy-name with " — ".
+    let solution;
+    if (cells.length >= 5) {
+      solution = `${cells[1]} (${cells[2]})`;  // solution (sexy name)
+    } else {
+      solution = cells[1];
+    }
+    items.push({ problem, solution, delivery, dollarValue });
   }
-  const total = extractField(block, 'Value Stack Total');
-  const actualPrice = extractField(block, 'Value Stack Actual Price');
+  const total = extractField(block, 'Value Stack Total', 'Total do Stack', 'Valor Total', 'Total Empilhado');
+  const actualPrice = extractField(block, 'Value Stack Actual Price', 'Preço Real', 'Preco Real', 'Preço Mensal Recomendado', 'Preço');
   if (items.length === 0 && !total) return null;
   return { items, total, actualPrice };
 }

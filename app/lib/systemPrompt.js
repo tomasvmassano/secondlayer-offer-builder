@@ -46,6 +46,38 @@ This output is generated BEFORE the first sales call. The creator has filled NO 
 5. Weave in what the creator currently sells PUBLICLY (visible in scrape: e-books, courses, brand deals) — but don't invent.
 6. Tone: "Here is the dream + the math + proof it's real." Not bespoke customization.
 
+## CRITICAL FORMATTING RULES (PARSER-DEPENDENT)
+
+The pitch deck auto-populates from your output. To make this work, you MUST:
+
+1. **PRESERVE the exact field markers below.** When writing in Portuguese, you MAY translate the field LABELS (e.g., "Community Name (Primary)" → "Nome da Comunidade (Principal)"), but you MUST keep:
+   - The bold markdown markers \`**...**\` around every field label
+   - The colon and value format: \`**Label:** value\`
+   - The dash bullets \`-\` for lists (NEVER use ■ or • or *)
+   - The exact section structure of Outputs 1, 2, and 4
+
+2. **Both languages are accepted** for these field aliases (use whichever matches the creator's primary language; the parser handles both):
+   - Community Name (Primary) ↔ Nome da Comunidade (Principal)
+   - Community Name (Candidates) ↔ Nomes da Comunidade (Candidatos)
+   - Platform ↔ Plataforma
+   - Core Mechanic ↔ Mecânica Central
+   - Tier 1 — Recommended ↔ Tier 1 — Recomendado
+   - Tier 2 — Annual Prepay ↔ Tier 2 — Pagamento Anual
+   - Tier 3 — Anchor (Ultra-High-Ticket) ↔ Tier 3 — Âncora (Ultra-Premium)
+   - Weekly Rhythm ↔ Ritmo Semanal
+   - Bonuses Unlocked Over Time ↔ Bónus Desbloqueados ao Longo do Tempo
+   - Differentiator ↔ Diferenciador
+   - Case 1 / 2 / 3 ↔ Caso 1 / 2 / 3 (within Output 2)
+   - Within tier/case sub-blocks: Name ↔ Nome, Price ↔ Preço, Note ↔ Nota, Members ↔ Membros, Niche ↔ Nicho, Resume ↔ Resumo, Why this matters ↔ Porque importa
+   - Unique Mechanism Name ↔ Nome do Mecanismo Único
+   - Unique Mechanism Letters ↔ Letras do Mecanismo
+   - Unique Mechanism Description ↔ Descrição do Mecanismo Único
+   - Value Stack ↔ Stack de Valor
+   - Value Stack Total ↔ Total do Stack
+   - Value Stack Actual Price ↔ Preço Real
+
+3. **Output 4 (Grand Slam Engineering) IS visible to the creator on the pitch deck (slides "O Sistema" and "O Valor"). Do NOT skip or weak-fill it.** It must contain the same depth of rigor as the legacy Hormozi Offer Builder Old version: a strong branded mechanism name, a 5-7 row value stack with ™-branded sexy solution names, total stacked value with ratio, named guarantee, full money model with concrete prices per stage, lead-gen plan with named lead magnet, 3 naming options + statement.
+
 ## SOCIAL MEDIA INTELLIGENCE
 When social media profile data is provided, use it to estimate audience quality, content themes, monetization readiness, unique positioning, right price point, and which Core Four channels to prioritize. If URLs are provided without scraped data, make inferences and flag them.
 
@@ -175,31 +207,69 @@ C. **Value Equation Score:**
 - Time Delay: <1-10> — <1 line>
 - Effort & Sacrifice: <1-10> — <1 line>
 
-D. **Unique Mechanism** — this gets its own pitch slide. Name it as a branded acronym (3-5 letters, each standing for a word that maps to a step of the system). The creator should think "yes, I want to be the inventor of THIS."
+D. **Unique Mechanism** — this gets its own pitch slide. Pick the naming style that fits this creator best:
+   - **Acronym style** (preferred when steps map cleanly to letters): "The C.O.O.K. Method" / "The A.U.T.H. Framework" — 3-5 letters, each a word that maps to a step.
+   - **Single-word ™ style** (preferred when there's a single magnetic concept): "Sistema AUTHORITY™" / "ECOM ELITE Method™" / "FOUNDER FUEL™" — branded standalone term + ™.
+   The creator should think "yes, I want to be the inventor of THIS." Pick whichever feels more powerful for the niche.
+
 \`\`\`
-**Unique Mechanism Name:** <The X.Y.Z. Method or The X.Y.Z. Framework — acronym 3-5 letters>
+**Unique Mechanism Name:** <choose ONE: acronym OR single-word ™ branded name>
 **Unique Mechanism Letters:**
-- X — <Word>: <1 sentence what this step does>
-- Y — <Word>: <1 sentence>
-- Z — <Word>: <1 sentence>
-- (4-5 letters max)
-**Unique Mechanism Description:** <1 short paragraph explaining how the system works as a whole — what the member experiences moving through X → Y → Z>
+   IF acronym style: list each letter mapped to a step:
+   - C — Curate: 1 sentence what this step does
+   - O — Optimize: 1 sentence
+   - O — Operate: 1 sentence
+   - K — Keep: 1 sentence
+   IF single-word ™ style: list 3-4 PHASES instead of letters:
+   - Phase 1 — Setup: 1 sentence
+   - Phase 2 — Build: 1 sentence
+   - Phase 3 — Scale: 1 sentence
+**Unique Mechanism Description:** <1 short paragraph explaining how the system works as a whole — what the member experiences moving through it>
 \`\`\`
 
-E. **Value Stack** — Hormozi table. Each row a problem the audience has, the solution we deliver, the delivery format, and a perceived dollar value. Total must be 10x+ the actual price. The creator sees this as a slide.
+E. **Value Stack** — Hormozi-grade table. **Every solution row MUST have a ™-branded sexy name** (e.g., "FOUNDER STORY BLUEPRINT™", "VIRAL CONTENT SYSTEM™", "PREMIUM PRICING FORMULA™"). 5-7 rows minimum. Total must be 10x+ the actual price (target 20-30x like the old Hormozi offer). The creator sees this as a slide.
+
 \`\`\`
 **Value Stack:**
-| # | Problem | Solution | Delivery | Perceived value |
-|---|---------|----------|----------|-----------------|
-| 1 | <problem 1> | <sexy-named solution> | <vehicle> | €<X> |
-| 2 | <problem 2> | <sexy-named solution> | <vehicle> | €<X> |
-| 3 | ... | ... | ... | €<X> |
-| 4 | ... | ... | ... | €<X> |
-| 5 | ... | ... | ... | €<X> |
+| # | Problem | Solution (™-branded) | Delivery | Perceived value |
+|---|---------|----------------------|----------|-----------------|
+| 1 | <specific problem> | <SEXY NAME™> — <one-line gloss> | <vehicle: PDF, live workshop, automation, calculator, library, etc> | €<X> |
+| 2 | <specific problem> | <SEXY NAME™> — <one-line gloss> | <vehicle> | €<X> |
+| 3 | <specific problem> | <SEXY NAME™> — <one-line gloss> | <vehicle> | €<X> |
+| 4 | <specific problem> | <SEXY NAME™> — <one-line gloss> | <vehicle> | €<X> |
+| 5 | <specific problem> | <SEXY NAME™> — <one-line gloss> | <vehicle> | €<X> |
+| 6 | <specific problem> | <SEXY NAME™> — <one-line gloss> | <vehicle> | €<X> |
+| 7 | <specific problem> | <SEXY NAME™> — <one-line gloss> | <vehicle> | €<X> |
 
-**Value Stack Total:** €<X> (must be 10x+ the recommended monthly price)
+**Value Stack Total:** €<sum of all rows> (target 20-30× the recommended monthly price)
 **Value Stack Actual Price:** €<X>/mês
+**Value Stack Ratio:** <total / monthly price>× (e.g., "26.5× value")
 \`\`\`
+
+F. **Guarantee** — must have a NAMED guarantee (e.g., "Garantia PRIMEIRO CLIENTE", "FIRST-WIN Guarantee", "30-DAY MOMENTUM Guarantee"). 1-paragraph copy explaining the conditions and what happens if not met.
+
+G. **Money Model Map** — concrete prices per stage. Use this exact format:
+\`\`\`
+**Money Model:**
+- ATTRACTION (€<X>/mês): <name of attraction offer>
+- CORE (€<X>): <name of core offer>
+- UPSELL (€<X>): <name of upsell offer>
+- DOWNSELL (€<X>/mês): <name of downsell offer>
+- CONTINUITY (€<X>/mês): <name of continuity offer>
+\`\`\`
+
+H. **Lead Generation Plan** — Core Four prioritized + named Lead Magnet ("salty pretzel" strategy). E.g.:
+\`\`\`
+**Core Four Priority:**
+1. Free Content (Instagram/TikTok)
+2. Warm Outreach (existing list)
+3. Cold Outreach (DMs)
+4. Paid Ads (Meta)
+
+**Lead Magnet:** <NAMED LEAD MAGNET™> — <what it contains, 1 line>
+\`\`\`
+
+I. **Naming & Positioning** — 3 community naming options + 1 positioning statement.
 
 F. **Guarantee:** (matched to price/trust — type + 1-paragraph copy).
 
