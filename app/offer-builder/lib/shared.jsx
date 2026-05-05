@@ -65,32 +65,32 @@ function tryLabels(labels) {
 }
 
 // Extract the value of `Label: value` (single line). Accepts PT/EN aliases.
+// Tolerant to: optional leading bullet ([-*•■]), optional **bold**, label (with diacritics), optional **bold** after, : or -, value.
 function extractField(block, ...labels) {
   if (!block) return '';
   const alt = tryLabels(labels);
-  // Match: optional ** + label + optional ** + colon (or dash) + rest of line
-  const re = new RegExp(`${FIELD_PREFIX}\\s*(?:${alt})\\s*${FIELD_PREFIX}\\s*[:\\-]\\s*([^\\n]+)`, 'i');
+  const re = new RegExp(`(?:^|\\n)\\s*${BULLET}?\\s*${FIELD_PREFIX}\\s*(?:${alt})\\s*${FIELD_PREFIX}\\s*[:\\-]\\s*([^\\n]+)`, 'i');
   const m = block.match(re);
-  return m ? m[1].trim().replace(/\*\*/g, '') : '';
+  return m ? m[1].trim().replace(/\*\*/g, '').replace(/^["']|["']$/g, '') : '';
 }
 
-// Extract a bullet list following `Label:` until the next bold/header line or blank line.
+// Extract a bullet list following `Label:` until a non-bullet line.
+// Tolerant to leading bullets on the label line itself.
 function extractList(block, ...labels) {
   if (!block) return [];
   const alt = tryLabels(labels);
-  // Find the label line, then capture all following lines that start with a bullet.
-  const re = new RegExp(`${FIELD_PREFIX}\\s*(?:${alt})\\s*${FIELD_PREFIX}\\s*[:\\-]?\\s*\\n((?:\\s*${BULLET}\\s*[^\\n]+\\n?)+)`, 'i');
+  const re = new RegExp(`(?:^|\\n)\\s*${BULLET}?\\s*${FIELD_PREFIX}\\s*(?:${alt})\\s*${FIELD_PREFIX}\\s*[:\\-]?\\s*\\n((?:\\s*${BULLET}\\s*[^\\n]+\\n?)+)`, 'i');
   const m = block.match(re);
   if (!m) return [];
   return m[1].split('\n').map(l => l.replace(new RegExp(`^\\s*${BULLET}\\s*`), '').trim()).filter(Boolean);
 }
 
-// Extract a sub-block (e.g., everything under "Tier 1 — Recommended:" until the next bold/blank-line section).
+// Extract a sub-block (e.g., everything under "Tier 1 — Recommended:" until the next sub-block boundary).
+// Tolerant to leading bullets on the label line.
 function extractSubBlock(block, ...labels) {
   if (!block) return '';
   const alt = tryLabels(labels);
-  // Consume until next bold-marker line, or a heading-like line, or end.
-  const re = new RegExp(`${FIELD_PREFIX}\\s*(?:${alt})\\s*${FIELD_PREFIX}\\s*[:\\-]?\\s*\\n([\\s\\S]*?)(?=\\n\\s*\\*\\*|\\n\\s*[A-Z][^\\n]{0,40}:\\s*\\n|$)`, 'i');
+  const re = new RegExp(`(?:^|\\n)\\s*${BULLET}?\\s*${FIELD_PREFIX}\\s*(?:${alt})\\s*${FIELD_PREFIX}\\s*[:\\-]?\\s*\\n([\\s\\S]*?)(?=\\n\\s*\\*\\*|\\n\\s*[A-Z][^\\n]{0,40}:\\s*\\n|$)`, 'i');
   const m = block.match(re);
   return m ? m[1].trim() : '';
 }
@@ -167,9 +167,21 @@ function parseCases(block) {
 // ─── Output 4: GRAND SLAM (Unique Mechanism + Value Stack) ───
 function parseUniqueMechanism(block) {
   if (!block) return null;
-  const name = extractField(block, 'Unique Mechanism Name', 'Nome do Mecanismo Único', 'Nome do Mecanismo', 'Mecanismo Único', 'Mechanism Name');
-  const description = extractField(block, 'Unique Mechanism Description', 'Descrição do Mecanismo Único', 'Descrição do Mecanismo', 'Descricao do Mecanismo', 'Mechanism Description', 'Explicação');
-  const lettersListRaw = extractList(block, 'Unique Mechanism Letters', 'Letras do Mecanismo', 'Mechanism Letters', 'Letras');
+  // First try the explicit field markers we ask for.
+  let name = extractField(block, 'Unique Mechanism Name', 'Nome do Mecanismo Único', 'Nome do Mecanismo Unico', 'Nome do Mecanismo', 'Mecanismo Único', 'Mecanismo Unico', 'Mechanism Name');
+  // Fallback: find a "D. MECANISMO ÚNICO" / "D. UNIQUE MECHANISM" sub-section and look for "Nome:" inside it.
+  if (!name) {
+    const sectionRe = /(?:^|\n)\s*\**\s*(?:D\.?\s*)?(?:MECANISMO ÚNICO|MECANISMO UNICO|UNIQUE MECHANISM)\s*\**\s*\n([\s\S]*?)(?=\n\s*(?:[A-Z]\.|E\.|F\.|G\.|H\.|I\.|J\.|K\.|##|---|$))/i;
+    const sm = block.match(sectionRe);
+    if (sm) {
+      // Inside that section, find "Nome:" or "Name:"
+      const nameRe = /(?:^|\n)\s*[-*•■]?\s*\**\s*(?:Nome|Name)\s*\**\s*[:\-]\s*([^\n]+)/i;
+      const nm = sm[1].match(nameRe);
+      if (nm) name = nm[1].trim().replace(/\*\*/g, '').replace(/^["']|["']$/g, '');
+    }
+  }
+  let description = extractField(block, 'Unique Mechanism Description', 'Descrição do Mecanismo Único', 'Descricao do Mecanismo Unico', 'Descrição do Mecanismo', 'Descricao do Mecanismo', 'Mechanism Description', 'Explicação', 'Explicacao');
+  const lettersListRaw = extractList(block, 'Unique Mechanism Letters', 'Letras do Mecanismo Único', 'Letras do Mecanismo', 'Mechanism Letters', 'Letras', 'Steps', 'Passos', 'Phases', 'Fases');
   const letters = lettersListRaw.map(line => {
     const cleaned = line.replace(/\*\*/g, '').trim();
     // Format: "X — Word: 1 sentence" OR "X - Word: 1 sentence"

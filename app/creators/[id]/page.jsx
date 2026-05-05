@@ -482,10 +482,32 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
       const d = await r.json();
       const text = d.content?.map(c => c.text || "").join("\n") || "";
       const parsed = parseOutput(text);
-      await patchCreator({ offer: { raw: text, parsed, generatedAt: new Date().toISOString() } });
+      // Extract recommended price from the offer so the Pitch Numbers slide
+      // and Revenue Projector use the SAME price the team is pitching.
+      // Looks for "RECOMMENDED MONTHLY PRICE: €79" or "PREÇO MENSAL RECOMENDADO: €79".
+      const priceMatch = text.match(/(?:RECOMMENDED MONTHLY PRICE|PRE[CÇ]O MENSAL RECOMENDADO)\s*[:\-]?\s*€?\s*(\d{1,4})/i)
+        || (parsed.community?.tiers?.[0]?.price?.match(/(\d{1,4})/));
+      const recPrice = priceMatch ? parseInt(priceMatch[1] || priceMatch[0], 10) : null;
+      const updates = { offer: { raw: text, parsed, generatedAt: new Date().toISOString() } };
+      if (recPrice && recPrice > 0) updates.revenuePrice = recPrice;
+      await patchCreator(updates);
       setOfferTab("offer");
     } catch (e) { setOfferError(e.message); } finally { setOfferLoading(false); }
   }, [creator, offerForm, patchCreator]);
+
+  // Re-parse button — re-runs parseOutput on existing offer.raw without burning a new API call.
+  // Useful when parser improves and stale parsed data needs refresh.
+  const reparseOffer = useCallback(async () => {
+    if (!creator?.offer?.raw) return;
+    const parsed = parseOutput(creator.offer.raw);
+    const text = creator.offer.raw;
+    const priceMatch = text.match(/(?:RECOMMENDED MONTHLY PRICE|PRE[CÇ]O MENSAL RECOMENDADO)\s*[:\-]?\s*€?\s*(\d{1,4})/i)
+      || (parsed.community?.tiers?.[0]?.price?.match(/(\d{1,4})/));
+    const recPrice = priceMatch ? parseInt(priceMatch[1] || priceMatch[0], 10) : null;
+    const updates = { offer: { ...creator.offer, parsed, reparsedAt: new Date().toISOString() } };
+    if (recPrice && recPrice > 0) updates.revenuePrice = recPrice;
+    await patchCreator(updates);
+  }, [creator, patchCreator]);
 
   if (loading) return (
     <div style={{ minHeight: "100vh", background: "#0a0a0a", color: "#f5f5f5", fontFamily: "'Inter', sans-serif", display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -1213,7 +1235,10 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
                     borderBottom: offerTab === t.key ? "2px solid #7A0E18" : "2px solid transparent", marginBottom: -1,
                   }}>{t.label}</button>)}
                 </div>
-                <button onClick={() => { setOfferForm({ _filled: false }); setOfferStep(0); patchCreator({ offer: null }); }} style={{ padding: "6px 14px", borderRadius: 6, border: "1px solid rgba(255,255,255,0.08)", background: "transparent", color: "#888", fontSize: 10, cursor: "pointer", fontFamily: "inherit" }}>Regenerar</button>
+                <div style={{ display: "flex", gap: 6 }}>
+                  <button onClick={reparseOffer} title="Re-extract structured fields (Community/Sistema/Valor) from the existing offer text — no new AI call. Use this if the Pitch Deck slides show placeholders." style={{ padding: "6px 14px", borderRadius: 6, border: "1px solid rgba(34,197,94,0.3)", background: "rgba(34,197,94,0.08)", color: "#22c55e", fontSize: 10, cursor: "pointer", fontFamily: "inherit" }}>↻ Re-parse</button>
+                  <button onClick={() => { setOfferForm({ _filled: false }); setOfferStep(0); patchCreator({ offer: null }); }} style={{ padding: "6px 14px", borderRadius: 6, border: "1px solid rgba(255,255,255,0.08)", background: "transparent", color: "#888", fontSize: 10, cursor: "pointer", fontFamily: "inherit" }}>Regenerar</button>
+                </div>
               </div>
               <div style={{ padding: 20, background: "#141414", border: "1px solid rgba(255,255,255,0.04)", borderRadius: 10, minHeight: 200 }}>
                 {offerTab === "revenue" ? (() => {

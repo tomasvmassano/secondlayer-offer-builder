@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo, useRef, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { SCENARIOS as SHARED_SCENARIOS, projectGrowth as sharedProjectGrowth, cumulativeRevenue as sharedCumulative, calculateSteadyMRR } from "../lib/revenue";
+import { parseOutput } from "../offer-builder/lib/shared";
 
 // ─────────────────────────────────────────────────────────────────
 // PITCH DECK — 10 slides + optional slide 11 (Investimento)
@@ -1913,7 +1914,15 @@ function buildDefaultSlides(creator) {
   const lang = creator?.primaryLanguage === 'en' ? 'en' : 'pt';
   const t = (pt, en) => lang === 'en' ? en : pt;
   // Auto-populate from parsed offer if available — falls back to placeholders.
-  const parsed = creator?.offer?.parsed || {};
+  // Self-heal: if creator.offer.raw exists but parsed is empty/missing key fields,
+  // re-run parseOutput on the fly. Means stale parses (from older parser versions)
+  // refresh themselves on the next pitch view without needing manual re-parse.
+  let parsed = creator?.offer?.parsed || {};
+  const raw = creator?.offer?.raw;
+  const looksEmpty = !parsed.community?.tiers?.length && !parsed.uniqueMechanism?.name && !parsed.valueStack?.items?.length && !parsed.cases?.length;
+  if (raw && looksEmpty) {
+    try { parsed = parseOutput(raw); } catch {}
+  }
   const c = parsed.community || {};
   const cases = parsed.cases || [];
   const um = parsed.uniqueMechanism || {};
