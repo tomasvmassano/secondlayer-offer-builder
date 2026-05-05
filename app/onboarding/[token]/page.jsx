@@ -33,15 +33,44 @@ const FIELD_GROUPS = [
     ],
   },
   {
+    // NEW SECTION — feeds the branding-bouquet, avatar-selection, and money-model
+    // generation skills. Every endpoint we just upgraded uses these answers to
+    // produce sharper output. None required (creator can backfill via kickoff brief).
+    title: 'Avatar + posicionamento',
+    titleEn: 'Avatar + positioning',
+    fields: [
+      { key: 'audienceGrowing', label: 'A tua audiência está a crescer? A que ritmo?', labelEn: 'Is your audience growing? At what pace?', type: 'text', placeholder: 'Sim, +800/mês no IG; ou: estagnou nos últimos 6 meses' },
+      { key: 'audienceCanAfford', label: 'Que AOV (preço médio) a tua audiência paga hoje em produtos que segue?', labelEn: 'What\'s the typical AOV your audience pays for products they follow?', type: 'text', placeholder: 'Maioria gasta 30-80€ em cursos digitais; uma minoria gasta 500€+ em retiros' },
+      { key: 'audienceEaseToTarget', label: 'Onde concentras a tua audiência online? (1-2 plataformas + hashtags + comunidades)', labelEn: 'Where is your audience concentrated online?', type: 'text', placeholder: 'IG (#cozinhaPT), grupo de Telegram com 1.2K membros, Substack 800 subs' },
+      { key: 'thingsAudienceLikes', label: 'Lista 5+ coisas que a tua audiência adora (pessoas, marcas, valores, formatos, lugares)', labelEn: 'List 5+ things your audience loves (people, brands, values, formats, places)', type: 'textarea', placeholder: '1. Chef René Redzepi\n2. Cozinha de avó\n3. Vídeos curtos sem música\n4. Mercados de produtores locais\n5. Histórias por trás dos pratos' },
+      { key: 'topPayingFanProfile', label: 'Descreve o teu fã mais engajado / que mais pagou: idade, profissão, o que comprou, porque te seguiu', labelEn: 'Describe your most-engaged and/or highest-paying fan: age, profession, what they bought, why they follow', type: 'textarea', placeholder: 'Mulher 38, gestora de marketing em Lisboa, comprou o e-book + retiro (€450 total), segue-me há 3 anos por causa dos vídeos sobre receitas portuguesas modernas' },
+    ],
+  },
+  {
     title: 'Negócio actual',
     titleEn: 'Existing business',
     fields: [
+      { key: 'currentOffer', label: 'O que vendes HOJE à tua audiência? (produto + preço + nº de compradores; ou "nada")', labelEn: 'What do you currently sell to your audience? (product + price + number of buyers; or "nothing")', type: 'textarea', placeholder: 'E-book "Cozinha Portuguesa Moderna": 19€, ~600 vendas até hoje\nRetiro anual: 350€, 12 pessoas última edição\nNada de recorrente' },
       { key: 'revenueStreams', label: 'Fontes de receita actuais + €/mês', labelEn: 'Current revenue streams + €/month', type: 'textarea', placeholder: 'Brand deals: 3K€/mês\nCursos: 1K€/mês\nConsultoria: 2K€/mês', required: true },
       { key: 'emailList', label: 'Lista de email (tamanho + provider)', labelEn: 'Email list (size + provider)', type: 'text', placeholder: '5K em ConvertKit, ou "ainda não tenho"', required: true },
       { key: 'pastProducts', label: 'Produtos que já lançaste (resultado + lições)', labelEn: 'Past products launched', type: 'textarea', placeholder: 'O que funcionou, o que falhou, porquê' },
       { key: 'existingPlatforms', label: 'Plataformas que já tens', labelEn: 'Existing platforms', type: 'textarea', placeholder: 'Skool, Hotmart, Substack, Patreon, etc.' },
       { key: 'existingTeam', label: 'Equipa actual', labelEn: 'Existing team', type: 'textarea', placeholder: 'Designer, editor, manager, agência?' },
       { key: 'brandDeals', label: 'Brand deals: actuais + recusados recentemente', labelEn: 'Brand deals: current + recently declined', type: 'textarea', placeholder: 'O que aceitaste, o que recusaste e porquê' },
+    ],
+  },
+  {
+    // NEW SECTION — feeds the core-four skill (channel sequencing, Rule of 100,
+    // launch-phase ordering). Each Y/N + context answer determines whether the
+    // creator's launch starts with Warm → Free Content → Cold → Paid (default order)
+    // or skips a step (e.g. starts at Paid because no warm list exists yet).
+    title: 'Canais (Core Four)',
+    titleEn: 'Channels (Core Four)',
+    fields: [
+      { key: 'coreFourWarm', label: 'Warm — tens uma lista própria (email, WhatsApp, Discord, etc) com pessoas que TE conhecem? Quantas?', labelEn: 'Warm — do you have a list of people who know you (email/WhatsApp/Discord)? How many?', type: 'text', placeholder: 'Sim, lista de email com 4.2K via ConvertKit; WhatsApp broadcast com 220 (mais ativo)' },
+      { key: 'coreFourContent', label: 'Free Content — postas conteúdo público regularmente? Em que plataforma e a que ritmo?', labelEn: 'Free Content — do you post public content regularly? Where + how often?', type: 'text', placeholder: 'IG: 3 reels/semana + 2 stories/dia. TikTok: 1-2/semana. Sem YouTube.' },
+      { key: 'coreFourCold', label: 'Cold — tens uma lista identificada de prospects para outreach (parceiros, retailers, B2B)? Quantos?', labelEn: 'Cold — do you have an identified list of cold prospects for outreach (partners, retailers, B2B)? How many?', type: 'text', placeholder: 'Lista de ~80 restaurantes em Lisboa (parcerias potenciais); ainda não comecei outreach' },
+      { key: 'coreFourPaid', label: 'Paid — tens orçamento para anúncios no lançamento? Quanto/mês conseguirias colocar?', labelEn: 'Paid — do you have ad budget for the launch? How much/month could you commit?', type: 'text', placeholder: 'Sim, 800-1200€/mês nos primeiros 3 meses; Meta + TikTok' },
     ],
   },
   {
