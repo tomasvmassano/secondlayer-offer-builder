@@ -6,31 +6,183 @@ export function Badge({ status }) {
   return <span style={{ display: "inline-block", padding: "2px 9px", borderRadius: 999, fontSize: 9, fontWeight: 700, letterSpacing: "0.08em", background: c + "14", color: c, border: "1px solid " + c + "33", textTransform: "uppercase" }}>{status}</span>;
 }
 
+// ─────────────────────────────────────────────────────────────────
+// OFFER PARSER — extracts all 6 outputs of the new Offer Builder
+// into structured fields the pitch deck reads from.
+//
+// Resilient to: minor LLM formatting variance, missing sections,
+// language switches (PT/EN). Falls back to raw text if a section
+// is missing — never throws.
+// ─────────────────────────────────────────────────────────────────
+
+const OUTPUT_HEADERS = [
+  /#{1,4}\s*(?:OUTPUT|SA[IÍ]DA|RESULTADO)\s*1[^\n]*/i,  // 0 — Community
+  /#{1,4}\s*(?:OUTPUT|SA[IÍ]DA|RESULTADO)\s*2[^\n]*/i,  // 1 — Cases
+  /#{1,4}\s*(?:OUTPUT|SA[IÍ]DA|RESULTADO)\s*3[^\n]*/i,  // 2 — Math
+  /#{1,4}\s*(?:OUTPUT|SA[IÍ]DA|RESULTADO)\s*4[^\n]*/i,  // 3 — Grand Slam (Mechanism + Value Stack)
+  /#{1,4}\s*(?:OUTPUT|SA[IÍ]DA|RESULTADO)\s*5[^\n]*/i,  // 4 — Blind Spots
+  /#{1,4}\s*(?:OUTPUT|SA[IÍ]DA|RESULTADO)\s*6[^\n]*/i,  // 5 — Objections
+];
+
+function splitByOutputs(text) {
+  const positions = OUTPUT_HEADERS.map(re => text.search(re));
+  const sections = ['', '', '', '', '', ''];
+  for (let i = 0; i < 6; i++) {
+    if (positions[i] === -1) continue;
+    const startBody = text.indexOf('\n', positions[i]) + 1;
+    let end = text.length;
+    for (let j = i + 1; j < 6; j++) {
+      if (positions[j] !== -1) { end = positions[j]; break; }
+    }
+    sections[i] = text.slice(startBody, end).trim();
+  }
+  return sections;
+}
+
+// Extract the value of `**Field Name:** value` (single line). Case-insensitive.
+function extractField(block, label) {
+  const re = new RegExp(`\\*\\*${escapeRegex(label)}\\*\\*\\s*[:\\-]?\\s*([^\\n]+)`, 'i');
+  const m = block.match(re);
+  return m ? m[1].trim() : '';
+}
+
+// Extract a bullet list following `**Label:**` until the next `**` or blank line.
+function extractList(block, label) {
+  const re = new RegExp(`\\*\\*${escapeRegex(label)}\\*\\*\\s*[:\\-]?\\s*\\n((?:\\s*[-•]\\s*[^\\n]+\\n?)+)`, 'i');
+  const m = block.match(re);
+  if (!m) return [];
+  return m[1].split('\n').map(l => l.replace(/^\s*[-•]\s*/, '').trim()).filter(Boolean);
+}
+
+// Extract a sub-block: contents of a `**Tier 1 — Recommended:**` header until the next `**Tier` or `**`.
+function extractSubBlock(block, label) {
+  const re = new RegExp(`\\*\\*${escapeRegex(label)}\\*\\*\\s*[:\\-]?\\s*\\n([\\s\\S]*?)(?=\\n\\s*\\*\\*|$)`, 'i');
+  const m = block.match(re);
+  return m ? m[1].trim() : '';
+}
+
+function escapeRegex(s) {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+// Parse a tier sub-block ("- Name: X\n- Price: €Y/mês\n- Note: Z") into {name, price, note}.
+function parseTier(subBlock) {
+  if (!subBlock) return null;
+  const grab = (key) => {
+    const m = subBlock.match(new RegExp(`-\\s*${key}\\s*:\\s*([^\\n]+)`, 'i'));
+    return m ? m[1].trim() : '';
+  };
+  return { name: grab('Name'), price: grab('Price'), note: grab('Note') };
+}
+
+// ─── Output 1: COMMUNITY ───
+function parseCommunity(block) {
+  if (!block) return null;
+  return {
+    primaryName: extractField(block, 'Community Name (Primary)') || extractField(block, 'Primary Name'),
+    nameCandidates: extractList(block, 'Community Name (Candidates)') || extractList(block, 'Name Candidates'),
+    platform: extractField(block, 'Platform'),
+    mechanic: extractField(block, 'Core Mechanic'),
+    tiers: [
+      parseTier(extractSubBlock(block, 'Tier 1 — Recommended')) || parseTier(extractSubBlock(block, 'Tier 1')),
+      parseTier(extractSubBlock(block, 'Tier 2 — Annual Prepay')) || parseTier(extractSubBlock(block, 'Tier 2')),
+      parseTier(extractSubBlock(block, 'Tier 3 — Anchor (Ultra-High-Ticket)')) || parseTier(extractSubBlock(block, 'Tier 3')),
+    ].filter(Boolean),
+    weeklyRhythm: extractList(block, 'Weekly Rhythm') || extractList(block, 'Ritmo Semanal'),
+    bonuses: extractList(block, 'Bonuses Unlocked Over Time') || extractList(block, 'Bonuses') || extractList(block, 'Bonus Stack'),
+    differentiator: extractField(block, 'Differentiator') || extractField(block, 'Diferencial'),
+  };
+}
+
+// ─── Output 2: CASES ───
+function parseCases(block) {
+  if (!block) return [];
+  const cases = [];
+  // Match "**Case 1:**" through "**Case 3:**"
+  for (let i = 1; i <= 5; i++) {
+    const re = new RegExp(`\\*\\*Case\\s*${i}\\s*[:\\-]?\\*\\*\\s*\\n([\\s\\S]*?)(?=\\n\\s*\\*\\*Case\\s*${i + 1}|$)`, 'i');
+    const m = block.match(re);
+    if (!m) break;
+    const sub = m[1];
+    const grab = (key) => {
+      const fm = sub.match(new RegExp(`-\\s*${key}\\s*:\\s*([^\\n]+)`, 'i'));
+      return fm ? fm[1].trim() : '';
+    };
+    cases.push({
+      name: grab('Name'),
+      niche: grab('Niche'),
+      members: grab('Members'),
+      price: grab('Price'),
+      mrr: grab('MRR'),
+      resume: grab('Resume') || grab('Resumo'),
+      why: grab('Why this matters') || grab('Why'),
+    });
+  }
+  return cases;
+}
+
+// ─── Output 4: GRAND SLAM (Unique Mechanism + Value Stack) ───
+function parseUniqueMechanism(block) {
+  if (!block) return null;
+  const name = extractField(block, 'Unique Mechanism Name');
+  const description = extractField(block, 'Unique Mechanism Description');
+  const lettersListRaw = extractList(block, 'Unique Mechanism Letters');
+  const letters = lettersListRaw.map(line => {
+    // Format: "X — Word: 1 sentence what this step does"
+    const m = line.match(/^([A-Z])\s*[—\-:]\s*([^:]+?)\s*[:\-]\s*(.+)$/);
+    if (m) return { letter: m[1].trim(), word: m[2].trim(), explanation: m[3].trim() };
+    // Fallback: "X — Word — explanation"
+    const m2 = line.match(/^([A-Z])\s*[—\-]\s*([^—\-]+)\s*[—\-]\s*(.+)$/);
+    if (m2) return { letter: m2[1].trim(), word: m2[2].trim(), explanation: m2[3].trim() };
+    return { letter: '', word: line, explanation: '' };
+  });
+  if (!name && letters.length === 0 && !description) return null;
+  return { name, letters, description };
+}
+
+function parseValueStack(block) {
+  if (!block) return null;
+  // Find the Value Stack section
+  const stackMatch = block.match(/\*\*Value Stack[:\*]*\*\*\s*\n([\s\S]*?)(?=\n\s*\*\*Value Stack Total|\n\s*\*\*[A-Z]|\*\*F\.\s|$)/i);
+  if (!stackMatch) return null;
+  const tableText = stackMatch[1];
+  const items = [];
+  // Parse markdown table rows: | # | Problem | Solution | Delivery | Perceived value |
+  const rowMatches = [...tableText.matchAll(/^\s*\|\s*(\d+)\s*\|([^|]+)\|([^|]+)\|([^|]+)\|([^|]+)\|/gm)];
+  for (const m of rowMatches) {
+    items.push({
+      problem: m[2].trim(),
+      solution: m[3].trim(),
+      delivery: m[4].trim(),
+      dollarValue: m[5].trim(),
+    });
+  }
+  const total = extractField(block, 'Value Stack Total');
+  const actualPrice = extractField(block, 'Value Stack Actual Price');
+  if (items.length === 0 && !total) return null;
+  return { items, total, actualPrice };
+}
+
+// ─── Main parser ───
 export function parseOutput(text) {
-  const s = { offer: "", blindspots: "", objections: "" };
-  // Match OUTPUT 1/2/3 in any language, any # level, with any title after
-  const o1 = /#{1,4}\s*(?:OUTPUT|SA[IÍ]DA|RESULTADO)\s*1[^\n]*/i;
-  const o2 = /#{1,4}\s*(?:OUTPUT|SA[IÍ]DA|RESULTADO)\s*2[^\n]*/i;
-  const o3 = /#{1,4}\s*(?:OUTPUT|SA[IÍ]DA|RESULTADO)\s*3[^\n]*/i;
-  const m1 = text.search(o1);
-  const m2 = text.search(o2);
-  const m3 = text.search(o3);
-  if (m1 !== -1) {
-    const start = text.indexOf("\n", m1) + 1;
-    const end = m2 !== -1 ? m2 : text.length;
-    s.offer = text.slice(start, end).trim();
-  }
-  if (m2 !== -1) {
-    const start = text.indexOf("\n", m2) + 1;
-    const end = m3 !== -1 ? m3 : text.length;
-    s.blindspots = text.slice(start, end).trim();
-  }
-  if (m3 !== -1) {
-    const start = text.indexOf("\n", m3) + 1;
-    s.objections = text.slice(start).trim();
-  }
-  if (!s.offer && !s.blindspots && !s.objections) s.offer = text;
-  return s;
+  if (!text) return { raw: text, offer: '', blindspots: '', objections: '' };
+
+  const [outCommunity, outCases, outMath, outGrandSlam, outBlindSpots, outObjections] = splitByOutputs(text);
+
+  // Backward-compat fields (offer/blindspots/objections used by existing UI tabs).
+  const result = {
+    offer:       outCommunity || outGrandSlam || text,
+    blindspots:  outBlindSpots,
+    objections:  outObjections,
+    // New structured fields the pitch deck reads.
+    community:        parseCommunity(outCommunity),
+    cases:            parseCases(outCases),
+    math:             outMath,                              // raw markdown for now (Slide 9 already has its own math UI)
+    uniqueMechanism:  parseUniqueMechanism(outGrandSlam),
+    valueStack:       parseValueStack(outGrandSlam),
+    grandSlamRaw:     outGrandSlam,
+  };
+  return result;
 }
 
 export function renderInline(t) {

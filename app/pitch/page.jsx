@@ -836,7 +836,7 @@ function PitchPageContent() {
       `}</style>
 
       {/* SLIDE 1: COVER — logo + centered subtitle + cinematic orb */}
-      <Slide num={1} total={13} hidePageMark decor={
+      <Slide num={1} total={15} hidePageMark decor={
         <>
           <div className="cover-orb" />
           <div className="aurora red"  style={{ left: -200, top: -200, width: 700, height: 700 }} />
@@ -876,7 +876,7 @@ function PitchPageContent() {
       </Slide>
 
       {/* SLIDE 2: CORE PROMISE — waveform + aurora */}
-      <Slide num={2} total={13} decor={
+      <Slide num={2} total={15} decor={
         <>
           <div className="aurora red" style={{ right: -300, top: "30%", width: 900, height: 900 }} />
           <svg className="promise-wave" viewBox="0 0 1920 1080" preserveAspectRatio="none">
@@ -916,7 +916,7 @@ function PitchPageContent() {
       </Slide>
 
       {/* SLIDE 3: TRANSFORMATION — bigger text + aurora */}
-      <Slide num={3} total={13} decor={
+      <Slide num={3} total={15} decor={
         <div className="aurora red" style={{ right: -200, top: "20%", width: 700, height: 700, opacity: 0.35 }} />
       }>
         <div style={{ flex: 1, display: "flex", flexDirection: "column", width: "100%" }}>
@@ -973,7 +973,7 @@ function PitchPageContent() {
       </Slide>
 
       {/* SLIDE 4: WHAT YOU GET — deep aurora */}
-      <Slide num={4} total={13} decor={
+      <Slide num={4} total={15} decor={
         <div className="aurora deep" style={{ left: -200, bottom: -150, width: 700, height: 700 }} />
       }>
         <div style={{ flex: 1, display: "flex", flexDirection: "column", width: "100%" }}>
@@ -1020,7 +1020,7 @@ function PitchPageContent() {
       </Slide>
 
       {/* SLIDE 5 NEW: A TUA COMUNIDADE — concrete spec */}
-      <Slide num={5} total={13} decor={
+      <Slide num={5} total={15} decor={
         <div className="aurora red" style={{ right: -250, top: "20%", width: 700, height: 700, opacity: 0.35 }} />
       }>
         <div style={{ flex: 1, display: "flex", flexDirection: "column", width: "100%" }}>
@@ -1137,8 +1137,145 @@ function PitchPageContent() {
         </div>
       </Slide>
 
-      {/* SLIDE 6: AUDIENCE — aurora + dot grid */}
-      <Slide num={6} total={13} decor={
+      {/* SLIDE 6 NEW: O SISTEMA — Unique Mechanism (acronym-style branded method) */}
+      <Slide num={6} total={15} decor={
+        <div className="aurora deep" style={{ right: -200, top: "30%", width: 700, height: 700, opacity: 0.4 }} />
+      }>
+        <div style={{ flex: 1, display: "flex", flexDirection: "column", width: "100%" }}>
+          <div style={{ fontSize: 18, fontWeight: 600, color: "#B11E2F", letterSpacing: "0.28em", textTransform: "uppercase" }}>
+            {creator?.primaryLanguage === 'en' ? 'The system' : 'O sistema'}
+          </div>
+          <div style={{ height: 18 }} />
+          <h1 style={{ fontSize: 88, fontWeight: 800, margin: 0, lineHeight: 1.0, letterSpacing: "-0.03em", color: "#f5f5f5" }}>
+            <Editable value={slides.system.title} onChange={v => updateSlide('system', 'title', v)} />
+          </h1>
+          <p style={{ ...italicSerif, fontSize: 28, color: "#A8A8A8", margin: "16px 0 0", maxWidth: 1300 }}>
+            <Editable value={slides.system.subtitle} onChange={v => updateSlide('system', 'subtitle', v)} />
+          </p>
+
+          {/* Branded acronym name — hero */}
+          <div style={{ marginTop: 48, padding: "44px 48px", background: "rgba(15,15,15,0.85)", border: "1px solid rgba(177,30,47,0.5)", borderRadius: 14, textAlign: "center" }}>
+            <div style={{ ...italicSerif, fontSize: 88, color: "#f5f5f5", lineHeight: 1.0, letterSpacing: "-0.02em" }}>
+              <Editable value={slides.system.name} onChange={v => updateSlide('system', 'name', v)} />
+            </div>
+          </div>
+
+          {/* Letters grid */}
+          <div style={{ marginTop: 32, display: "grid", gridTemplateColumns: `repeat(${Math.min(slides.system.letters.length, 5)}, 1fr)`, gap: 20, flex: 1 }}>
+            {slides.system.letters.map((l, i) => (
+              <div key={i} style={{ padding: 28, background: "rgba(15,15,15,0.78)", border: "1px solid #1F1F1F", borderRadius: 12, display: "flex", flexDirection: "column" }}>
+                <div style={{ ...italicSerif, fontSize: 88, color: "#B11E2F", lineHeight: 1, marginBottom: 14 }}>
+                  <Editable value={l.letter} onChange={v => {
+                    const next = [...slides.system.letters]; next[i] = { ...l, letter: v };
+                    updateSlide('system', 'letters', next);
+                  }} />
+                </div>
+                <div style={{ fontSize: 22, fontWeight: 700, color: "#f5f5f5", letterSpacing: "-0.01em", marginBottom: 10 }}>
+                  <Editable value={l.word} onChange={v => {
+                    const next = [...slides.system.letters]; next[i] = { ...l, word: v };
+                    updateSlide('system', 'letters', next);
+                  }} />
+                </div>
+                <p style={{ margin: 0, fontSize: 16, color: "#B8B8B8", lineHeight: 1.5 }}>
+                  <Editable value={l.explanation} onChange={v => {
+                    const next = [...slides.system.letters]; next[i] = { ...l, explanation: v };
+                    updateSlide('system', 'letters', next);
+                  }} multiline />
+                </p>
+              </div>
+            ))}
+          </div>
+
+          <p style={{ marginTop: 28, fontSize: 22, color: "#D5D5D5", lineHeight: 1.5, textAlign: "center", maxWidth: 1500, margin: "28px auto 0" }}>
+            <Editable value={slides.system.description} onChange={v => updateSlide('system', 'description', v)} multiline />
+          </p>
+        </div>
+      </Slide>
+
+      {/* SLIDE 7 NEW: O VALOR — Hormozi value stack */}
+      <Slide num={7} total={15} decor={
+        <div className="aurora red" style={{ left: -200, top: -100, width: 700, height: 700, opacity: 0.35 }} />
+      }>
+        <div style={{ flex: 1, display: "flex", flexDirection: "column", width: "100%" }}>
+          <div style={{ fontSize: 18, fontWeight: 600, color: "#B11E2F", letterSpacing: "0.28em", textTransform: "uppercase" }}>
+            {creator?.primaryLanguage === 'en' ? 'The value' : 'O valor'}
+          </div>
+          <div style={{ height: 18 }} />
+          <h1 style={{ fontSize: 88, fontWeight: 800, margin: 0, lineHeight: 1.0, letterSpacing: "-0.03em", color: "#f5f5f5" }}>
+            <Editable value={slides.valueStack.title} onChange={v => updateSlide('valueStack', 'title', v)} />
+          </h1>
+          <p style={{ ...italicSerif, fontSize: 26, color: "#A8A8A8", margin: "16px 0 0", maxWidth: 1300 }}>
+            <Editable value={slides.valueStack.subtitle} onChange={v => updateSlide('valueStack', 'subtitle', v)} />
+          </p>
+
+          {/* The stack table */}
+          <div style={{ marginTop: 40, background: "rgba(15,15,15,0.85)", border: "1px solid #1F1F1F", borderRadius: 14, overflow: "hidden", flex: 1 }}>
+            <table style={{ width: "100%", borderCollapse: "collapse" }}>
+              <thead>
+                <tr style={{ background: "rgba(177,30,47,0.08)" }}>
+                  <th style={{ padding: "16px 20px", textAlign: "left", fontSize: 11, fontWeight: 700, color: "#B11E2F", letterSpacing: "0.18em", textTransform: "uppercase", borderBottom: "1px solid #1F1F1F" }}>{creator?.primaryLanguage === 'en' ? 'Problem' : 'Problema'}</th>
+                  <th style={{ padding: "16px 20px", textAlign: "left", fontSize: 11, fontWeight: 700, color: "#B11E2F", letterSpacing: "0.18em", textTransform: "uppercase", borderBottom: "1px solid #1F1F1F" }}>{creator?.primaryLanguage === 'en' ? 'Solution' : 'Solução'}</th>
+                  <th style={{ padding: "16px 20px", textAlign: "left", fontSize: 11, fontWeight: 700, color: "#B11E2F", letterSpacing: "0.18em", textTransform: "uppercase", borderBottom: "1px solid #1F1F1F" }}>{creator?.primaryLanguage === 'en' ? 'Delivery' : 'Entrega'}</th>
+                  <th style={{ padding: "16px 20px", textAlign: "right", fontSize: 11, fontWeight: 700, color: "#B11E2F", letterSpacing: "0.18em", textTransform: "uppercase", borderBottom: "1px solid #1F1F1F", fontFamily: "'JetBrains Mono', ui-monospace, monospace" }}>{creator?.primaryLanguage === 'en' ? 'Value' : 'Valor'}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {slides.valueStack.items.map((it, i) => (
+                  <tr key={i} style={{ borderBottom: i < slides.valueStack.items.length - 1 ? "1px solid #1F1F1F" : "none" }}>
+                    <td style={{ padding: "18px 20px", fontSize: 18, color: "#aaa", verticalAlign: "top" }}>
+                      <Editable value={it.problem} onChange={v => {
+                        const next = [...slides.valueStack.items]; next[i] = { ...it, problem: v };
+                        updateSlide('valueStack', 'items', next);
+                      }} />
+                    </td>
+                    <td style={{ padding: "18px 20px", fontSize: 18, fontWeight: 600, color: "#f5f5f5", verticalAlign: "top" }}>
+                      <Editable value={it.solution} onChange={v => {
+                        const next = [...slides.valueStack.items]; next[i] = { ...it, solution: v };
+                        updateSlide('valueStack', 'items', next);
+                      }} />
+                    </td>
+                    <td style={{ padding: "18px 20px", fontSize: 16, color: "#888", verticalAlign: "top", fontStyle: "italic" }}>
+                      <Editable value={it.delivery} onChange={v => {
+                        const next = [...slides.valueStack.items]; next[i] = { ...it, delivery: v };
+                        updateSlide('valueStack', 'items', next);
+                      }} />
+                    </td>
+                    <td style={{ padding: "18px 20px", fontSize: 24, fontWeight: 700, color: "#1F8A4C", textAlign: "right", verticalAlign: "top", fontFamily: "'JetBrains Mono', ui-monospace, monospace", letterSpacing: "-0.02em" }}>
+                      <Editable value={it.dollarValue} onChange={v => {
+                        const next = [...slides.valueStack.items]; next[i] = { ...it, dollarValue: v };
+                        updateSlide('valueStack', 'items', next);
+                      }} />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Total + actual price comparison */}
+          <div style={{ marginTop: 28, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24 }}>
+            <div style={{ padding: "26px 32px", background: "rgba(15,15,15,0.78)", border: "1px solid #1F1F1F", borderRadius: 12 }}>
+              <div style={{ fontSize: 12, fontWeight: 600, color: "#888", letterSpacing: "0.18em", textTransform: "uppercase", marginBottom: 8 }}>
+                {creator?.primaryLanguage === 'en' ? 'Total stacked value' : 'Valor total empilhado'}
+              </div>
+              <div style={{ fontSize: 48, fontWeight: 800, color: "#1F8A4C", letterSpacing: "-0.03em", fontFamily: "'JetBrains Mono', ui-monospace, monospace" }}>
+                <Editable value={slides.valueStack.total} onChange={v => updateSlide('valueStack', 'total', v)} />
+              </div>
+            </div>
+            <div style={{ padding: "26px 32px", background: "rgba(177,30,47,0.08)", border: "1px solid rgba(177,30,47,0.4)", borderRadius: 12 }}>
+              <div style={{ fontSize: 12, fontWeight: 600, color: "#B11E2F", letterSpacing: "0.18em", textTransform: "uppercase", marginBottom: 8 }}>
+                {creator?.primaryLanguage === 'en' ? 'Actual price' : 'Preço real'}
+              </div>
+              <div style={{ ...italicSerif, fontSize: 64, color: "#f5f5f5", letterSpacing: "-0.02em", lineHeight: 1 }}>
+                <Editable value={slides.valueStack.actualPrice} onChange={v => updateSlide('valueStack', 'actualPrice', v)} />
+              </div>
+            </div>
+          </div>
+        </div>
+      </Slide>
+
+      {/* SLIDE 8: AUDIENCE — aurora + dot grid */}
+      <Slide num={8} total={15} decor={
         <div className="aurora red" style={{ left: -200, top: -100, width: 600, height: 600, opacity: 0.3 }} />
       }>
         <div style={{ flex: 1, display: "flex", flexDirection: "column", width: "100%" }}>
@@ -1219,7 +1356,7 @@ function PitchPageContent() {
       </Slide>
 
       {/* SLIDE 7: BUILD + OPERATE — iso machine backdrop */}
-      <Slide num={7} total={13} decor={
+      <Slide num={9} total={15} decor={
         <>
           <div className="iso-stage">
             <div className="iso-world">
@@ -1310,7 +1447,7 @@ function PitchPageContent() {
       </Slide>
 
       {/* SLIDE 8: LAUNCH — phases with assets, aurora */}
-      <Slide num={8} total={13} decor={
+      <Slide num={10} total={15} decor={
         <div className="aurora red" style={{ left: "30%", top: -200, width: 700, height: 700, opacity: 0.3 }} />
       }>
         <div style={{ flex: 1, display: "flex", flexDirection: "column", width: "100%" }}>
@@ -1373,7 +1510,7 @@ function PitchPageContent() {
       </Slide>
 
       {/* SLIDE 9: NUMBERS — dual aurora */}
-      <Slide num={9} total={13} decor={
+      <Slide num={11} total={15} decor={
         <>
           <div className="aurora red"  style={{ right: 0, top: -200, width: 800, height: 800, opacity: 0.4 }} />
           <div className="aurora deep" style={{ left: -100, bottom: -200, width: 700, height: 700 }} />
@@ -1462,7 +1599,7 @@ function PitchPageContent() {
       </Slide>
 
       {/* SLIDE 10 NEW: CASOS SIMILARES — proof slide */}
-      <Slide num={10} total={13} decor={
+      <Slide num={12} total={15} decor={
         <div className="aurora red" style={{ left: "50%", top: -150, width: 700, height: 700, opacity: 0.3, transform: "translateX(-50%)" }} />
       }>
         <div style={{ flex: 1, display: "flex", flexDirection: "column", width: "100%" }}>
@@ -1544,7 +1681,7 @@ function PitchPageContent() {
       </Slide>
 
       {/* SLIDE 11: PARTNERSHIP — red + green dual aurora */}
-      <Slide num={11} total={13} decor={
+      <Slide num={13} total={15} decor={
         <>
           <div className="aurora red"   style={{ left: -200, top: "30%", width: 600, height: 600, opacity: 0.3 }} />
           <div className="aurora green" style={{ right: -200, top: "30%", width: 600, height: 600 }} />
@@ -1601,7 +1738,7 @@ function PitchPageContent() {
       </Slide>
 
       {/* SLIDE 12: RECAP — aurora */}
-      <Slide num={12} total={13} decor={
+      <Slide num={14} total={15} decor={
         <div className="aurora red" style={{ right: -200, top: "50%", width: 700, height: 700, opacity: 0.3 }} />
       }>
         <div style={{ flex: 1, display: "flex", flexDirection: "column", width: "100%" }}>
@@ -1646,7 +1783,7 @@ function PitchPageContent() {
 
       {/* SLIDE 13 (OPTIONAL): INVESTIMENTO — aurora + receipt */}
       {showInvestimento && (
-        <Slide num={13} total={13} decor={
+        <Slide num={15} total={15} decor={
           <>
             <div className="aurora red"  style={{ right: -200, top: -100, width: 700, height: 700, opacity: 0.35 }} />
             <div className="aurora deep" style={{ left: -200, bottom: -100, width: 700, height: 700 }} />
@@ -1775,6 +1912,12 @@ function buildDefaultSlides(creator) {
   const name = firstName(creator?.name || 'Creator');
   const lang = creator?.primaryLanguage === 'en' ? 'en' : 'pt';
   const t = (pt, en) => lang === 'en' ? en : pt;
+  // Auto-populate from parsed offer if available — falls back to placeholders.
+  const parsed = creator?.offer?.parsed || {};
+  const c = parsed.community || {};
+  const cases = parsed.cases || [];
+  const um = parsed.uniqueMechanism || {};
+  const vs = parsed.valueStack || {};
   return {
     cover: {
       title: creator?.name || 'Creator',
@@ -1837,54 +1980,97 @@ function buildDefaultSlides(creator) {
         'In the end, you have predictable monthly revenue, a community that\'s yours, and a team running your business.'
       ),
     },
-    // NEW SLIDE — concrete community spec the creator can visualize.
-    // Editable; team fills with values from the generated offer's "Output 1: THE COMMUNITY" section.
+    // Concrete community spec — auto-populated from parsed.community when offer is generated;
+    // falls back to placeholders so the deck renders even before the offer exists.
     community: {
       title: t('A Tua Comunidade', 'Your Community'),
       subtitle: t('Aqui está o que vamos construir para ti.', 'Here is what we will build for you.'),
-      nameCandidate: t('[Nome da Comunidade]', '[Community Name]'),
-      platform: 'Skool',
-      mechanic: t(
+      nameCandidate: c.primaryName || t('[Nome da Comunidade]', '[Community Name]'),
+      platform: c.platform || 'Skool',
+      mechanic: c.mechanic || t(
         '[1 evento ao vivo/semana + drops semanais + grupo privado para Q&A diário]',
         '[1 live event/week + weekly drops + private feed for daily Q&A]'
       ),
-      tiers: lang === 'en' ? [
-        { name: 'Founders Circle', price: '€297/mo', note: '1-on-1 + masterclasses' },
-        { name: 'Annual Prepay', price: '€390/yr', note: '2 months free' },
-        { name: 'Monthly', price: '€39/mo', note: 'Recommended' },
+      // Tiers: parsed comes in [recommended, annual-prepay, anchor]; deck renders 3 cards
+      // with the LAST one (anchor) highlighted. Default order matches that.
+      tiers: c.tiers && c.tiers.length > 0 ? c.tiers : (lang === 'en' ? [
+        { name: 'Monthly', price: '€[X]/mo', note: 'Recommended' },
+        { name: 'Annual Prepay', price: '€[X]/yr', note: '2 months free' },
+        { name: 'Founders Circle', price: '€[X]/mo', note: '1-on-1 + masterclasses' },
       ] : [
-        { name: 'Founders Circle', price: '€297/mês', note: '1-on-1 + masterclasses' },
-        { name: 'Anual', price: '€390/ano', note: '2 meses grátis' },
-        { name: 'Mensal', price: '€39/mês', note: 'Recomendado' },
-      ],
-      rhythm: lang === 'en' ? [
+        { name: 'Mensal', price: '€[X]/mês', note: 'Recomendado' },
+        { name: 'Anual', price: '€[X]/ano', note: '2 meses grátis' },
+        { name: 'Founders Circle', price: '€[X]/mês', note: '1-on-1 + masterclasses' },
+      ]),
+      rhythm: c.weeklyRhythm && c.weeklyRhythm.length > 0 ? c.weeklyRhythm : (lang === 'en' ? [
         '[Mon: weekly drop]', '[Tue: live event 19h]', '[Thu: live Q&A]', '[Fri: community challenge]',
       ] : [
         '[Seg: drop semanal]', '[Ter: evento ao vivo 19h]', '[Qui: live Q&A]', '[Sex: desafio comunitário]',
-      ],
-      bonuses: lang === 'en' ? [
+      ]),
+      bonuses: c.bonuses && c.bonuses.length > 0 ? c.bonuses : (lang === 'en' ? [
         '[Month 2: bonus pack]', '[Month 6: 1-on-1 deep dive]', '[Month 12: in-person dinner]',
       ] : [
         '[Mês 2: bonus pack]', '[Mês 6: 1-on-1 profundo]', '[Mês 12: jantar privado]',
-      ],
-      differentiator: t(
+      ]),
+      differentiator: c.differentiator || t(
         '[O que torna isto diferente — uma frase. Algo que comunidades semelhantes não têm.]',
         '[What makes this different — one sentence. Something similar communities don\'t have.]'
       ),
     },
+    // NEW: O Sistema — Unique Mechanism (acronym-style branded method).
+    // Auto-populated from parsed.uniqueMechanism.
+    system: {
+      title: t('O Sistema', 'The System'),
+      subtitle: t('O método que vais ensinar à tua comunidade.', 'The method you will teach your community.'),
+      name: um.name || t('[The X.Y.Z. Method]', '[The X.Y.Z. Method]'),
+      letters: um.letters && um.letters.length > 0 ? um.letters : [
+        { letter: 'X', word: t('[Palavra]', '[Word]'), explanation: t('[1 frase]', '[1 sentence]') },
+        { letter: 'Y', word: t('[Palavra]', '[Word]'), explanation: t('[1 frase]', '[1 sentence]') },
+        { letter: 'Z', word: t('[Palavra]', '[Word]'), explanation: t('[1 frase]', '[1 sentence]') },
+      ],
+      description: um.description || t(
+        '[1 parágrafo a explicar como o sistema funciona como um todo — o que o membro experiencia ao passar por X → Y → Z.]',
+        '[1 paragraph explaining how the system works as a whole — what the member experiences moving through X → Y → Z.]'
+      ),
+    },
+    // NEW: O Valor — Value Stack (problems → solutions → € values, Hormozi style).
+    // Auto-populated from parsed.valueStack.
+    valueStack: {
+      title: t('O Valor', 'The Value'),
+      subtitle: t('Cada coisa que recebes. Cada coisa tem um valor.', 'Every thing you get. Every thing has a value.'),
+      items: vs.items && vs.items.length > 0 ? vs.items : [
+        { problem: t('[Problema 1]', '[Problem 1]'), solution: t('[Solução]', '[Solution]'), delivery: t('[Entrega]', '[Delivery]'), dollarValue: '€[X]' },
+        { problem: t('[Problema 2]', '[Problem 2]'), solution: t('[Solução]', '[Solution]'), delivery: t('[Entrega]', '[Delivery]'), dollarValue: '€[X]' },
+        { problem: t('[Problema 3]', '[Problem 3]'), solution: t('[Solução]', '[Solution]'), delivery: t('[Entrega]', '[Delivery]'), dollarValue: '€[X]' },
+        { problem: t('[Problema 4]', '[Problem 4]'), solution: t('[Solução]', '[Solution]'), delivery: t('[Entrega]', '[Delivery]'), dollarValue: '€[X]' },
+        { problem: t('[Problema 5]', '[Problem 5]'), solution: t('[Solução]', '[Solution]'), delivery: t('[Entrega]', '[Delivery]'), dollarValue: '€[X]' },
+      ],
+      total: vs.total || '€[X total]',
+      actualPrice: vs.actualPrice || '€[X]/mês',
+    },
     audience: {
       title: t('A Tua Audiência', 'Your Audience'),
     },
-    // NEW SLIDE — proof. Real Skool communities in the creator's niche.
-    // Defaults are placeholder; the team fills these from the offer's "Output 2: SIMILAR CASES".
+    // Auto-populated from parsed.cases (3 real Skool/Whop communities the LLM picked from
+    // the case-studies skill, niche-matched to this creator). Falls back to placeholders.
     cases: {
       title: t('Casos similares', 'Similar Cases'),
       subtitle: t('Comunidades reais no Skool/Whop com este perfil. Dados públicos.', 'Real Skool/Whop communities with this profile. Public data.'),
-      items: [
-        { name: '[Nome]', niche: '[Nicho]', members: '[X membros]', price: '€[X]/mês', mrr: '~€[X]K MRR', resume: '[1-line resume]', why: '[Why this matters for the creator]' },
-        { name: '[Nome]', niche: '[Nicho]', members: '[X membros]', price: '€[X]/mês', mrr: '~€[X]K MRR', resume: '[1-line resume]', why: '[Why this matters for the creator]' },
-        { name: '[Nome]', niche: '[Nicho]', members: '[X membros]', price: '€[X]/mês', mrr: '~€[X]K MRR', resume: '[1-line resume]', why: '[Why this matters for the creator]' },
-      ],
+      items: cases.length > 0
+        ? cases.slice(0, 3).map(cs => ({
+            name: cs.name || '[Nome]',
+            niche: cs.niche || '[Nicho]',
+            members: cs.members || '[X membros]',
+            price: cs.price || '€[X]/mês',
+            mrr: cs.mrr || '~€[X]K MRR',
+            resume: cs.resume || '[1-line resume]',
+            why: cs.why || '[Why this matters for the creator]',
+          }))
+        : [
+            { name: '[Nome]', niche: '[Nicho]', members: '[X membros]', price: '€[X]/mês', mrr: '~€[X]K MRR', resume: '[1-line resume]', why: '[Why this matters for the creator]' },
+            { name: '[Nome]', niche: '[Nicho]', members: '[X membros]', price: '€[X]/mês', mrr: '~€[X]K MRR', resume: '[1-line resume]', why: '[Why this matters for the creator]' },
+            { name: '[Nome]', niche: '[Nicho]', members: '[X membros]', price: '€[X]/mês', mrr: '~€[X]K MRR', resume: '[1-line resume]', why: '[Why this matters for the creator]' },
+          ],
       closer: t(
         'O nosso modelo está a fazer isto acontecer noutros nichos hoje. O teu é o próximo.',
         'Our model is making this happen in other niches today. Yours is next.'

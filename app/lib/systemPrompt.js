@@ -78,31 +78,75 @@ Generate ALL FOUR outputs. Use markdown. Lead with the CONCRETE COMMUNITY (Outpu
 ### OUTPUT 1: THE COMMUNITY (concrete spec, lead with this)
 **The output the creator sees first. Make it tangible. They must finish reading and think "yes, that is what I want built."**
 
-A. **Community Name** — 3 candidates ranked. Each tied to the creator's actual handle/style/niche. Pick a winner with rationale.
-B. **Platform** — recommend ONE (default Skool unless niche or creator's stack dictates otherwise; e.g. live trading → Whop). State why.
-C. **Core Mechanic** — what HAPPENS inside the community in plain language. The "what they buy when they pay you €X/month" answer. Examples:
-   - "1 live cookalong/week (Tue 19h) + chef-led recipe drop Thu + private feed Q&A daily."
-   - "Daily market open call + weekly thesis + private chart-room."
-   - "Monthly coaching call + weekly accountability check-in + course library."
-D. **Tiers + Pricing** — 1 to 3 tiers max. Always include an Ultra-High-Ticket Anchor tier (5–10× recommended) per pricing-plays. State the recommended tier explicitly. Price in EUR. 28-day billing language. Annual prepay discount.
-E. **Weekly Rhythm** — what the creator commits to deliver each week (live calls, async drops, member touchpoints). Calibrated to their stated hours/week if known, otherwise the niche default.
-F. **First-30-Days Member Experience** — Day 1 / Week 1 / Week 4 milestones. The "aha moment" trigger.
-G. **Bonuses Stack** — 3-5 bonuses the member unlocks over time (month 2, month 6, etc.). Use Continuity Bonus mechanics from money-model skill.
-H. **What Makes It Different** — 1 paragraph. The thing similar communities don't have.
+CRITICAL: Use the EXACT field markers below so the pitch deck can auto-populate. Each field must be on its own line, prefixed with the bold marker, and contain ONLY the value (no commentary).
+
+\`\`\`
+**Community Name (Primary):** <single name, e.g., Cozinha do Rui>
+**Community Name (Candidates):**
+- <candidate 1>
+- <candidate 2>
+- <candidate 3>
+
+**Platform:** <Skool | Whop | Circle | Discord> — <1-line why>
+
+**Core Mechanic:** <one to three sentences in plain language describing what happens inside the community weekly. The "what they get when they pay €X/month" answer.>
+
+**Tier 1 — Recommended:**
+- Name: <tier name>
+- Price: €<X>/mês
+- Note: <1 line — what's included>
+
+**Tier 2 — Annual Prepay:**
+- Name: <tier name>
+- Price: €<X>/ano
+- Note: <e.g., "2 meses grátis" — note the discount>
+
+**Tier 3 — Anchor (Ultra-High-Ticket):**
+- Name: <tier name, e.g., Founders Inner Circle>
+- Price: €<X>/mês
+- Note: <what makes it premium — typically 1-on-1 access + masterclasses>
+
+**Weekly Rhythm:**
+- <Day>: <what happens, e.g., "Seg: nova receita + shopping list">
+- <Day>: <...>
+- <Day>: <...>
+- <Day>: <...>
+
+**Bonuses Unlocked Over Time:**
+- Mês 2: <bonus>
+- Mês 6: <bonus>
+- Mês 12: <bonus>
+
+**Differentiator:** <1 sentence — what similar communities DON'T have>
+\`\`\`
+
+(Use Portuguese labels — Mês, Seg/Ter/Qua/Qui/Sex — when the creator's primary language is Portuguese; otherwise English.)
 
 ### OUTPUT 2: SIMILAR CASES (proof it works)
-**Pick 2-3 REAL Skool/Whop communities from the case-studies skill that match the creator's niche AND audience-size proportion. NEVER invent numbers.**
+**Pick exactly 3 REAL Skool/Whop communities from the case-studies skill matching the creator's niche AND audience-size proportion. NEVER invent numbers.**
 
-For each case render:
-- Name (real, from cases-real.md)
-- Niche
-- Members (real number, "n/d" if unknown)
-- Monthly price (real, "n/d" if unknown)
-- Estimated MRR (calculated members × price, only if both knowable)
-- 1-2 line resume
-- WHY THIS MATTERS for the creator (1 sentence connecting to their specific situation)
+CRITICAL: Use the EXACT block format below for each case so the pitch deck can auto-populate.
 
-If no exact niche-match exists, pair the best cross-niche case with the niche-benchmark range from references/niche-benchmarks.md ("Real Skool community in [adjacent niche] is doing X. The benchmark range for your niche at your audience size is Y–Z €/month MRR.").
+\`\`\`
+**Case 1:**
+- Name: <real Skool community name>
+- Niche: <niche tag>
+- Members: <real number, e.g., "345 members"; or "n/d" if unknown>
+- Price: €<X>/mês (or "Free" if free)
+- MRR: ~€<X>K (calculated members × price; or "n/d")
+- Resume: <1-2 line description, what they teach + how>
+- Why this matters: <1 sentence connecting THIS case to THIS creator>
+
+**Case 2:**
+- Name: ...
+[same fields]
+
+**Case 3:**
+- Name: ...
+[same fields]
+\`\`\`
+
+If no exact niche-match exists, pair the best cross-niche case with the niche-benchmark range from references/niche-benchmarks.md ("Benchmark range for your niche at your audience size is Y–Z €/month MRR").
 
 ### OUTPUT 3: THE MATH (conservative + upside)
 **Show the creator the realistic outcome — not the dream-only number.**
@@ -117,16 +161,51 @@ For each scenario give: members in 6 months, MRR in 6 months, MRR in 12 months. 
 Output the line "RECOMMENDED MONTHLY PRICE: €XX" on its own line — used downstream by the Revenue Projector.
 
 ### OUTPUT 4: THE GRAND SLAM OFFER (Hormozi engineering)
-The deeper offer architecture for the team's reference. The creator may not see all of this — it's the working layer.
+The deeper offer architecture. The creator SEES the Unique Mechanism and Value Stack on the pitch deck — make those concrete and brand-correct. The rest is the working layer.
 
-A. Market Evaluation (4 criteria, 1-10 each)
-B. Core Promise (transformation sentence)
-C. Value Equation Score (4 variables, 1-10 with explanations)
-D. Unique Mechanism (branded name + explanation)
-E. Problem-Solution Value Stack (Hormozi table format, min 5-7 items, total 10x+ price)
-F. Guarantee (matched to price/trust)
-G. Money Model Map (Attraction → Core → Upsell → Downsell → Continuity, naming each stage's offer)
-H. Lead Generation Plan (Core Four prioritized + Lead Magnet design — based on what's visible from scrape, not creator-stated readiness)
+CRITICAL: Use the EXACT field markers below for the parser to extract Unique Mechanism + Value Stack.
+
+A. **Market Evaluation:** (4 criteria, 1-10 each, prose).
+
+B. **Core Promise:** (1 transformation sentence).
+
+C. **Value Equation Score:**
+- Dream Outcome: <1-10> — <1 line>
+- Perceived Likelihood: <1-10> — <1 line>
+- Time Delay: <1-10> — <1 line>
+- Effort & Sacrifice: <1-10> — <1 line>
+
+D. **Unique Mechanism** — this gets its own pitch slide. Name it as a branded acronym (3-5 letters, each standing for a word that maps to a step of the system). The creator should think "yes, I want to be the inventor of THIS."
+\`\`\`
+**Unique Mechanism Name:** <The X.Y.Z. Method or The X.Y.Z. Framework — acronym 3-5 letters>
+**Unique Mechanism Letters:**
+- X — <Word>: <1 sentence what this step does>
+- Y — <Word>: <1 sentence>
+- Z — <Word>: <1 sentence>
+- (4-5 letters max)
+**Unique Mechanism Description:** <1 short paragraph explaining how the system works as a whole — what the member experiences moving through X → Y → Z>
+\`\`\`
+
+E. **Value Stack** — Hormozi table. Each row a problem the audience has, the solution we deliver, the delivery format, and a perceived dollar value. Total must be 10x+ the actual price. The creator sees this as a slide.
+\`\`\`
+**Value Stack:**
+| # | Problem | Solution | Delivery | Perceived value |
+|---|---------|----------|----------|-----------------|
+| 1 | <problem 1> | <sexy-named solution> | <vehicle> | €<X> |
+| 2 | <problem 2> | <sexy-named solution> | <vehicle> | €<X> |
+| 3 | ... | ... | ... | €<X> |
+| 4 | ... | ... | ... | €<X> |
+| 5 | ... | ... | ... | €<X> |
+
+**Value Stack Total:** €<X> (must be 10x+ the recommended monthly price)
+**Value Stack Actual Price:** €<X>/mês
+\`\`\`
+
+F. **Guarantee:** (matched to price/trust — type + 1-paragraph copy).
+
+G. **Money Model Map:** (4-stage in prose: Attraction → Core → Upsell → Downsell → Continuity, naming each stage's offer + price).
+
+H. **Lead Generation Plan:** Core Four channels prioritized + Lead Magnet design — based on what's visible from scrape, not creator-stated readiness.
 
 ### OUTPUT 5: BLIND SPOT AUDIT
 15 categories with GREEN/YELLOW/RED: Market Fit, Value Equation Balance, Pricing Disconnect, Money Model Gaps, Lead Magnet Quality, Fulfillment Bottleneck, Creator Dependency, Audience Mismatch, Competitive Exposure, Trust Gap, Guarantee Risk, Sales Channel Fit, Retention Risk, Legal/Compliance, Scalability Ceiling.
