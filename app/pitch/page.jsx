@@ -836,7 +836,7 @@ function PitchPageContent() {
       `}</style>
 
       {/* SLIDE 1: COVER — logo + centered subtitle + cinematic orb */}
-      <Slide num={1} hidePageMark decor={
+      <Slide num={1} total={13} hidePageMark decor={
         <>
           <div className="cover-orb" />
           <div className="aurora red"  style={{ left: -200, top: -200, width: 700, height: 700 }} />
@@ -876,7 +876,7 @@ function PitchPageContent() {
       </Slide>
 
       {/* SLIDE 2: CORE PROMISE — waveform + aurora */}
-      <Slide num={2} decor={
+      <Slide num={2} total={13} decor={
         <>
           <div className="aurora red" style={{ right: -300, top: "30%", width: 900, height: 900 }} />
           <svg className="promise-wave" viewBox="0 0 1920 1080" preserveAspectRatio="none">
@@ -916,7 +916,7 @@ function PitchPageContent() {
       </Slide>
 
       {/* SLIDE 3: TRANSFORMATION — bigger text + aurora */}
-      <Slide num={3} decor={
+      <Slide num={3} total={13} decor={
         <div className="aurora red" style={{ right: -200, top: "20%", width: 700, height: 700, opacity: 0.35 }} />
       }>
         <div style={{ flex: 1, display: "flex", flexDirection: "column", width: "100%" }}>
@@ -973,7 +973,7 @@ function PitchPageContent() {
       </Slide>
 
       {/* SLIDE 4: WHAT YOU GET — deep aurora */}
-      <Slide num={4} decor={
+      <Slide num={4} total={13} decor={
         <div className="aurora deep" style={{ left: -200, bottom: -150, width: 700, height: 700 }} />
       }>
         <div style={{ flex: 1, display: "flex", flexDirection: "column", width: "100%" }}>
@@ -1019,8 +1019,126 @@ function PitchPageContent() {
         </div>
       </Slide>
 
-      {/* SLIDE 5: AUDIENCE — aurora + dot grid */}
-      <Slide num={5} decor={
+      {/* SLIDE 5 NEW: A TUA COMUNIDADE — concrete spec */}
+      <Slide num={5} total={13} decor={
+        <div className="aurora red" style={{ right: -250, top: "20%", width: 700, height: 700, opacity: 0.35 }} />
+      }>
+        <div style={{ flex: 1, display: "flex", flexDirection: "column", width: "100%" }}>
+          <div style={{ fontSize: 18, fontWeight: 600, color: "#B11E2F", letterSpacing: "0.28em", textTransform: "uppercase" }}>
+            {creator?.primaryLanguage === 'en' ? 'The community' : 'A comunidade'}
+          </div>
+          <div style={{ height: 18 }} />
+          <h1 style={{ fontSize: 88, fontWeight: 800, margin: 0, lineHeight: 1.0, letterSpacing: "-0.03em", color: "#f5f5f5" }}>
+            <Editable value={slides.community.title} onChange={v => updateSlide('community', 'title', v)} />
+          </h1>
+          <p style={{ ...italicSerif, fontSize: 30, color: "#A8A8A8", margin: "18px 0 0", maxWidth: 1200 }}>
+            <Editable value={slides.community.subtitle} onChange={v => updateSlide('community', 'subtitle', v)} />
+          </p>
+
+          {/* The big spec card */}
+          <div style={{ marginTop: 40, padding: 40, background: "rgba(15,15,15,0.85)", border: "1px solid rgba(177,30,47,0.4)", borderRadius: 14, flex: 1, display: "grid", gridTemplateColumns: "1.4fr 1fr", gap: 36 }}>
+            {/* LEFT: name + mechanic + rhythm + bonuses + diff */}
+            <div style={{ display: "flex", flexDirection: "column", gap: 22 }}>
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 600, color: "#B11E2F", letterSpacing: "0.22em", textTransform: "uppercase", marginBottom: 6 }}>
+                  {creator?.primaryLanguage === 'en' ? 'Community name' : 'Nome'}
+                </div>
+                <div style={{ ...italicSerif, fontSize: 56, color: "#f5f5f5", lineHeight: 1.0 }}>
+                  <Editable value={slides.community.nameCandidate} onChange={v => updateSlide('community', 'nameCandidate', v)} />
+                </div>
+                <div style={{ fontFamily: "'JetBrains Mono', ui-monospace, monospace", fontSize: 13, color: "#888", marginTop: 6 }}>
+                  {creator?.primaryLanguage === 'en' ? 'Platform' : 'Plataforma'}: <Editable value={slides.community.platform} onChange={v => updateSlide('community', 'platform', v)} />
+                </div>
+              </div>
+
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 600, color: "#B11E2F", letterSpacing: "0.22em", textTransform: "uppercase", marginBottom: 6 }}>
+                  {creator?.primaryLanguage === 'en' ? 'Core mechanic' : 'O que acontece dentro'}
+                </div>
+                <p style={{ margin: 0, fontSize: 22, color: "#D9D9D9", lineHeight: 1.5 }}>
+                  <Editable value={slides.community.mechanic} onChange={v => updateSlide('community', 'mechanic', v)} multiline />
+                </p>
+              </div>
+
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24 }}>
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: "#B11E2F", letterSpacing: "0.22em", textTransform: "uppercase", marginBottom: 8 }}>
+                    {creator?.primaryLanguage === 'en' ? 'Weekly rhythm' : 'Ritmo semanal'}
+                  </div>
+                  <ul style={{ margin: 0, padding: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: 6 }}>
+                    {slides.community.rhythm.map((r, i) => (
+                      <li key={i} style={{ fontSize: 16, color: "#D5D5D5", display: "flex", gap: 8 }}>
+                        <span style={{ color: "#B11E2F" }}>›</span>
+                        <Editable value={r} onChange={v => {
+                          const next = [...slides.community.rhythm]; next[i] = v;
+                          updateSlide('community', 'rhythm', next);
+                        }} />
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: "#1F8A4C", letterSpacing: "0.22em", textTransform: "uppercase", marginBottom: 8 }}>
+                    {creator?.primaryLanguage === 'en' ? 'Bonuses unlocked' : 'Bónus desbloqueados'}
+                  </div>
+                  <ul style={{ margin: 0, padding: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: 6 }}>
+                    {slides.community.bonuses.map((b, i) => (
+                      <li key={i} style={{ fontSize: 16, color: "#D5D5D5", display: "flex", gap: 8 }}>
+                        <span style={{ color: "#1F8A4C" }}>●</span>
+                        <Editable value={b} onChange={v => {
+                          const next = [...slides.community.bonuses]; next[i] = v;
+                          updateSlide('community', 'bonuses', next);
+                        }} />
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+            </div>
+
+            {/* RIGHT: tiers stack */}
+            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+              <div style={{ fontSize: 13, fontWeight: 600, color: "#B11E2F", letterSpacing: "0.22em", textTransform: "uppercase", marginBottom: 4 }}>
+                {creator?.primaryLanguage === 'en' ? 'Tiers + pricing' : 'Tiers + preço'}
+              </div>
+              {slides.community.tiers.map((tier, i) => (
+                <div key={i} style={{ padding: "18px 20px", background: i === slides.community.tiers.length - 1 ? "rgba(177,30,47,0.12)" : "rgba(255,255,255,0.03)", border: i === slides.community.tiers.length - 1 ? "1px solid rgba(177,30,47,0.5)" : "1px solid rgba(255,255,255,0.08)", borderRadius: 10 }}>
+                  <div style={{ fontFamily: "'JetBrains Mono', ui-monospace, monospace", fontSize: 11, color: "#888", letterSpacing: "0.16em", textTransform: "uppercase" }}>
+                    <Editable value={tier.name} onChange={v => {
+                      const next = [...slides.community.tiers]; next[i] = { ...tier, name: v };
+                      updateSlide('community', 'tiers', next);
+                    }} />
+                  </div>
+                  <div style={{ fontSize: 28, fontWeight: 700, color: "#f5f5f5", letterSpacing: "-0.02em", marginTop: 4 }}>
+                    <Editable value={tier.price} onChange={v => {
+                      const next = [...slides.community.tiers]; next[i] = { ...tier, price: v };
+                      updateSlide('community', 'tiers', next);
+                    }} />
+                  </div>
+                  <div style={{ fontSize: 13, color: "#aaa", marginTop: 4 }}>
+                    <Editable value={tier.note} onChange={v => {
+                      const next = [...slides.community.tiers]; next[i] = { ...tier, note: v };
+                      updateSlide('community', 'tiers', next);
+                    }} />
+                  </div>
+                </div>
+              ))}
+
+              <div style={{ marginTop: "auto", padding: 18, background: "rgba(31,138,76,0.08)", border: "1px solid rgba(31,138,76,0.3)", borderRadius: 10 }}>
+                <div style={{ fontSize: 11, fontWeight: 600, color: "#1F8A4C", letterSpacing: "0.22em", textTransform: "uppercase", marginBottom: 6 }}>
+                  {creator?.primaryLanguage === 'en' ? 'What makes it different' : 'O diferencial'}
+                </div>
+                <p style={{ margin: 0, ...italicSerif, fontSize: 20, color: "#f5f5f5", lineHeight: 1.4 }}>
+                  <Editable value={slides.community.differentiator} onChange={v => updateSlide('community', 'differentiator', v)} multiline />
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </Slide>
+
+      {/* SLIDE 6: AUDIENCE — aurora + dot grid */}
+      <Slide num={6} total={13} decor={
         <div className="aurora red" style={{ left: -200, top: -100, width: 600, height: 600, opacity: 0.3 }} />
       }>
         <div style={{ flex: 1, display: "flex", flexDirection: "column", width: "100%" }}>
@@ -1100,8 +1218,8 @@ function PitchPageContent() {
         </div>
       </Slide>
 
-      {/* SLIDE 6: BUILD + OPERATE — iso machine backdrop */}
-      <Slide num={6} decor={
+      {/* SLIDE 7: BUILD + OPERATE — iso machine backdrop */}
+      <Slide num={7} total={13} decor={
         <>
           <div className="iso-stage">
             <div className="iso-world">
@@ -1191,8 +1309,8 @@ function PitchPageContent() {
         </div>
       </Slide>
 
-      {/* SLIDE 7: LAUNCH — phases with assets, aurora */}
-      <Slide num={7} decor={
+      {/* SLIDE 8: LAUNCH — phases with assets, aurora */}
+      <Slide num={8} total={13} decor={
         <div className="aurora red" style={{ left: "30%", top: -200, width: 700, height: 700, opacity: 0.3 }} />
       }>
         <div style={{ flex: 1, display: "flex", flexDirection: "column", width: "100%" }}>
@@ -1254,8 +1372,8 @@ function PitchPageContent() {
         </div>
       </Slide>
 
-      {/* SLIDE 8: NUMBERS — dual aurora */}
-      <Slide num={8} decor={
+      {/* SLIDE 9: NUMBERS — dual aurora */}
+      <Slide num={9} total={13} decor={
         <>
           <div className="aurora red"  style={{ right: 0, top: -200, width: 800, height: 800, opacity: 0.4 }} />
           <div className="aurora deep" style={{ left: -100, bottom: -200, width: 700, height: 700 }} />
@@ -1343,8 +1461,90 @@ function PitchPageContent() {
         </div>
       </Slide>
 
-      {/* SLIDE 9: PARTNERSHIP — red + green dual aurora */}
-      <Slide num={9} decor={
+      {/* SLIDE 10 NEW: CASOS SIMILARES — proof slide */}
+      <Slide num={10} total={13} decor={
+        <div className="aurora red" style={{ left: "50%", top: -150, width: 700, height: 700, opacity: 0.3, transform: "translateX(-50%)" }} />
+      }>
+        <div style={{ flex: 1, display: "flex", flexDirection: "column", width: "100%" }}>
+          <div style={{ fontSize: 18, fontWeight: 600, color: "#B11E2F", letterSpacing: "0.28em", textTransform: "uppercase" }}>
+            {creator?.primaryLanguage === 'en' ? 'Proof' : 'Prova'}
+          </div>
+          <div style={{ height: 18 }} />
+          <h1 style={{ fontSize: 88, fontWeight: 800, margin: 0, lineHeight: 1.0, letterSpacing: "-0.03em", color: "#f5f5f5" }}>
+            <Editable value={slides.cases.title} onChange={v => updateSlide('cases', 'title', v)} />
+          </h1>
+          <p style={{ ...italicSerif, fontSize: 26, color: "#A8A8A8", margin: "18px 0 0", maxWidth: 1300 }}>
+            <Editable value={slides.cases.subtitle} onChange={v => updateSlide('cases', 'subtitle', v)} />
+          </p>
+
+          <div style={{ marginTop: 48, display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 24, flex: 1 }}>
+            {slides.cases.items.map((c, i) => (
+              <div key={i} style={{ padding: 32, background: "rgba(15,15,15,0.85)", border: "1px solid #1F1F1F", borderRadius: 14, display: "flex", flexDirection: "column" }}>
+                <div style={{ fontFamily: "'JetBrains Mono', ui-monospace, monospace", fontSize: 11, color: "#B11E2F", letterSpacing: "0.16em", textTransform: "uppercase", marginBottom: 8 }}>
+                  <Editable value={c.niche} onChange={v => {
+                    const next = [...slides.cases.items]; next[i] = { ...c, niche: v };
+                    updateSlide('cases', 'items', next);
+                  }} />
+                </div>
+                <h3 style={{ fontSize: 32, fontWeight: 700, margin: 0, color: "#f5f5f5", letterSpacing: "-0.02em" }}>
+                  <Editable value={c.name} onChange={v => {
+                    const next = [...slides.cases.items]; next[i] = { ...c, name: v };
+                    updateSlide('cases', 'items', next);
+                  }} />
+                </h3>
+                <div style={{ marginTop: 20, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, fontFamily: "'JetBrains Mono', ui-monospace, monospace" }}>
+                  <div>
+                    <div style={{ fontSize: 10, color: "#666", letterSpacing: "0.16em", textTransform: "uppercase" }}>{creator?.primaryLanguage === 'en' ? 'Members' : 'Membros'}</div>
+                    <div style={{ fontSize: 20, color: "#f5f5f5", fontWeight: 600 }}>
+                      <Editable value={c.members} onChange={v => {
+                        const next = [...slides.cases.items]; next[i] = { ...c, members: v };
+                        updateSlide('cases', 'items', next);
+                      }} />
+                    </div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 10, color: "#666", letterSpacing: "0.16em", textTransform: "uppercase" }}>{creator?.primaryLanguage === 'en' ? 'Price' : 'Preço'}</div>
+                    <div style={{ fontSize: 20, color: "#f5f5f5", fontWeight: 600 }}>
+                      <Editable value={c.price} onChange={v => {
+                        const next = [...slides.cases.items]; next[i] = { ...c, price: v };
+                        updateSlide('cases', 'items', next);
+                      }} />
+                    </div>
+                  </div>
+                </div>
+                <div style={{ marginTop: 14, padding: "10px 14px", background: "rgba(177,30,47,0.08)", border: "1px solid rgba(177,30,47,0.25)", borderRadius: 8 }}>
+                  <div style={{ fontSize: 10, color: "#B11E2F", letterSpacing: "0.16em", textTransform: "uppercase", fontWeight: 600 }}>MRR</div>
+                  <div style={{ fontSize: 22, color: "#f5f5f5", fontWeight: 700, letterSpacing: "-0.02em" }}>
+                    <Editable value={c.mrr} onChange={v => {
+                      const next = [...slides.cases.items]; next[i] = { ...c, mrr: v };
+                      updateSlide('cases', 'items', next);
+                    }} />
+                  </div>
+                </div>
+                <p style={{ margin: "16px 0 0", fontSize: 14, color: "#B8B8B8", lineHeight: 1.5 }}>
+                  <Editable value={c.resume} onChange={v => {
+                    const next = [...slides.cases.items]; next[i] = { ...c, resume: v };
+                    updateSlide('cases', 'items', next);
+                  }} multiline />
+                </p>
+                <p style={{ margin: "auto 0 0", paddingTop: 16, fontSize: 13, color: "#1F8A4C", fontStyle: "italic", borderTop: "1px solid rgba(255,255,255,0.06)", marginTop: 16 }}>
+                  → <Editable value={c.why} onChange={v => {
+                    const next = [...slides.cases.items]; next[i] = { ...c, why: v };
+                    updateSlide('cases', 'items', next);
+                  }} multiline />
+                </p>
+              </div>
+            ))}
+          </div>
+
+          <p style={{ marginTop: 28, fontSize: 22, color: "#f5f5f5", fontWeight: 600, textAlign: "center" }}>
+            <Editable value={slides.cases.closer} onChange={v => updateSlide('cases', 'closer', v)} multiline />
+          </p>
+        </div>
+      </Slide>
+
+      {/* SLIDE 11: PARTNERSHIP — red + green dual aurora */}
+      <Slide num={11} total={13} decor={
         <>
           <div className="aurora red"   style={{ left: -200, top: "30%", width: 600, height: 600, opacity: 0.3 }} />
           <div className="aurora green" style={{ right: -200, top: "30%", width: 600, height: 600 }} />
@@ -1400,8 +1600,8 @@ function PitchPageContent() {
         </div>
       </Slide>
 
-      {/* SLIDE 10: RECAP — aurora */}
-      <Slide num={10} decor={
+      {/* SLIDE 12: RECAP — aurora */}
+      <Slide num={12} total={13} decor={
         <div className="aurora red" style={{ right: -200, top: "50%", width: 700, height: 700, opacity: 0.3 }} />
       }>
         <div style={{ flex: 1, display: "flex", flexDirection: "column", width: "100%" }}>
@@ -1444,9 +1644,9 @@ function PitchPageContent() {
         </div>
       </Slide>
 
-      {/* SLIDE 11 (OPTIONAL): INVESTIMENTO — aurora + receipt */}
+      {/* SLIDE 13 (OPTIONAL): INVESTIMENTO — aurora + receipt */}
       {showInvestimento && (
-        <Slide num={11} decor={
+        <Slide num={13} total={13} decor={
           <>
             <div className="aurora red"  style={{ right: -200, top: -100, width: 700, height: 700, opacity: 0.35 }} />
             <div className="aurora deep" style={{ left: -200, bottom: -100, width: 700, height: 700 }} />
@@ -1637,8 +1837,58 @@ function buildDefaultSlides(creator) {
         'In the end, you have predictable monthly revenue, a community that\'s yours, and a team running your business.'
       ),
     },
+    // NEW SLIDE — concrete community spec the creator can visualize.
+    // Editable; team fills with values from the generated offer's "Output 1: THE COMMUNITY" section.
+    community: {
+      title: t('A Tua Comunidade', 'Your Community'),
+      subtitle: t('Aqui está o que vamos construir para ti.', 'Here is what we will build for you.'),
+      nameCandidate: t('[Nome da Comunidade]', '[Community Name]'),
+      platform: 'Skool',
+      mechanic: t(
+        '[1 evento ao vivo/semana + drops semanais + grupo privado para Q&A diário]',
+        '[1 live event/week + weekly drops + private feed for daily Q&A]'
+      ),
+      tiers: lang === 'en' ? [
+        { name: 'Founders Circle', price: '€297/mo', note: '1-on-1 + masterclasses' },
+        { name: 'Annual Prepay', price: '€390/yr', note: '2 months free' },
+        { name: 'Monthly', price: '€39/mo', note: 'Recommended' },
+      ] : [
+        { name: 'Founders Circle', price: '€297/mês', note: '1-on-1 + masterclasses' },
+        { name: 'Anual', price: '€390/ano', note: '2 meses grátis' },
+        { name: 'Mensal', price: '€39/mês', note: 'Recomendado' },
+      ],
+      rhythm: lang === 'en' ? [
+        '[Mon: weekly drop]', '[Tue: live event 19h]', '[Thu: live Q&A]', '[Fri: community challenge]',
+      ] : [
+        '[Seg: drop semanal]', '[Ter: evento ao vivo 19h]', '[Qui: live Q&A]', '[Sex: desafio comunitário]',
+      ],
+      bonuses: lang === 'en' ? [
+        '[Month 2: bonus pack]', '[Month 6: 1-on-1 deep dive]', '[Month 12: in-person dinner]',
+      ] : [
+        '[Mês 2: bonus pack]', '[Mês 6: 1-on-1 profundo]', '[Mês 12: jantar privado]',
+      ],
+      differentiator: t(
+        '[O que torna isto diferente — uma frase. Algo que comunidades semelhantes não têm.]',
+        '[What makes this different — one sentence. Something similar communities don\'t have.]'
+      ),
+    },
     audience: {
       title: t('A Tua Audiência', 'Your Audience'),
+    },
+    // NEW SLIDE — proof. Real Skool communities in the creator's niche.
+    // Defaults are placeholder; the team fills these from the offer's "Output 2: SIMILAR CASES".
+    cases: {
+      title: t('Casos similares', 'Similar Cases'),
+      subtitle: t('Comunidades reais no Skool/Whop com este perfil. Dados públicos.', 'Real Skool/Whop communities with this profile. Public data.'),
+      items: [
+        { name: '[Nome]', niche: '[Nicho]', members: '[X membros]', price: '€[X]/mês', mrr: '~€[X]K MRR', resume: '[1-line resume]', why: '[Why this matters for the creator]' },
+        { name: '[Nome]', niche: '[Nicho]', members: '[X membros]', price: '€[X]/mês', mrr: '~€[X]K MRR', resume: '[1-line resume]', why: '[Why this matters for the creator]' },
+        { name: '[Nome]', niche: '[Nicho]', members: '[X membros]', price: '€[X]/mês', mrr: '~€[X]K MRR', resume: '[1-line resume]', why: '[Why this matters for the creator]' },
+      ],
+      closer: t(
+        'O nosso modelo está a fazer isto acontecer noutros nichos hoje. O teu é o próximo.',
+        'Our model is making this happen in other niches today. Yours is next.'
+      ),
     },
     buildOperate: {
       buildTitle: t('O Que Construímos', 'What We Build'),

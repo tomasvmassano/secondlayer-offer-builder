@@ -474,9 +474,10 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
       if (meetingContext) msg += `\n## MEETING NOTES (from direct conversation with the creator)\n\n${meetingContext}\n`;
       msg += `\n---\nGenerate all three outputs now. Follow system instructions and Hormozi frameworks exactly.\n**IMPORTANT: Write the ENTIRE output in ${(ae.language || "").toLowerCase().includes("portugu") ? "Português" : "English"}.** All section titles, analysis, tables, objection scripts — everything.`;
 
-      // Server-side composes: hundred-million-offers + money-model + pricing-plays
-      // skills get prepended to the OFFER_SYSTEM_PROMPT orchestration layer.
-      const r = await fetch("/api/generate", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ system: OFFER_SYSTEM_PROMPT, message: msg, skills: ['hundred-million-offers', 'money-model', 'pricing-plays'] }) });
+      // Pre-close offer: server-side composes Hormozi skills + REAL Skool case
+      // studies + the closing skill (so the objection-handling Output 6 uses the
+      // blame-bucket classification with a named close per objection).
+      const r = await fetch("/api/generate", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ system: OFFER_SYSTEM_PROMPT, message: msg, skills: ['hundred-million-offers', 'money-model', 'pricing-plays', 'case-studies', 'closing'] }) });
       if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || "API error");
       const d = await r.json();
       const text = d.content?.map(c => c.text || "").join("\n") || "";
