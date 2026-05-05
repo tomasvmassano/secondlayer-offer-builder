@@ -4,6 +4,8 @@
   "description": "",
   "scripts": {
     "dev": "next dev --port 3001",
+    "build:skills": "node scripts/build-skills.mjs",
+    "prebuild": "npm run build:skills",
     "build": "next build",
     "start": "next start"
   },
