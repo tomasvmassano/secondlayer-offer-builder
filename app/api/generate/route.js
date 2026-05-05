@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { loadSkills, formatReferences } from '../../lib/skills';
 
 export async function POST(request) {
   const apiKey = process.env.ANTHROPIC_API_KEY;
@@ -19,12 +20,28 @@ export async function POST(request) {
     );
   }
 
-  const { system, message } = body;
+  const { system, message, skills: requestedSkills } = body;
   if (!message) {
     return NextResponse.json(
       { error: 'Missing required field: message' },
       { status: 400 }
     );
+  }
+
+  // Compose final system prompt: skills (if requested) + caller's system text.
+  // Skills are loaded server-side from the compiled bundle so they don't ship
+  // in the client JS. Caller passes ['hundred-million-offers', 'money-model', ...].
+  let composedSystem = system || '';
+  if (Array.isArray(requestedSkills) && requestedSkills.length > 0) {
+    try {
+      const { systemPrompt: skillsPrompt, references } = loadSkills(requestedSkills);
+      const refsBlock = references.length > 0
+        ? '\n\n---\n\n## DEEPER REFERENCES\n\n' + formatReferences(references, 30000)
+        : '';
+      composedSystem = `${skillsPrompt}${refsBlock}\n\n---\n\n${composedSystem}`.trim();
+    } catch (err) {
+      return NextResponse.json({ error: `Skill load failed: ${err.message}` }, { status: 400 });
+    }
   }
 
   try {
@@ -38,7 +55,7 @@ export async function POST(request) {
       body: JSON.stringify({
         model: 'claude-sonnet-4-20250514',
         max_tokens: 16000,
-        system: system || '',
+        system: composedSystem,
         messages: [{ role: 'user', content: message }],
       }),
     });

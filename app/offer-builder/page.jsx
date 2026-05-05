@@ -442,7 +442,8 @@ export default function OfferBuilder() {
       const r = await fetch("/api/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ system: SYSTEM_PROMPT, message: msg }),
+        // Server prepends Hormozi skills (offers + money-model + pricing-plays) to SYSTEM_PROMPT.
+        body: JSON.stringify({ system: SYSTEM_PROMPT, message: msg, skills: ['hundred-million-offers', 'money-model', 'pricing-plays'] }),
       });
       if (!r.ok) { const e = await r.json().catch(() => ({})); throw new Error(e?.error || "API error " + r.status); }
       const d = await r.json();

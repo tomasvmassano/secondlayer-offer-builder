@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { loadSkills, formatReferences } from '../../lib/skills';
 
 // ─────────────────────────────────────────────────────────────────
 // DM WRITER — two lean system prompts (PT and EN).
@@ -291,7 +292,42 @@ export async function POST(request) {
   const ytS = cp.platforms?.youtube?.subscribers || 0;
 
   const language = (body.language || cp.primaryLanguage || 'pt').toLowerCase() === 'en' ? 'en' : 'pt';
-  const systemPrompt = language === 'en' ? DM_SYSTEM_EN : DM_SYSTEM_PT;
+  const baseSystemPrompt = language === 'en' ? DM_SYSTEM_EN : DM_SYSTEM_PT;
+
+  // Layer Hormozi knowledge ABOVE the brand-locked templates so the LLM picks
+  // tighter variables (better hooks, blame-aware framing, channel-correct tone)
+  // without paraphrasing the locked Raul templates.
+  //   - hooks       → the DM opener variable (como_cheguei + reacao_pessoal) is a hook; pick across 7 verbal types
+  //   - core-four   → THIS endpoint is the Cold Outreach channel — pacing, list-quality, personalization rules apply
+  //   - closing     → STAR pre-qualification + Validate-then-transition tone for the observacao_dor + pitch paragraph
+  const { systemPrompt: skillsPrompt, references: skillsRefs } = loadSkills(['hooks', 'core-four', 'closing']);
+  const refsContext = formatReferences(skillsRefs, 20000);
+  const layeredKnowledge = `## DEEP KNOWLEDGE LAYER — apply WITHOUT paraphrasing the brand-locked templates below.
+
+${skillsPrompt}
+
+${refsContext ? `\n---\n\n## REFERENCE MATERIAL\n\n${refsContext}\n\n---\n` : ''}
+
+## HOW TO USE THIS KNOWLEDGE WITH THE BRAND TEMPLATES
+
+The Raul templates that follow are LOCKED — do not paraphrase any sentence. Use the Hormozi knowledge above to make BETTER VARIABLE CHOICES:
+
+1. **como_cheguei** — this is your hook's call-out + value-promise hint. Apply hooks taxonomy (Narrative or Statement type works best here): cite the SPECIFIC piece of content (a real reel, podcast, post). Never generic.
+
+2. **reacao_pessoal** — your validate-then-transition opener (per closing skill). Genuine human reaction, not sycophancy.
+
+3. **observacao_dor** — STAR-style observation (per closing skill): show you've audited their Situation. Surface the GAP that signals high LTGP potential (per money-model thinking — usually a missing Continuity stage or no Attraction Offer).
+
+4. The pitch paragraph (locked) maps to value-based pricing + recurring-revenue continuity per pricing-plays + money-model. Don't restate; the locked text already does it.
+
+5. The CTA (locked: "Faz sentido?" / "Does it make sense?") IS the soft Yes/Open Question close from the closing skill. Don't change it.
+
+NEVER override the locked templates. ONLY use this knowledge for the 3 variables and for staying inside the cold-outreach pacing rules of core-four (Rule of 100, no broadcast spam).
+
+---
+
+`;
+  const systemPrompt = layeredKnowledge + baseSystemPrompt;
 
   // Concise profile summary
   const recentPosts = (cp.platforms?.instagram?.recentPosts || []).slice(0, 5).map(p =>
