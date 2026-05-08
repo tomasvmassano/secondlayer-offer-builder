@@ -7,14 +7,19 @@ export function Badge({ status }) {
 }
 
 // ─────────────────────────────────────────────────────────────────
-// OFFER PARSER — extracts all 6 outputs of the new Offer Builder
+// OFFER PARSER — extracts the new A-O Hormozi format (15 sections)
 // into structured fields the pitch deck reads from.
+//
+// New format (v3.0): sections A-O with "## A. AVALIAÇÃO DE MERCADO" headers.
+// Old format (v2.0): sections "## OUTPUT 1" through "## OUTPUT 6".
+// Both are detected — keeps existing offers in Redis backward-compatible.
 //
 // Resilient to: minor LLM formatting variance, missing sections,
 // language switches (PT/EN). Falls back to raw text if a section
 // is missing — never throws.
 // ─────────────────────────────────────────────────────────────────
 
+// Old format: 6 numbered outputs.
 const OUTPUT_HEADERS = [
   /#{1,4}\s*(?:OUTPUT|SA[IÍ]DA|RESULTADO)\s*1[^\n]*/i,  // 0 — Community
   /#{1,4}\s*(?:OUTPUT|SA[IÍ]DA|RESULTADO)\s*2[^\n]*/i,  // 1 — Cases
@@ -37,6 +42,42 @@ function splitByOutputs(text) {
     sections[i] = text.slice(startBody, end).trim();
   }
   return sections;
+}
+
+// New format: detect "## <LETTER>." section headers (## A. ... through ## O.).
+// Tolerant to: ##, ###, optional bold markers, optional whitespace.
+function sectionHeaderRe(letter) {
+  return new RegExp(`(?:^|\\n)\\s*#{1,4}\\s*\\**\\s*${letter}\\.\\s+`, 'i');
+}
+
+// Extract one section by letter. Returns the body between the section header
+// and the start of the next section letter (or end of document).
+function extractSection(text, letter) {
+  if (!text) return '';
+  const startRe = sectionHeaderRe(letter);
+  const startMatch = text.match(startRe);
+  if (!startMatch) return '';
+  const headerEnd = text.indexOf('\n', startMatch.index + startMatch[0].length);
+  const startIdx = headerEnd === -1 ? text.length : headerEnd + 1;
+  // Find next letter A-Z header after this one.
+  const code = letter.toUpperCase().charCodeAt(0);
+  let endIdx = text.length;
+  for (let i = code + 1; i <= 'Z'.charCodeAt(0); i++) {
+    const next = String.fromCharCode(i);
+    const m = text.slice(startIdx).match(sectionHeaderRe(next));
+    if (m) { endIdx = startIdx + m.index; break; }
+  }
+  return text.slice(startIdx, endIdx).trim();
+}
+
+// Detect whether text is in the new A-O format.
+function isNewFormat(text) {
+  // Look for at least 3 of the canonical section letters (A, D, E, K) — the ones
+  // the pitch deck depends on. 3+ matches → confidently new format.
+  const probes = ['A', 'D', 'E', 'K', 'L'];
+  let hits = 0;
+  for (const l of probes) if (sectionHeaderRe(l).test(text)) hits++;
+  return hits >= 3;
 }
 
 // ─── Tolerant matchers ─────────────────────────────────────────
@@ -241,25 +282,65 @@ function parseValueStack(block) {
 }
 
 // ─── Main parser ───
+//
+// Returns:
+//   offer       — markdown shown on the "Grand Slam Offer" tab (engineering
+//                 layer + community + cases; excludes math/blindspots/objections
+//                 which have their own tabs).
+//   blindspots  — markdown for the "Blind Spot Audit" tab.
+//   objections  — markdown for the "Objection Playbook" tab.
+//   math        — markdown used by the projection/revenue tools.
+//   community   — structured spec for pitch slide "A Tua Comunidade".
+//   cases       — array for pitch slide "Casos Similares".
+//   uniqueMechanism — for pitch slide "O Sistema".
+//   valueStack  — for pitch slide "O Valor".
 export function parseOutput(text) {
   if (!text) return { raw: text, offer: '', blindspots: '', objections: '' };
 
-  const [outCommunity, outCases, outMath, outGrandSlam, outBlindSpots, outObjections] = splitByOutputs(text);
+  // ─── New format (v3.0): A-O sections ───
+  if (isNewFormat(text)) {
+    const secD = extractSection(text, 'D');
+    const secE = extractSection(text, 'E');
+    const secK = extractSection(text, 'K');
+    const secL = extractSection(text, 'L');
+    const secM = extractSection(text, 'M');
+    const secN = extractSection(text, 'N');
+    const secO = extractSection(text, 'O');
 
-  // Backward-compat fields (offer/blindspots/objections used by existing UI tabs).
-  const result = {
-    offer:       outCommunity || outGrandSlam || text,
-    blindspots:  outBlindSpots,
-    objections:  outObjections,
-    // New structured fields the pitch deck reads.
-    community:        parseCommunity(outCommunity),
-    cases:            parseCases(outCases),
-    math:             outMath,                              // raw markdown for now (Slide 9 already has its own math UI)
-    uniqueMechanism:  parseUniqueMechanism(outGrandSlam),
-    valueStack:       parseValueStack(outGrandSlam),
-    grandSlamRaw:     outGrandSlam,
+    // The "Grand Slam Offer" tab shows everything from A through L (engineering
+    // + community + cases). M/N/O have their own tabs. If we can find the M
+    // header, slice up to it; otherwise fall back to the full text.
+    const mHeader = text.match(sectionHeaderRe('M'));
+    const offerView = mHeader ? text.slice(0, mHeader.index).trim() : text;
+
+    // Parsers below scan whole text — they look for explicit field markers
+    // wherever they appear, so they're tolerant if a section is mis-lettered.
+    return {
+      offer:           offerView,
+      blindspots:      secN,
+      objections:      secO,
+      community:       parseCommunity(secK || text),
+      cases:           parseCases(secL || text),
+      math:            secM,
+      uniqueMechanism: parseUniqueMechanism(secD || text),
+      valueStack:      parseValueStack(secE || text),
+      grandSlamRaw:    text,
+    };
+  }
+
+  // ─── Old format (v2.0): OUTPUT 1-6 ───
+  const [outCommunity, outCases, outMath, outGrandSlam, outBlindSpots, outObjections] = splitByOutputs(text);
+  return {
+    offer:           outCommunity || outGrandSlam || text,
+    blindspots:      outBlindSpots,
+    objections:      outObjections,
+    community:       parseCommunity(outCommunity),
+    cases:           parseCases(outCases),
+    math:            outMath,
+    uniqueMechanism: parseUniqueMechanism(outGrandSlam),
+    valueStack:      parseValueStack(outGrandSlam),
+    grandSlamRaw:    outGrandSlam,
   };
-  return result;
 }
 
 export function renderInline(t) {
