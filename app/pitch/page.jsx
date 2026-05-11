@@ -1159,24 +1159,24 @@ function PitchPageContent() {
               <div style={{ fontSize: 12, fontWeight: 700, color: "#1F8A4C", letterSpacing: "0.22em", textTransform: "uppercase", marginBottom: 14 }}>
                 {creator?.primaryLanguage === 'en' ? 'Pre-recorded library' : 'Biblioteca pré-gravada'}
               </div>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, flex: 1 }}>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 18, flex: 1 }}>
                 {slides.system.library.map((m, i) => (
-                  <div key={i} style={{ padding: "14px 14px", background: "rgba(31,138,76,0.04)", border: "1px solid rgba(31,138,76,0.2)", borderRadius: 8, display: "flex", flexDirection: "column" }}>
+                  <div key={i} style={{ padding: "18px 20px", background: "rgba(31,138,76,0.04)", border: "1px solid rgba(31,138,76,0.2)", borderRadius: 10, display: "flex", flexDirection: "column" }}>
                     {m.format && (
-                      <div style={{ fontFamily: "'JetBrains Mono', ui-monospace, monospace", fontSize: 9, color: "#1F8A4C", letterSpacing: "0.16em", textTransform: "uppercase", marginBottom: 6 }}>
+                      <div style={{ fontFamily: "'JetBrains Mono', ui-monospace, monospace", fontSize: 11, color: "#1F8A4C", letterSpacing: "0.16em", textTransform: "uppercase", marginBottom: 10 }}>
                         <Editable value={m.format} onChange={v => {
                           const next = [...slides.system.library]; next[i] = { ...m, format: v };
                           updateSlide('system', 'library', next);
                         }} />
                       </div>
                     )}
-                    <div style={{ ...italicSerif, fontSize: 18, color: "#f5f5f5", lineHeight: 1.15, marginBottom: 4 }}>
+                    <div style={{ ...italicSerif, fontSize: 26, color: "#f5f5f5", lineHeight: 1.15, marginBottom: 8 }}>
                       <Editable value={m.name} onChange={v => {
                         const next = [...slides.system.library]; next[i] = { ...m, name: v };
                         updateSlide('system', 'library', next);
                       }} />
                     </div>
-                    <p style={{ margin: 0, fontSize: 12, color: "#9a9890", lineHeight: 1.4 }}>
+                    <p style={{ margin: 0, fontSize: 15, color: "#B8B8B8", lineHeight: 1.45 }}>
                       <Editable value={m.desc} onChange={v => {
                         const next = [...slides.system.library]; next[i] = { ...m, desc: v };
                         updateSlide('system', 'library', next);

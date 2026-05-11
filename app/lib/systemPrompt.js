@@ -310,17 +310,52 @@ The Tier prices in this section MUST match Section G. The Primary community name
 - <Day>: <...>
 - <Day>: <...>
 
-**Weekly Content Formats:** (NAMED, branded weekly programs the community runs. This is the "Diagnóstico" slide — the creator sees them and visualizes shooting Monday's content. Each format MUST have a magnetic ™-style name tied to the creator's niche language, NOT generic labels like "Q&A" or "Live". Pull naming language from the creator's TOP-PERFORMING CONTENT (audience signals provided in user message). 4 formats, one per active day. Use Portuguese day labels (Seg/Ter/Qua/Qui/Sex/Sáb/Dom) when the creator's primary language is Portuguese; otherwise English (Mon/Tue/...).
+**Weekly Content Formats:** (4 NAMED, branded weekly programs the community ships. This is the slide the creator visualizes themselves filming. Each format MUST have a magnetic name — never a generic label like "Q&A", "Live", "Tips", "Tutorial". Pull naming language from the creator's niche AND from their TOP-PERFORMING CONTENT (audience signals provided in the user message).
+
+NAMING RULES (mix two styles — pick whichever fits this niche better, per format):
+   • STYLE A — Editorial / moment-as-artifact (use for lifestyle, food, parenting, content niches): noun-phrases in the creator's primary language, naming a MOMENT or ARTIFACT (something the member receives or attends). Examples: "Carta da Semana", "A Mesa", "Pequeno-almoço da Semana", "Lista da Semana", "Vitória da Semana", "Mise en Place".
+   • STYLE C — Insider lingo / tribal jargon (use for fitness, finance, real estate, ecommerce, business niches): borrowed terms from the trade — English welcomed when it's authentic to the field. Examples: "Sweat Session", "PR Friday", "Property Drop", "Investor's Circle", "Store Surgery", "Deal Lab", "Founders' Floor".
+
+DO mix the two styles within the same creator when it fits — e.g. for a fitness creator: "Plano da Semana" (A) + "Sweat Session" (C) + "Form Lab" (C) + "Vitória de Domingo" (A). What MUST NOT happen: generic labels, English-only names for a Portuguese lifestyle creator, or names that could apply to any creator.
+
+4 formats, one per active day. Use Portuguese day labels (Seg/Ter/Qua/Qui/Sex/Sáb/Dom) when the creator's primary language is Portuguese; otherwise English (Mon/Tue/...). The format line MUST follow this exact pattern (parser depends on the · and : and — separators):
+
 - Day · "Format Name™": Type — 1-sentence description of what happens inside it
 - Day · "Format Name™": Type — 1-sentence description
 - Day · "Format Name™": Type — 1-sentence description
 - Day · "Format Name™": Type — 1-sentence description
 
-Example for a cooking creator (Carrinho Consciente):
-- Seg · "Carta da Semana": Post — Lia envia 10–15 produtos para comprar essa semana com marcas/preços/supermercados reais
-- Qua · "Mise en Place": Live 30min — audiência envia fotos de produtos do supermercado e Lia analisa em direto
-- Sáb · "Cozinhar Juntos": Vídeo — refeição completa montada a partir da Lista de Segunda
-- Dom · "A Mesa": Comunidade — membros partilham achados da semana e Lia comenta os mais interessantes
+WORKED EXAMPLES — match this depth + naming quality per niche:
+
+Cooking (Rui Tomás · Gastronomia portuguesa):
+- Seg · "Carta da Semana™": Post — Rui partilha o menu da semana com lista de compras + onde comprar cada ingrediente
+- Qua · "Mise en Place™": Live 30min — Rui prepara o prato da semana ao vivo, audiência pergunta em tempo real
+- Sáb · "Cozinhar Juntos™": Vídeo — receita completa filmada do início ao fim, replicável em 45min
+- Dom · "A Mesa™": Comunidade — membros partilham o prato que cozinharam, Rui comenta os melhores
+
+Nutrição / Consciência alimentar (Lia · Carrinho Consciente):
+- Seg · "Lista da Semana™": Post — Lia envia 10-15 produtos para comprar essa semana com marcas/preços/supermercados reais
+- Qua · "Análise de Rótulo ao Vivo™": Live 30min — audiência envia fotos do supermercado e Lia analisa em direto se vale a pena ou não
+- Sáb · "Pequeno-almoço da Semana™": Vídeo — receita anti-pico-glicémico montada a partir da Lista de Segunda
+- Dom · "Vitória da Semana™": Comunidade — membros publicam o "achado" da semana, Lia comenta os mais interessantes
+
+Fitness / Performance coaching (Catarina · PT Coach):
+- Seg · "Plano da Semana™": Post — Catarina lança o plano de treinos + nutrição para os 7 dias com vídeos demo
+- Qua · "Form Lab™": Live 30min — membros gravam série, postam, Catarina corrige forma em direto
+- Sáb · "Sweat Session™": Vídeo — treino completo guiado, 45min, replicável em casa ou no ginásio
+- Dom · "PR Friday™" (no domingo): Comunidade — membros publicam o personal record da semana e Catarina destaca os melhores
+
+E-commerce / Dropshipping (Yomi Denzel · Empire Builders):
+- Seg · "Product Drop™": Post — Yomi partilha 3-5 produtos validados com dados de pesquisa + supplier links
+- Qua · "Store Surgery™": Live 30min — Yomi audita 5 lojas de membros em direto, conversion + pricing + copy
+- Sáb · "Build with Yomi™": Vídeo — Yomi constrói uma loja completa do zero, do produto à primeira venda
+- Dom · "Founders' Floor™": Comunidade — discussão estratégica entre membros que já facturam 5+ figuras, Yomi modera
+
+Imobiliário / Investimento (João · Investidor Imobiliário):
+- Seg · "Boletim do Mercado™": Post — João partilha 3 oportunidades reais com análise rápida (zona, ROI, riscos)
+- Qua · "Deal Lab™": Live 30min — membros submetem negócios em consideração, João avalia em direto
+- Sáb · "Property Drop™": Vídeo — visita guiada a um imóvel real com análise completa de viabilidade
+- Dom · "Investor's Circle™": Comunidade — discussão entre investidores ativos, partilha de leads off-market, João modera
 
 **Pre-recorded Library:** (Modules the creator records ONCE and lives in the vault forever. Themes drawn DIRECTLY from the creator's TOP-PERFORMING CONTENT topics provided in the user message — if the audience already engages with "viral hooks", give them a "Viral Hooks Library™". Each module is a ™-branded asset, not a generic course chapter. 6 modules.
 - "Module Name™" — Format (PDF | masterclass | mini-course | calculator | template pack | audio program) — 1-sentence theme description tied to a top-performing post

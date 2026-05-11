@@ -189,25 +189,73 @@ function parseTier(subBlock) {
   return { name, price, note };
 }
 
-// Parse a "Day · 'Name': Type — description" line into {day, name, type, desc}.
-// Tolerant to dot/space/middle-dot separator, optional quotes, en-dash/em-dash/hyphen
-// before description, optional trademark mark.
+// Parse a weekly-format bullet into {day, name, type, desc}. Designed to swallow
+// almost any separator pattern an LLM might emit, since the same intent shows up
+// in wildly different syntaxes:
+//
+//   - Seg · "Carta da Semana™": Post — Rui partilha o menu da semana
+//   - Seg — Carta da Semana™ — Post — Rui partilha...
+//   - Seg: Name™ (Post) — desc
+//   - **Seg** · Name™ | Type | desc
+//   - Segunda · "Name™": Live 30min — desc
+//
+// Strategy: a 4-step tokenizer instead of one giant regex.
 function parseWeeklyFormatLine(line) {
-  const cleaned = line.replace(/\*\*/g, '').trim();
-  // Format: "Day · 'Name': Type — description"
-  // Day can be: Seg|Ter|Qua|Qui|Sex|Sáb|Sab|Dom|Mon|Tue|Wed|Thu|Fri|Sat|Sun
-  // Separators between day/name: · . : - or whitespace
-  // Quotes around name: " ' " " optional; ™ marker optional inside
-  // After name and before type: ":" or "—" or "-"
-  // After type and before desc: "—" or "-" or ":"
-  const m = cleaned.match(
-    /^([A-Za-zÁÉÍÓÚáéíóú]+)\s*[·.:\-]\s*["'""]?([^"'""\n:—]+?)["'""™]*?\s*[:—\-]\s*([^—\-:\n]+?)\s*[—\-:]\s*(.+)$/
-  );
-  if (m) return { day: m[1].trim(), name: m[2].trim().replace(/™$/, '') + '™', type: m[3].trim(), desc: m[4].trim() };
-  // Looser fallback: "Day · 'Name': description" (no type separator)
-  const m2 = cleaned.match(/^([A-Za-zÁÉÍÓÚáéíóú]+)\s*[·.:\-]\s*["'""]?([^"'""\n:—]+?)["'""™]*?\s*[:—\-]\s*(.+)$/);
-  if (m2) return { day: m2[1].trim(), name: m2[2].trim().replace(/™$/, '') + '™', type: '', desc: m2[3].trim() };
-  return null;
+  if (!line) return null;
+  // Strip leading bullet, bold markers, and any wrapping brackets/asterisks.
+  let s = String(line).replace(/^\s*[-*•■]\s*/, '').replace(/\*\*/g, '').trim();
+
+  // STEP 1 — day token (short word, accented chars allowed).
+  const dayMatch = s.match(/^([A-Za-zÁÉÍÓÚÂÊÔÃÕáéíóúâêôãõ]{2,12})\.?/);
+  if (!dayMatch) return null;
+  const day = dayMatch[1];
+  s = s.slice(dayMatch[0].length).trim();
+
+  // STEP 2 — eat day→name separator (any combination of · . : - — / | space).
+  s = s.replace(/^[\s·•.:—\-–/|]+/, '').trim();
+
+  // STEP 3 — extract name. Either wrapped in quotes (any quote style) or read up
+  // to the next structural separator. Trailing ™ is normalized.
+  let name = '';
+  const QUOTE = `["'""'„«»]`;
+  const quoteRe = new RegExp(`^${QUOTE}([^${QUOTE.slice(1, -1)}\n]+?)${QUOTE}`);
+  const qm = s.match(quoteRe);
+  if (qm) {
+    name = qm[1].trim();
+    s = s.slice(qm[0].length).trim();
+  } else {
+    // No quotes — name runs until the next : — - · | ( or end of line.
+    const nm = s.match(/^([^:—\-·|()\n,]+?)(?=\s*[:—\-·|(,]|$)/);
+    if (nm) {
+      name = nm[1].trim();
+      s = s.slice(nm[0].length).trim();
+    }
+  }
+  if (!name) return null;
+  // Strip a trailing ™ if present, then always re-append so every name has it.
+  name = name.replace(/[™\s]+$/, '').trim();
+  if (name) name = name + '™';
+
+  // STEP 4 — eat name→type separator. May be `:`, `—`, `·`, `|`, `,` or `(`.
+  let typeInParen = false;
+  s = s.replace(/^[\s·•.:—\-–/|,]+/, '').trim();
+  if (s.startsWith('(')) { s = s.slice(1).trim(); typeInParen = true; }
+
+  // STEP 5 — type + description. Type is a short label (≤ 32 chars) followed by
+  // a separator. If no separator is found inside the cap, treat everything as desc.
+  let type = '';
+  let desc = '';
+  if (typeInParen) {
+    const m = s.match(/^([^)\n]{1,40}?)\)\s*[\s·•.:—\-–/|,]*\s*(.*)$/);
+    if (m) { type = m[1].trim(); desc = m[2].trim(); }
+    else { desc = s.replace(/^[^)\n]*\)?\s*/, '').trim(); }
+  } else {
+    const m = s.match(/^([^:—\-·|()\n,]{1,32}?)\s*[:—\-–·|,]\s*(.+)$/);
+    if (m) { type = m[1].trim(); desc = m[2].trim(); }
+    else { desc = s; }
+  }
+
+  return { day, name, type, desc };
 }
 
 // Parse a '"Name" — Format — description' library line.
