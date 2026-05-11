@@ -113,6 +113,7 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
   const [editName, setEditName] = useState(false);
   const [showResearch, setShowResearch] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [runningFullScrape, setRunningFullScrape] = useState(false);
   const nameRef = useRef(null);
 
   // DM Writer state
@@ -507,6 +508,42 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
     } catch (e) { setOfferError(e.message); } finally { setOfferLoading(false); }
   }, [creator, offerForm, patchCreator]);
 
+  // Run full scrape — upgrades a lean creator with the deep IG + TikTok +
+  // YouTube + bio-link products + web-search competitors data needed to build
+  // the offer. Long-running (up to ~90s). Refreshes the creator on completion.
+  const runFullScrape = useCallback(async () => {
+    if (!creator?.id) return;
+    const links = [
+      creator.platforms?.instagram?.url,
+      creator.tiktokUrl || creator.platforms?.tiktok?.url,
+      creator.youtubeUrl || creator.platforms?.youtube?.url,
+    ].filter(Boolean);
+    if (links.length === 0) {
+      window.alert('Este creator não tem links de plataforma para scrape.');
+      return;
+    }
+    if (!window.confirm(`Correr full scrape para ${creator.name}?\n\nVai correr:\n• Instagram (deep + bot detector)\n${creator.tiktokUrl || creator.platforms?.tiktok?.url ? '• TikTok\n' : ''}${creator.youtubeUrl || creator.platforms?.youtube?.url ? '• YouTube\n' : ''}• Bio-link products discovery\n• Web-search analysis (products + competitors)\n\nPode demorar até 90s.`)) return;
+    setRunningFullScrape(true);
+    setSaving('A correr full scrape...');
+    try {
+      const r = await fetch(`/api/creators/${creator.id}/full-scrape`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+      });
+      const data = await r.json();
+      if (!r.ok) throw new Error(data.error || 'Full scrape failed');
+      if (data.creator) setCreator(data.creator);
+      setSaving('Full scrape concluído');
+      setTimeout(() => setSaving(''), 2500);
+    } catch (err) {
+      setSaving('Erro: ' + (err.message || 'falhou'));
+      setTimeout(() => setSaving(''), 4000);
+    } finally {
+      setRunningFullScrape(false);
+    }
+  }, [creator]);
+
   // Re-parse button — re-runs parseOutput on existing offer.raw without burning a new API call.
   // Useful when parser improves and stale parsed data needs refresh.
   const reparseOffer = useCallback(async () => {
@@ -654,6 +691,29 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
               })()}
               {dealScore && <span style={{ fontSize: 11, fontWeight: 700, color: dealScore.colors.color, padding: "3px 8px", background: dealScore.colors.bg, border: `1px solid ${dealScore.colors.border}`, borderRadius: 4 }}>Score {dealScore.grade} ({dealScore.score})</span>}
               {dealScore?.nicheData && <span style={{ fontSize: 11, color: "#555", padding: "3px 8px", background: "rgba(255,255,255,0.02)", borderRadius: 4 }}>€{dealScore.nicheData.mid}/mês</span>}
+              {/* Scrape-level chip — lean = top-of-funnel (IG only), full = ready to build offer */}
+              {(() => {
+                const level = creator.scrapeLevel || (creator.intelligence?.bioLinks?.length || creator.platforms?.tiktok?.followers || creator.platforms?.youtube?.subscribers ? 'full' : 'lean');
+                if (level === 'full') {
+                  return (
+                    <span title="Full scrape concluído — IG deep + TikTok + YouTube + products + competitors" style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", padding: "3px 8px", borderRadius: 4, background: "rgba(34,197,94,0.08)", color: "#22c55e", border: "1px solid rgba(34,197,94,0.25)" }}>● Full</span>
+                  );
+                }
+                return (
+                  <span title="Lean scrape — só Instagram. Corre full scrape antes de gerar a offer." style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", padding: "3px 8px", borderRadius: 4, background: "rgba(234,179,8,0.08)", color: "#eab308", border: "1px solid rgba(234,179,8,0.25)" }}>○ Lean</span>
+                );
+              })()}
+              {/* Run Full Scrape button — appears for lean creators before they're signed */}
+              {creator.pipelineStatus !== 'signed' && (creator.scrapeLevel || 'lean') !== 'full' && (
+                <button
+                  onClick={runFullScrape}
+                  disabled={runningFullScrape}
+                  title="Corre o full scrape: Instagram deep + TikTok + YouTube + produtos do bio link + análise de competidores. Necessário antes de gerar a offer."
+                  style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", padding: "3px 10px", borderRadius: 4, background: runningFullScrape ? "rgba(255,255,255,0.04)" : "rgba(59,130,246,0.1)", color: runningFullScrape ? "#555" : "#3b82f6", border: `1px solid ${runningFullScrape ? "rgba(255,255,255,0.08)" : "rgba(59,130,246,0.25)"}`, cursor: runningFullScrape ? "wait" : "pointer", fontFamily: "inherit" }}
+                >
+                  {runningFullScrape ? "A scrapear..." : "↻ Full Scrape"}
+                </button>
+              )}
               {creator.pipelineStatus !== 'signed' && (
                 <button onClick={() => { if (window.confirm("Fechar deal com " + creator.name + "? Isto move o creator para o Pipeline.")) patchCreator({ pipelineStatus: 'signed', signedAt: new Date().toISOString() }); }}
                   style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", padding: "3px 10px", borderRadius: 4, background: "rgba(122,14,24,0.1)", color: "#7A0E18", border: "1px solid rgba(122,14,24,0.25)", cursor: "pointer", fontFamily: "inherit" }}>

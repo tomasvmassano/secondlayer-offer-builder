@@ -497,6 +497,96 @@ export async function scrapeMultiplePlatforms(instagramUrl, tiktokUrl, youtubeUr
 }
 
 /**
+ * LEAN multi-platform scrape — top of funnel.
+ *
+ * Hits Instagram ONLY (basic actor, no bot detector, no related profiles),
+ * just enough to compute the Deal Score and write a personalized DM.
+ * TikTok/YouTube URLs are stored as platform stubs (no scrape) so the
+ * Deal Score's Multi-Platform metric can still count them. Apify cost
+ * drops from ~€0.45-0.60 down to ~€0.10-0.12 per creator.
+ *
+ * Use this for new prospects. Promote to full via /api/creators/[id]/full-scrape
+ * once the creator engages — that's when we need TikTok/YouTube data + bot
+ * detector + bio-link product discovery to build the offer.
+ *
+ * Output shape mirrors scrapeMultiplePlatforms so the route logic in
+ * /api/creators is interchangeable.
+ */
+export async function scrapeLean(instagramUrl, tiktokUrl, youtubeUrl) {
+  if (!hasApify()) return { error: 'APIFY_TOKEN not configured', source: 'none' };
+
+  let igData = null;
+  if (instagramUrl) {
+    const match = instagramUrl.match(/instagram\.com\/([^/?]+)/i);
+    const username = match ? match[1].replace(/^@/, '') : '';
+    if (username) {
+      igData = await scrapeInstagramBasic(username).catch(() => null);
+    }
+  }
+
+  if (!igData && !instagramUrl) {
+    return { error: 'Lean scrape requires an Instagram URL', source: 'none' };
+  }
+
+  const name = igData?.name || 'Unknown';
+  const bio = igData?.bio || '';
+  const profilePicUrl = igData?.profilePicUrl || '';
+  const externalUrl = igData?.externalUrl || '';
+
+  const profile = {
+    name,
+    niche: '',
+    primaryPlatform: 'Instagram',
+    engagement: igData?.engagementRate || '',
+    bio,
+    externalUrl,
+    isVerified: igData?.isVerified || false,
+    isBusinessAccount: igData?.isBusinessAccount || false,
+    profilePicUrl,
+    platforms: {},
+    products: [],
+    bioLinks: [],
+    competitors: [],
+    reputation: '',
+    research: '',
+    scrapeLevel: 'lean',
+    leanScrapedAt: Date.now(),
+  };
+
+  if (igData) {
+    profile.platforms.instagram = {
+      followers: igData.followers || 0,
+      following: igData.following || 0,
+      postCount: igData.postCount || 0,
+      avgLikes: igData.avgLikes || 0,
+      avgComments: igData.avgComments || 0,
+      followerFollowingRatio: igData.followerFollowingRatio || '0',
+      engagementRate: igData.engagementRate || '',
+      url: instagramUrl,
+      recentPosts: (igData.recentPosts || []).slice(0, 5),
+    };
+  }
+  // Store TikTok/YouTube as URL-only stubs. Full-scrape upgrades these with
+  // real follower counts later.
+  if (tiktokUrl) {
+    profile.platforms.tiktok = { url: tiktokUrl, followers: 0, _stub: true };
+    profile.tiktokUrl = tiktokUrl;
+  }
+  if (youtubeUrl) {
+    profile.platforms.youtube = { url: youtubeUrl, subscribers: 0, _stub: true };
+    profile.youtubeUrl = youtubeUrl;
+  }
+
+  return {
+    source: 'apify-lean',
+    profile,
+    igRaw: igData,
+    tkRaw: null,
+    ytRaw: null,
+  };
+}
+
+/**
  * Convert Apify scrape data into our creator profile format
  */
 export function apifyToCreatorProfile(scrapeData, url) {
