@@ -674,20 +674,6 @@ function PitchPageContent() {
           pointer-events: none;
         }
 
-        /* Hero gradient number (slide 8) — display:inline-block helps html2canvas
-           apply the text-clip mask reliably; falls back to solid red if not supported. */
-        .hero-num {
-          display: inline-block;
-          color: #B11E2F;
-          background: linear-gradient(180deg, #FFFFFF 0%, #FF6478 60%, #B11E2F 100%);
-          -webkit-background-clip: text;
-          background-clip: text;
-          -webkit-text-fill-color: transparent;
-        }
-        @supports not ((-webkit-background-clip: text) or (background-clip: text)) {
-          .hero-num { color: #B11E2F; -webkit-text-fill-color: #B11E2F; background: none; }
-        }
-
         /* Audience dot grid */
         .dot-grid {
           display: grid;
@@ -796,7 +782,7 @@ function PitchPageContent() {
         }
         .receipt::before { top: -8px; }
         .receipt::after  { bottom: -8px; }
-        .receipt .r-line { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px dashed rgba(0,0,0,0.18); font-size: 14px; }
+        .receipt .r-line { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px dashed rgba(0,0,0,0.45); font-size: 14px; }
         .receipt .r-line.no-b { border: none; }
         .receipt .r-total { display: flex; justify-content: space-between; padding-top: 12px; font-weight: 700; font-size: 16px; }
 
@@ -1280,31 +1266,23 @@ function PitchPageContent() {
         <div className="aurora red" style={{ left: -200, top: -100, width: 600, height: 600, opacity: 0.3 }} />
       }>
         <div style={{ flex: 1, display: "flex", flexDirection: "column", width: "100%" }}>
-          {/* Top row: eyebrow + headline LEFT, "1 ponto = 1k seguidores" RIGHT */}
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
-            <div>
-              <div style={{ fontSize: 18, fontWeight: 600, color: "#B11E2F", letterSpacing: "0.28em", textTransform: "uppercase" }}>
-                {creator?.primaryLanguage === 'en' ? 'Audit' : 'Auditoria'}
-              </div>
-              <div style={{ height: 18 }} />
-              <h1 style={{ fontSize: 88, fontWeight: 800, margin: 0, lineHeight: 1.0, letterSpacing: "-0.03em", color: "#f5f5f5" }}>
-                <StyledLastWord
-                  text={slides.audience.title}
-                  italicStyle={{ ...italicSerif, color: "#B11E2F", fontSize: 92 }}
-                />
-              </h1>
+          {/* Eyebrow + headline */}
+          <div>
+            <div style={{ fontSize: 18, fontWeight: 600, color: "#B11E2F", letterSpacing: "0.28em", textTransform: "uppercase" }}>
+              {creator?.primaryLanguage === 'en' ? 'Audit' : 'Auditoria'}
             </div>
-            <div style={{ textAlign: "right" }}>
-              <div style={{ fontSize: 16, fontWeight: 600, color: "#8A8A8A", letterSpacing: "0.22em", textTransform: "uppercase", marginBottom: 6 }}>
-                {creator?.primaryLanguage === 'en' ? 'Each dot =' : 'Cada ponto ='}
-              </div>
-              <div style={{ fontFamily: "'JetBrains Mono', ui-monospace, monospace", fontSize: 22, color: "#f5f5f5" }}>1 000 {creator?.primaryLanguage === 'en' ? 'followers' : 'seguidores'}</div>
-            </div>
+            <div style={{ height: 18 }} />
+            <h1 style={{ fontSize: 88, fontWeight: 800, margin: 0, lineHeight: 1.0, letterSpacing: "-0.03em", color: "#f5f5f5" }}>
+              <StyledLastWord
+                text={slides.audience.title}
+                italicStyle={{ ...italicSerif, color: "#B11E2F", fontSize: 92 }}
+              />
+            </h1>
           </div>
 
           {/* Stat strip — full-width 4-card row */}
           <div style={{ marginTop: 36, display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 18 }}>
-            <div style={{ padding: "28px 32px", background: "rgba(15,15,15,0.78)", border: "1px solid rgba(177,30,47,0.55)", borderRadius: 14, boxShadow: "inset 0 0 0 1px rgba(177,30,47,0.18), 0 0 80px rgba(177,30,47,0.18)" }}>
+            <div style={{ padding: "28px 32px", background: "rgba(15,15,15,0.78)", border: "1px solid rgba(177,30,47,0.55)", borderRadius: 14 }}>
               <div style={{ fontSize: 16, fontWeight: 600, color: "#B11E2F", letterSpacing: "0.22em", textTransform: "uppercase", marginBottom: 14 }}>
                 {creator?.primaryLanguage === 'en' ? 'Total audience' : 'Audiência total'}
               </div>
@@ -1327,9 +1305,6 @@ function PitchPageContent() {
               <div style={{ fontSize: 32, fontWeight: 600, letterSpacing: "-0.02em", lineHeight: 1.1, color: "#f5f5f5" }}>{creator?.niche || '—'}</div>
             </div>
           </div>
-
-          {/* Dot grid */}
-          <DotGrid audience={audience} />
 
           {/* Audience estimate split into 4 columns inside the card */}
           {(translatedAudience || creator?.audienceEstimate) && (() => {
@@ -1531,13 +1506,13 @@ function PitchPageContent() {
           </h1>
 
           {/* Hero MRR — split layout: monthly LEFT, accumulated Year 1 RIGHT */}
-          <div style={{ marginTop: 32, padding: "36px 44px", background: "rgba(122,14,24,0.08)", border: "1px solid rgba(122,14,24,0.55)", borderRadius: 14, boxShadow: "inset 0 0 0 1px rgba(177,30,47,0.18), 0 0 80px rgba(177,30,47,0.18)", display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 40 }}>
+          <div style={{ marginTop: 32, padding: "36px 44px", background: "rgba(122,14,24,0.08)", border: "1px solid rgba(122,14,24,0.55)", borderRadius: 14, display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 40 }}>
             <div>
               <div style={{ fontSize: 16, fontWeight: 600, color: "#B11E2F", letterSpacing: "0.22em", textTransform: "uppercase", marginBottom: 14 }}>
                 <Editable value={slides.numbers.heroLabel} onChange={v => updateSlide('numbers', 'heroLabel', v)} />
               </div>
               <div style={{ lineHeight: 0.9, letterSpacing: "-0.02em" }}>
-                <span className="hero-num" style={{ ...italicSerif, fontSize: 124, fontWeight: 400 }}>{formatEuro(moderateSteadyMRR)}</span>
+                <span style={{ ...italicSerif, fontSize: 124, fontWeight: 400, color: "#B11E2F" }}>{formatEuro(moderateSteadyMRR)}</span>
                 <span style={{ fontSize: 38, color: "#8A8A8A", fontWeight: 500, marginLeft: 4 }}>/{creator?.primaryLanguage === 'en' ? 'mo' : 'mês'}</span>
               </div>
             </div>
@@ -1927,6 +1902,33 @@ function buildDefaultSlides(creator) {
   const cases = parsed.cases || [];
   const um = parsed.uniqueMechanism || {};
   const vs = parsed.valueStack || {};
+
+  // When parsed tiers are missing, derive sensible defaults from the offer's
+  // recommended monthly price (extracted by the offer-generation pipeline).
+  //   T1 monthly:           €P/mês
+  //   T2 annual prepay:     €(P × 10)/ano  (= 2 months free vs 12 × P)
+  //   T3 anchor (premium):  €(P × 5)/mês   (1-on-1 + masterclasses)
+  const recPrice = Number(creator?.revenuePrice) || null;
+  const fallbackTiers = recPrice
+    ? (lang === 'en' ? [
+        { name: 'Monthly',         price: `€${recPrice}/mo`,         note: 'Recommended' },
+        { name: 'Annual Prepay',   price: `€${recPrice * 10}/yr`,    note: '2 months free' },
+        { name: 'Founders Circle', price: `€${recPrice * 5}/mo`,     note: '1-on-1 + masterclasses' },
+      ] : [
+        { name: 'Mensal',          price: `€${recPrice}/mês`,        note: 'Recomendado' },
+        { name: 'Anual',           price: `€${recPrice * 10}/ano`,   note: '2 meses grátis' },
+        { name: 'Founders Circle', price: `€${recPrice * 5}/mês`,    note: '1-on-1 + masterclasses' },
+      ])
+    : (lang === 'en' ? [
+        { name: 'Monthly',         price: '€[X]/mo',  note: 'Recommended' },
+        { name: 'Annual Prepay',   price: '€[X]/yr',  note: '2 months free' },
+        { name: 'Founders Circle', price: '€[X]/mo',  note: '1-on-1 + masterclasses' },
+      ] : [
+        { name: 'Mensal',          price: '€[X]/mês', note: 'Recomendado' },
+        { name: 'Anual',           price: '€[X]/ano', note: '2 meses grátis' },
+        { name: 'Founders Circle', price: '€[X]/mês', note: '1-on-1 + masterclasses' },
+      ]);
+
   return {
     cover: {
       title: creator?.name || 'Creator',
@@ -2001,16 +2003,9 @@ function buildDefaultSlides(creator) {
         '[1 live event/week + weekly drops + private feed for daily Q&A]'
       ),
       // Tiers: parsed comes in [recommended, annual-prepay, anchor]; deck renders 3 cards
-      // with the LAST one (anchor) highlighted. Default order matches that.
-      tiers: c.tiers && c.tiers.length > 0 ? c.tiers : (lang === 'en' ? [
-        { name: 'Monthly', price: '€[X]/mo', note: 'Recommended' },
-        { name: 'Annual Prepay', price: '€[X]/yr', note: '2 months free' },
-        { name: 'Founders Circle', price: '€[X]/mo', note: '1-on-1 + masterclasses' },
-      ] : [
-        { name: 'Mensal', price: '€[X]/mês', note: 'Recomendado' },
-        { name: 'Anual', price: '€[X]/ano', note: '2 meses grátis' },
-        { name: 'Founders Circle', price: '€[X]/mês', note: '1-on-1 + masterclasses' },
-      ]),
+      // with the LAST one (anchor) highlighted. When the parser couldn't extract
+      // tiers from the offer, `fallbackTiers` synthesises them from creator.revenuePrice.
+      tiers: c.tiers && c.tiers.length > 0 ? c.tiers : fallbackTiers,
       rhythm: c.weeklyRhythm && c.weeklyRhythm.length > 0 ? c.weeklyRhythm : (lang === 'en' ? [
         '[Mon: weekly drop]', '[Tue: live event 19h]', '[Thu: live Q&A]', '[Fri: community challenge]',
       ] : [

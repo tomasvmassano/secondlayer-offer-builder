@@ -225,8 +225,12 @@ function parseUniqueMechanism(block) {
   const lettersListRaw = extractList(block, 'Unique Mechanism Letters', 'Letras do Mecanismo Único', 'Letras do Mecanismo', 'Mechanism Letters', 'Letras', 'Steps', 'Passos', 'Phases', 'Fases');
   const letters = lettersListRaw.map(line => {
     const cleaned = line.replace(/\*\*/g, '').trim();
-    // Format: "X — Word: 1 sentence" OR "X - Word: 1 sentence"
-    let m = cleaned.match(/^([A-Za-zÁÉÍÓÚ])\s*[—\-:]\s*([^:]+?)\s*[:\-]\s*(.+)$/);
+    // Phase-style: "Phase N — Word: 1 sentence" or "Fase N — Palavra: 1 frase".
+    // Display the number as the "letter" so it renders as a big 1/2/3 in the pitch deck.
+    let m = cleaned.match(/^(?:Phase|Fase|Step|Passo|Stage|Etapa)\s+(\d+)\s*[—\-]\s*([^:—\-]+?)\s*[:\-]\s*(.+)$/i);
+    if (m) return { letter: m[1].trim(), word: m[2].trim(), explanation: m[3].trim() };
+    // Acronym style: "X — Word: 1 sentence" OR "X - Word: 1 sentence"
+    m = cleaned.match(/^([A-Za-zÁÉÍÓÚ])\s*[—\-:]\s*([^:]+?)\s*[:\-]\s*(.+)$/);
     if (m) return { letter: m[1].trim(), word: m[2].trim(), explanation: m[3].trim() };
     // Fallback: "X — Word — explanation"
     m = cleaned.match(/^([A-Za-zÁÉÍÓÚ])\s*[—\-]\s*([^—\-]+)\s*[—\-]\s*(.+)$/);
