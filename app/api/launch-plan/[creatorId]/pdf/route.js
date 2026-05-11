@@ -1,8 +1,48 @@
 import { NextResponse } from 'next/server';
 import { jsPDF } from 'jspdf';
 import { getCreator } from '../../../../lib/creators';
+import fs from 'node:fs';
+import path from 'node:path';
 
 export const runtime = 'nodejs';
+
+// ── Custom font loading ─────────────────────────────────────────
+// We match the pitch deck's typography exactly: Geist (sans), Instrument
+// Serif Italic (emphasis serif), JetBrains Mono (labels / day pills / page
+// numbers). TTFs live in /public/fonts and are read once per process —
+// cached in module scope so cold-start cost only hits the first request.
+let FONT_CACHE = null;
+function loadFonts() {
+  if (FONT_CACHE) return FONT_CACHE;
+  try {
+    const dir = path.join(process.cwd(), 'public/fonts');
+    const out = {};
+    for (const f of [
+      ['Geist-Regular.ttf', 'Geist', 'normal'],
+      ['Geist-Bold.ttf', 'Geist', 'bold'],
+      ['InstrumentSerif-Italic.ttf', 'InstrumentSerif', 'italic'],
+      ['JetBrainsMono-Regular.ttf', 'JetBrainsMono', 'normal'],
+      ['JetBrainsMono-Medium.ttf', 'JetBrainsMono', 'bold'],
+    ]) {
+      const buf = fs.readFileSync(path.join(dir, f[0]));
+      out[f[0]] = { file: f[0], data: buf.toString('base64'), family: f[1], style: f[2] };
+    }
+    FONT_CACHE = out;
+    return out;
+  } catch (e) {
+    return null;
+  }
+}
+
+function registerFonts(doc, fonts) {
+  if (!fonts) return false;
+  for (const k of Object.keys(fonts)) {
+    const f = fonts[k];
+    doc.addFileToVFS(f.file, f.data);
+    doc.addFont(f.file, f.family, f.style);
+  }
+  return true;
+}
 
 // ─────────────────────────────────────────────────────────────────
 // Launch-Plan PDF generator
@@ -174,116 +214,186 @@ export async function GET(request, { params }) {
     const doc = new jsPDF({ unit: 'pt', format: 'a4', orientation: 'landscape' });
     const pageW = doc.internal.pageSize.getWidth();
     const pageH = doc.internal.pageSize.getHeight();
-    const margin = 48;
+    const margin = 56;
+
+    // Register the pitch-deck typeface trio. If any TTF is missing we fall
+    // back to the closest built-in jsPDF font so the route still renders.
+    const fontsLoaded = registerFonts(doc, loadFonts());
+    const SANS  = fontsLoaded ? 'Geist' : 'helvetica';
+    const SERIF = fontsLoaded ? 'InstrumentSerif' : 'times';
+    const MONO  = fontsLoaded ? 'JetBrainsMono' : 'courier';
+    // Instrument Serif only ships an italic cut → all serif emphasis uses 'italic'.
+    const SERIF_STYLE = fontsLoaded ? 'italic' : 'bolditalic';
 
     // ── Style helpers ──
     const setFill = (rgb) => doc.setFillColor(rgb[0], rgb[1], rgb[2]);
     const setText = (rgb) => doc.setTextColor(rgb[0], rgb[1], rgb[2]);
     const setDraw = (rgb) => doc.setDrawColor(rgb[0], rgb[1], rgb[2]);
 
-    // Paint the page black, then a soft red glow in a corner (simulated via
-    // a few translucent ellipses at decreasing radii). The GState API gives
-    // us alpha blending — we step back to default after the glow.
-    function paintBackground(glowCorner = 'tr') {
+    // Paint the page black, then a soft radial-style red glow in a corner.
+    // jsPDF doesn't support radial gradients natively, so we stack 10 concentric
+    // translucent ellipses with a smooth cubic-falloff alpha curve. Result reads
+    // visually identical to the pitch deck's CSS aurora glow.
+    function paintBackground(glowCorner = 'tr', tint = RED_DEEP) {
       setFill(BG_DARK);
       doc.rect(0, 0, pageW, pageH, 'F');
-      // Red glow — concentric translucent ellipses. Falls back gracefully on
-      // jsPDF builds without GState support.
       try {
         const corners = {
-          tr: [pageW + 60, -40],
-          br: [pageW + 60, pageH + 40],
-          tl: [-60, -40],
-          bl: [-60, pageH + 40],
+          tr: [pageW + 40, -30],
+          br: [pageW + 40, pageH + 30],
+          tl: [-40, -30],
+          bl: [-40, pageH + 30],
+          tc: [pageW / 2, -80],
+          bc: [pageW / 2, pageH + 80],
         };
         const [cx, cy] = corners[glowCorner] || corners.tr;
-        const tiers = [
-          { r: 280, op: 0.10 },
-          { r: 200, op: 0.14 },
-          { r: 130, op: 0.20 },
-          { r:  70, op: 0.28 },
-        ];
-        for (const tier of tiers) {
-          doc.setGState(new doc.GState({ opacity: tier.op }));
-          setFill(RED_DEEP);
-          doc.ellipse(cx, cy, tier.r, tier.r, 'F');
+        // Cubic falloff from center peak → 0 at outer radius.
+        const TIERS = 10;
+        const PEAK_ALPHA = 0.42;
+        const OUTER_R = 480;
+        for (let i = TIERS - 1; i >= 0; i--) {
+          const t = i / (TIERS - 1);                 // 1 at outer, 0 at center
+          const r = OUTER_R * (0.15 + 0.85 * t);
+          const alpha = PEAK_ALPHA * Math.pow(1 - t, 1.6);
+          if (alpha < 0.01) continue;
+          doc.setGState(new doc.GState({ opacity: alpha }));
+          setFill(tint);
+          doc.ellipse(cx, cy, r, r, 'F');
         }
         doc.setGState(new doc.GState({ opacity: 1 }));
       } catch (e) { /* skip glow on older jsPDF */ }
     }
 
-    // Letter-spaced uppercase eyebrow (red bullet + small mono caps).
+    // Linear vertical gradient overlay — used on "red wash" cards (matches the
+    // deck's `linear-gradient(180deg, rgba(177,30,47,0.10), rgba(15,15,15,0.85))`).
+    // Stepped via 14 narrow horizontal slabs with decreasing alpha. Should be called
+    // AFTER the card's base fill and BEFORE the border so the stroke sits on top.
+    function gradientWash(x, y, w, h, color = RED, topAlpha = 0.18, bottomAlpha = 0.0) {
+      try {
+        const steps = 14;
+        for (let i = 0; i < steps; i++) {
+          const sy = y + (h / steps) * i;
+          const sh = h / steps + 0.5;               // tiny overlap to avoid seams
+          const t = i / (steps - 1);
+          const a = topAlpha + (bottomAlpha - topAlpha) * t;
+          if (a < 0.005) continue;
+          doc.setGState(new doc.GState({ opacity: a }));
+          setFill(color);
+          doc.rect(x, sy, w, sh, 'F');
+        }
+        doc.setGState(new doc.GState({ opacity: 1 }));
+      } catch (e) {}
+    }
+
+    // Letter-spaced uppercase eyebrow (red bullet + small mono caps). Matches the
+    // deck's eyebrow rhythm: 10pt mono with 1.8 charSpace + bullet at x-radius 2.
     function eyebrow(text, x, y, opts = {}) {
-      const { color = RED, withBullet = true, withCharSpace = 1.6, size = 8 } = opts;
+      const { color = RED, withBullet = true, withCharSpace = 1.8, size = 9 } = opts;
       if (withBullet) {
         setFill(color);
-        doc.circle(x + 3, y - 2.5, 1.8, 'F');
+        doc.circle(x + 3, y - 3, 2, 'F');
       }
-      doc.setFont('helvetica', 'bold');
+      doc.setFont(MONO, 'bold');
       doc.setFontSize(size);
       setText(color);
       try { doc.setCharSpace(withCharSpace); } catch (e) {}
-      doc.text(String(text).toUpperCase(), x + (withBullet ? 14 : 0), y);
+      doc.text(String(text).toUpperCase(), x + (withBullet ? 16 : 0), y);
       try { doc.setCharSpace(0); } catch (e) {}
     }
 
-    // Big editorial title: white sans-serif word(s) followed by red italic-serif keyword.
+    // Big editorial title: Geist bold word(s) followed by red Instrument Serif italic keyword.
+    // Tight letter-spacing (-0.03em equivalent via charSpace -0.3) to match the deck headlines.
     function title(plainText, italicText, x, y, opts = {}) {
-      const { size = 44, italicColor = RED, plainColor = TEXT_WHITE } = opts;
-      doc.setFont('helvetica', 'bold');
+      const { size = 56, italicColor = RED, plainColor = TEXT_WHITE, italicBoost = 4 } = opts;
+      doc.setFont(SANS, 'bold');
       doc.setFontSize(size);
       setText(plainColor);
+      try { doc.setCharSpace(-0.4); } catch (e) {}
       doc.text(plainText, x, y);
+      const plainW = doc.getTextWidth(plainText);
+      try { doc.setCharSpace(0); } catch (e) {}
       if (italicText) {
-        const plainW = doc.getTextWidth(plainText);
-        doc.setFont('times', 'bolditalic');
+        // Italic-serif keyword runs a touch larger than the sans — pitch deck does
+        // the same (e.g. headline 88 / italic 92).
+        doc.setFont(SERIF, SERIF_STYLE);
+        doc.setFontSize(size + italicBoost);
         setText(italicColor);
-        // Slight kern between plain & italic.
         doc.text(' ' + italicText, x + plainW, y);
       }
     }
 
-    // Italic gray subtitle (Instrument-Serif feel via times italic).
+    // Instrument Serif italic gray subtitle (matches `italicSerif` style on the deck).
     function subtitle(text, x, y, maxW = pageW - margin * 2) {
-      doc.setFont('times', 'italic');
-      doc.setFontSize(13);
+      doc.setFont(SERIF, SERIF_STYLE);
+      doc.setFontSize(15);
       setText(TEXT_GRAY);
       const lines = doc.splitTextToSize(text, maxW);
       doc.text(lines, x, y);
-      return y + lines.length * 16;
+      return y + lines.length * 19;
     }
 
-    // Mono uppercase pill (e.g. "DIAS 1–21"). Cream-on-red look = red border + red wash + white text.
+    // Mono uppercase pill (e.g. "DIAS 1–21"). Red border + red wash + white text —
+    // identical treatment to the Como Lançamos slide's day pills.
     function monoPill(text, cx, cy, opts = {}) {
-      const { padX = 12, padY = 6, size = 9 } = opts;
-      doc.setFont('courier', 'bold');
+      const { padX = 14, padY = 7, size = 10 } = opts;
+      doc.setFont(MONO, 'bold');
       doc.setFontSize(size);
       const w = doc.getTextWidth(text) + padX * 2;
       const h = size + padY * 2;
       const x = cx - w / 2;
       const y = cy - h / 2;
-      setFill([28, 14, 18]); setDraw(RED); doc.setLineWidth(0.7);
-      doc.roundedRect(x, y, w, h, 4, 4, 'FD');
+      setFill([28, 14, 18]); setDraw(RED); doc.setLineWidth(0.8);
+      doc.roundedRect(x, y, w, h, 6, 6, 'FD');
       setText(TEXT_WHITE);
+      try { doc.setCharSpace(1.2); } catch (e) {}
       doc.text(text, cx, cy + size / 3, { align: 'center' });
+      try { doc.setCharSpace(0); } catch (e) {}
       return { x, y, w, h };
     }
 
-    // Dark card with thin colored border. Optional huge italic-serif numeral in the bottom-right.
+    // Dark card with thin colored border. Optional gradient wash + huge italic-serif numeral decor.
+    // The gradient wash is CLIPPED to the rounded-rect shape so it never bleeds past the
+    // corners — matches the deck's CSS `linear-gradient` inside a `border-radius: 14`.
     function card(x, y, w, h, opts = {}) {
-      const { border = BORDER_DIM, fill = BG_CARD, radius = 8, decorNum = null } = opts;
+      const {
+        border = BORDER_DIM,
+        fill = BG_CARD,
+        radius = 12,
+        decorNum = null,
+        gradient = null,
+      } = opts;
       setFill(fill);
       doc.roundedRect(x, y, w, h, radius, radius, 'F');
+      if (gradient) {
+        try {
+          doc.saveGraphicsState();
+          doc.roundedRect(x, y, w, h, radius, radius);
+          doc.clip();
+          doc.discardPath();
+          gradientWash(x, y, w, h, gradient.color || RED, gradient.topAlpha ?? 0.16, gradient.bottomAlpha ?? 0);
+          doc.restoreGraphicsState();
+        } catch (e) {
+          // Older jsPDF: paint without clipping (very low alpha → bleed is invisible).
+          gradientWash(x, y, w, h, gradient.color || RED, gradient.topAlpha ?? 0.16, gradient.bottomAlpha ?? 0);
+        }
+      }
       setDraw(border);
-      doc.setLineWidth(0.7);
+      doc.setLineWidth(0.8);
       doc.roundedRect(x, y, w, h, radius, radius, 'S');
       if (decorNum != null) {
-        try { doc.setGState(new doc.GState({ opacity: 0.18 })); } catch (e) {}
-        doc.setFont('times', 'italic');
-        doc.setFontSize(150);
-        setText(RED);
-        doc.text(String(decorNum), x + w - 70, y + h - 14, { align: 'right' });
-        try { doc.setGState(new doc.GState({ opacity: 1 })); } catch (e) {}
+        try {
+          doc.saveGraphicsState();
+          doc.roundedRect(x, y, w, h, radius, radius);
+          doc.clip();
+          doc.discardPath();
+          try { doc.setGState(new doc.GState({ opacity: 0.22 })); } catch (e) {}
+          doc.setFont(SERIF, SERIF_STYLE);
+          doc.setFontSize(170);
+          setText(RED);
+          doc.text(String(decorNum), x + w - 30, y + h - 18, { align: 'right' });
+          try { doc.setGState(new doc.GState({ opacity: 1 })); } catch (e) {}
+          doc.restoreGraphicsState();
+        } catch (e) { /* skip */ }
       }
     }
 
@@ -295,7 +405,7 @@ export async function GET(request, { params }) {
         if (!item) continue;
         setFill(dotColor);
         doc.circle(x + 3, cy - 3, 1.6, 'F');
-        doc.setFont('helvetica', 'normal');
+        doc.setFont(SANS, 'normal');
         doc.setFontSize(size);
         setText(textColor);
         const lines = doc.splitTextToSize(String(item), w - 14);
@@ -308,13 +418,13 @@ export async function GET(request, { params }) {
     // Page footer: italic gray text on left, mono page number on right.
     function pageFooter(footerText, pageNum, totalPages) {
       if (footerText) {
-        doc.setFont('times', 'italic');
+        doc.setFont(SERIF, SERIF_STYLE);
         doc.setFontSize(9);
         setText(TEXT_MUTED);
         const lines = doc.splitTextToSize(footerText, pageW - margin * 2 - 80);
         doc.text(lines, margin, pageH - 28);
       }
-      doc.setFont('courier', 'normal');
+      doc.setFont(MONO, 'normal');
       doc.setFontSize(8);
       setText(TEXT_MUTED);
       doc.text(`${String(pageNum).padStart(2, '0')} / ${String(totalPages).padStart(2, '0')}`,
@@ -323,7 +433,7 @@ export async function GET(request, { params }) {
 
     // Header tag in top-right (small mono uppercase, used on inner pages).
     function topRightTag(text) {
-      doc.setFont('courier', 'normal');
+      doc.setFont(MONO, 'normal');
       doc.setFontSize(8);
       setText(TEXT_FAINT);
       try { doc.setCharSpace(1.4); } catch (e) {}
@@ -335,46 +445,60 @@ export async function GET(request, { params }) {
 
     // ═══════════════════════════════════════════════════════════════
     // PAGE 1 · COVER
-    // Matches pitch-deck cover: black canvas, top tag, centered serif/sans
-    // title, monogram footer.
+    // Mirrors the pitch-deck cover: black canvas with a single soft red
+    // aurora bottom-right, mono tag top-left, wordmark top-right, BIG
+    // centered Geist creator name, thin red rule, sans/italic-serif
+    // subtitle, mono niche · dash · date footer.
     // ═══════════════════════════════════════════════════════════════
     paintBackground('br');
-    eyebrow(t.coverTag, margin, 42, { size: 8 });
-    // Top-right wordmark
-    doc.setFont('times', 'normal');
-    doc.setFontSize(11);
+    eyebrow(t.coverTag, margin, 50, { size: 9 });
+    // Top-right wordmark — italic-serif "Layer" inside SECOND·LAYER like the deck
+    doc.setFont(MONO, 'normal');
+    doc.setFontSize(9);
     setText(TEXT_GRAY);
-    try { doc.setCharSpace(1.2); } catch (e) {}
-    doc.text(t.coverTopRight, pageW - margin, 42, { align: 'right' });
+    try { doc.setCharSpace(1.6); } catch (e) {}
+    doc.text(t.coverTopRight, pageW - margin, 50, { align: 'right' });
     try { doc.setCharSpace(0); } catch (e) {}
 
-    // Big centered title. Creator name above, then "Plano de Lançamento"
-    // in the white/red split treatment.
+    // Big centered creator name — Geist bold, scaled to feel as commanding
+    // as "Yomi Denzel" on the deck cover. Letter-spacing pulled tight.
     const coverCenterY = pageH / 2;
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(64);
+    doc.setFont(SANS, 'bold');
+    doc.setFontSize(80);
     setText(TEXT_WHITE);
-    doc.text(creator?.name || 'Creator', pageW / 2, coverCenterY - 30, { align: 'center' });
+    try { doc.setCharSpace(-0.6); } catch (e) {}
+    doc.text(creator?.name || 'Creator', pageW / 2, coverCenterY - 18, { align: 'center' });
+    try { doc.setCharSpace(0); } catch (e) {}
+
     // Thin red rule under the name
-    setDraw(RED); doc.setLineWidth(1.2);
-    doc.line(pageW / 2 - 30, coverCenterY + 4, pageW / 2 + 30, coverCenterY + 4);
-    // Subtitle "Plano de" + italic "Lançamento"
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(28);
-    setText(TEXT_WHITE);
-    const partA = t.coverTitleA;
-    const partB = t.coverTitleB;
-    const wA = doc.getTextWidth(partA);
-    doc.setFont('times', 'italic');
-    setText(RED);
-    const wB = doc.getTextWidth(' ' + partB);
+    setDraw(RED); doc.setLineWidth(1.4);
+    doc.line(pageW / 2 - 36, coverCenterY + 18, pageW / 2 + 36, coverCenterY + 18);
+
+    // Subtitle "Plano de" (Geist normal) + italic-serif "Lançamento" (red).
+    // Compute combined width manually so the line is truly centered.
+    const subSize = 36;
+    doc.setFont(SANS, 'normal');
+    doc.setFontSize(subSize);
+    const wA = doc.getTextWidth(t.coverTitleA);
+    doc.setFont(SERIF, SERIF_STYLE);
+    doc.setFontSize(subSize + 4);
+    const wB = doc.getTextWidth(' ' + t.coverTitleB);
     const totalW = wA + wB;
-    doc.setFont('helvetica', 'normal');
+    const startX = pageW / 2 - totalW / 2;
+    doc.setFont(SANS, 'normal');
+    doc.setFontSize(subSize);
     setText(TEXT_WHITE);
-    doc.text(partA, pageW / 2 - totalW / 2, coverCenterY + 40);
-    doc.setFont('times', 'italic');
+    doc.text(t.coverTitleA, startX, coverCenterY + 64);
+    doc.setFont(SERIF, SERIF_STYLE);
+    doc.setFontSize(subSize + 4);
     setText(RED);
-    doc.text(' ' + partB, pageW / 2 - totalW / 2 + wA, coverCenterY + 40);
+    doc.text(' ' + t.coverTitleB, startX + wA, coverCenterY + 64);
+
+    // Italic sub-subtitle below (one-liner from copy.coverSub).
+    doc.setFont(SERIF, SERIF_STYLE);
+    doc.setFontSize(16);
+    setText(TEXT_GRAY);
+    doc.text(t.coverSub, pageW / 2, coverCenterY + 100, { align: 'center', maxWidth: pageW - margin * 4 });
 
     // Bottom footer row (3 cols: niche · dash · today)
     const today = new Date();
@@ -382,13 +506,13 @@ export async function GET(request, { params }) {
       ? ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC']
       : ['JAN','FEV','MAR','ABR','MAI','JUN','JUL','AGO','SET','OUT','NOV','DEZ'];
     const dateStr = `${monthNames[today.getMonth()]} ${today.getFullYear()}`;
-    doc.setFont('courier', 'normal');
-    doc.setFontSize(8);
+    doc.setFont(MONO, 'normal');
+    doc.setFontSize(8.5);
     setText(TEXT_FAINT);
-    try { doc.setCharSpace(1.4); } catch (e) {}
-    doc.text((niche || '—').toUpperCase(), margin, pageH - 36);
-    doc.text('—', pageW / 2, pageH - 36, { align: 'center' });
-    doc.text(dateStr, pageW - margin, pageH - 36, { align: 'right' });
+    try { doc.setCharSpace(1.8); } catch (e) {}
+    doc.text((niche || '—').toUpperCase(), margin, pageH - 44);
+    doc.text('—', pageW / 2, pageH - 44, { align: 'center' });
+    doc.text(dateStr, pageW - margin, pageH - 44, { align: 'right' });
     try { doc.setCharSpace(0); } catch (e) {}
 
     // ═══════════════════════════════════════════════════════════════
@@ -397,45 +521,73 @@ export async function GET(request, { params }) {
     doc.addPage();
     paintBackground('tr');
     topRightTag('SECONDLAYER');
-    eyebrow(t.phasesEyebrow, margin, 70);
-    title(t.phasesTitleA, t.phasesTitleB, margin, 122, { size: 48 });
-    let y = subtitle(t.phasesSub, margin, 162, 720);
+    eyebrow(t.phasesEyebrow, margin, 78);
+    title(t.phasesTitleA, t.phasesTitleB, margin, 144);
+    let y = subtitle(t.phasesSub, margin, 188, 820);
 
-    const phaseY = 220;
-    const phaseH = pageH - phaseY - 80;
-    const phaseW = (pageW - margin * 2 - 32) / 3;
+    const phaseY = 244;
+    const phaseH = pageH - phaseY - 90;
+    const phaseW = (pageW - margin * 2 - 40) / 3;
     for (let i = 0; i < 3; i++) {
-      const x = margin + i * (phaseW + 16);
+      const x = margin + i * (phaseW + 20);
       const isCenter = i === 1;
       card(x, phaseY, phaseW, phaseH, {
         border: BORDER_RED,
-        fill: isCenter ? BG_CARD_R : BG_CARD,
+        fill: BG_CARD,
         decorNum: i + 1,
+        // Center "Captação" card gets a soft red wash from top — matches the
+        // deck's highlighted-card treatment (linear-gradient red→dark).
+        gradient: isCenter ? { color: RED, topAlpha: 0.14, bottomAlpha: 0 } : null,
       });
-      eyebrow(t.phaseEyebrows[i], x + 22, phaseY + 36);
+      eyebrow(t.phaseEyebrows[i], x + 28, phaseY + 42);
       // Phase name
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(26);
+      doc.setFont(SANS, 'bold');
+      doc.setFontSize(30);
       setText(TEXT_WHITE);
-      doc.text(t.phaseNames[i], x + 22, phaseY + 76);
+      try { doc.setCharSpace(-0.3); } catch (e) {}
+      doc.text(t.phaseNames[i], x + 28, phaseY + 88);
+      try { doc.setCharSpace(0); } catch (e) {}
       // Days pill below
-      monoPill(t.phaseDays[i], x + 22 + 56, phaseY + 104, { size: 9 });
+      doc.setFont(MONO, 'bold');
+      doc.setFontSize(10);
+      const pillTextWidth = doc.getTextWidth(t.phaseDays[i]);
+      monoPill(t.phaseDays[i], x + 28 + pillTextWidth / 2 + 14, phaseY + 118, { size: 10 });
       // Description
-      doc.setFont('helvetica', 'normal');
-      doc.setFontSize(11);
+      doc.setFont(SANS, 'normal');
+      doc.setFontSize(12);
       setText(TEXT_GRAY);
-      const dLines = doc.splitTextToSize(t.phaseSubs[i], phaseW - 44);
-      doc.text(dLines, x + 22, phaseY + 142);
-      // META box at bottom
-      const metaY = phaseY + phaseH - 70;
-      setFill(BG_CARD_R); setDraw(RED); doc.setLineWidth(0.8);
-      doc.roundedRect(x + 22, metaY, phaseW - 44, 52, 6, 6, 'FD');
-      eyebrow(t.metaLabel, x + 34, metaY + 18, { withBullet: false, size: 7 });
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(13);
+      const dLines = doc.splitTextToSize(t.phaseSubs[i], phaseW - 56);
+      doc.text(dLines, x + 28, phaseY + 160);
+      // META box at bottom — red border + red wash gradient (clipped to rounded shape).
+      const metaY = phaseY + phaseH - 82;
+      const metaH = 60;
+      const metaX = x + 28;
+      const metaW = phaseW - 56;
+      setFill([28, 14, 18]);
+      doc.roundedRect(metaX, metaY, metaW, metaH, 8, 8, 'F');
+      try {
+        doc.saveGraphicsState();
+        doc.roundedRect(metaX, metaY, metaW, metaH, 8, 8);
+        doc.clip();
+        doc.discardPath();
+        gradientWash(metaX, metaY, metaW, metaH, RED, 0.22, 0.06);
+        doc.restoreGraphicsState();
+      } catch (e) { gradientWash(metaX, metaY, metaW, metaH, RED, 0.18, 0.04); }
+      setDraw(RED); doc.setLineWidth(1);
+      doc.roundedRect(metaX, metaY, metaW, metaH, 8, 8, 'S');
+      // META label (no bullet)
+      doc.setFont(MONO, 'bold');
+      doc.setFontSize(8);
+      setText(RED);
+      try { doc.setCharSpace(1.8); } catch (e) {}
+      doc.text(t.metaLabel, metaX + 16, metaY + 22);
+      try { doc.setCharSpace(0); } catch (e) {}
+      // Goal value
+      doc.setFont(SANS, 'bold');
+      doc.setFontSize(14);
       setText(TEXT_WHITE);
-      const gLines = doc.splitTextToSize(goals[i], phaseW - 68);
-      doc.text(gLines, x + 34, metaY + 38);
+      const gLines = doc.splitTextToSize(goals[i], metaW - 32);
+      doc.text(gLines, metaX + 16, metaY + 44);
     }
     pageFooter(t.valFooter, 2, TOTAL);
 
@@ -445,8 +597,8 @@ export async function GET(request, { params }) {
     doc.addPage();
     paintBackground('bl');
     topRightTag('SECONDLAYER');
-    eyebrow(t.weeklyEyebrow, margin, 70);
-    title(t.weeklyTitleA, t.weeklyTitleB, margin, 122, { size: 48 });
+    eyebrow(t.weeklyEyebrow, margin, 78);
+    title(t.weeklyTitleA, t.weeklyTitleB, margin, 144);
     subtitle(
       lang === 'en'
         ? `${commName} — monthly community at €${price}/mo. The exact weekly content + pre-recorded vault we'll ship.`
@@ -455,8 +607,8 @@ export async function GET(request, { params }) {
     );
 
     // ── Weekly content row eyebrow + 2x2 grid ──
-    eyebrow(t.weeklyContent, margin, 208);
-    const wfY = 226;
+    eyebrow(t.weeklyContent, margin, 240);
+    const wfY = 258;
     const wfCols = 2;
     const wfW = (pageW - margin * 2 - 16) / wfCols;
     const wfH = 92;
@@ -471,13 +623,13 @@ export async function GET(request, { params }) {
       // Day pill — top-left of card
       if (f.day) monoPill(String(f.day).toUpperCase(), x + 36, y + 22, { size: 8.5, padX: 10, padY: 4 });
       // Format name italic serif
-      doc.setFont('times', 'bolditalic');
+      doc.setFont(SERIF, SERIF_STYLE);
       doc.setFontSize(19);
       setText(TEXT_WHITE);
       doc.text(f.name || '[—]', x + 78, y + 26);
       // Type mono label
       if (f.type) {
-        doc.setFont('courier', 'normal');
+        doc.setFont(MONO, 'normal');
         doc.setFontSize(8);
         setText(TEXT_MUTED);
         try { doc.setCharSpace(1.2); } catch (e) {}
@@ -485,7 +637,7 @@ export async function GET(request, { params }) {
         try { doc.setCharSpace(0); } catch (e) {}
       }
       // Description
-      doc.setFont('helvetica', 'normal');
+      doc.setFont(SANS, 'normal');
       doc.setFontSize(10);
       setText(TEXT_GRAY);
       const dLines = doc.splitTextToSize(f.desc || '', wfW - 32);
@@ -508,19 +660,19 @@ export async function GET(request, { params }) {
       const y = libY + row * (libH + 10);
       card(x, y, libW, libH, { border: BORDER_GREEN, fill: BG_CARD_G, radius: 6 });
       if (m.format) {
-        doc.setFont('courier', 'bold');
+        doc.setFont(MONO, 'bold');
         doc.setFontSize(7.5);
         setText(GREEN);
         try { doc.setCharSpace(1.4); } catch (e) {}
         doc.text(String(m.format).toUpperCase(), x + 14, y + 18);
         try { doc.setCharSpace(0); } catch (e) {}
       }
-      doc.setFont('times', 'bolditalic');
+      doc.setFont(SERIF, SERIF_STYLE);
       doc.setFontSize(14);
       setText(TEXT_WHITE);
       const nLines = doc.splitTextToSize(m.name || '[—]', libW - 28);
       doc.text(nLines.slice(0, 1), x + 14, y + 34);
-      doc.setFont('helvetica', 'normal');
+      doc.setFont(SANS, 'normal');
       doc.setFontSize(8.5);
       setText(TEXT_GRAY);
       const dLines = doc.splitTextToSize(m.desc || '', libW - 28);
@@ -537,12 +689,12 @@ export async function GET(request, { params }) {
       paintBackground(idx === 0 ? 'tr' : idx === 1 ? 'tl' : 'br');
       topRightTag(`FASE 0${idx + 1} · ${t.phaseEyebrows[idx]}`);
       eyebrow(`FASE 0${idx + 1} · ${t.phaseEyebrows[idx]}`, margin, 70);
-      title(titleA, titleB, margin, 122, { size: 48 });
-      subtitle(t.phaseSubs[idx], margin, 162, pageW - margin * 2 - 160);
+      title(titleA, titleB, margin, 144);
+      subtitle(t.phaseSubs[idx], margin, 188, pageW - margin * 2 - 180);
       // Days pill top-right
-      monoPill(t.phaseDays[idx], pageW - margin - 56, 124, { size: 10.5, padX: 14, padY: 7 });
+      monoPill(t.phaseDays[idx], pageW - margin - 64, 140, { size: 11, padX: 16, padY: 8 });
 
-      const bodyY = 210;
+      const bodyY = 244;
       const bodyH = pageH - bodyY - 80;
       const colW = (pageW - margin * 2 - 32) / 3;
       for (let i = 0; i < columns.length; i++) {
@@ -714,11 +866,11 @@ export async function GET(request, { params }) {
     doc.addPage();
     paintBackground('br');
     topRightTag('SECONDLAYER');
-    eyebrow(t.deliverablesEyebrow, margin, 70);
-    title(t.deliverablesTitleA, t.deliverablesTitleB, margin, 122, { size: 48 });
-    subtitle(t.deliverablesSub, margin, 162, 800);
+    eyebrow(t.deliverablesEyebrow, margin, 78);
+    title(t.deliverablesTitleA, t.deliverablesTitleB, margin, 144);
+    subtitle(t.deliverablesSub, margin, 188, 880);
 
-    const quadY = 210;
+    const quadY = 244;
     const quadW = (pageW - margin * 2 - 18) / 2;
     const quadH = (pageH - quadY - 70 - 18) / 2;
     const quadrants = [
@@ -807,11 +959,11 @@ export async function GET(request, { params }) {
     doc.addPage();
     paintBackground('tr');
     topRightTag('SECONDLAYER');
-    eyebrow(t.weekEyebrow, margin, 70);
-    title(t.weekTitleA, t.weekTitleB, margin, 122, { size: 48 });
-    subtitle(t.weekSub, margin, 162, 800);
+    eyebrow(t.weekEyebrow, margin, 78);
+    title(t.weekTitleA, t.weekTitleB, margin, 144);
+    subtitle(t.weekSub, margin, 188, 880);
 
-    const tableY = 200;
+    const tableY = 232;
     const rowH = 38;
     const colWeek = 64, colPhase = 150;
     const colDescX = margin + colWeek + colPhase + 20;
@@ -845,7 +997,7 @@ export async function GET(request, { params }) {
       setDraw(BORDER_DIM); doc.setLineWidth(0.4);
       doc.line(margin, yy + rowH, pageW - margin, yy + rowH);
       // Week label — italic serif
-      doc.setFont('times', 'bolditalic');
+      doc.setFont(SERIF, SERIF_STYLE);
       doc.setFontSize(20);
       setText(TEXT_WHITE);
       doc.text(row[0], margin + colWeek / 2, yy + rowH / 2 + 6, { align: 'center' });
@@ -856,14 +1008,14 @@ export async function GET(request, { params }) {
         : RED_DEEP;
       setFill(chipShade); setDraw(RED); doc.setLineWidth(0.5);
       doc.roundedRect(margin + colWeek + 8, yy + 9, colPhase - 16, rowH - 18, 4, 4, 'FD');
-      doc.setFont('courier', 'bold');
+      doc.setFont(MONO, 'bold');
       doc.setFontSize(8.5);
       setText(TEXT_WHITE);
       try { doc.setCharSpace(1.2); } catch (e) {}
       doc.text(phase, margin + colWeek + colPhase / 2, yy + rowH / 2 + 3, { align: 'center' });
       try { doc.setCharSpace(0); } catch (e) {}
       // Description
-      doc.setFont('helvetica', 'normal');
+      doc.setFont(SANS, 'normal');
       doc.setFontSize(9.5);
       setText(TEXT_GRAY);
       doc.text(row[2], colDescX, yy + rowH / 2 + 3, { maxWidth: colDescW });
