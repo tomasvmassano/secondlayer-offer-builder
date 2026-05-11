@@ -1248,13 +1248,6 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
                   }}>{t.label}</button>)}
                 </div>
                 <div style={{ display: "flex", gap: 6 }}>
-                  <a
-                    href={`/api/launch-plan/${params?.id}/pdf`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    title="Generate the 8-page Lia-style 60-day launch plan PDF. Auto-populates from the parsed offer (Conteúdo Semanal + Biblioteca). Send this to the creator between calls."
-                    style={{ padding: "6px 14px", borderRadius: 6, border: "1px solid rgba(177,30,47,0.4)", background: "rgba(177,30,47,0.08)", color: "#B11E2F", fontSize: 10, cursor: "pointer", fontFamily: "inherit", textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 4 }}
-                  >📄 Plano de Lançamento</a>
                   <button onClick={reparseOffer} title="Re-extract structured fields (Community/Sistema/Valor) from the existing offer text — no new AI call. Use this if the Pitch Deck slides show placeholders." style={{ padding: "6px 14px", borderRadius: 6, border: "1px solid rgba(34,197,94,0.3)", background: "rgba(34,197,94,0.08)", color: "#22c55e", fontSize: 10, cursor: "pointer", fontFamily: "inherit" }}>↻ Re-parse</button>
                   <button onClick={() => { setOfferForm({ _filled: false }); setOfferStep(0); patchCreator({ offer: null }); }} style={{ padding: "6px 14px", borderRadius: 6, border: "1px solid rgba(255,255,255,0.08)", background: "transparent", color: "#888", fontSize: 10, cursor: "pointer", fontFamily: "inherit" }}>Regenerar</button>
                 </div>

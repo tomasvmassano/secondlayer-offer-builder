@@ -565,6 +565,15 @@ function PitchPageContent() {
             <input type="checkbox" checked={showInvestimento} onChange={(e) => setShowInvestimento(e.target.checked)} />
             Incluir Investimento
           </label>
+          {creatorId && (
+            <a
+              href={`/api/launch-plan/${creatorId}/pdf`}
+              target="_blank"
+              rel="noopener noreferrer"
+              title="Generate the 8-page Lia-style 60-day launch plan PDF. Send this between calls — auto-populates from Conteúdo Semanal + Biblioteca."
+              style={btnLaunchPlan}
+            >Plano de Lançamento</a>
+          )}
           <button onClick={exportPdf} style={btnSecondary}>Export PDF</button>
           <button onClick={exportPptx} disabled={exporting} style={btnPrimary}>{exporting ? "A exportar..." : "Export PPTX"}</button>
         </div>
@@ -823,7 +832,7 @@ function PitchPageContent() {
       `}</style>
 
       {/* SLIDE 1: COVER — logo + centered subtitle + cinematic orb */}
-      <Slide num={1} total={12} hidePageMark decor={
+      <Slide num={1} total={11} hidePageMark decor={
         <>
           <div className="cover-orb" />
           <div className="aurora red"  style={{ left: -200, top: -200, width: 700, height: 700 }} />
@@ -863,7 +872,7 @@ function PitchPageContent() {
       </Slide>
 
       {/* SLIDE 2: CORE PROMISE — waveform + aurora */}
-      <Slide num={2} total={12} decor={
+      <Slide num={2} total={11} decor={
         <>
           <div className="aurora red" style={{ right: -300, top: "30%", width: 900, height: 900 }} />
           <svg className="promise-wave" viewBox="0 0 1920 1080" preserveAspectRatio="none">
@@ -903,7 +912,7 @@ function PitchPageContent() {
       </Slide>
 
       {/* SLIDE 3: TRANSFORMATION — bigger text + aurora */}
-      <Slide num={3} total={12} decor={
+      <Slide num={3} total={11} decor={
         <div className="aurora red" style={{ right: -200, top: "20%", width: 700, height: 700, opacity: 0.35 }} />
       }>
         <div style={{ flex: 1, display: "flex", flexDirection: "column", width: "100%" }}>
@@ -960,7 +969,7 @@ function PitchPageContent() {
       </Slide>
 
       {/* SLIDE 4: A TUA COMUNIDADE — concrete spec */}
-      <Slide num={4} total={12} decor={
+      <Slide num={4} total={11} decor={
         <div className="aurora red" style={{ right: -250, top: "20%", width: 700, height: 700, opacity: 0.35 }} />
       }>
         <div style={{ flex: 1, display: "flex", flexDirection: "column", width: "100%" }}>
@@ -1078,7 +1087,7 @@ function PitchPageContent() {
       </Slide>
 
       {/* SLIDE 5: O SISTEMA · CONTEÚDO SEMANAL — branded mechanism + weekly formats + pre-recorded library */}
-      <Slide num={5} total={12} decor={
+      <Slide num={5} total={11} decor={
         <div className="aurora deep" style={{ right: -200, top: "30%", width: 700, height: 700, opacity: 0.4 }} />
       }>
         <div style={{ flex: 1, display: "flex", flexDirection: "column", width: "100%" }}>
@@ -1182,7 +1191,7 @@ function PitchPageContent() {
       </Slide>
 
       {/* SLIDE 7 NEW: O VALOR — Hormozi value stack */}
-      <Slide num={6} total={12} decor={
+      <Slide num={6} total={11} decor={
         <div className="aurora red" style={{ left: -200, top: -100, width: 700, height: 700, opacity: 0.35 }} />
       }>
         <div style={{ flex: 1, display: "flex", flexDirection: "column", width: "100%" }}>
@@ -1264,7 +1273,7 @@ function PitchPageContent() {
       </Slide>
 
       {/* SLIDE 8: AUDIENCE — aurora + dot grid */}
-      <Slide num={7} total={12} decor={
+      <Slide num={7} total={11} decor={
         <div className="aurora red" style={{ left: -200, top: -100, width: 600, height: 600, opacity: 0.3 }} />
       }>
         <div style={{ flex: 1, display: "flex", flexDirection: "column", width: "100%" }}>
@@ -1372,7 +1381,7 @@ function PitchPageContent() {
       </Slide>
 
       {/* SLIDE 8: LAUNCH — phases with assets, aurora */}
-      <Slide num={8} total={12} decor={
+      <Slide num={8} total={11} decor={
         <div className="aurora red" style={{ left: "30%", top: -200, width: 700, height: 700, opacity: 0.3 }} />
       }>
         <div style={{ flex: 1, display: "flex", flexDirection: "column", width: "100%" }}>
@@ -1463,7 +1472,7 @@ function PitchPageContent() {
       </Slide>
 
       {/* SLIDE 9: NUMBERS — dual aurora */}
-      <Slide num={9} total={12} decor={
+      <Slide num={9} total={11} decor={
         <>
           <div className="aurora red"  style={{ right: 0, top: -200, width: 800, height: 800, opacity: 0.4 }} />
           <div className="aurora deep" style={{ left: -100, bottom: -200, width: 700, height: 700 }} />
@@ -1552,7 +1561,7 @@ function PitchPageContent() {
       </Slide>
 
       {/* SLIDE 10 NEW: CASOS SIMILARES — proof slide */}
-      <Slide num={10} total={12} decor={
+      <Slide num={10} total={11} decor={
         <div className="aurora red" style={{ left: "50%", top: -150, width: 700, height: 700, opacity: 0.3, transform: "translateX(-50%)" }} />
       }>
         <div style={{ flex: 1, display: "flex", flexDirection: "column", width: "100%" }}>
@@ -1633,66 +1642,9 @@ function PitchPageContent() {
         </div>
       </Slide>
 
-      {/* SLIDE 11: PARTNERSHIP — red + green dual aurora */}
-      <Slide num={11} total={12} decor={
-        <>
-          <div className="aurora red"   style={{ left: -200, top: "30%", width: 600, height: 600, opacity: 0.3 }} />
-          <div className="aurora green" style={{ right: -200, top: "30%", width: 600, height: 600 }} />
-        </>
-      }>
-        <div style={{ flex: 1, display: "flex", flexDirection: "column", width: "100%" }}>
-          <div style={{ fontSize: 18, fontWeight: 600, color: "#B11E2F", letterSpacing: "0.28em", textTransform: "uppercase" }}>
-            {creator?.primaryLanguage === 'en' ? 'The partnership' : 'A parceria'}
-          </div>
-          <div style={{ height: 28 }} />
-          <h1 style={{ fontSize: 88, fontWeight: 800, margin: 0, lineHeight: 1.0, letterSpacing: "-0.03em", color: "#f5f5f5" }}>
-            <StyledKeyword
-              text={slides.partnership.title}
-              keyword={creator?.primaryLanguage === 'en' ? 'works' : 'funciona'}
-              italicStyle={{ ...italicSerif, color: "#B11E2F" }}
-            />
-          </h1>
-
-          <div style={{ marginTop: 56, display: "grid", gridTemplateColumns: "1fr 80px 1fr", gap: 28, alignItems: "stretch", flex: 1 }}>
-            <div style={{ padding: 44, background: "linear-gradient(180deg, rgba(177,30,47,0.10), rgba(15,15,15,0.85))", border: "1px solid rgba(177,30,47,0.65)", borderRadius: 14, display: "flex", flexDirection: "column" }}>
-              <div style={{ fontSize: 16, fontWeight: 600, color: "#B11E2F", letterSpacing: "0.22em", textTransform: "uppercase", marginBottom: 28 }}>
-                <Editable value={slides.partnership.youLabel} onChange={v => updateSlide('partnership', 'youLabel', v)} />
-              </div>
-              <p style={{ margin: 0, fontSize: 32, color: "#f5f5f5", lineHeight: 1.4, letterSpacing: "-0.01em", fontWeight: 500 }}>
-                <Editable value={slides.partnership.you} onChange={v => updateSlide('partnership', 'you', v)} multiline />
-              </p>
-            </div>
-
-            {/* Center connector — serif "+" */}
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "center" }}>
-              <div style={{ ...italicSerif, fontSize: 80, color: "#f5f5f5", lineHeight: 1 }}>+</div>
-            </div>
-
-            <div style={{ padding: 44, background: "linear-gradient(180deg, rgba(31,138,76,0.10), rgba(15,15,15,0.85))", border: "1px solid rgba(31,138,76,0.65)", borderRadius: 14, display: "flex", flexDirection: "column" }}>
-              <div style={{ fontSize: 16, fontWeight: 600, color: "#1F8A4C", letterSpacing: "0.22em", textTransform: "uppercase", marginBottom: 28 }}>
-                <Editable value={slides.partnership.usLabel} onChange={v => updateSlide('partnership', 'usLabel', v)} />
-              </div>
-              <p style={{ margin: 0, fontSize: 32, color: "#f5f5f5", lineHeight: 1.4, letterSpacing: "-0.01em", fontWeight: 500 }}>
-                <Editable value={slides.partnership.us} onChange={v => updateSlide('partnership', 'us', v)} multiline />
-              </p>
-            </div>
-          </div>
-
-          {/* Alignment banner */}
-          <div style={{ marginTop: 28, padding: "32px 44px", background: "linear-gradient(90deg, rgba(31,138,76,0.08), rgba(31,138,76,0.18), rgba(31,138,76,0.08))", border: "1px solid rgba(31,138,76,0.65)", borderRadius: 14, textAlign: "center" }}>
-            <p style={{ margin: 0, fontSize: 38, color: "#f5f5f5", fontWeight: 600, letterSpacing: "-0.01em" }}>
-              <StyledLastWord
-                text={slides.partnership.alignment}
-                italicStyle={{ ...italicSerif, color: "#1F8A4C" }}
-              />
-            </p>
-          </div>
-        </div>
-      </Slide>
-
-      {/* SLIDE 12 (OPTIONAL): INVESTIMENTO — aurora + receipt */}
+      {/* SLIDE 11 (OPTIONAL): INVESTIMENTO — aurora + receipt */}
       {showInvestimento && (
-        <Slide num={12} total={12} decor={
+        <Slide num={11} total={11} decor={
           <>
             <div className="aurora red"  style={{ right: -200, top: -100, width: 700, height: 700, opacity: 0.35 }} />
             <div className="aurora deep" style={{ left: -200, bottom: -100, width: 700, height: 700 }} />
@@ -2377,6 +2329,24 @@ const btnSecondary = {
   fontWeight: 600,
   cursor: "pointer",
   fontFamily: "inherit",
+};
+
+// Launch-plan trigger — red-accent variant of btnSecondary. Same shape as the
+// other toolbar buttons but tinted so it reads as a "share this asset" CTA,
+// not a generic export. Matches the pitch deck's red/cream language.
+const btnLaunchPlan = {
+  padding: "8px 16px",
+  background: "rgba(177,30,47,0.08)",
+  border: "1px solid rgba(177,30,47,0.45)",
+  borderRadius: 6,
+  color: "#B11E2F",
+  fontSize: 12,
+  fontWeight: 600,
+  cursor: "pointer",
+  fontFamily: "inherit",
+  textDecoration: "none",
+  display: "inline-flex",
+  alignItems: "center",
 };
 
 export default function PitchPage() {
