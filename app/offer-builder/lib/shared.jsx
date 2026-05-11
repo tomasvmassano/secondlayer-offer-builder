@@ -155,9 +155,44 @@ function parseTier(subBlock) {
   return { name, price, note };
 }
 
+// Parse a "Day · 'Name': Type — description" line into {day, name, type, desc}.
+// Tolerant to dot/space/middle-dot separator, optional quotes, en-dash/em-dash/hyphen
+// before description, optional trademark mark.
+function parseWeeklyFormatLine(line) {
+  const cleaned = line.replace(/\*\*/g, '').trim();
+  // Format: "Day · 'Name': Type — description"
+  // Day can be: Seg|Ter|Qua|Qui|Sex|Sáb|Sab|Dom|Mon|Tue|Wed|Thu|Fri|Sat|Sun
+  // Separators between day/name: · . : - or whitespace
+  // Quotes around name: " ' " " optional; ™ marker optional inside
+  // After name and before type: ":" or "—" or "-"
+  // After type and before desc: "—" or "-" or ":"
+  const m = cleaned.match(
+    /^([A-Za-zÁÉÍÓÚáéíóú]+)\s*[·.:\-]\s*["'""]?([^"'""\n:—]+?)["'""™]*?\s*[:—\-]\s*([^—\-:\n]+?)\s*[—\-:]\s*(.+)$/
+  );
+  if (m) return { day: m[1].trim(), name: m[2].trim().replace(/™$/, '') + '™', type: m[3].trim(), desc: m[4].trim() };
+  // Looser fallback: "Day · 'Name': description" (no type separator)
+  const m2 = cleaned.match(/^([A-Za-zÁÉÍÓÚáéíóú]+)\s*[·.:\-]\s*["'""]?([^"'""\n:—]+?)["'""™]*?\s*[:—\-]\s*(.+)$/);
+  if (m2) return { day: m2[1].trim(), name: m2[2].trim().replace(/™$/, '') + '™', type: '', desc: m2[3].trim() };
+  return null;
+}
+
+// Parse a '"Name" — Format — description' library line.
+function parseLibraryLine(line) {
+  const cleaned = line.replace(/\*\*/g, '').trim();
+  // Format: "Name" — Format — description
+  const m = cleaned.match(/^["'""]?([^"'""\n—\-]+?)["'""™]*?\s*[—\-:]\s*([^—\-:\n]+?)\s*[—\-:]\s*(.+)$/);
+  if (m) return { name: m[1].trim().replace(/™$/, '') + '™', format: m[2].trim(), desc: m[3].trim() };
+  // Looser fallback: just "Name — description" (skipping format)
+  const m2 = cleaned.match(/^["'""]?([^"'""\n—\-]+?)["'""™]*?\s*[—\-:]\s*(.+)$/);
+  if (m2) return { name: m2[1].trim().replace(/™$/, '') + '™', format: '', desc: m2[2].trim() };
+  return null;
+}
+
 // ─── Output 1: COMMUNITY ───
 function parseCommunity(block) {
   if (!block) return null;
+  const weeklyFormatsRaw = extractList(block, 'Weekly Content Formats', 'Formatos Semanais', 'Formatos de Conteúdo', 'Formatos de Conteudo');
+  const libraryRaw       = extractList(block, 'Pre-recorded Library', 'Biblioteca Pré-Gravada', 'Biblioteca Pre-Gravada', 'Biblioteca');
   const c = {
     primaryName: extractField(block, 'Community Name (Primary)', 'Nome da Comunidade (Principal)', 'Nome (Principal)', 'Primary Name'),
     nameCandidates: extractList(block, 'Community Name (Candidates)', 'Nomes da Comunidade (Candidatos)', 'Candidatos', 'Name Candidates'),
@@ -169,6 +204,8 @@ function parseCommunity(block) {
       parseTier(extractSubBlock(block, 'Tier 3 — Anchor (Ultra-High-Ticket)', 'Tier 3 — Âncora (Ultra-Premium)', 'Tier 3 - Âncora (Ultra-Premium)', 'Tier 3 — Âncora', 'Tier 3')),
     ].filter(Boolean),
     weeklyRhythm: extractList(block, 'Weekly Rhythm', 'Ritmo Semanal', 'Ritmo'),
+    weeklyFormats: weeklyFormatsRaw.map(parseWeeklyFormatLine).filter(Boolean),
+    library: libraryRaw.map(parseLibraryLine).filter(Boolean),
     bonuses: extractList(block, 'Bonuses Unlocked Over Time', 'Bónus Desbloqueados ao Longo do Tempo', 'Bonus Desbloqueados', 'Bónus', 'Bonuses'),
     differentiator: extractField(block, 'Differentiator', 'Diferenciador', 'Diferencial', 'O que torna isto diferente'),
   };

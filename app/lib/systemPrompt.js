@@ -310,6 +310,26 @@ The Tier prices in this section MUST match Section G. The Primary community name
 - <Day>: <...>
 - <Day>: <...>
 
+**Weekly Content Formats:** (NAMED, branded weekly programs the community runs. This is the "Diagnóstico" slide — the creator sees them and visualizes shooting Monday's content. Each format MUST have a magnetic ™-style name tied to the creator's niche language, NOT generic labels like "Q&A" or "Live". Pull naming language from the creator's TOP-PERFORMING CONTENT (audience signals provided in user message). 4 formats, one per active day. Use Portuguese day labels (Seg/Ter/Qua/Qui/Sex/Sáb/Dom) when the creator's primary language is Portuguese; otherwise English (Mon/Tue/...).
+- Day · "Format Name™": Type — 1-sentence description of what happens inside it
+- Day · "Format Name™": Type — 1-sentence description
+- Day · "Format Name™": Type — 1-sentence description
+- Day · "Format Name™": Type — 1-sentence description
+
+Example for a cooking creator (Carrinho Consciente):
+- Seg · "Carta da Semana": Post — Lia envia 10–15 produtos para comprar essa semana com marcas/preços/supermercados reais
+- Qua · "Mise en Place": Live 30min — audiência envia fotos de produtos do supermercado e Lia analisa em direto
+- Sáb · "Cozinhar Juntos": Vídeo — refeição completa montada a partir da Lista de Segunda
+- Dom · "A Mesa": Comunidade — membros partilham achados da semana e Lia comenta os mais interessantes
+
+**Pre-recorded Library:** (Modules the creator records ONCE and lives in the vault forever. Themes drawn DIRECTLY from the creator's TOP-PERFORMING CONTENT topics provided in the user message — if the audience already engages with "viral hooks", give them a "Viral Hooks Library™". Each module is a ™-branded asset, not a generic course chapter. 6 modules.
+- "Module Name™" — Format (PDF | masterclass | mini-course | calculator | template pack | audio program) — 1-sentence theme description tied to a top-performing post
+- "Module Name™" — Format — 1-sentence description
+- "Module Name™" — Format — 1-sentence description
+- "Module Name™" — Format — 1-sentence description
+- "Module Name™" — Format — 1-sentence description
+- "Module Name™" — Format — 1-sentence description
+
 **Bonuses Unlocked Over Time:**
 - Mês 2: <bonus>
 - Mês 6: <bonus>

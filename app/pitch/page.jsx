@@ -1077,7 +1077,7 @@ function PitchPageContent() {
         </div>
       </Slide>
 
-      {/* SLIDE 6 NEW: O SISTEMA — Unique Mechanism (acronym-style branded method) */}
+      {/* SLIDE 5: O SISTEMA · CONTEÚDO SEMANAL — branded mechanism + weekly formats + pre-recorded library */}
       <Slide num={5} total={12} decor={
         <div className="aurora deep" style={{ right: -200, top: "30%", width: 700, height: 700, opacity: 0.4 }} />
       }>
@@ -1085,50 +1085,99 @@ function PitchPageContent() {
           <div style={{ fontSize: 18, fontWeight: 600, color: "#B11E2F", letterSpacing: "0.28em", textTransform: "uppercase" }}>
             {creator?.primaryLanguage === 'en' ? 'The system' : 'O sistema'}
           </div>
-          <div style={{ height: 18 }} />
-          <h1 style={{ fontSize: 88, fontWeight: 800, margin: 0, lineHeight: 1.0, letterSpacing: "-0.03em", color: "#f5f5f5" }}>
+          <div style={{ height: 14 }} />
+          <h1 style={{ fontSize: 72, fontWeight: 800, margin: 0, lineHeight: 1.0, letterSpacing: "-0.03em", color: "#f5f5f5" }}>
             <Editable value={slides.system.title} onChange={v => updateSlide('system', 'title', v)} />
           </h1>
-          <p style={{ ...italicSerif, fontSize: 28, color: "#A8A8A8", margin: "16px 0 0", maxWidth: 1300 }}>
+          <p style={{ ...italicSerif, fontSize: 24, color: "#A8A8A8", margin: "14px 0 0", maxWidth: 1300 }}>
             <Editable value={slides.system.subtitle} onChange={v => updateSlide('system', 'subtitle', v)} />
           </p>
 
-          {/* Branded acronym name — hero */}
-          <div style={{ marginTop: 48, padding: "44px 48px", background: "rgba(15,15,15,0.85)", border: "1px solid rgba(177,30,47,0.5)", borderRadius: 14, textAlign: "center" }}>
-            <div style={{ ...italicSerif, fontSize: 88, color: "#f5f5f5", lineHeight: 1.0, letterSpacing: "-0.02em" }}>
+          {/* Mechanism brand banner — kept slim so the weekly + library blocks below have room */}
+          <div style={{ marginTop: 24, padding: "22px 36px", background: "rgba(15,15,15,0.85)", border: "1px solid rgba(177,30,47,0.5)", borderRadius: 12, textAlign: "center" }}>
+            <div style={{ ...italicSerif, fontSize: 56, color: "#f5f5f5", lineHeight: 1.0, letterSpacing: "-0.02em" }}>
               <Editable value={slides.system.name} onChange={v => updateSlide('system', 'name', v)} />
             </div>
           </div>
 
-          {/* Letters grid */}
-          <div style={{ marginTop: 32, display: "grid", gridTemplateColumns: `repeat(${Math.min(slides.system.letters.length, 5)}, 1fr)`, gap: 20, flex: 1 }}>
-            {slides.system.letters.map((l, i) => (
-              <div key={i} style={{ padding: 28, background: "rgba(15,15,15,0.78)", border: "1px solid #1F1F1F", borderRadius: 12, display: "flex", flexDirection: "column" }}>
-                <div style={{ ...italicSerif, fontSize: 88, color: "#B11E2F", lineHeight: 1, marginBottom: 14 }}>
-                  <Editable value={l.letter} onChange={v => {
-                    const next = [...slides.system.letters]; next[i] = { ...l, letter: v };
-                    updateSlide('system', 'letters', next);
-                  }} />
-                </div>
-                <div style={{ fontSize: 22, fontWeight: 700, color: "#f5f5f5", letterSpacing: "-0.01em", marginBottom: 10 }}>
-                  <Editable value={l.word} onChange={v => {
-                    const next = [...slides.system.letters]; next[i] = { ...l, word: v };
-                    updateSlide('system', 'letters', next);
-                  }} />
-                </div>
-                <p style={{ margin: 0, fontSize: 16, color: "#B8B8B8", lineHeight: 1.5 }}>
-                  <Editable value={l.explanation} onChange={v => {
-                    const next = [...slides.system.letters]; next[i] = { ...l, explanation: v };
-                    updateSlide('system', 'letters', next);
-                  }} multiline />
-                </p>
+          {/* 2-column: Weekly Formats LEFT (4 cards) | Pre-recorded Library RIGHT (6 modules in 2-col) */}
+          <div style={{ marginTop: 26, display: "grid", gridTemplateColumns: "1.05fr 1fr", gap: 24, flex: 1 }}>
+            {/* LEFT: Weekly content formats */}
+            <div style={{ padding: 28, background: "rgba(15,15,15,0.78)", border: "1px solid rgba(177,30,47,0.35)", borderRadius: 12, display: "flex", flexDirection: "column" }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: "#B11E2F", letterSpacing: "0.22em", textTransform: "uppercase", marginBottom: 14 }}>
+                {creator?.primaryLanguage === 'en' ? 'Weekly content' : 'Conteúdo semanal'}
               </div>
-            ))}
-          </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 12, flex: 1 }}>
+                {slides.system.weeklyFormats.map((f, i) => (
+                  <div key={i} style={{ display: "grid", gridTemplateColumns: "64px 1fr", gap: 14, alignItems: "start", padding: "12px 0", borderTop: i === 0 ? "none" : "1px solid #1F1F1F" }}>
+                    <div style={{ fontFamily: "'JetBrains Mono', ui-monospace, monospace", fontSize: 11, fontWeight: 700, color: "#f5f5f5", letterSpacing: "0.14em", textTransform: "uppercase", padding: "4px 8px", border: "1px solid rgba(177,30,47,0.55)", background: "rgba(177,30,47,0.08)", borderRadius: 6, textAlign: "center", whiteSpace: "nowrap" }}>
+                      <Editable value={f.day} onChange={v => {
+                        const next = [...slides.system.weeklyFormats]; next[i] = { ...f, day: v };
+                        updateSlide('system', 'weeklyFormats', next);
+                      }} />
+                    </div>
+                    <div>
+                      <div style={{ display: "flex", alignItems: "baseline", gap: 10, marginBottom: 2 }}>
+                        <span style={{ ...italicSerif, fontSize: 22, color: "#f5f5f5", lineHeight: 1.1 }}>
+                          <Editable value={f.name} onChange={v => {
+                            const next = [...slides.system.weeklyFormats]; next[i] = { ...f, name: v };
+                            updateSlide('system', 'weeklyFormats', next);
+                          }} />
+                        </span>
+                        {f.type && (
+                          <span style={{ fontFamily: "'JetBrains Mono', ui-monospace, monospace", fontSize: 10, color: "#8A8A8A", letterSpacing: "0.14em", textTransform: "uppercase" }}>
+                            · <Editable value={f.type} onChange={v => {
+                              const next = [...slides.system.weeklyFormats]; next[i] = { ...f, type: v };
+                              updateSlide('system', 'weeklyFormats', next);
+                            }} />
+                          </span>
+                        )}
+                      </div>
+                      <p style={{ margin: 0, fontSize: 14, color: "#B8B8B8", lineHeight: 1.45 }}>
+                        <Editable value={f.desc} onChange={v => {
+                          const next = [...slides.system.weeklyFormats]; next[i] = { ...f, desc: v };
+                          updateSlide('system', 'weeklyFormats', next);
+                        }} multiline />
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
 
-          <p style={{ marginTop: 28, fontSize: 22, color: "#D5D5D5", lineHeight: 1.5, textAlign: "center", maxWidth: 1500, margin: "28px auto 0" }}>
-            <Editable value={slides.system.description} onChange={v => updateSlide('system', 'description', v)} multiline />
-          </p>
+            {/* RIGHT: Pre-recorded library */}
+            <div style={{ padding: 28, background: "rgba(15,15,15,0.78)", border: "1px solid rgba(31,138,76,0.35)", borderRadius: 12, display: "flex", flexDirection: "column" }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: "#1F8A4C", letterSpacing: "0.22em", textTransform: "uppercase", marginBottom: 14 }}>
+                {creator?.primaryLanguage === 'en' ? 'Pre-recorded library' : 'Biblioteca pré-gravada'}
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, flex: 1 }}>
+                {slides.system.library.map((m, i) => (
+                  <div key={i} style={{ padding: "14px 14px", background: "rgba(31,138,76,0.04)", border: "1px solid rgba(31,138,76,0.2)", borderRadius: 8, display: "flex", flexDirection: "column" }}>
+                    {m.format && (
+                      <div style={{ fontFamily: "'JetBrains Mono', ui-monospace, monospace", fontSize: 9, color: "#1F8A4C", letterSpacing: "0.16em", textTransform: "uppercase", marginBottom: 6 }}>
+                        <Editable value={m.format} onChange={v => {
+                          const next = [...slides.system.library]; next[i] = { ...m, format: v };
+                          updateSlide('system', 'library', next);
+                        }} />
+                      </div>
+                    )}
+                    <div style={{ ...italicSerif, fontSize: 18, color: "#f5f5f5", lineHeight: 1.15, marginBottom: 4 }}>
+                      <Editable value={m.name} onChange={v => {
+                        const next = [...slides.system.library]; next[i] = { ...m, name: v };
+                        updateSlide('system', 'library', next);
+                      }} />
+                    </div>
+                    <p style={{ margin: 0, fontSize: 12, color: "#9a9890", lineHeight: 1.4 }}>
+                      <Editable value={m.desc} onChange={v => {
+                        const next = [...slides.system.library]; next[i] = { ...m, desc: v };
+                        updateSlide('system', 'library', next);
+                      }} multiline />
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
         </div>
       </Slide>
 
@@ -1905,21 +1954,43 @@ function buildDefaultSlides(creator) {
         '[What makes this different — one sentence. Something similar communities don\'t have.]'
       ),
     },
-    // NEW: O Sistema — Unique Mechanism (acronym-style branded method).
-    // Auto-populated from parsed.uniqueMechanism.
+    // O Sistema · Conteúdo Semanal — branded mechanism name + weekly named formats
+    // + pre-recorded library. Auto-populated from parsed.community.weeklyFormats
+    // and parsed.community.library (the LLM names them from creator niche + top
+    // IG posts). Legacy `letters` / `description` fields kept for back-compat.
     system: {
-      title: t('O Sistema', 'The System'),
-      subtitle: t('O método que vais ensinar à tua comunidade.', 'The method you will teach your community.'),
-      name: um.name || t('[The X.Y.Z. Method]', '[The X.Y.Z. Method]'),
-      letters: um.letters && um.letters.length > 0 ? um.letters : [
-        { letter: 'X', word: t('[Palavra]', '[Word]'), explanation: t('[1 frase]', '[1 sentence]') },
-        { letter: 'Y', word: t('[Palavra]', '[Word]'), explanation: t('[1 frase]', '[1 sentence]') },
-        { letter: 'Z', word: t('[Palavra]', '[Word]'), explanation: t('[1 frase]', '[1 sentence]') },
-      ],
-      description: um.description || t(
-        '[1 parágrafo a explicar como o sistema funciona como um todo — o que o membro experiencia ao passar por X → Y → Z.]',
-        '[1 paragraph explaining how the system works as a whole — what the member experiences moving through X → Y → Z.]'
-      ),
+      title: t('O Sistema · Conteúdo Semanal', 'The System · Weekly Content'),
+      subtitle: t('O método que a tua comunidade consome todas as semanas.', 'The method your community consumes every week.'),
+      name: um.name || t('[The X.Y.Z. Method™]', '[The X.Y.Z. Method™]'),
+      weeklyFormats: c.weeklyFormats && c.weeklyFormats.length > 0 ? c.weeklyFormats : (lang === 'en' ? [
+        { day: 'MON', name: '[Format Name™]', type: 'Post',     desc: '[1-line description of what happens]' },
+        { day: 'WED', name: '[Format Name™]', type: 'Live 30m', desc: '[1-line description]' },
+        { day: 'SAT', name: '[Format Name™]', type: 'Video',    desc: '[1-line description]' },
+        { day: 'SUN', name: '[Format Name™]', type: 'Community',desc: '[1-line description]' },
+      ] : [
+        { day: 'SEG', name: '[Nome do Formato™]', type: 'Post',         desc: '[1 linha sobre o que acontece]' },
+        { day: 'QUA', name: '[Nome do Formato™]', type: 'Live 30min',   desc: '[1 linha]' },
+        { day: 'SÁB', name: '[Nome do Formato™]', type: 'Vídeo',        desc: '[1 linha]' },
+        { day: 'DOM', name: '[Nome do Formato™]', type: 'Comunidade',   desc: '[1 linha]' },
+      ]),
+      library: c.library && c.library.length > 0 ? c.library : (lang === 'en' ? [
+        { name: '[Module Name™]', format: 'Masterclass',    desc: '[Theme drawn from top post]' },
+        { name: '[Module Name™]', format: 'Mini-course',    desc: '[Theme]' },
+        { name: '[Module Name™]', format: 'PDF',            desc: '[Theme]' },
+        { name: '[Module Name™]', format: 'Calculator',     desc: '[Theme]' },
+        { name: '[Module Name™]', format: 'Template Pack',  desc: '[Theme]' },
+        { name: '[Module Name™]', format: 'Audio Program',  desc: '[Theme]' },
+      ] : [
+        { name: '[Nome do Módulo™]', format: 'Masterclass',     desc: '[Tema vindo de um post de topo]' },
+        { name: '[Nome do Módulo™]', format: 'Mini-curso',      desc: '[Tema]' },
+        { name: '[Nome do Módulo™]', format: 'PDF',             desc: '[Tema]' },
+        { name: '[Nome do Módulo™]', format: 'Calculadora',     desc: '[Tema]' },
+        { name: '[Nome do Módulo™]', format: 'Pack Templates',  desc: '[Tema]' },
+        { name: '[Nome do Módulo™]', format: 'Programa Áudio',  desc: '[Tema]' },
+      ]),
+      // Legacy fields — preserved so older offers still render if loaded into the new slide.
+      letters: um.letters && um.letters.length > 0 ? um.letters : [],
+      description: um.description || '',
     },
     // NEW: O Valor — Value Stack (problems → solutions → € values, Hormozi style).
     // Auto-populated from parsed.valueStack.

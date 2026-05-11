@@ -471,6 +471,18 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
       msg += `**Products Already Sold:** ${creator.products?.join(", ") || "None found"}\n`;
       msg += `**Credibility:** ${creator.reputation || "(not provided)"}\n`;
       msg += `**Additional Context:** ${offerForm.guidelines || "(not provided)"}\n`;
+
+      // Top-performing content (signals what audience already responds to —
+      // used to name weekly formats + pre-recorded library themes in Section K).
+      const topPosts = (creator.intelligence?.topPosts || []).slice(0, 10);
+      if (topPosts.length > 0) {
+        msg += `\n## TOP-PERFORMING CONTENT (audience signals from public scrape)\n\n`;
+        msg += `Use these to theme Section K's Weekly Content Formats + Pre-recorded Library — these are formats/topics the audience already engages with.\n\n`;
+        topPosts.forEach((p, i) => {
+          msg += `${i + 1}. [${p.format || 'post'} · ${p.engagementRate || '?'}%] ${p.topic || ''}${p.caption ? ` — "${String(p.caption).slice(0, 140)}"` : ''}\n`;
+        });
+      }
+
       if (meetingContext) msg += `\n## MEETING NOTES (from direct conversation with the creator)\n\n${meetingContext}\n`;
       msg += `\n---\nGenerate all three outputs now. Follow system instructions and Hormozi frameworks exactly.\n**IMPORTANT: Write the ENTIRE output in ${(ae.language || "").toLowerCase().includes("portugu") ? "Português" : "English"}.** All section titles, analysis, tables, objection scripts — everything.`;
 
