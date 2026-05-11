@@ -328,8 +328,28 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
       if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || "Failed");
       const data = await r.json();
       setReplyResult(data);
+      // Mark creator as replied — stops reminder digest from pinging them again.
+      await patchCreator({ outreach: { ...(creator.outreach || {}), repliedAt: new Date().toISOString() } });
     } catch (e) { setReplyError(e.message); } finally { setReplyLoading(false); }
   }, [replyText, creator, patchCreator]);
+
+  // Outreach helpers — mark DM / email / follow-up as sent so the reminder cron
+  // knows which milestone is next. Each is one server round-trip.
+  const markOutreach = useCallback(async (field) => {
+    const now = new Date().toISOString();
+    const cur = creator?.outreach || {};
+    const patch = { ...cur };
+    if (field === 'dm')    patch.dmSentAt = now;
+    if (field === 'email') patch.emailSentAt = now;
+    if (field === 'followUp') {
+      const next = Math.min(3, (cur.followUpsDone || 0) + 1);
+      patch.followUpsDone = next;
+      patch.lastFollowUpAt = now;
+    }
+    if (field === 'replied') patch.repliedAt = now;
+    if (field === 'unreplied') patch.repliedAt = null;
+    await patchCreator({ outreach: patch });
+  }, [creator, patchCreator]);
 
   const findSimilar = useCallback(async () => {
     if (!params?.id || findingSimilar) return;
@@ -1185,6 +1205,58 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
                   </div>
                   <button onClick={() => { patchCreator({ dmSequence: null }); setReplyResult(null); setReplyText(""); }} style={{ padding: "6px 14px", borderRadius: 6, border: "1px solid rgba(255,255,255,0.08)", background: "transparent", color: "#888", fontSize: 10, cursor: "pointer", fontFamily: "inherit" }}>Regenerar</button>
                 </div>
+
+                {/* Outreach tracker — drives the daily reminder digest. Each chip
+                    is click-to-mark; once marked it shows the date and the
+                    reminder cron stops pinging that milestone. */}
+                {(() => {
+                  const out = creator.outreach || {};
+                  const sentChip = (sent, label, onClick) => (
+                    <button
+                      onClick={onClick}
+                      title={sent ? `Marcado a ${new Date(sent).toLocaleString('pt-PT')} · Clica para desmarcar` : 'Clica quando enviares'}
+                      style={{
+                        padding: "4px 10px", borderRadius: 4, fontSize: 10, fontWeight: 600, cursor: "pointer", fontFamily: "inherit",
+                        border: `1px solid ${sent ? 'rgba(34,197,94,0.3)' : 'rgba(255,255,255,0.08)'}`,
+                        background: sent ? 'rgba(34,197,94,0.08)' : 'transparent',
+                        color: sent ? '#22c55e' : '#888',
+                      }}
+                    >
+                      {sent ? `✓ ${label}` : `○ ${label}`}
+                    </button>
+                  );
+                  const fmtRelative = (iso) => {
+                    if (!iso) return null;
+                    const days = Math.floor((Date.now() - new Date(iso).getTime()) / 86400000);
+                    return days === 0 ? 'hoje' : days === 1 ? 'há 1 dia' : `há ${days} dias`;
+                  };
+                  return (
+                    <div style={{ padding: "10px 14px", marginBottom: 16, background: "#141414", border: "1px solid rgba(255,255,255,0.04)", borderRadius: 8, display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center" }}>
+                      <span style={{ fontSize: 9, fontWeight: 700, color: "#666", letterSpacing: "0.08em", textTransform: "uppercase" }}>Outreach</span>
+                      {sentChip(out.dmSentAt, 'DM', () => markOutreach('dm'))}
+                      {sentChip(out.emailSentAt, 'Email', () => markOutreach('email'))}
+                      <span style={{ fontSize: 9, color: "#444" }}>·</span>
+                      <button
+                        onClick={() => markOutreach('followUp')}
+                        title="Marca quando enviares cada follow-up (DM ou email)"
+                        disabled={(out.followUpsDone || 0) >= 3}
+                        style={{ padding: "4px 10px", borderRadius: 4, fontSize: 10, fontWeight: 600, cursor: (out.followUpsDone || 0) >= 3 ? "default" : "pointer", fontFamily: "inherit", border: "1px solid rgba(255,255,255,0.08)", background: (out.followUpsDone || 0) > 0 ? "rgba(59,130,246,0.08)" : "transparent", color: (out.followUpsDone || 0) > 0 ? "#3b82f6" : "#888" }}
+                      >
+                        Follow-ups: {out.followUpsDone || 0}/3{out.lastFollowUpAt ? ` · ${fmtRelative(out.lastFollowUpAt)}` : ''}
+                      </button>
+                      <span style={{ fontSize: 9, color: "#444" }}>·</span>
+                      {out.repliedAt ? (
+                        <button onClick={() => markOutreach('unreplied')} title={`Respondeu ${fmtRelative(out.repliedAt)} · Clica para desmarcar`} style={{ padding: "4px 10px", borderRadius: 4, fontSize: 10, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", border: "1px solid rgba(34,197,94,0.3)", background: "rgba(34,197,94,0.08)", color: "#22c55e" }}>
+                          ✓ Respondeu · {fmtRelative(out.repliedAt)}
+                        </button>
+                      ) : (
+                        <button onClick={() => markOutreach('replied')} title="Marca quando o criador responder. Para os reminders." style={{ padding: "4px 10px", borderRadius: 4, fontSize: 10, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", border: "1px solid rgba(255,255,255,0.08)", background: "transparent", color: "#888" }}>
+                          ○ Marcar respondeu
+                        </button>
+                      )}
+                    </div>
+                  );
+                })()}
 
                 {/* Cold DM */}
                 <MessageCard label="T+0 — Cold DM" type="dm" content={seq.dm || ""} accent>

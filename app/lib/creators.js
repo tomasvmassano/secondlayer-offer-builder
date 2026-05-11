@@ -129,6 +129,19 @@ export async function saveCreator(data) {
     },
     pipelineStatus: data.pipelineStatus || 'prospect',
     signedAt: data.signedAt || null,
+    // Outreach tracking — drives the daily reminders digest.
+    //   dmSentAt, emailSentAt: when the initial outreach was sent (manually marked)
+    //   followUpsDone: 0..3 — count of follow-up touches completed
+    //   repliedAt: set when creator engages (stops all reminders)
+    //   remindersSent: dedup record so the cron never re-pings the same milestone
+    outreach: data.outreach || {
+      dmSentAt: null,
+      emailSentAt: null,
+      followUpsDone: 0,
+      lastFollowUpAt: null,
+      repliedAt: null,
+      remindersSent: { followUp1: null, followUp2: null, followUp3: null, autoCold: null },
+    },
     createdAt: now,
     updatedAt: now,
   };
@@ -280,6 +293,19 @@ export async function updateCreator(id, updates) {
         ...(existingOnb.kickoff || {}),
         ...(updates.onboarding.kickoff || {}),
         decisions: { ...(existingOnb.kickoff?.decisions || {}), ...(updates.onboarding.kickoff?.decisions || {}) },
+      },
+    };
+  }
+  // Outreach tracking — deep-merge so a patch like `outreach: { repliedAt: X }`
+  // doesn't wipe the other fields.
+  if (updates.outreach) {
+    const existingOut = existing.outreach || {};
+    updates.outreach = {
+      ...existingOut,
+      ...updates.outreach,
+      remindersSent: {
+        ...(existingOut.remindersSent || {}),
+        ...(updates.outreach.remindersSent || {}),
       },
     };
   }
