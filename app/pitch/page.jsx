@@ -1957,7 +1957,12 @@ function buildDefaultSlides(creator) {
         { problem: t('[Problema 5]', '[Problem 5]'), solution: t('[Solução]', '[Solution]'), delivery: t('[Entrega]', '[Delivery]'), dollarValue: '€[X]' },
       ],
       total: vs.total || '€[X total]',
-      actualPrice: vs.actualPrice || '€[X]/mês',
+      // Preço Real follows the offer page: creator.revenuePrice is the single
+      // source of truth set on the offer tab. Falls back to the LLM-parsed value
+      // then to a placeholder.
+      actualPrice: recPrice
+        ? (lang === 'en' ? `€${recPrice}/mo` : `€${recPrice}/mês`)
+        : (vs.actualPrice || '€[X]/mês'),
     },
     audience: {
       title: t('A Tua Audiência', 'Your Audience'),

@@ -115,15 +115,49 @@ function extractField(block, ...labels) {
   return m ? m[1].trim().replace(/\*\*/g, '').replace(/^["']|["']$/g, '') : '';
 }
 
-// Extract a bullet list following `Label:` until a non-bullet line.
-// Tolerant to leading bullets on the label line itself.
+// Extract a bullet list following `Label:`. Tolerant to:
+//   - trailing text on the label line (e.g. `**Weekly Content Formats:** (NAMED...)`),
+//   - blank lines OR paragraphs of explanatory prose between the label and the first bullet,
+//   - bullets using any of - * • ■.
+// Stops at the next field marker (`**...:**`), section header (`## ...`), or numbered
+// section letter (`A.`, `B.`, ...). Used for both flat lists (Weekly Rhythm) and
+// rich lists (Weekly Content Formats / Pre-recorded Library).
 function extractList(block, ...labels) {
   if (!block) return [];
   const alt = tryLabels(labels);
-  const re = new RegExp(`(?:^|\\n)\\s*${BULLET}?\\s*${FIELD_PREFIX}\\s*(?:${alt})\\s*${FIELD_PREFIX}\\s*[:\\-]?\\s*\\n((?:\\s*${BULLET}\\s*[^\\n]+\\n?)+)`, 'i');
-  const m = block.match(re);
+  // Match the label (allow any trailing text on the same line — stops at newline).
+  const labelRe = new RegExp(
+    `(?:^|\\n)\\s*${BULLET}?\\s*${FIELD_PREFIX}\\s*(?:${alt})\\s*${FIELD_PREFIX}\\s*[:\\-][^\\n]*`,
+    'i'
+  );
+  const m = block.match(labelRe);
   if (!m) return [];
-  return m[1].split('\n').map(l => l.replace(new RegExp(`^\\s*${BULLET}\\s*`), '').trim()).filter(Boolean);
+  const after = block.slice(m.index + m[0].length);
+  const lines = after.split('\n');
+  const out = [];
+  let started = false;
+  const bulletStartRe = new RegExp(`^\\s*${BULLET}\\s+(.+)$`);
+  for (const line of lines) {
+    if (!line.trim()) {
+      if (started) break;    // collected items and hit a paragraph break → done
+      continue;              // pre-list blank line → keep scanning
+    }
+    const bm = line.match(bulletStartRe);
+    if (bm) {
+      out.push(bm[1].trim());
+      started = true;
+      continue;
+    }
+    // Non-blank, non-bullet line.
+    if (started) break;      // a paragraph after the list → done
+    // Before any bullet found: stop if this is clearly the start of another
+    // field / section / sub-block; otherwise treat as explanatory prose and
+    // keep scanning for the first bullet.
+    if (/^\s*\*\*[^*]+:\*\*/.test(line)) break;   // **Next Field:**
+    if (/^#{1,4}\s/.test(line)) break;             // ## Section
+    if (/^\s*[A-Z]\.\s/.test(line)) break;         // A. SECTION
+  }
+  return out;
 }
 
 // Extract a sub-block (e.g., everything under "Tier 1 — Recommended:" until the next sub-block boundary).
