@@ -50,7 +50,7 @@ export const ENGAGEMENT_BENCHMARK = 2.0; // 2% is the reference point
  * - Half-weight smoothing so extreme engagement doesn't dominate
  * - Clamped to [0.3, 3.0] so no creator gets infinite or zero scaling
  */
-export function calculateEngagementMultiplier(engagementRate) {
+function calculateEngagementMultiplier(engagementRate) {
   const eng = parseFloat(engagementRate) || 0;
   if (eng <= 0) return 1.0;
   const rawMult = eng / ENGAGEMENT_BENCHMARK;
@@ -94,7 +94,7 @@ export function calculateSteadyMRR({ audience, price, engagementRate, scenario }
  * Uses the Hormozi steady-state members as the target.
  * Launch month gets a 3x acquisition spike (waitlist effect).
  */
-export const DEFAULT_LAUNCH_MULTIPLIER = 3;
+const DEFAULT_LAUNCH_MULTIPLIER = 3;
 
 export function projectGrowth({ audience, price, engagementRate, scenario, launchMultiplier = DEFAULT_LAUNCH_MULTIPLIER }) {
   const steady = calculateSteadyMRR({ audience, price, engagementRate, scenario });
@@ -126,7 +126,8 @@ export function cumulativeRevenue(months) {
 }
 
 /**
- * Helper: detect default price for a niche if user hasn't customized.
+ * Default price for a niche. Used by callers that locally implement the
+ * niche→pricing mapping (e.g. pitch deck). Kept as an export for reuse.
  */
 export const NICHE_PRICING = {
   imobiliario: { low: 49, mid: 97, high: 297 },
@@ -143,27 +144,3 @@ export const NICHE_PRICING = {
   gastronomia: { low: 9, mid: 24, high: 49 },
 };
 
-const NICHE_ALIASES = {
-  'real estate': 'imobiliario', property: 'imobiliario',
-  investing: 'investimento', investment: 'investimento',
-  gym: 'fitness', workout: 'fitness', training: 'fitness', coaching: 'fitness',
-  entrepreneur: 'empreendedorismo', entrepreneurship: 'empreendedorismo', startup: 'empreendedorismo',
-  marketing: 'business', 'creator economy': 'business',
-  nutrition: 'nutricao', diet: 'dietetica', 'healthy eating': 'nutricao',
-  finance: 'financas', 'personal finance': 'financas', money: 'financas',
-  education: 'educacao', teaching: 'educacao', learning: 'educacao',
-  'personal development': 'desenvolvimento', mindset: 'desenvolvimento',
-  food: 'culinaria', cooking: 'culinaria', baking: 'culinaria', culinary: 'culinaria',
-};
-
-export function detectNichePricing(nicheString) {
-  if (!nicheString) return NICHE_PRICING.fitness;
-  const lower = nicheString.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-  for (const key of Object.keys(NICHE_PRICING)) {
-    if (lower.includes(key)) return NICHE_PRICING[key];
-  }
-  for (const [alias, key] of Object.entries(NICHE_ALIASES)) {
-    if (lower.includes(alias)) return NICHE_PRICING[key];
-  }
-  return NICHE_PRICING.fitness;
-}

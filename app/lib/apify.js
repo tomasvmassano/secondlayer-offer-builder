@@ -328,56 +328,6 @@ async function scrapeYouTube(channelUrl) {
 }
 
 /**
- * Main scrape function — detects platform from URL and scrapes accordingly
- */
-export async function scrapeCreator(url) {
-  if (!hasApify()) return { error: 'APIFY_TOKEN not configured', source: 'none' };
-
-  const isInstagram = /instagram\.com/i.test(url);
-  const isTikTok = /tiktok\.com/i.test(url);
-
-  // Extract username from URL
-  let username = '';
-  if (isInstagram) {
-    const match = url.match(/instagram\.com\/([^/?]+)/i);
-    username = match ? match[1].replace(/^@/, '') : '';
-  } else if (isTikTok) {
-    const match = url.match(/tiktok\.com\/@?([^/?]+)/i);
-    username = match ? match[1].replace(/^@/, '') : '';
-  }
-
-  if (!username) return { error: 'Could not extract username from URL', source: 'none' };
-
-  try {
-    if (isInstagram) {
-      const data = await scrapeInstagram(username);
-      if (!data) return { error: 'No data returned', source: 'apify' };
-      return {
-        source: 'apify',
-        platform: 'Instagram',
-        username,
-        ...data,
-      };
-    }
-
-    if (isTikTok) {
-      const data = await scrapeTikTok(username);
-      if (!data) return { error: 'No data returned', source: 'apify' };
-      return {
-        source: 'apify',
-        platform: 'TikTok',
-        username,
-        ...data,
-      };
-    }
-
-    return { error: 'Unsupported platform', source: 'none' };
-  } catch (err) {
-    return { error: err.message, source: 'apify' };
-  }
-}
-
-/**
  * Scrape multiple platforms in parallel and merge into one profile.
  * Returns a merged creator profile object (not raw scrape data).
  */

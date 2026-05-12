@@ -69,21 +69,3 @@ export function resolvePrimaryLanguage(input, threshold = THRESHOLD) {
   return null; // language_not_served
 }
 
-/**
- * Format a language code for display.
- */
-export function languageLabel(code) {
-  const labels = { pt: 'PT', en: 'EN', es: 'ES', ar: 'AR', fr: 'FR', it: 'IT', de: 'DE' };
-  return labels[code] || code?.toUpperCase() || '?';
-}
-
-/**
- * Get breakdown of all detected languages for display purposes.
- * Returns array sorted by percentage desc: [{ code: "en", pct: 60 }, ...]
- */
-export function languageBreakdown(input) {
-  const langs = typeof input === 'string' ? parseLanguageString(input) : (input || {});
-  return Object.entries(langs)
-    .map(([code, pct]) => ({ code, pct }))
-    .sort((a, b) => b.pct - a.pct);
-}

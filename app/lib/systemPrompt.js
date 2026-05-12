@@ -1,32 +1,11 @@
-import { loadSkills, formatReferences } from './skills';
-
 /**
- * The orchestration layer for the Offer Builder.
+ * Offer system prompt — v3.0 A-O Hormozi format.
  *
- * The deep Hormozi knowledge (Value Equation, Grand Slam, 4-stage Money Model,
- * 10 pricing plays, R-A-I-S-E letter, MAGIC naming, CFA math) lives in three
- * compiled skills:
- *   - hundred-million-offers  (Grand Slam offer engineering)
- *   - money-model             (4-stage Attraction → Upsell → Downsell → Continuity)
- *   - pricing-plays           (10 instant profit plays + R-A-I-S-E)
- *
- * `getOfferSystemPrompt()` loads them at request time and prepends them to the
- * orchestration prompt below — so the LLM has the actual frameworks AND the
- * Second-Layer-specific orchestration (niche pricing DB, EUR/PT-Dubai context,
- * exact output structure, blind-spot audit, objection playbook).
+ * The Hormozi skill content (hundred-million-offers, money-model, pricing-plays,
+ * case-studies, closing) is loaded server-side by /api/generate via the `skills`
+ * field in the request body — the caller picks which skills travel with this
+ * prompt, the route handler composes them on top.
  */
-export function getOfferSystemPrompt() {
-  const { systemPrompt: skillsPrompt, references } = loadSkills([
-    'hundred-million-offers',
-    'money-model',
-    'pricing-plays',
-  ]);
-  const refsBlock = references.length > 0
-    ? '\n\n---\n\n## DEEPER REFERENCES\n\n' + formatReferences(references, 30000)
-    : '';
-  return `${skillsPrompt}${refsBlock}\n\n---\n\n${OFFER_SYSTEM_PROMPT}`;
-}
-
 export const OFFER_SYSTEM_PROMPT = `# OFFER BUILDER SYSTEM v3.0 (HORMOZI ENGINEERING + COMMUNITY SPEC) — Second Layer HQ
 
 ## ROLE

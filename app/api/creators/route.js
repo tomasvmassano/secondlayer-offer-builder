@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { saveCreator, listCreators, searchCreators } from '../../lib/creators';
-import { scrapeCreator, apifyToCreatorProfile, scrapeMultiplePlatforms, scrapeLean } from '../../lib/apify';
+import { apifyToCreatorProfile, scrapeMultiplePlatforms, scrapeLean } from '../../lib/apify';
 import { resolvePrimaryLanguage } from '../../lib/language';
 import { calculateDealScore } from '../../lib/dealScore';
 
