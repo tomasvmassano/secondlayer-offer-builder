@@ -8,16 +8,15 @@
  *   - /api/onboarding/[token]/complete   — same
  *   - /api/auth/*                        — sign-in flow
  *   - /api/proxy-image                   — used by /onboarding (creator's own profile pic)
- *   - /api/cron/*                        — Vercel cron (will be guarded by Vercel-Cron-Signature header in a follow-up)
- *   - /privacy                           — to be built
+ *   - /api/cron/*                        — Vercel cron (guarded by CRON_SECRET in route handlers)
+ *   - /privacy                           — public privacy policy
  *   - /_next/*, /favicon.ico, /icon.png  — static
  *
  * Everything else requires a valid session cookie. If missing or invalid,
  * we redirect to /signin?next=<original-url>.
  *
- * Role-based access:
- *   - role=creator: only /c/[their-token] (or /c/by-id/[their-creatorId])
- *   - role=team:    everything (else)
+ * Only role=team is implemented today — every signed-in user is treated as
+ * team. (The creator-portal at /c/[token] is not built; references removed.)
  */
 
 import { NextResponse } from 'next/server';
@@ -89,17 +88,9 @@ export async function middleware(request) {
     return NextResponse.redirect(signinUrl);
   }
 
-  // Role gates.
-  if (user.role === 'creator') {
-    // Creators can only see their own portal + onboarding (already public above).
-    const isOwnPortal = pathname.startsWith('/c/') || pathname.startsWith('/api/c/');
-    if (!isOwnPortal) {
-      // Send them to their portal instead of an error page.
-      return NextResponse.redirect(new URL(`/c/by-id/${user.creatorId}`, request.url));
-    }
-  }
-
-  // Team can access everything else.
+  // Only team role is implemented today — every signed-in user gets full access.
+  // (Creator portal at /c/[token] is on the roadmap; reintroduce role gating
+  // here once the portal pages exist.)
   return NextResponse.next();
 }
 
