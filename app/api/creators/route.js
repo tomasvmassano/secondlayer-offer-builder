@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { saveCreator, listCreators, searchCreators } from '../../lib/creators';
 import { scrapeCreator, apifyToCreatorProfile, scrapeMultiplePlatforms, scrapeLean } from '../../lib/apify';
 import { resolvePrimaryLanguage } from '../../lib/language';
+import { calculateDealScore } from '../../lib/dealScore';
 
 // Lean scrape + lightweight analysis fits well under 60s. The full enrichment
 // (TikTok + YouTube + web-search products/competitors) runs separately via
@@ -324,6 +325,28 @@ RESEARCH: [2-3 paragraph summary]`,
     if (name && profile) profile.name = name;
     if (tiktokUrl && profile) profile.tiktokUrl = tiktokUrl;
     if (youtubeUrl && profile) profile.youtubeUrl = youtubeUrl;
+
+    // Bulk-import opt-in: callers can pass `minDealScore` (e.g. 35 to drop D-tier).
+    // We compute the score on the freshly built profile BEFORE saving so rejected
+    // creators never touch the DB — saves Apify cost on obvious passes and keeps
+    // the CRM clean. The client gets back the score so it can show why each row
+    // was rejected.
+    if (profile && body.minDealScore != null) {
+      try {
+        const score = calculateDealScore(profile);
+        if (score && score.score < Number(body.minDealScore)) {
+          return NextResponse.json({
+            rejected: true,
+            reason: 'below_min_score',
+            score: score.score,
+            grade: score.grade,
+            profile: { name: profile.name, niche: profile.niche, primaryPlatform: profile.primaryPlatform },
+          });
+        }
+      } catch {
+        // Score calc failed — save anyway, don't punish the creator for our bug.
+      }
+    }
 
     const { id } = await saveCreator(profile);
     return NextResponse.json({ id, creator: { id, ...profile } });

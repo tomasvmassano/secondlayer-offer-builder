@@ -427,6 +427,27 @@ export default function CreatorsPage() {
           >
             + Adicionar Creator
           </button>
+          <a
+            href="/creators/import"
+            title="Importa uma lista de creators a partir de um CSV (Name, Instagram, TikTok, YouTube). Lean scrape sequencial com filtro de Deal Score."
+            style={{
+              padding: "14px 18px",
+              background: "transparent",
+              border: "1px solid rgba(177,30,47,0.4)",
+              borderRadius: 10,
+              color: "#B11E2F",
+              fontSize: 14,
+              fontWeight: 600,
+              cursor: "pointer",
+              fontFamily: "inherit",
+              whiteSpace: "nowrap",
+              textDecoration: "none",
+              display: "inline-flex",
+              alignItems: "center",
+            }}
+          >
+            ↑ Bulk Import
+          </a>
         </div>
 
         {/* Add Creator Form */}
