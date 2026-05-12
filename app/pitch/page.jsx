@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo, useRef, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { SCENARIOS as SHARED_SCENARIOS, projectGrowth as sharedProjectGrowth, cumulativeRevenue as sharedCumulative, calculateSteadyMRR } from "../lib/revenue";
-import { parseOutput } from "../offer-builder/lib/shared";
+import { parseOutput } from "../lib/offerParser";
 
 // ─────────────────────────────────────────────────────────────────
 // PITCH DECK — 10 slides + optional slide 11 (Investimento)

@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useRef, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { calculateDealScore } from "../../lib/dealScore";
 import { SCENARIOS as REVENUE_SCENARIOS, calculateSteadyMRR as sharedCalcMRR } from "../../lib/revenue";
-import { renderMd, parseOutput, extractAudience } from "../../offer-builder/lib/shared";
+import { renderMd, parseOutput, extractAudience } from "../../lib/offerParser";
 import { OFFER_SYSTEM_PROMPT } from "../../lib/systemPrompt";
 import WorkspaceDashboard from "./workspace/WorkspaceDashboard";
 
