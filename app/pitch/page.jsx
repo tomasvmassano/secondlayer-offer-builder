@@ -1857,25 +1857,6 @@ function buildDefaultSlides(creator) {
         'Tu és a cara. Equipa opera a máquina.',
       ],
     },
-    whatYouGet: {
-      hero: t(
-        'Vais ter um negócio a sério por trás do teu conteúdo.',
-        'You\'ll have a real business behind your content.'
-      ),
-      pillars: lang === 'en' ? [
-        { title: 'A paid community', desc: 'Where your members pay monthly to access you and what you teach. It\'s yours. You control who joins, how much they pay, how it grows.' },
-        { title: 'A system that brings and keeps members', desc: 'Ads, sales, emails, onboarding. All built and connected, bringing new members every month.' },
-        { title: 'A dedicated team running it', desc: 'We operate everything behind the scenes. You stay in what you do best: create, show up, lead your audience.' },
-      ] : [
-        { title: 'Uma comunidade paga', desc: 'Onde os teus membros pagam mensalmente para ter acesso a ti e ao que ensinas. É tua. Controlas quem entra, quanto paga, como cresce.' },
-        { title: 'Um sistema que traz e mantém membros', desc: 'Publicidade, vendas, emails, onboarding. Tudo construído e ligado, a trazer membros novos todos os meses.' },
-        { title: 'Uma equipa dedicada a operar', desc: 'Nós operamos tudo o que está por trás. Tu mantens-te no que fazes melhor: criar, aparecer, liderar a tua audiência.' },
-      ],
-      closer: t(
-        'No fim, ficas com receita mensal previsível, uma comunidade que é tua, e uma equipa a operar o teu negócio.',
-        'In the end, you have predictable monthly revenue, a community that\'s yours, and a team running your business.'
-      ),
-    },
     // Concrete community spec — auto-populated from parsed.community when offer is generated;
     // falls back to placeholders so the deck renders even before the offer exists.
     community: {
@@ -1992,50 +1973,6 @@ function buildDefaultSlides(creator) {
         'Our model is making this happen in other niches today. Yours is next.'
       ),
     },
-    buildOperate: {
-      buildTitle: t('O Que Construímos', 'What We Build'),
-      operateTitle: t('O Que Operamos', 'What We Operate'),
-      buildSub: t('uma vez, no início', 'one time, at setup'),
-      operateSub: t('todos os meses', 'every month'),
-      build: lang === 'en' ? [
-        { title: 'Paid community', desc: 'the platform where members pay monthly to access you' },
-        { title: 'Sales page', desc: 'where people learn about the offer and pay' },
-        { title: 'Automated email system', desc: 'messages at the right moment (welcome, sales, re-engagement)' },
-        { title: 'Paid ads infrastructure', desc: 'Instagram, Facebook, and TikTok bringing in new members' },
-        { title: 'Performance dashboard', desc: 'see in real time how many members, how much you earned, what works' },
-        { title: 'Member onboarding playbook', desc: 'ensures every new member starts strong and stays' },
-      ] : [
-        { title: 'Comunidade paga', desc: 'a plataforma onde os membros pagam mensalmente para ter acesso a ti' },
-        { title: 'Página de vendas', desc: 'onde as pessoas conhecem a oferta e pagam' },
-        { title: 'Sistema de emails automático', desc: 'mensagens no momento certo (boas-vindas, vendas, reengagement)' },
-        { title: 'Anúncios pagos', desc: 'Instagram, Facebook e TikTok a trazer membros novos' },
-        { title: 'Painel com os teus números', desc: 'vês em tempo real quantos membros tens, quanto ganhaste, o que funciona' },
-        { title: 'Playbook de boas-vindas', desc: 'garante que cada novo membro entra bem e fica' },
-      ],
-      operate: lang === 'en' ? [
-        'We manage and optimize ads to bring in new members at the best cost',
-        'We analyze email performance and adjust what isn\'t converting',
-        'We keep the community alive (engagement, questions, activities)',
-        'We identify members about to leave and bring them back',
-        'Monthly call with you to align strategy and next steps',
-        'Monthly report with all the numbers and what we\'ll do next',
-        'We onboard every new member personally',
-        'We turn your public content into a steady stream of new members',
-      ] : [
-        'Gerimos e otimizamos os anúncios para trazer novos membros ao melhor custo',
-        'Analisamos os emails e ajustamos o que não está a vender',
-        'Mantemos a comunidade viva (interação, dúvidas, atividades)',
-        'Identificamos membros prestes a sair e trazemos de volta',
-        'Call mensal contigo para alinhar estratégia e próximos passos',
-        'Relatório mensal com todos os números e o que vamos fazer a seguir',
-        'Fazemos o onboarding de cada novo membro',
-        'Transformamos o teu conteúdo público num fluxo constante de novos membros',
-      ],
-      closer: t(
-        'Não construímos e vamos embora. A máquina fica ligada e a crescer, todos os meses.',
-        'We don\'t build and disappear. The machine stays running and growing, every month.'
-      ),
-    },
     launch: {
       title: t('Como Lançamos', 'How We Launch'),
       phases: lang === 'en' ? [
@@ -2113,26 +2050,6 @@ function buildDefaultSlides(creator) {
       alignment: t(
         'Só ganhamos quando tu ganhas. Estamos alinhados.',
         'We only earn when you earn. We\'re aligned.'
-      ),
-    },
-    recap: {
-      title: t('De → Para', 'From → To'),
-      fromLabel: t('De', 'From'),
-      toLabel: t('Para', 'To'),
-      pairs: lang === 'en' ? [
-        { from: 'Dependent on the algorithm', to: 'A real business' },
-        { from: 'You do everything', to: 'You\'re the face, we operate' },
-        { from: 'Unpredictable income', to: 'Recurring revenue' },
-        { from: 'Brands controlling you', to: 'A community that\'s yours' },
-      ] : [
-        { from: 'Dependência do algoritmo', to: 'Negócio próprio' },
-        { from: 'Tu fazes tudo', to: 'Tu és a cara, nós operamos' },
-        { from: 'Receita imprevisível', to: 'Receita recorrente' },
-        { from: 'Marcas a mandar em ti', to: 'Comunidade que é tua' },
-      ],
-      closer: t(
-        'Vais continuar a ser criador. Mas com um negócio a sério por trás.',
-        'You\'ll keep being a creator. But with a real business behind you.'
       ),
     },
     close: {
