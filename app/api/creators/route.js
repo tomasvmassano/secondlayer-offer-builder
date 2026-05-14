@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { saveCreator, listCreators, searchCreators } from '../../lib/creators';
+import { saveCreator, getCreator, listCreators, searchCreators } from '../../lib/creators';
 import { apifyToCreatorProfile, scrapeMultiplePlatforms, scrapeLean } from '../../lib/apify';
 import { resolvePrimaryLanguage } from '../../lib/language';
 import { calculateDealScore } from '../../lib/dealScore';
@@ -348,8 +348,23 @@ RESEARCH: [2-3 paragraph summary]`,
       }
     }
 
-    const { id } = await saveCreator(profile);
-    return NextResponse.json({ id, creator: { id, ...profile } });
+    // saveCreator dedupes by IG handle internally: if the creator already
+    // exists, it returns { id: <existing>, duplicate: true } without writing.
+    // We need to surface that to the caller so the UI can show "already in CRM"
+    // (with a link to the existing creator) instead of pretending the row was
+    // newly added — that's what made earlier imports silently disappear into
+    // tabs the operator wasn't looking at.
+    const result = await saveCreator(profile);
+    if (result.duplicate) {
+      const existing = await getCreator(result.id);
+      return NextResponse.json({
+        id: result.id,
+        duplicate: true,
+        creator: existing || { id: result.id, ...profile },
+        message: 'Creator already exists in the CRM',
+      });
+    }
+    return NextResponse.json({ id: result.id, creator: { id: result.id, ...profile } });
   } catch (err) {
     return NextResponse.json({ error: err.message }, { status: 502 });
   }

@@ -229,6 +229,12 @@ export default function BulkImportPage() {
             next[i] = { ...next[i], status: 'error', error: data.error || `HTTP ${r.status}` };
           } else if (data.rejected) {
             next[i] = { ...next[i], status: 'rejected', score: data.score, grade: data.grade, reason: `Score ${data.score} (${data.grade}) abaixo do mínimo ${MIN_DEAL_SCORE}` };
+          } else if (data.duplicate) {
+            // Server-side dedupe found this IG handle already in the CRM. Mark
+            // as duplicate (not 'saved'), surface the existing creator's status
+            // so the operator can find them in the right tab.
+            const existingStatus = data.creator?.pipelineStatus || 'prospect';
+            next[i] = { ...next[i], status: 'duplicate', creatorId: data.id, reason: `Já existe (status: ${existingStatus})` };
           } else if (data.creator) {
             // Compute display score from creator (server doesn't return it when saved)
             next[i] = { ...next[i], status: 'saved', creatorId: data.id };
