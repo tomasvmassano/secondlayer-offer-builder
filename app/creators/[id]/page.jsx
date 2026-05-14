@@ -266,14 +266,19 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
     } catch { setDeleting(false); alert("Erro ao eliminar."); }
   }, [params, router]);
 
-  // — DM Writer generate —
-  const generateDM = useCallback(async () => {
+  // — DM Writer generate (staged) —
+  // stage: 'initial' generates DM + T+3 comment + Email Day 1 only.
+  // stage: 'followup_7' / 'followup_14' generates just that single email later,
+  // when the operator's actually about to send it (saves output tokens on the
+  // ~80% of creators who never reach the follow-up stage).
+  const generateDM = useCallback(async (stage = 'initial') => {
     if (!creator) return;
     setDmLoading(true); setDmError(null);
     try {
       const r = await fetch("/api/dm-writer", {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          stage,
           template: dmTemplate,
           inputs: {
             primeiro_nome: dmInputs.primeiro_nome || "",
@@ -306,7 +311,21 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
       });
       if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || "Failed");
       const data = await r.json();
-      await patchCreator({ dmSequence: { ...data, generatedAt: new Date().toISOString() } });
+      // Merge into existing dmSequence so initial + followups accumulate over
+      // time. `generatedAt` is only set on the initial generation (anchor for
+      // the dm-reminders cron); followups stamp their own timestamps.
+      const existing = creator.dmSequence || {};
+      const now = new Date().toISOString();
+      let merged;
+      if (stage === 'followup_7') {
+        merged = { ...existing, email_day7: data.email_day7, followup7GeneratedAt: now };
+      } else if (stage === 'followup_14') {
+        merged = { ...existing, email_day14: data.email_day14, followup14GeneratedAt: now };
+      } else {
+        // initial — full replace of opening fields, preserve any earlier followups
+        merged = { ...existing, ...data, generatedAt: now };
+      }
+      await patchCreator({ dmSequence: merged });
       if (data.inputs) setDmInputs({ _filled: true, ...data.inputs });
     } catch (e) { setDmError(e.message); } finally { setDmLoading(false); }
   }, [creator, dmTemplate, dmInputs, dmNotes, patchCreator]);
@@ -1165,7 +1184,7 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
                   <input type="text" style={inputStyle} placeholder="Contexto extra..." value={dmNotes} onChange={e => setDmNotes(e.target.value)} />
                 </div>
               </div>
-              <button onClick={generateDM} style={{ padding: "12px 32px", borderRadius: 8, border: "none", background: "#7A0E18", color: "#fff", fontSize: 14, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", width: "100%" }}>Gerar DM</button>
+              <button onClick={() => generateDM('initial')} style={{ padding: "12px 32px", borderRadius: 8, border: "none", background: "#7A0E18", color: "#fff", fontSize: 14, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", width: "100%" }}>Gerar DM</button>
             </div>
           )}
           {dmLoading && (
@@ -1193,6 +1212,24 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
                 </div>
                 <div style={{ fontSize: 13, color: "#ccc", lineHeight: 1.7, whiteSpace: "pre-wrap" }}>{content}</div>
                 {children}
+              </div>
+            );
+
+            // Placeholder shown in place of an email that hasn't been generated yet.
+            // Clicking "Gerar" fires one LLM call for ONLY this email — keeps the
+            // happy-path cheap for creators who never reach this stage.
+            const PendingEmailCard = ({ label, hint, loading, onClick }) => (
+              <div style={{ padding: "16px 18px", borderRadius: 8, background: "transparent", border: "1px dashed rgba(255,255,255,0.08)", marginBottom: 10 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "#555" }}>{label}</span>
+                    <span style={{ fontSize: 8, padding: "1px 6px", borderRadius: 3, background: "rgba(255,255,255,0.03)", color: "#555", fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase" }}>pendente</span>
+                  </div>
+                  <button onClick={onClick} disabled={loading} style={{ padding: "5px 14px", borderRadius: 6, border: "1px solid rgba(122,14,24,0.35)", background: loading ? "transparent" : "rgba(122,14,24,0.08)", color: loading ? "#555" : "#B11E2F", fontSize: 10, fontWeight: 600, cursor: loading ? "wait" : "pointer", fontFamily: "inherit" }}>
+                    {loading ? "A gerar..." : "Gerar"}
+                  </button>
+                </div>
+                <div style={{ fontSize: 11, color: "#555", lineHeight: 1.5 }}>{hint}</div>
               </div>
             );
 
@@ -1282,17 +1319,28 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
                 <MessageCard label="T+7 — Segunda DM" type="dm" content={followupT7} />
                 <MessageCard label="T+14 — Breakup" type="dm" content={breakupT14} />
 
-                {/* Emails */}
+                {/* Emails — Day 1 always generated with the initial DM; Day 7 +
+                    Day 14 are generated ON DEMAND so we don't burn tokens for
+                    the ~80% of creators that never reach those stages. The
+                    reminder cron pings the operator when each is due; the
+                    operator clicks "Gerar" here, the LLM produces just that
+                    single email merged into the existing dmSequence. */}
                 <p style={{ ...sectionTitleStyle, marginTop: 24 }}>Emails</p>
 
                 {seq.email_day1?.body && (
                   <MessageCard label="Day 1 — Email" type="email" content={`Subject: ${seq.email_day1.subject || ""}\n\n${seq.email_day1.body}`} />
                 )}
-                {seq.email_day7?.body && (
+
+                {seq.email_day7?.body ? (
                   <MessageCard label="Day 7 — Email" type="email" content={`Subject: ${seq.email_day7.subject || ""}\n\n${seq.email_day7.body}`} />
+                ) : (
+                  <PendingEmailCard label="Day 7 — Email" hint="Gera quando estiver na altura de mandar (~7 dias após o cold DM)." loading={dmLoading} onClick={() => generateDM('followup_7')} />
                 )}
-                {seq.email_day14?.body && (
+
+                {seq.email_day14?.body ? (
                   <MessageCard label="Day 14 — Email" type="email" content={`Subject: ${seq.email_day14.subject || ""}\n\n${seq.email_day14.body}`} />
+                ) : (
+                  <PendingEmailCard label="Day 14 — Email" hint="Gera quando estiver na altura de mandar (~14 dias após o cold DM). Último toque." loading={dmLoading} onClick={() => generateDM('followup_14')} />
                 )}
 
                 {/* Reply Handler */}
