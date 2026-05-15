@@ -14,6 +14,39 @@ function hasApify() {
   return !!APIFY_TOKEN;
 }
 
+// Extract Instagram's multi-link bio (the "Links" popup on the profile —
+// Instagram lets accounts add up to 5 titled links, the array is exposed by
+// most scrapers but under different field names across actor versions).
+//
+// We try every known field name and normalise into a `[{ title, url }]` array.
+// Falls back to wrapping the single `externalUrl` if no array is present.
+function extractIgBioLinks(p) {
+  if (!p) return [];
+  const candidates = [
+    p.bio_links, p.bioLinks, p.bioLink, p.biolinks,
+    p.externalUrls, p.external_urls,
+  ];
+  for (const c of candidates) {
+    if (Array.isArray(c) && c.length > 0) {
+      const out = [];
+      for (const item of c) {
+        if (typeof item === 'string' && /^https?:\/\//i.test(item)) {
+          out.push({ title: '', url: item });
+        } else if (item && typeof item === 'object') {
+          const url = item.url || item.href || item.link || item.lynx_url || item.web_url || '';
+          const title = item.title || item.text || item.linkText || item.lynx_text || '';
+          if (url) out.push({ title: String(title || '').trim(), url: String(url).trim() });
+        }
+      }
+      if (out.length > 0) return out;
+    }
+  }
+  // Last resort: wrap the single externalUrl as a one-item list.
+  const single = p.externalUrlShimmed || p.externalUrl || p.website || '';
+  if (single) return [{ title: '', url: String(single).trim() }];
+  return [];
+}
+
 async function runApifyActor(actorId, input) {
   // Use sync API with 45-second timeout (fits within Vercel's 60s limit)
   const controller = new AbortController();
@@ -94,6 +127,9 @@ export async function scrapeInstagram(username) {
     isBusinessAccount: p.isBusinessAccount || p.isBusiness || false,
     externalUrl: p.externalUrl || p.externalUrlShimmed || p.website || '',
     externalUrls: p.externalUrls || [],
+    // Instagram's multi-link bio (the "Links" popup) — `[{ title, url }]`.
+    // Reads multiple Apify field aliases; falls back to wrapping externalUrl.
+    igBioLinks: extractIgBioLinks(p),
     profilePicUrl: p.profilePicUrlHD || p.profilePicUrl || p.profilePic || '',
     engagementRate,
     avgLikes,
@@ -101,8 +137,11 @@ export async function scrapeInstagram(username) {
     followerFollowingRatio: following > 0 ? (followers / following).toFixed(1) : '0',
     botScore,
     relatedProfiles: related,
-    recentPosts: posts.slice(0, 12).map(post => ({
-      caption: (post.caption || '').slice(0, 200),
+    // Capture up to 30 captions (whatever Apify actually returned, capped).
+    // Used downstream by the Phase 2 archetype classifier — it needs breadth
+    // of caption signal to classify content patterns reliably.
+    recentPosts: posts.slice(0, 30).map(post => ({
+      caption: (post.caption || '').slice(0, 240),
       likes: post.likesCount || post.likes || 0,
       comments: post.commentsCount || post.comments || 0,
       timestamp: post.timestamp || '',
@@ -149,6 +188,7 @@ export async function scrapeInstagramBasic(username) {
     isVerified: p.verified || p.isVerified || false,
     isBusinessAccount: p.isBusinessAccount || p.isBusiness || false,
     externalUrl: p.externalUrl || p.externalUrlShimmed || p.website || '',
+    igBioLinks: extractIgBioLinks(p),
     profilePicUrl: p.profilePicUrlHD || p.profilePicUrl || p.profilePic || '',
     engagementRate,
     avgLikes,
@@ -328,56 +368,6 @@ async function scrapeYouTube(channelUrl) {
 }
 
 /**
- * Main scrape function — detects platform from URL and scrapes accordingly
- */
-export async function scrapeCreator(url) {
-  if (!hasApify()) return { error: 'APIFY_TOKEN not configured', source: 'none' };
-
-  const isInstagram = /instagram\.com/i.test(url);
-  const isTikTok = /tiktok\.com/i.test(url);
-
-  // Extract username from URL
-  let username = '';
-  if (isInstagram) {
-    const match = url.match(/instagram\.com\/([^/?]+)/i);
-    username = match ? match[1].replace(/^@/, '') : '';
-  } else if (isTikTok) {
-    const match = url.match(/tiktok\.com\/@?([^/?]+)/i);
-    username = match ? match[1].replace(/^@/, '') : '';
-  }
-
-  if (!username) return { error: 'Could not extract username from URL', source: 'none' };
-
-  try {
-    if (isInstagram) {
-      const data = await scrapeInstagram(username);
-      if (!data) return { error: 'No data returned', source: 'apify' };
-      return {
-        source: 'apify',
-        platform: 'Instagram',
-        username,
-        ...data,
-      };
-    }
-
-    if (isTikTok) {
-      const data = await scrapeTikTok(username);
-      if (!data) return { error: 'No data returned', source: 'apify' };
-      return {
-        source: 'apify',
-        platform: 'TikTok',
-        username,
-        ...data,
-      };
-    }
-
-    return { error: 'Unsupported platform', source: 'none' };
-  } catch (err) {
-    return { error: err.message, source: 'apify' };
-  }
-}
-
-/**
  * Scrape multiple platforms in parallel and merge into one profile.
  * Returns a merged creator profile object (not raw scrape data).
  */
@@ -456,6 +446,10 @@ export async function scrapeMultiplePlatforms(instagramUrl, tiktokUrl, youtubeUr
       engagementRate: igData.engagementRate || '',
       botScore: igData.botScore,
       url: instagramUrl,
+      // IG's multi-link bio — the popup with up to 5 titled links. Captured
+      // verbatim from Apify so the operator can see every link the creator
+      // is funnelling traffic to (not just the primary externalUrl).
+      bioLinks: igData.igBioLinks || [],
       recentPosts: igData.recentPosts || [],
     };
   }
@@ -493,6 +487,99 @@ export async function scrapeMultiplePlatforms(instagramUrl, tiktokUrl, youtubeUr
     igRaw: igData,
     tkRaw: tkData,
     ytRaw: ytData,
+  };
+}
+
+/**
+ * LEAN multi-platform scrape — top of funnel.
+ *
+ * Hits Instagram ONLY (basic actor, no bot detector, no related profiles),
+ * just enough to compute the Deal Score and write a personalized DM.
+ * TikTok/YouTube URLs are stored as platform stubs (no scrape) so the
+ * Deal Score's Multi-Platform metric can still count them. Apify cost
+ * drops from ~€0.45-0.60 down to ~€0.10-0.12 per creator.
+ *
+ * Use this for new prospects. Promote to full via /api/creators/[id]/full-scrape
+ * once the creator engages — that's when we need TikTok/YouTube data + bot
+ * detector + bio-link product discovery to build the offer.
+ *
+ * Output shape mirrors scrapeMultiplePlatforms so the route logic in
+ * /api/creators is interchangeable.
+ */
+export async function scrapeLean(instagramUrl, tiktokUrl, youtubeUrl) {
+  if (!hasApify()) return { error: 'APIFY_TOKEN not configured', source: 'none' };
+
+  let igData = null;
+  if (instagramUrl) {
+    const match = instagramUrl.match(/instagram\.com\/([^/?]+)/i);
+    const username = match ? match[1].replace(/^@/, '') : '';
+    if (username) {
+      igData = await scrapeInstagramBasic(username).catch(() => null);
+    }
+  }
+
+  if (!igData && !instagramUrl) {
+    return { error: 'Lean scrape requires an Instagram URL', source: 'none' };
+  }
+
+  const name = igData?.name || 'Unknown';
+  const bio = igData?.bio || '';
+  const profilePicUrl = igData?.profilePicUrl || '';
+  const externalUrl = igData?.externalUrl || '';
+
+  const profile = {
+    name,
+    niche: '',
+    primaryPlatform: 'Instagram',
+    engagement: igData?.engagementRate || '',
+    bio,
+    externalUrl,
+    isVerified: igData?.isVerified || false,
+    isBusinessAccount: igData?.isBusinessAccount || false,
+    profilePicUrl,
+    platforms: {},
+    products: [],
+    bioLinks: [],
+    competitors: [],
+    reputation: '',
+    research: '',
+    scrapeLevel: 'lean',
+    leanScrapedAt: Date.now(),
+  };
+
+  if (igData) {
+    profile.platforms.instagram = {
+      followers: igData.followers || 0,
+      following: igData.following || 0,
+      postCount: igData.postCount || 0,
+      avgLikes: igData.avgLikes || 0,
+      avgComments: igData.avgComments || 0,
+      followerFollowingRatio: igData.followerFollowingRatio || '0',
+      engagementRate: igData.engagementRate || '',
+      url: instagramUrl,
+      // IG multi-link bio captured even on lean scrape — it's the same Apify
+      // call so no extra cost. Lets us inspect ecosystem links on day one.
+      bioLinks: igData.igBioLinks || [],
+      recentPosts: (igData.recentPosts || []).slice(0, 5),
+    };
+  }
+  // Store TikTok/YouTube as URL-only stubs. Full-scrape upgrades these with
+  // real follower counts later.
+  if (tiktokUrl) {
+    profile.platforms.tiktok = { url: tiktokUrl, followers: 0, _stub: true };
+    profile.tiktokUrl = tiktokUrl;
+  }
+  if (youtubeUrl) {
+    profile.platforms.youtube = { url: youtubeUrl, subscribers: 0, _stub: true };
+    profile.youtubeUrl = youtubeUrl;
+  }
+
+  return {
+    source: 'apify-lean',
+    profile,
+    igRaw: igData,
+    tkRaw: null,
+    ytRaw: null,
   };
 }
 

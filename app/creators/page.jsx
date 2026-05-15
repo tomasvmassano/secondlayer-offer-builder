@@ -348,6 +348,20 @@ export default function CreatorsPage() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Erro ao adicionar");
+      // Server-side duplicate: same IG handle is already in the CRM. Don't pretend
+      // we saved — tell the operator and offer a jump-link so they can find the
+      // existing creator (often hidden in a tab like "Frio" they weren't viewing).
+      if (data.duplicate && data.id) {
+        const existingName = data.creator?.name || "este creator";
+        const existingStatus = data.creator?.pipelineStatus || "prospect";
+        const goNow = window.confirm(
+          `${existingName} já está no CRM (status: ${existingStatus}).\n\nQueres abrir a página dele agora?`
+        );
+        if (goNow) { window.location.href = `/creators/${data.id}`; return; }
+        setAddError(`Já existe — ${existingName} (status ${existingStatus})`);
+        setAdding(false);
+        return;
+      }
       setAddInstagramUrl("");
       setAddTiktokUrl("");
       setAddYoutubeUrl("");
@@ -427,6 +441,27 @@ export default function CreatorsPage() {
           >
             + Adicionar Creator
           </button>
+          <a
+            href="/creators/import"
+            title="Importa uma lista de creators a partir de um CSV (Name, Instagram, TikTok, YouTube). Lean scrape sequencial com filtro de Deal Score."
+            style={{
+              padding: "14px 18px",
+              background: "transparent",
+              border: "1px solid rgba(177,30,47,0.4)",
+              borderRadius: 10,
+              color: "#B11E2F",
+              fontSize: 14,
+              fontWeight: 600,
+              cursor: "pointer",
+              fontFamily: "inherit",
+              whiteSpace: "nowrap",
+              textDecoration: "none",
+              display: "inline-flex",
+              alignItems: "center",
+            }}
+          >
+            ↑ Bulk Import
+          </a>
         </div>
 
         {/* Add Creator Form */}
@@ -556,11 +591,24 @@ export default function CreatorsPage() {
           </div>
         )}
 
-        {/* Tabs */}
+        {/* Tabs.
+            "Novos" = no offer yet AND not cold/signed (active prospects).
+            "Em contacto" = offer generated AND not cold/signed.
+            "Frio" = pipelineStatus === 'cold' — set automatically by the
+              dm-reminders cron after 21 days with no reply, OR manually.
+              Previously these creators were invisible (no tab matched them),
+              which meant duplicate detection appeared as silent failures. */}
         {(() => {
-          const warm = creators.filter(c => c.hasOffer);
-          const cold = creators.filter(c => !c.hasOffer);
-          const activeList = crmTab === "novos" ? cold : crmTab === "contacto" ? warm : [];
+          const isFrio = (c) => c.pipelineStatus === 'cold';
+          const isSigned = (c) => c.pipelineStatus === 'signed';
+          const isActive = (c) => !isFrio(c) && !isSigned(c);
+          const warm = creators.filter(c => isActive(c) && c.hasOffer);
+          const cold = creators.filter(c => isActive(c) && !c.hasOffer);
+          const frio = creators.filter(isFrio);
+          const activeList = crmTab === "novos" ? cold
+            : crmTab === "contacto" ? warm
+            : crmTab === "frio" ? frio
+            : [];
 
           return (
             <div>
@@ -568,6 +616,7 @@ export default function CreatorsPage() {
                 {[
                   { key: "novos", label: "Novos", count: cold.length },
                   { key: "contacto", label: "Em contacto", count: warm.length },
+                  { key: "frio", label: "Frio", count: frio.length },
                   { key: "discovery", label: "Discovery", count: discoveryQueue.length },
                 ].map(t => (
                   <button

@@ -1,10 +1,13 @@
 import { NextResponse } from 'next/server';
-import { saveCreator, listCreators, searchCreators } from '../../lib/creators';
-import { scrapeCreator, apifyToCreatorProfile, scrapeMultiplePlatforms } from '../../lib/apify';
+import { saveCreator, getCreator, listCreators, searchCreators } from '../../lib/creators';
+import { apifyToCreatorProfile, scrapeMultiplePlatforms, scrapeLean } from '../../lib/apify';
 import { resolvePrimaryLanguage } from '../../lib/language';
+import { calculateDealScore } from '../../lib/dealScore';
 
-// Allow up to 120 seconds for Apify scraping + intelligence analysis
-export const maxDuration = 120;
+// Lean scrape + lightweight analysis fits well under 60s. The full enrichment
+// (TikTok + YouTube + web-search products/competitors) runs separately via
+// /api/creators/[id]/full-scrape when the creator engages.
+export const maxDuration = 60;
 
 export async function GET(request) {
   try {
@@ -58,40 +61,33 @@ export async function POST(request) {
   try {
     let profile = null;
 
-    // Step 1: Try Apify multi-platform scraping
+    // ── LEAN SCRAPE ──
+    // Top-of-funnel only hits Instagram (basic actor, no bot detector) and stores
+    // TikTok/YouTube URLs as stubs. Cuts Apify cost from ~€0.45-0.60 down to
+    // ~€0.10-0.12 per creator and Claude cost from ~$0.05 (Sonnet+web_search)
+    // down to ~$0.01 (Sonnet, no tools, smaller output).
+    //
+    // The full enrichment (TikTok scrape, YouTube scrape, IG bot detector,
+    // bio-link product discovery, competitor research) runs on demand via
+    // /api/creators/[id]/full-scrape once the creator engages.
     if (instagramUrl || tiktokUrl || youtubeUrl) {
-      const multiResult = await scrapeMultiplePlatforms(instagramUrl, tiktokUrl, youtubeUrl);
+      const multiResult = await scrapeLean(instagramUrl, tiktokUrl, youtubeUrl);
 
-      if (multiResult.source === 'apify' && multiResult.profile) {
+      if (multiResult.source === 'apify-lean' && multiResult.profile) {
         profile = multiResult.profile;
 
-        // Store youtubeUrl — only set platform stub if Apify didn't already populate it
-        if (youtubeUrl) {
-          if (!profile.platforms.youtube) {
-            profile.platforms.youtube = { url: youtubeUrl, subscribers: 0 };
-          }
-          profile.youtubeUrl = youtubeUrl;
-        }
-        if (tiktokUrl) profile.tiktokUrl = tiktokUrl;
-
-        // Step 2: Use Claude to analyze the raw data (niche, products, reputation, intelligence)
+        // Lightweight inference — niche + audience + top-post labelling only.
+        // No web search (saves 5-10 tool-use rounds vs the full analysis).
+        // No bio-link products / competitors — those move to full-scrape.
         if (apiKey && profile) {
           try {
             const igRaw = multiResult.igRaw;
-            const tkRaw = multiResult.tkRaw;
-            const allPosts = [
-              ...(igRaw?.recentPosts || []).map(p => ({ caption: p.caption, likes: p.likes, comments: p.comments, type: p.type || 'image', platform: 'Instagram' })),
-              ...(tkRaw?.recentVideos || []).map(v => ({ caption: v.caption, likes: v.likes, comments: v.comments, views: v.views, shares: v.shares, platform: 'TikTok' })),
-            ];
-            const recentContent = allPosts.slice(0, 6).map(p => p.caption).filter(Boolean).join(' | ');
-
-            // Build post performance data for content analysis
-            const postPerformanceData = allPosts.slice(0, 12).map((p, i) =>
-              `Post ${i + 1} [${p.platform}${p.type ? '/' + p.type : ''}]: "${(p.caption || '').slice(0, 100)}" — ${p.likes || 0} likes, ${p.comments || 0} comments${p.views ? ', ' + p.views + ' views' : ''}`
+            const allPosts = (igRaw?.recentPosts || []).map(p => ({
+              caption: p.caption, likes: p.likes, comments: p.comments, type: p.type || 'image',
+            }));
+            const postPerformanceData = allPosts.slice(0, 6).map((p, i) =>
+              `Post ${i + 1} [${p.type}]: "${(p.caption || '').slice(0, 120)}" — ${p.likes || 0} likes, ${p.comments || 0} comments`
             ).join('\n');
-
-            // Build bio links data
-            const bioLinksData = (profile.bioLinks || []).map(l => `- ${l.title || 'Link'}: ${l.url}`).join('\n') || 'None found';
 
             const analysisResponse = await fetch('https://api.anthropic.com/v1/messages', {
               method: 'POST',
@@ -102,67 +98,37 @@ export async function POST(request) {
               },
               body: JSON.stringify({
                 model: 'claude-sonnet-4-20250514',
-                max_tokens: 4000,
-                tools: [{ type: 'web_search_20250305', name: 'web_search' }],
+                max_tokens: 1500,
                 messages: [{
                   role: 'user',
-                  content: `You are analyzing a content creator's profile to build a complete intelligence report. Respond with ONLY the lines below, filled in accurately.
+                  content: `Infer this Instagram creator's niche + audience + recent-post themes from the data below. Respond with ONLY these labelled lines — no explanation, no other text:
 
-=== BASIC ANALYSIS ===
-NICHE: [their niche, e.g. "Food / Baking", "Fitness", "Photography", "Business"]
-PRODUCTS: [comma-separated list of anything they sell: courses, workshops, ebooks, merch, communities, or "None found"]
-REPUTATION: [any notable achievements, media mentions, awards, or "No notable mentions"]
+NICHE: [their niche, e.g. "Food / Baking", "Fitness", "Photography", "Business / Marketing", "Real Estate"]
 
-=== AUDIENCE ESTIMATE ===
 AUDIENCE_GENDER: [estimated gender split, e.g. "70% Female, 30% Male"]
 AUDIENCE_AGE: [estimated primary age range, e.g. "25-34"]
 AUDIENCE_LOCATION: [estimated primary countries, e.g. "Portugal 60%, Brazil 25%, Other 15%"]
 AUDIENCE_LANGUAGE: [primary language of content, e.g. "Portuguese 80%, English 20%"]
 AUDIENCE_INTERESTS: [5 comma-separated audience interest categories]
 
-=== CONTENT ANALYSIS ===
-TOP_POST_1: [caption snippet]|||[engagement rate vs avg]|||[format: reel/carousel/static/video]|||[topic]
-TOP_POST_2: [caption snippet]|||[engagement rate vs avg]|||[format]|||[topic]
-TOP_POST_3: [caption snippet]|||[engagement rate vs avg]|||[format]|||[topic]
-FORMAT_REELS: [estimated % of content that is reels/videos, e.g. "60"]
-FORMAT_CAROUSELS: [estimated % carousels, e.g. "25"]
-FORMAT_STATIC: [estimated % static/single image, e.g. "15"]
-POSTS_PER_WEEK: [estimated average posts per week, e.g. "4.2"]
-
-=== BIO LINK PRODUCTS ===
-IMPORTANT: If the creator has an External URL (especially Linktree, Stan Store, Beacons, or similar), you MUST search for that URL to find all their links and products. Visit/search "${profile.externalUrl || 'none'}" to discover what they sell.
-For each product/service found, detect the platform (Skool, Hotmart, Gumroad, Teachable, Kajabi, Stan Store, Shopify, Linktree, personal site) and pricing if visible.
-BIO_PRODUCT_1: [url]|||[platform detected]|||[product name]|||[price or "Unknown"]|||[currency or "EUR"]
-BIO_PRODUCT_2: [url]|||[platform]|||[product name]|||[price]|||[currency]
-BIO_PRODUCT_3: [url]|||[platform]|||[product name]|||[price]|||[currency]
-BIO_PRODUCT_4: [url]|||[platform]|||[product name]|||[price]|||[currency]
-BIO_PRODUCT_5: [url]|||[platform]|||[product name]|||[price]|||[currency]
-(Include ALL links/products found on their Linktree or bio page. Write "NONE" only if genuinely no products detected.)
-
-=== COMPETITORS ===
-Search for the top 3-5 creators/businesses in this creator's niche who sell courses, communities, or digital products in the same language/market. Include pricing if you can find it.
-COMPETITOR_1: [name]|||[platform: Skool/Hotmart/YouTube/Instagram/Website]|||[price or "Unknown"]|||[currency]|||[estimated community size or "Unknown"]|||[url]
-COMPETITOR_2: [name]|||[platform]|||[price]|||[currency]|||[size]|||[url]
-COMPETITOR_3: [name]|||[platform]|||[price]|||[currency]|||[size]|||[url]
-COMPETITOR_4: [name]|||[platform]|||[price]|||[currency]|||[size]|||[url]
-COMPETITOR_5: [name]|||[platform]|||[price]|||[currency]|||[size]|||[url]
-(Include as many as found, up to 5.)
+TOP_POST_1: [caption snippet, ≤80 chars]|||[engagement rate vs avg, e.g. "2x avg"]|||[reel/carousel/static/video]|||[topic, 3-5 words]
+TOP_POST_2: [...]|||[...]|||[...]|||[...]
+TOP_POST_3: [...]|||[...]|||[...]|||[...]
+FORMAT_REELS: [estimated % reels/videos, e.g. "60"]
+FORMAT_CAROUSELS: [estimated % carousels]
+FORMAT_STATIC: [estimated % static]
+POSTS_PER_WEEK: [estimated, e.g. "4.2"]
 
 === CREATOR DATA ===
 Name: ${profile.name}
 Bio: ${profile.bio || 'No bio'}
 External URL: ${profile.externalUrl || 'None'}
-Platform: ${profile.primaryPlatform}
 Instagram Followers: ${igRaw?.followers || 0}
-TikTok Followers: ${tkRaw?.followers || 0}
 Engagement: ${profile.engagement || 'Unknown'}
-Is verified: ${profile.isVerified}
-Is business account: ${profile.isBusinessAccount}
+Verified: ${profile.isVerified}
+Business account: ${profile.isBusinessAccount}
 
-Bio links found:
-${bioLinksData}
-
-Recent posts with performance:
+Recent posts (most recent first):
 ${postPerformanceData || 'No post data available'}`,
                 }],
               }),
@@ -360,8 +326,45 @@ RESEARCH: [2-3 paragraph summary]`,
     if (tiktokUrl && profile) profile.tiktokUrl = tiktokUrl;
     if (youtubeUrl && profile) profile.youtubeUrl = youtubeUrl;
 
-    const { id } = await saveCreator(profile);
-    return NextResponse.json({ id, creator: { id, ...profile } });
+    // Bulk-import opt-in: callers can pass `minDealScore` (e.g. 35 to drop D-tier).
+    // We compute the score on the freshly built profile BEFORE saving so rejected
+    // creators never touch the DB — saves Apify cost on obvious passes and keeps
+    // the CRM clean. The client gets back the score so it can show why each row
+    // was rejected.
+    if (profile && body.minDealScore != null) {
+      try {
+        const score = calculateDealScore(profile);
+        if (score && score.score < Number(body.minDealScore)) {
+          return NextResponse.json({
+            rejected: true,
+            reason: 'below_min_score',
+            score: score.score,
+            grade: score.grade,
+            profile: { name: profile.name, niche: profile.niche, primaryPlatform: profile.primaryPlatform },
+          });
+        }
+      } catch {
+        // Score calc failed — save anyway, don't punish the creator for our bug.
+      }
+    }
+
+    // saveCreator dedupes by IG handle internally: if the creator already
+    // exists, it returns { id: <existing>, duplicate: true } without writing.
+    // We need to surface that to the caller so the UI can show "already in CRM"
+    // (with a link to the existing creator) instead of pretending the row was
+    // newly added — that's what made earlier imports silently disappear into
+    // tabs the operator wasn't looking at.
+    const result = await saveCreator(profile);
+    if (result.duplicate) {
+      const existing = await getCreator(result.id);
+      return NextResponse.json({
+        id: result.id,
+        duplicate: true,
+        creator: existing || { id: result.id, ...profile },
+        message: 'Creator already exists in the CRM',
+      });
+    }
+    return NextResponse.json({ id: result.id, creator: { id: result.id, ...profile } });
   } catch (err) {
     return NextResponse.json({ error: err.message }, { status: 502 });
   }

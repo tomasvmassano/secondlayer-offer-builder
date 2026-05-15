@@ -7,14 +7,19 @@ export function Badge({ status }) {
 }
 
 // ─────────────────────────────────────────────────────────────────
-// OFFER PARSER — extracts all 6 outputs of the new Offer Builder
+// OFFER PARSER — extracts the new A-O Hormozi format (15 sections)
 // into structured fields the pitch deck reads from.
+//
+// New format (v3.0): sections A-O with "## A. AVALIAÇÃO DE MERCADO" headers.
+// Old format (v2.0): sections "## OUTPUT 1" through "## OUTPUT 6".
+// Both are detected — keeps existing offers in Redis backward-compatible.
 //
 // Resilient to: minor LLM formatting variance, missing sections,
 // language switches (PT/EN). Falls back to raw text if a section
 // is missing — never throws.
 // ─────────────────────────────────────────────────────────────────
 
+// Old format: 6 numbered outputs.
 const OUTPUT_HEADERS = [
   /#{1,4}\s*(?:OUTPUT|SA[IÍ]DA|RESULTADO)\s*1[^\n]*/i,  // 0 — Community
   /#{1,4}\s*(?:OUTPUT|SA[IÍ]DA|RESULTADO)\s*2[^\n]*/i,  // 1 — Cases
@@ -37,6 +42,42 @@ function splitByOutputs(text) {
     sections[i] = text.slice(startBody, end).trim();
   }
   return sections;
+}
+
+// New format: detect "## <LETTER>." section headers (## A. ... through ## O.).
+// Tolerant to: ##, ###, optional bold markers, optional whitespace.
+function sectionHeaderRe(letter) {
+  return new RegExp(`(?:^|\\n)\\s*#{1,4}\\s*\\**\\s*${letter}\\.\\s+`, 'i');
+}
+
+// Extract one section by letter. Returns the body between the section header
+// and the start of the next section letter (or end of document).
+function extractSection(text, letter) {
+  if (!text) return '';
+  const startRe = sectionHeaderRe(letter);
+  const startMatch = text.match(startRe);
+  if (!startMatch) return '';
+  const headerEnd = text.indexOf('\n', startMatch.index + startMatch[0].length);
+  const startIdx = headerEnd === -1 ? text.length : headerEnd + 1;
+  // Find next letter A-Z header after this one.
+  const code = letter.toUpperCase().charCodeAt(0);
+  let endIdx = text.length;
+  for (let i = code + 1; i <= 'Z'.charCodeAt(0); i++) {
+    const next = String.fromCharCode(i);
+    const m = text.slice(startIdx).match(sectionHeaderRe(next));
+    if (m) { endIdx = startIdx + m.index; break; }
+  }
+  return text.slice(startIdx, endIdx).trim();
+}
+
+// Detect whether text is in the new A-O format.
+function isNewFormat(text) {
+  // Look for at least 3 of the canonical section letters (A, D, E, K) — the ones
+  // the pitch deck depends on. 3+ matches → confidently new format.
+  const probes = ['A', 'D', 'E', 'K', 'L'];
+  let hits = 0;
+  for (const l of probes) if (sectionHeaderRe(l).test(text)) hits++;
+  return hits >= 3;
 }
 
 // ─── Tolerant matchers ─────────────────────────────────────────
@@ -74,15 +115,49 @@ function extractField(block, ...labels) {
   return m ? m[1].trim().replace(/\*\*/g, '').replace(/^["']|["']$/g, '') : '';
 }
 
-// Extract a bullet list following `Label:` until a non-bullet line.
-// Tolerant to leading bullets on the label line itself.
+// Extract a bullet list following `Label:`. Tolerant to:
+//   - trailing text on the label line (e.g. `**Weekly Content Formats:** (NAMED...)`),
+//   - blank lines OR paragraphs of explanatory prose between the label and the first bullet,
+//   - bullets using any of - * • ■.
+// Stops at the next field marker (`**...:**`), section header (`## ...`), or numbered
+// section letter (`A.`, `B.`, ...). Used for both flat lists (Weekly Rhythm) and
+// rich lists (Weekly Content Formats / Pre-recorded Library).
 function extractList(block, ...labels) {
   if (!block) return [];
   const alt = tryLabels(labels);
-  const re = new RegExp(`(?:^|\\n)\\s*${BULLET}?\\s*${FIELD_PREFIX}\\s*(?:${alt})\\s*${FIELD_PREFIX}\\s*[:\\-]?\\s*\\n((?:\\s*${BULLET}\\s*[^\\n]+\\n?)+)`, 'i');
-  const m = block.match(re);
+  // Match the label (allow any trailing text on the same line — stops at newline).
+  const labelRe = new RegExp(
+    `(?:^|\\n)\\s*${BULLET}?\\s*${FIELD_PREFIX}\\s*(?:${alt})\\s*${FIELD_PREFIX}\\s*[:\\-][^\\n]*`,
+    'i'
+  );
+  const m = block.match(labelRe);
   if (!m) return [];
-  return m[1].split('\n').map(l => l.replace(new RegExp(`^\\s*${BULLET}\\s*`), '').trim()).filter(Boolean);
+  const after = block.slice(m.index + m[0].length);
+  const lines = after.split('\n');
+  const out = [];
+  let started = false;
+  const bulletStartRe = new RegExp(`^\\s*${BULLET}\\s+(.+)$`);
+  for (const line of lines) {
+    if (!line.trim()) {
+      if (started) break;    // collected items and hit a paragraph break → done
+      continue;              // pre-list blank line → keep scanning
+    }
+    const bm = line.match(bulletStartRe);
+    if (bm) {
+      out.push(bm[1].trim());
+      started = true;
+      continue;
+    }
+    // Non-blank, non-bullet line.
+    if (started) break;      // a paragraph after the list → done
+    // Before any bullet found: stop if this is clearly the start of another
+    // field / section / sub-block; otherwise treat as explanatory prose and
+    // keep scanning for the first bullet.
+    if (/^\s*\*\*[^*]+:\*\*/.test(line)) break;   // **Next Field:**
+    if (/^#{1,4}\s/.test(line)) break;             // ## Section
+    if (/^\s*[A-Z]\.\s/.test(line)) break;         // A. SECTION
+  }
+  return out;
 }
 
 // Extract a sub-block (e.g., everything under "Tier 1 — Recommended:" until the next sub-block boundary).
@@ -114,9 +189,92 @@ function parseTier(subBlock) {
   return { name, price, note };
 }
 
+// Parse a weekly-format bullet into {day, name, type, desc}. Designed to swallow
+// almost any separator pattern an LLM might emit, since the same intent shows up
+// in wildly different syntaxes:
+//
+//   - Seg · "Carta da Semana™": Post — Rui partilha o menu da semana
+//   - Seg — Carta da Semana™ — Post — Rui partilha...
+//   - Seg: Name™ (Post) — desc
+//   - **Seg** · Name™ | Type | desc
+//   - Segunda · "Name™": Live 30min — desc
+//
+// Strategy: a 4-step tokenizer instead of one giant regex.
+function parseWeeklyFormatLine(line) {
+  if (!line) return null;
+  // Strip leading bullet, bold markers, and any wrapping brackets/asterisks.
+  let s = String(line).replace(/^\s*[-*•■]\s*/, '').replace(/\*\*/g, '').trim();
+
+  // STEP 1 — day token (short word, accented chars allowed).
+  const dayMatch = s.match(/^([A-Za-zÁÉÍÓÚÂÊÔÃÕáéíóúâêôãõ]{2,12})\.?/);
+  if (!dayMatch) return null;
+  const day = dayMatch[1];
+  s = s.slice(dayMatch[0].length).trim();
+
+  // STEP 2 — eat day→name separator (any combination of · . : - — / | space).
+  s = s.replace(/^[\s·•.:—\-–/|]+/, '').trim();
+
+  // STEP 3 — extract name. Either wrapped in quotes (any quote style) or read up
+  // to the next structural separator. Trailing ™ is normalized.
+  let name = '';
+  const QUOTE = `["'""'„«»]`;
+  const quoteRe = new RegExp(`^${QUOTE}([^${QUOTE.slice(1, -1)}\n]+?)${QUOTE}`);
+  const qm = s.match(quoteRe);
+  if (qm) {
+    name = qm[1].trim();
+    s = s.slice(qm[0].length).trim();
+  } else {
+    // No quotes — name runs until the next : — - · | ( or end of line.
+    const nm = s.match(/^([^:—\-·|()\n,]+?)(?=\s*[:—\-·|(,]|$)/);
+    if (nm) {
+      name = nm[1].trim();
+      s = s.slice(nm[0].length).trim();
+    }
+  }
+  if (!name) return null;
+  // Strip a trailing ™ if present, then always re-append so every name has it.
+  name = name.replace(/[™\s]+$/, '').trim();
+  if (name) name = name + '™';
+
+  // STEP 4 — eat name→type separator. May be `:`, `—`, `·`, `|`, `,` or `(`.
+  let typeInParen = false;
+  s = s.replace(/^[\s·•.:—\-–/|,]+/, '').trim();
+  if (s.startsWith('(')) { s = s.slice(1).trim(); typeInParen = true; }
+
+  // STEP 5 — type + description. Type is a short label (≤ 32 chars) followed by
+  // a separator. If no separator is found inside the cap, treat everything as desc.
+  let type = '';
+  let desc = '';
+  if (typeInParen) {
+    const m = s.match(/^([^)\n]{1,40}?)\)\s*[\s·•.:—\-–/|,]*\s*(.*)$/);
+    if (m) { type = m[1].trim(); desc = m[2].trim(); }
+    else { desc = s.replace(/^[^)\n]*\)?\s*/, '').trim(); }
+  } else {
+    const m = s.match(/^([^:—\-·|()\n,]{1,32}?)\s*[:—\-–·|,]\s*(.+)$/);
+    if (m) { type = m[1].trim(); desc = m[2].trim(); }
+    else { desc = s; }
+  }
+
+  return { day, name, type, desc };
+}
+
+// Parse a '"Name" — Format — description' library line.
+function parseLibraryLine(line) {
+  const cleaned = line.replace(/\*\*/g, '').trim();
+  // Format: "Name" — Format — description
+  const m = cleaned.match(/^["'""]?([^"'""\n—\-]+?)["'""™]*?\s*[—\-:]\s*([^—\-:\n]+?)\s*[—\-:]\s*(.+)$/);
+  if (m) return { name: m[1].trim().replace(/™$/, '') + '™', format: m[2].trim(), desc: m[3].trim() };
+  // Looser fallback: just "Name — description" (skipping format)
+  const m2 = cleaned.match(/^["'""]?([^"'""\n—\-]+?)["'""™]*?\s*[—\-:]\s*(.+)$/);
+  if (m2) return { name: m2[1].trim().replace(/™$/, '') + '™', format: '', desc: m2[2].trim() };
+  return null;
+}
+
 // ─── Output 1: COMMUNITY ───
 function parseCommunity(block) {
   if (!block) return null;
+  const weeklyFormatsRaw = extractList(block, 'Weekly Content Formats', 'Formatos Semanais', 'Formatos de Conteúdo', 'Formatos de Conteudo');
+  const libraryRaw       = extractList(block, 'Pre-recorded Library', 'Biblioteca Pré-Gravada', 'Biblioteca Pre-Gravada', 'Biblioteca');
   const c = {
     primaryName: extractField(block, 'Community Name (Primary)', 'Nome da Comunidade (Principal)', 'Nome (Principal)', 'Primary Name'),
     nameCandidates: extractList(block, 'Community Name (Candidates)', 'Nomes da Comunidade (Candidatos)', 'Candidatos', 'Name Candidates'),
@@ -128,6 +286,8 @@ function parseCommunity(block) {
       parseTier(extractSubBlock(block, 'Tier 3 — Anchor (Ultra-High-Ticket)', 'Tier 3 — Âncora (Ultra-Premium)', 'Tier 3 - Âncora (Ultra-Premium)', 'Tier 3 — Âncora', 'Tier 3')),
     ].filter(Boolean),
     weeklyRhythm: extractList(block, 'Weekly Rhythm', 'Ritmo Semanal', 'Ritmo'),
+    weeklyFormats: weeklyFormatsRaw.map(parseWeeklyFormatLine).filter(Boolean),
+    library: libraryRaw.map(parseLibraryLine).filter(Boolean),
     bonuses: extractList(block, 'Bonuses Unlocked Over Time', 'Bónus Desbloqueados ao Longo do Tempo', 'Bonus Desbloqueados', 'Bónus', 'Bonuses'),
     differentiator: extractField(block, 'Differentiator', 'Diferenciador', 'Diferencial', 'O que torna isto diferente'),
   };
@@ -184,8 +344,12 @@ function parseUniqueMechanism(block) {
   const lettersListRaw = extractList(block, 'Unique Mechanism Letters', 'Letras do Mecanismo Único', 'Letras do Mecanismo', 'Mechanism Letters', 'Letras', 'Steps', 'Passos', 'Phases', 'Fases');
   const letters = lettersListRaw.map(line => {
     const cleaned = line.replace(/\*\*/g, '').trim();
-    // Format: "X — Word: 1 sentence" OR "X - Word: 1 sentence"
-    let m = cleaned.match(/^([A-Za-zÁÉÍÓÚ])\s*[—\-:]\s*([^:]+?)\s*[:\-]\s*(.+)$/);
+    // Phase-style: "Phase N — Word: 1 sentence" or "Fase N — Palavra: 1 frase".
+    // Display the number as the "letter" so it renders as a big 1/2/3 in the pitch deck.
+    let m = cleaned.match(/^(?:Phase|Fase|Step|Passo|Stage|Etapa)\s+(\d+)\s*[—\-]\s*([^:—\-]+?)\s*[:\-]\s*(.+)$/i);
+    if (m) return { letter: m[1].trim(), word: m[2].trim(), explanation: m[3].trim() };
+    // Acronym style: "X — Word: 1 sentence" OR "X - Word: 1 sentence"
+    m = cleaned.match(/^([A-Za-zÁÉÍÓÚ])\s*[—\-:]\s*([^:]+?)\s*[:\-]\s*(.+)$/);
     if (m) return { letter: m[1].trim(), word: m[2].trim(), explanation: m[3].trim() };
     // Fallback: "X — Word — explanation"
     m = cleaned.match(/^([A-Za-zÁÉÍÓÚ])\s*[—\-]\s*([^—\-]+)\s*[—\-]\s*(.+)$/);
@@ -241,25 +405,65 @@ function parseValueStack(block) {
 }
 
 // ─── Main parser ───
+//
+// Returns:
+//   offer       — markdown shown on the "Grand Slam Offer" tab (engineering
+//                 layer + community + cases; excludes math/blindspots/objections
+//                 which have their own tabs).
+//   blindspots  — markdown for the "Blind Spot Audit" tab.
+//   objections  — markdown for the "Objection Playbook" tab.
+//   math        — markdown used by the projection/revenue tools.
+//   community   — structured spec for pitch slide "A Tua Comunidade".
+//   cases       — array for pitch slide "Casos Similares".
+//   uniqueMechanism — for pitch slide "O Sistema".
+//   valueStack  — for pitch slide "O Valor".
 export function parseOutput(text) {
   if (!text) return { raw: text, offer: '', blindspots: '', objections: '' };
 
-  const [outCommunity, outCases, outMath, outGrandSlam, outBlindSpots, outObjections] = splitByOutputs(text);
+  // ─── New format (v3.0): A-O sections ───
+  if (isNewFormat(text)) {
+    const secD = extractSection(text, 'D');
+    const secE = extractSection(text, 'E');
+    const secK = extractSection(text, 'K');
+    const secL = extractSection(text, 'L');
+    const secM = extractSection(text, 'M');
+    const secN = extractSection(text, 'N');
+    const secO = extractSection(text, 'O');
 
-  // Backward-compat fields (offer/blindspots/objections used by existing UI tabs).
-  const result = {
-    offer:       outCommunity || outGrandSlam || text,
-    blindspots:  outBlindSpots,
-    objections:  outObjections,
-    // New structured fields the pitch deck reads.
-    community:        parseCommunity(outCommunity),
-    cases:            parseCases(outCases),
-    math:             outMath,                              // raw markdown for now (Slide 9 already has its own math UI)
-    uniqueMechanism:  parseUniqueMechanism(outGrandSlam),
-    valueStack:       parseValueStack(outGrandSlam),
-    grandSlamRaw:     outGrandSlam,
+    // The "Grand Slam Offer" tab shows everything from A through L (engineering
+    // + community + cases). M/N/O have their own tabs. If we can find the M
+    // header, slice up to it; otherwise fall back to the full text.
+    const mHeader = text.match(sectionHeaderRe('M'));
+    const offerView = mHeader ? text.slice(0, mHeader.index).trim() : text;
+
+    // Parsers below scan whole text — they look for explicit field markers
+    // wherever they appear, so they're tolerant if a section is mis-lettered.
+    return {
+      offer:           offerView,
+      blindspots:      secN,
+      objections:      secO,
+      community:       parseCommunity(secK || text),
+      cases:           parseCases(secL || text),
+      math:            secM,
+      uniqueMechanism: parseUniqueMechanism(secD || text),
+      valueStack:      parseValueStack(secE || text),
+      grandSlamRaw:    text,
+    };
+  }
+
+  // ─── Old format (v2.0): OUTPUT 1-6 ───
+  const [outCommunity, outCases, outMath, outGrandSlam, outBlindSpots, outObjections] = splitByOutputs(text);
+  return {
+    offer:           outCommunity || outGrandSlam || text,
+    blindspots:      outBlindSpots,
+    objections:      outObjections,
+    community:       parseCommunity(outCommunity),
+    cases:           parseCases(outCases),
+    math:            outMath,
+    uniqueMechanism: parseUniqueMechanism(outGrandSlam),
+    valueStack:      parseValueStack(outGrandSlam),
+    grandSlamRaw:    outGrandSlam,
   };
-  return result;
 }
 
 export function renderInline(t) {

@@ -4,7 +4,8 @@ import { useState, useEffect, useCallback, useRef, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { calculateDealScore } from "../../lib/dealScore";
 import { SCENARIOS as REVENUE_SCENARIOS, calculateSteadyMRR as sharedCalcMRR } from "../../lib/revenue";
-import { renderMd, parseOutput, extractAudience } from "../../offer-builder/lib/shared";
+import { renderMd, parseOutput, extractAudience } from "../../lib/offerParser";
+import { legacyParsedToOfferState } from "../../lib/offerSchema";
 import { OFFER_SYSTEM_PROMPT } from "../../lib/systemPrompt";
 import WorkspaceDashboard from "./workspace/WorkspaceDashboard";
 
@@ -113,6 +114,21 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
   const [editName, setEditName] = useState(false);
   const [showResearch, setShowResearch] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [runningFullScrape, setRunningFullScrape] = useState(false);
+  // Phase 1 — Ecosystem Audit run state. Operator-only; output lives under
+  // creator.offer.internal_metadata.ecosystem_audit and is NEVER shown to creators.
+  const [auditRunning, setAuditRunning] = useState(false);
+  const [auditError, setAuditError] = useState(null);
+  const [auditDiag, setAuditDiag] = useState(null);
+  // Phase 2 — Archetype + Fame Tier. Same internal-only treatment.
+  const [archetypeRunning, setArchetypeRunning] = useState(false);
+  const [archetypeError, setArchetypeError] = useState(null);
+  const [archetypeDiag, setArchetypeDiag] = useState(null);
+  // Phase 3 — Uniqueness Extraction (5-8 differentiator elements + voice).
+  // Internal-only. Phase 4 wizard translates strongest elements into sales copy.
+  const [uniquenessRunning, setUniquenessRunning] = useState(false);
+  const [uniquenessError, setUniquenessError] = useState(null);
+  const [uniquenessDiag, setUniquenessDiag] = useState(null);
   const nameRef = useRef(null);
 
   // DM Writer state
@@ -265,14 +281,19 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
     } catch { setDeleting(false); alert("Erro ao eliminar."); }
   }, [params, router]);
 
-  // — DM Writer generate —
-  const generateDM = useCallback(async () => {
+  // — DM Writer generate (staged) —
+  // stage: 'initial' generates DM + T+3 comment + Email Day 1 only.
+  // stage: 'followup_7' / 'followup_14' generates just that single email later,
+  // when the operator's actually about to send it (saves output tokens on the
+  // ~80% of creators who never reach the follow-up stage).
+  const generateDM = useCallback(async (stage = 'initial') => {
     if (!creator) return;
     setDmLoading(true); setDmError(null);
     try {
       const r = await fetch("/api/dm-writer", {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          stage,
           template: dmTemplate,
           inputs: {
             primeiro_nome: dmInputs.primeiro_nome || "",
@@ -305,7 +326,21 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
       });
       if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || "Failed");
       const data = await r.json();
-      await patchCreator({ dmSequence: { ...data, generatedAt: new Date().toISOString() } });
+      // Merge into existing dmSequence so initial + followups accumulate over
+      // time. `generatedAt` is only set on the initial generation (anchor for
+      // the dm-reminders cron); followups stamp their own timestamps.
+      const existing = creator.dmSequence || {};
+      const now = new Date().toISOString();
+      let merged;
+      if (stage === 'followup_7') {
+        merged = { ...existing, email_day7: data.email_day7, followup7GeneratedAt: now };
+      } else if (stage === 'followup_14') {
+        merged = { ...existing, email_day14: data.email_day14, followup14GeneratedAt: now };
+      } else {
+        // initial — full replace of opening fields, preserve any earlier followups
+        merged = { ...existing, ...data, generatedAt: now };
+      }
+      await patchCreator({ dmSequence: merged });
       if (data.inputs) setDmInputs({ _filled: true, ...data.inputs });
     } catch (e) { setDmError(e.message); } finally { setDmLoading(false); }
   }, [creator, dmTemplate, dmInputs, dmNotes, patchCreator]);
@@ -327,8 +362,28 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
       if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || "Failed");
       const data = await r.json();
       setReplyResult(data);
+      // Mark creator as replied — stops reminder digest from pinging them again.
+      await patchCreator({ outreach: { ...(creator.outreach || {}), repliedAt: new Date().toISOString() } });
     } catch (e) { setReplyError(e.message); } finally { setReplyLoading(false); }
   }, [replyText, creator, patchCreator]);
+
+  // Outreach helpers — mark DM / email / follow-up as sent so the reminder cron
+  // knows which milestone is next. Each is one server round-trip.
+  const markOutreach = useCallback(async (field) => {
+    const now = new Date().toISOString();
+    const cur = creator?.outreach || {};
+    const patch = { ...cur };
+    if (field === 'dm')    patch.dmSentAt = now;
+    if (field === 'email') patch.emailSentAt = now;
+    if (field === 'followUp') {
+      const next = Math.min(3, (cur.followUpsDone || 0) + 1);
+      patch.followUpsDone = next;
+      patch.lastFollowUpAt = now;
+    }
+    if (field === 'replied') patch.repliedAt = now;
+    if (field === 'unreplied') patch.repliedAt = null;
+    await patchCreator({ outreach: patch });
+  }, [creator, patchCreator]);
 
   const findSimilar = useCallback(async () => {
     if (!params?.id || findingSimilar) return;
@@ -471,6 +526,18 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
       msg += `**Products Already Sold:** ${creator.products?.join(", ") || "None found"}\n`;
       msg += `**Credibility:** ${creator.reputation || "(not provided)"}\n`;
       msg += `**Additional Context:** ${offerForm.guidelines || "(not provided)"}\n`;
+
+      // Top-performing content (signals what audience already responds to —
+      // used to name weekly formats + pre-recorded library themes in Section K).
+      const topPosts = (creator.intelligence?.topPosts || []).slice(0, 10);
+      if (topPosts.length > 0) {
+        msg += `\n## TOP-PERFORMING CONTENT (audience signals from public scrape)\n\n`;
+        msg += `Use these to theme Section K's Weekly Content Formats + Pre-recorded Library — these are formats/topics the audience already engages with.\n\n`;
+        topPosts.forEach((p, i) => {
+          msg += `${i + 1}. [${p.format || 'post'} · ${p.engagementRate || '?'}%] ${p.topic || ''}${p.caption ? ` — "${String(p.caption).slice(0, 140)}"` : ''}\n`;
+        });
+      }
+
       if (meetingContext) msg += `\n## MEETING NOTES (from direct conversation with the creator)\n\n${meetingContext}\n`;
       msg += `\n---\nGenerate all three outputs now. Follow system instructions and Hormozi frameworks exactly.\n**IMPORTANT: Write the ENTIRE output in ${(ae.language || "").toLowerCase().includes("portugu") ? "Português" : "English"}.** All section titles, analysis, tables, objection scripts — everything.`;
 
@@ -488,15 +555,183 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
       const priceMatch = text.match(/(?:RECOMMENDED MONTHLY PRICE|PRE[CÇ]O MENSAL RECOMENDADO)\s*[:\-]?\s*€?\s*(\d{1,4})/i)
         || (parsed.community?.tiers?.[0]?.price?.match(/(\d{1,4})/));
       const recPrice = priceMatch ? parseInt(priceMatch[1] || priceMatch[0], 10) : null;
-      const updates = { offer: { raw: text, parsed, generatedAt: new Date().toISOString() } };
+      // Write the new dual schema alongside `parsed` for back-compat. Consumers
+      // (pitch deck, launch-plan PDF) prefer client_facing_output and fall back
+      // to parsed for legacy creators. When the wizard ships in Phase 4 it'll
+      // write client_facing_output directly and `parsed` can be dropped.
+      const { internal_metadata, client_facing_output } = legacyParsedToOfferState(parsed);
+      const updates = {
+        offer: {
+          raw: text,
+          parsed,
+          internal_metadata,
+          client_facing_output,
+          generatedAt: new Date().toISOString(),
+        },
+      };
       if (recPrice && recPrice > 0) updates.revenuePrice = recPrice;
       await patchCreator(updates);
       setOfferTab("offer");
     } catch (e) { setOfferError(e.message); } finally { setOfferLoading(false); }
   }, [creator, offerForm, patchCreator]);
 
+  // Run full scrape — upgrades a lean creator with the deep IG + TikTok +
+  // YouTube + bio-link products + web-search competitors data needed to build
+  // the offer. Long-running (up to ~90s). Refreshes the creator on completion.
+  const runFullScrape = useCallback(async () => {
+    if (!creator?.id) return;
+    const links = [
+      creator.platforms?.instagram?.url,
+      creator.tiktokUrl || creator.platforms?.tiktok?.url,
+      creator.youtubeUrl || creator.platforms?.youtube?.url,
+    ].filter(Boolean);
+    if (links.length === 0) {
+      window.alert('Este creator não tem links de plataforma para scrape.');
+      return;
+    }
+    if (!window.confirm(`Correr full scrape para ${creator.name}?\n\nVai correr:\n• Instagram (deep + bot detector)\n${creator.tiktokUrl || creator.platforms?.tiktok?.url ? '• TikTok\n' : ''}${creator.youtubeUrl || creator.platforms?.youtube?.url ? '• YouTube\n' : ''}• Bio-link products discovery\n• Web-search analysis (products + competitors)\n\nPode demorar até 90s.`)) return;
+    setRunningFullScrape(true);
+    setSaving('A correr full scrape...');
+    try {
+      const r = await fetch(`/api/creators/${creator.id}/full-scrape`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+      });
+      const data = await r.json();
+      if (!r.ok) throw new Error(data.error || 'Full scrape failed');
+      if (data.creator) setCreator(data.creator);
+      setSaving('Full scrape concluído');
+      setTimeout(() => setSaving(''), 2500);
+    } catch (err) {
+      setSaving('Erro: ' + (err.message || 'falhou'));
+      setTimeout(() => setSaving(''), 4000);
+    } finally {
+      setRunningFullScrape(false);
+    }
+  }, [creator]);
+
+  // ── Phase 1 · Ecosystem Audit ──
+  // Maps the creator's existing product ecosystem (every IG bio link, every
+  // bio-link aggregator destination, every product on intelligence.bioLinks)
+  // and decides the strategic role of the future paid community within their
+  // funnel. Output is internal_metadata only — never rendered to the creator.
+  // Long-running (web_search Claude call, up to ~90s).
+  const runEcosystemAudit = useCallback(async () => {
+    if (!creator?.id || auditRunning) return;
+    setAuditRunning(true);
+    setAuditError(null);
+    try {
+      const r = await fetch(`/api/creators/${creator.id}/ecosystem-audit`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+      });
+      const data = await r.json();
+      if (!r.ok) {
+        const detail = data.errors?.length ? '\n\n' + data.errors.join('\n') : '';
+        throw new Error((data.error || 'Audit failed') + detail);
+      }
+      setAuditDiag(data._diagnostics || null);
+      // Merge the audit into the local creator state so the viewer updates
+      // without a full reload. Server already persisted to Redis.
+      setCreator(prev => prev ? ({
+        ...prev,
+        offer: {
+          ...(prev.offer || {}),
+          internal_metadata: {
+            ...((prev.offer || {}).internal_metadata || {}),
+            ecosystem_audit: data.ecosystem_audit,
+          },
+        },
+      }) : prev);
+    } catch (err) {
+      setAuditError(err.message || 'Falha desconhecida');
+    } finally {
+      setAuditRunning(false);
+    }
+  }, [creator, auditRunning]);
+
+  // ── Phase 2 · Archetype + Fame Tier ──
+  // Classifies the creator into one of 6 archetypes and assesses fame tier
+  // (external recognition signals, not follower count). Stays in
+  // internal_metadata — the creator NEVER sees their archetype label.
+  const runArchetype = useCallback(async () => {
+    if (!creator?.id || archetypeRunning) return;
+    setArchetypeRunning(true);
+    setArchetypeError(null);
+    try {
+      const r = await fetch(`/api/creators/${creator.id}/archetype`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+      });
+      const data = await r.json();
+      if (!r.ok) {
+        const detail = data.errors?.length ? '\n\n' + data.errors.join('\n') : '';
+        throw new Error((data.error || 'Archetype classification failed') + detail);
+      }
+      setArchetypeDiag(data._diagnostics || null);
+      setCreator(prev => prev ? ({
+        ...prev,
+        offer: {
+          ...(prev.offer || {}),
+          internal_metadata: {
+            ...((prev.offer || {}).internal_metadata || {}),
+            archetype_classification: data.archetype_classification,
+          },
+        },
+      }) : prev);
+    } catch (err) {
+      setArchetypeError(err.message || 'Unknown error');
+    } finally {
+      setArchetypeRunning(false);
+    }
+  }, [creator, archetypeRunning]);
+
+  // ── Phase 3 · Uniqueness Extraction ──
+  // Extracts 5-8 concrete differentiator elements (each with evidence citation)
+  // plus a creator_voice_summary. Pure Sonnet call, no web_search — Phase 1
+  // (ecosystem) + Phase 2 (archetype) outputs are passed in as context so the
+  // model doesn't re-derive them. Output is internal_metadata only; Phase 4
+  // wizard will translate strongest elements into sales-language copy that
+  // lands in client_facing_output.differentiator_section.
+  const runUniqueness = useCallback(async () => {
+    if (!creator?.id || uniquenessRunning) return;
+    setUniquenessRunning(true);
+    setUniquenessError(null);
+    try {
+      const r = await fetch(`/api/creators/${creator.id}/uniqueness`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+      });
+      const data = await r.json();
+      if (!r.ok) {
+        const detail = data.errors?.length ? '\n\n' + data.errors.join('\n') : '';
+        throw new Error((data.error || 'Uniqueness extraction failed') + detail);
+      }
+      setUniquenessDiag(data._diagnostics || null);
+      setCreator(prev => prev ? ({
+        ...prev,
+        offer: {
+          ...(prev.offer || {}),
+          internal_metadata: {
+            ...((prev.offer || {}).internal_metadata || {}),
+            uniqueness_extraction: data.uniqueness_extraction,
+          },
+        },
+      }) : prev);
+    } catch (err) {
+      setUniquenessError(err.message || 'Unknown error');
+    } finally {
+      setUniquenessRunning(false);
+    }
+  }, [creator, uniquenessRunning]);
+
   // Re-parse button — re-runs parseOutput on existing offer.raw without burning a new API call.
-  // Useful when parser improves and stale parsed data needs refresh.
+  // Useful when parser improves and stale parsed data needs refresh. Refreshes
+  // both `parsed` (back-compat) and the derived `client_facing_output`.
   const reparseOffer = useCallback(async () => {
     if (!creator?.offer?.raw) return;
     const parsed = parseOutput(creator.offer.raw);
@@ -504,7 +739,15 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
     const priceMatch = text.match(/(?:RECOMMENDED MONTHLY PRICE|PRE[CÇ]O MENSAL RECOMENDADO)\s*[:\-]?\s*€?\s*(\d{1,4})/i)
       || (parsed.community?.tiers?.[0]?.price?.match(/(\d{1,4})/));
     const recPrice = priceMatch ? parseInt(priceMatch[1] || priceMatch[0], 10) : null;
-    const updates = { offer: { ...creator.offer, parsed, reparsedAt: new Date().toISOString() } };
+    const { client_facing_output } = legacyParsedToOfferState(parsed);
+    const updates = {
+      offer: {
+        ...creator.offer,
+        parsed,
+        client_facing_output,
+        reparsedAt: new Date().toISOString(),
+      },
+    };
     if (recPrice && recPrice > 0) updates.revenuePrice = recPrice;
     await patchCreator(updates);
   }, [creator, patchCreator]);
@@ -642,6 +885,29 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
               })()}
               {dealScore && <span style={{ fontSize: 11, fontWeight: 700, color: dealScore.colors.color, padding: "3px 8px", background: dealScore.colors.bg, border: `1px solid ${dealScore.colors.border}`, borderRadius: 4 }}>Score {dealScore.grade} ({dealScore.score})</span>}
               {dealScore?.nicheData && <span style={{ fontSize: 11, color: "#555", padding: "3px 8px", background: "rgba(255,255,255,0.02)", borderRadius: 4 }}>€{dealScore.nicheData.mid}/mês</span>}
+              {/* Scrape-level chip — lean = top-of-funnel (IG only), full = ready to build offer */}
+              {(() => {
+                const level = creator.scrapeLevel || (creator.intelligence?.bioLinks?.length || creator.platforms?.tiktok?.followers || creator.platforms?.youtube?.subscribers ? 'full' : 'lean');
+                if (level === 'full') {
+                  return (
+                    <span title="Full scrape concluído — IG deep + TikTok + YouTube + products + competitors" style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", padding: "3px 8px", borderRadius: 4, background: "rgba(34,197,94,0.08)", color: "#22c55e", border: "1px solid rgba(34,197,94,0.25)" }}>● Full</span>
+                  );
+                }
+                return (
+                  <span title="Lean scrape — só Instagram. Corre full scrape antes de gerar a offer." style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", padding: "3px 8px", borderRadius: 4, background: "rgba(234,179,8,0.08)", color: "#eab308", border: "1px solid rgba(234,179,8,0.25)" }}>○ Lean</span>
+                );
+              })()}
+              {/* Run Full Scrape button — appears for lean creators before they're signed */}
+              {creator.pipelineStatus !== 'signed' && (creator.scrapeLevel || 'lean') !== 'full' && (
+                <button
+                  onClick={runFullScrape}
+                  disabled={runningFullScrape}
+                  title="Corre o full scrape: Instagram deep + TikTok + YouTube + produtos do bio link + análise de competidores. Necessário antes de gerar a offer."
+                  style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", padding: "3px 10px", borderRadius: 4, background: runningFullScrape ? "rgba(255,255,255,0.04)" : "rgba(59,130,246,0.1)", color: runningFullScrape ? "#555" : "#3b82f6", border: `1px solid ${runningFullScrape ? "rgba(255,255,255,0.08)" : "rgba(59,130,246,0.25)"}`, cursor: runningFullScrape ? "wait" : "pointer", fontFamily: "inherit" }}
+                >
+                  {runningFullScrape ? "A scrapear..." : "↻ Full Scrape"}
+                </button>
+              )}
               {creator.pipelineStatus !== 'signed' && (
                 <button onClick={() => { if (window.confirm("Fechar deal com " + creator.name + "? Isto move o creator para o Pipeline.")) patchCreator({ pipelineStatus: 'signed', signedAt: new Date().toISOString() }); }}
                   style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", padding: "3px 10px", borderRadius: 4, background: "rgba(122,14,24,0.1)", color: "#7A0E18", border: "1px solid rgba(122,14,24,0.25)", cursor: "pointer", fontFamily: "inherit" }}>
@@ -747,6 +1013,27 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
                 <div style={{ marginBottom: 12, padding: "12px 14px", background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.04)", borderRadius: 8 }}>
                   {creator.bio && <p style={{ fontSize: 12, color: "#bbb", margin: 0, lineHeight: 1.6, whiteSpace: "pre-wrap" }}>{creator.bio}</p>}
                   {creator.externalUrl && <a href={creator.externalUrl.startsWith("http") ? creator.externalUrl : "https://" + creator.externalUrl} target="_blank" rel="noopener noreferrer" style={{ display: "block", marginTop: 6, fontSize: 11, color: "#7A0E18", textDecoration: "none" }}>{creator.externalUrl}</a>}
+                </div>
+              )}
+              {/* IG multi-link bio — Instagram's native "Links" feature, up to 5
+                  titled links per profile. Captured on every scrape; falls back
+                  silently if the actor didn't return any (some accounts have
+                  only one externalUrl which is already shown above). */}
+              {(igData.bioLinks || []).length > 0 && (
+                <div style={{ marginBottom: 12, padding: "10px 14px", background: "rgba(122,14,24,0.04)", border: "1px solid rgba(122,14,24,0.15)", borderRadius: 8 }}>
+                  <div style={{ fontSize: 9, fontWeight: 700, color: "#7A0E18", letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 8 }}>Bio Links · {igData.bioLinks.length}</div>
+                  <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 6 }}>
+                    {igData.bioLinks.map((l, i) => (
+                      <li key={i} style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
+                        <span style={{ fontFamily: "'JetBrains Mono', ui-monospace, monospace", fontSize: 9, color: "#555", minWidth: 18 }}>{String(i + 1).padStart(2, '0')}</span>
+                        <span style={{ flex: 1, fontSize: 12, color: "#ccc" }}>
+                          {l.title && <span style={{ fontWeight: 600, color: "#f5f5f5" }}>{l.title}</span>}
+                          {l.title && l.url && <span style={{ color: "#444", margin: "0 6px" }}>·</span>}
+                          <a href={l.url} target="_blank" rel="noopener noreferrer" style={{ color: "#7A0E18", textDecoration: "none", wordBreak: "break-all" }}>{l.url}</a>
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
                 </div>
               )}
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(110px, 1fr))", gap: 6, marginBottom: 10 }}>
@@ -1073,7 +1360,7 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
                   <input type="text" style={inputStyle} placeholder="Contexto extra..." value={dmNotes} onChange={e => setDmNotes(e.target.value)} />
                 </div>
               </div>
-              <button onClick={generateDM} style={{ padding: "12px 32px", borderRadius: 8, border: "none", background: "#7A0E18", color: "#fff", fontSize: 14, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", width: "100%" }}>Gerar DM</button>
+              <button onClick={() => generateDM('initial')} style={{ padding: "12px 32px", borderRadius: 8, border: "none", background: "#7A0E18", color: "#fff", fontSize: 14, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", width: "100%" }}>Gerar DM</button>
             </div>
           )}
           {dmLoading && (
@@ -1104,6 +1391,24 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
               </div>
             );
 
+            // Placeholder shown in place of an email that hasn't been generated yet.
+            // Clicking "Gerar" fires one LLM call for ONLY this email — keeps the
+            // happy-path cheap for creators who never reach this stage.
+            const PendingEmailCard = ({ label, hint, loading, onClick }) => (
+              <div style={{ padding: "16px 18px", borderRadius: 8, background: "transparent", border: "1px dashed rgba(255,255,255,0.08)", marginBottom: 10 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "#555" }}>{label}</span>
+                    <span style={{ fontSize: 8, padding: "1px 6px", borderRadius: 3, background: "rgba(255,255,255,0.03)", color: "#555", fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase" }}>pendente</span>
+                  </div>
+                  <button onClick={onClick} disabled={loading} style={{ padding: "5px 14px", borderRadius: 6, border: "1px solid rgba(122,14,24,0.35)", background: loading ? "transparent" : "rgba(122,14,24,0.08)", color: loading ? "#555" : "#B11E2F", fontSize: 10, fontWeight: 600, cursor: loading ? "wait" : "pointer", fontFamily: "inherit" }}>
+                    {loading ? "A gerar..." : "Gerar"}
+                  </button>
+                </div>
+                <div style={{ fontSize: 11, color: "#555", lineHeight: 1.5 }}>{hint}</div>
+              </div>
+            );
+
             return (
               <div>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
@@ -1113,6 +1418,58 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
                   </div>
                   <button onClick={() => { patchCreator({ dmSequence: null }); setReplyResult(null); setReplyText(""); }} style={{ padding: "6px 14px", borderRadius: 6, border: "1px solid rgba(255,255,255,0.08)", background: "transparent", color: "#888", fontSize: 10, cursor: "pointer", fontFamily: "inherit" }}>Regenerar</button>
                 </div>
+
+                {/* Outreach tracker — drives the daily reminder digest. Each chip
+                    is click-to-mark; once marked it shows the date and the
+                    reminder cron stops pinging that milestone. */}
+                {(() => {
+                  const out = creator.outreach || {};
+                  const sentChip = (sent, label, onClick) => (
+                    <button
+                      onClick={onClick}
+                      title={sent ? `Marcado a ${new Date(sent).toLocaleString('pt-PT')} · Clica para desmarcar` : 'Clica quando enviares'}
+                      style={{
+                        padding: "4px 10px", borderRadius: 4, fontSize: 10, fontWeight: 600, cursor: "pointer", fontFamily: "inherit",
+                        border: `1px solid ${sent ? 'rgba(34,197,94,0.3)' : 'rgba(255,255,255,0.08)'}`,
+                        background: sent ? 'rgba(34,197,94,0.08)' : 'transparent',
+                        color: sent ? '#22c55e' : '#888',
+                      }}
+                    >
+                      {sent ? `✓ ${label}` : `○ ${label}`}
+                    </button>
+                  );
+                  const fmtRelative = (iso) => {
+                    if (!iso) return null;
+                    const days = Math.floor((Date.now() - new Date(iso).getTime()) / 86400000);
+                    return days === 0 ? 'hoje' : days === 1 ? 'há 1 dia' : `há ${days} dias`;
+                  };
+                  return (
+                    <div style={{ padding: "10px 14px", marginBottom: 16, background: "#141414", border: "1px solid rgba(255,255,255,0.04)", borderRadius: 8, display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center" }}>
+                      <span style={{ fontSize: 9, fontWeight: 700, color: "#666", letterSpacing: "0.08em", textTransform: "uppercase" }}>Outreach</span>
+                      {sentChip(out.dmSentAt, 'DM', () => markOutreach('dm'))}
+                      {sentChip(out.emailSentAt, 'Email', () => markOutreach('email'))}
+                      <span style={{ fontSize: 9, color: "#444" }}>·</span>
+                      <button
+                        onClick={() => markOutreach('followUp')}
+                        title="Marca quando enviares cada follow-up (DM ou email)"
+                        disabled={(out.followUpsDone || 0) >= 3}
+                        style={{ padding: "4px 10px", borderRadius: 4, fontSize: 10, fontWeight: 600, cursor: (out.followUpsDone || 0) >= 3 ? "default" : "pointer", fontFamily: "inherit", border: "1px solid rgba(255,255,255,0.08)", background: (out.followUpsDone || 0) > 0 ? "rgba(59,130,246,0.08)" : "transparent", color: (out.followUpsDone || 0) > 0 ? "#3b82f6" : "#888" }}
+                      >
+                        Follow-ups: {out.followUpsDone || 0}/3{out.lastFollowUpAt ? ` · ${fmtRelative(out.lastFollowUpAt)}` : ''}
+                      </button>
+                      <span style={{ fontSize: 9, color: "#444" }}>·</span>
+                      {out.repliedAt ? (
+                        <button onClick={() => markOutreach('unreplied')} title={`Respondeu ${fmtRelative(out.repliedAt)} · Clica para desmarcar`} style={{ padding: "4px 10px", borderRadius: 4, fontSize: 10, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", border: "1px solid rgba(34,197,94,0.3)", background: "rgba(34,197,94,0.08)", color: "#22c55e" }}>
+                          ✓ Respondeu · {fmtRelative(out.repliedAt)}
+                        </button>
+                      ) : (
+                        <button onClick={() => markOutreach('replied')} title="Marca quando o criador responder. Para os reminders." style={{ padding: "4px 10px", borderRadius: 4, fontSize: 10, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", border: "1px solid rgba(255,255,255,0.08)", background: "transparent", color: "#888" }}>
+                          ○ Marcar respondeu
+                        </button>
+                      )}
+                    </div>
+                  );
+                })()}
 
                 {/* Cold DM */}
                 <MessageCard label="T+0 — Cold DM" type="dm" content={seq.dm || ""} accent>
@@ -1138,17 +1495,28 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
                 <MessageCard label="T+7 — Segunda DM" type="dm" content={followupT7} />
                 <MessageCard label="T+14 — Breakup" type="dm" content={breakupT14} />
 
-                {/* Emails */}
+                {/* Emails — Day 1 always generated with the initial DM; Day 7 +
+                    Day 14 are generated ON DEMAND so we don't burn tokens for
+                    the ~80% of creators that never reach those stages. The
+                    reminder cron pings the operator when each is due; the
+                    operator clicks "Gerar" here, the LLM produces just that
+                    single email merged into the existing dmSequence. */}
                 <p style={{ ...sectionTitleStyle, marginTop: 24 }}>Emails</p>
 
                 {seq.email_day1?.body && (
                   <MessageCard label="Day 1 — Email" type="email" content={`Subject: ${seq.email_day1.subject || ""}\n\n${seq.email_day1.body}`} />
                 )}
-                {seq.email_day7?.body && (
+
+                {seq.email_day7?.body ? (
                   <MessageCard label="Day 7 — Email" type="email" content={`Subject: ${seq.email_day7.subject || ""}\n\n${seq.email_day7.body}`} />
+                ) : (
+                  <PendingEmailCard label="Day 7 — Email" hint="Gera quando estiver na altura de mandar (~7 dias após o cold DM)." loading={dmLoading} onClick={() => generateDM('followup_7')} />
                 )}
-                {seq.email_day14?.body && (
+
+                {seq.email_day14?.body ? (
                   <MessageCard label="Day 14 — Email" type="email" content={`Subject: ${seq.email_day14.subject || ""}\n\n${seq.email_day14.body}`} />
+                ) : (
+                  <PendingEmailCard label="Day 14 — Email" hint="Gera quando estiver na altura de mandar (~14 dias após o cold DM). Último toque." loading={dmLoading} onClick={() => generateDM('followup_14')} />
                 )}
 
                 {/* Reply Handler */}
@@ -1174,6 +1542,38 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
 
         {/* ════════════ OFERTA TAB ════════════ */}
         {tab === "oferta" && (<>
+          {/* ── Phase 1 · Ecosystem Audit ──
+              Internal-only analysis of the creator's existing product
+              ecosystem. Renders ABOVE the offer flow so the operator can map
+              the funnel before generating the offer. Never visible to the
+              creator. */}
+          <EcosystemAuditPanel
+            creator={creator}
+            running={auditRunning}
+            error={auditError}
+            diag={auditDiag}
+            onRun={runEcosystemAudit}
+          />
+          {/* Phase 2 · Archetype + Fame Tier. Internal-only. Sits directly under
+              the Ecosystem panel so the operator can scan strategic role +
+              archetype + fame as a triad before deciding offer direction. */}
+          <ArchetypePanel
+            creator={creator}
+            running={archetypeRunning}
+            error={archetypeError}
+            diag={archetypeDiag}
+            onRun={runArchetype}
+          />
+          {/* Phase 3 · Uniqueness Extraction. Internal-only. Sits under Archetype
+              so the operator sees the triad (role + archetype + uniqueness)
+              before generating offer copy. */}
+          <UniquenessPanel
+            creator={creator}
+            running={uniquenessRunning}
+            error={uniquenessError}
+            diag={uniquenessDiag}
+            onRun={runUniqueness}
+          />
           {!creator.offer && !offerLoading && (() => {
             const sec = OFFER_STEPS[offerStep] || OFFER_STEPS[0];
             return (
@@ -1619,5 +2019,541 @@ export default function CreatorProfilePage(props) {
     <Suspense fallback={<div style={{ minHeight: "100vh", background: "#0a0a0a", color: "#555", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif" }}>A carregar...</div>}>
       <CreatorProfilePageImpl {...props} />
     </Suspense>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────
+// Phase 1 · Ecosystem Audit viewer (internal use only).
+//
+// Renders the structured output of the audit endpoint with operator-facing
+// labels. Every value here is from `creator.offer.internal_metadata.ecosystem_audit`
+// and is NOT rendered anywhere the creator sees.
+// ─────────────────────────────────────────────────────────────────
+
+function EcosystemAuditPanel({ creator, running, error, diag, onRun }) {
+  const audit = creator?.offer?.internal_metadata?.ecosystem_audit || null;
+  const runAt = creator?.offer?.internal_metadata?.generation_timestamps?.ecosystem_audit || null;
+
+  const TIER_COLORS = {
+    lead_magnet: { bg: 'rgba(120,120,120,0.08)', border: 'rgba(120,120,120,0.25)', color: '#aaa' },
+    low_ticket:  { bg: 'rgba(59,130,246,0.08)', border: 'rgba(59,130,246,0.25)', color: '#3b82f6' },
+    mid_ticket:  { bg: 'rgba(168,85,247,0.08)', border: 'rgba(168,85,247,0.25)', color: '#a855f7' },
+    high_ticket: { bg: 'rgba(177,30,47,0.10)', border: 'rgba(177,30,47,0.35)', color: '#B11E2F' },
+    recurring:   { bg: 'rgba(31,138,76,0.08)', border: 'rgba(31,138,76,0.25)', color: '#1F8A4C' },
+    service:     { bg: 'rgba(234,179,8,0.08)', border: 'rgba(234,179,8,0.25)', color: '#eab308' },
+    physical_product: { bg: 'rgba(245,245,245,0.04)', border: 'rgba(245,245,245,0.12)', color: '#ccc' },
+  };
+  const ROLE_LABELS = {
+    entry_point:    'Entry point · warm-up funnel into existing high-ticket',
+    continuity:    'Continuity · keeps mid-ticket buyers paying monthly',
+    premium_upsell: 'Premium upsell · top of low-ticket catalog',
+    standalone:    'Standalone · first real offer in the funnel',
+  };
+
+  return (
+    <div style={{ marginBottom: 28, padding: "18px 20px", background: "rgba(255,255,255,0.015)", border: "1px solid rgba(255,255,255,0.05)", borderRadius: 10 }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+        <div>
+          <div style={{ fontSize: 9, fontWeight: 700, color: "#7A0E18", letterSpacing: "0.16em", textTransform: "uppercase", marginBottom: 4 }}>● Phase 1 · Internal</div>
+          <h3 style={{ fontSize: 14, fontWeight: 600, margin: 0, color: "#f5f5f5" }}>Ecosystem Audit</h3>
+          <p style={{ fontSize: 11, color: "#555", margin: "4px 0 0" }}>
+            Maps existing products + decides the strategic role of the community in the funnel. Operator-only — never shown to the creator.
+          </p>
+        </div>
+        <button
+          onClick={onRun}
+          disabled={running}
+          style={{
+            padding: "8px 16px",
+            borderRadius: 6,
+            border: "1px solid rgba(122,14,24,0.4)",
+            background: running ? "rgba(255,255,255,0.02)" : "rgba(122,14,24,0.08)",
+            color: running ? "#555" : "#B11E2F",
+            fontSize: 11,
+            fontWeight: 600,
+            cursor: running ? "wait" : "pointer",
+            fontFamily: "inherit",
+            whiteSpace: "nowrap",
+          }}
+        >
+          {running ? "A correr audit..." : audit ? "↻ Re-run audit" : "Run audit"}
+        </button>
+      </div>
+
+      {error && (
+        <div style={{ padding: "10px 14px", borderRadius: 6, background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.25)", color: "#ef4444", fontSize: 11, marginBottom: 12, whiteSpace: "pre-wrap" }}>{error}</div>
+      )}
+      {diag && !running && (
+        <div style={{ fontSize: 10, color: "#444", marginBottom: 12, fontFamily: "'JetBrains Mono', ui-monospace, monospace" }}>
+          {diag.seed_urls} seed urls · {diag.aggregators_resolved} aggregators resolved · {diag.final_urls_inspected} urls inspected · {diag.retries} retries
+        </div>
+      )}
+
+      {!audit && !running && (
+        <div style={{ padding: "20px 16px", textAlign: "center", color: "#444", fontSize: 12, border: "1px dashed rgba(255,255,255,0.06)", borderRadius: 6 }}>
+          No audit yet. Click <strong style={{ color: "#888" }}>Run audit</strong> to inspect the creator's product ecosystem (~60-90s, uses web_search).
+        </div>
+      )}
+
+      {audit && (
+        <div>
+          {/* Strategic role + completeness header */}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: 14, marginBottom: 16, padding: "14px 16px", background: "#0a0a0a", borderRadius: 8, border: "1px solid rgba(255,255,255,0.04)" }}>
+            <div>
+              <div style={{ fontSize: 9, fontWeight: 700, color: "#7A0E18", letterSpacing: "0.16em", textTransform: "uppercase", marginBottom: 6 }}>Strategic role</div>
+              <div style={{ fontSize: 14, fontWeight: 700, color: "#f5f5f5", marginBottom: 4 }}>{ROLE_LABELS[audit.strategic_role] || audit.strategic_role}</div>
+              <p style={{ fontSize: 12, color: "#888", margin: 0, lineHeight: 1.55 }}>{audit.strategic_role_reasoning}</p>
+            </div>
+            <div style={{ textAlign: "right" }}>
+              <div style={{ fontSize: 9, fontWeight: 700, color: "#555", letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 4 }}>Completeness</div>
+              <div style={{ fontSize: 28, fontWeight: 700, color: "#f5f5f5", lineHeight: 1, letterSpacing: "-0.02em" }}>{audit.ecosystem_map?.ecosystem_completeness_score ?? 0}</div>
+              <div style={{ fontSize: 9, color: "#444", marginTop: 2 }}>/ 100</div>
+            </div>
+          </div>
+
+          {/* Tier flags */}
+          <div style={{ display: "flex", gap: 8, marginBottom: 14, flexWrap: "wrap" }}>
+            {[
+              { k: 'has_high_ticket', label: 'High-ticket' },
+              { k: 'has_mid_ticket', label: 'Mid-ticket' },
+              { k: 'has_recurring', label: 'Recurring' },
+            ].map(({ k, label }) => {
+              const on = !!audit.ecosystem_map?.[k];
+              return (
+                <span key={k} style={{
+                  fontSize: 10, fontWeight: 600, padding: "4px 10px", borderRadius: 4,
+                  background: on ? "rgba(34,197,94,0.08)" : "rgba(255,255,255,0.02)",
+                  color: on ? "#22c55e" : "#444",
+                  border: `1px solid ${on ? "rgba(34,197,94,0.25)" : "rgba(255,255,255,0.04)"}`,
+                }}>{on ? "✓" : "○"} {label}</span>
+              );
+            })}
+          </div>
+
+          {/* Products found */}
+          <div style={{ marginBottom: 14 }}>
+            <div style={{ fontSize: 9, fontWeight: 700, color: "#666", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 8 }}>Products found · {audit.ecosystem_map?.products_found?.length || 0}</div>
+            {(audit.ecosystem_map?.products_found || []).length === 0 ? (
+              <div style={{ fontSize: 11, color: "#444", padding: "12px 14px", background: "#0a0a0a", borderRadius: 6, border: "1px dashed rgba(255,255,255,0.04)" }}>No public products found.</div>
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                {audit.ecosystem_map.products_found.map((p, i) => {
+                  const tc = TIER_COLORS[p.tier] || TIER_COLORS.physical_product;
+                  return (
+                    <div key={i} style={{ padding: "12px 14px", background: "#0a0a0a", borderRadius: 6, border: "1px solid rgba(255,255,255,0.04)" }}>
+                      <div style={{ display: "flex", alignItems: "baseline", gap: 10, marginBottom: 4 }}>
+                        <span style={{ fontSize: 13, fontWeight: 600, color: "#f5f5f5" }}>{p.name}</span>
+                        <span style={{ fontSize: 9, fontWeight: 700, padding: "2px 8px", borderRadius: 3, background: tc.bg, color: tc.color, border: `1px solid ${tc.border}`, textTransform: "uppercase", letterSpacing: "0.06em" }}>{p.tier.replace('_', ' ')}</span>
+                        <span style={{ fontSize: 10, color: "#666" }}>· {p.format}</span>
+                        <span style={{ marginLeft: "auto", fontSize: 11, fontWeight: 700, color: p.price_eur != null ? "#f5f5f5" : "#555" }}>{p.price_eur != null ? `€${p.price_eur}` : 'No public price'}</span>
+                      </div>
+                      <p style={{ fontSize: 11, color: "#888", margin: 0, lineHeight: 1.55 }}>{p.transformation_offered}</p>
+                      <a href={p.url} target="_blank" rel="noopener noreferrer" style={{ fontSize: 10, color: "#7A0E18", textDecoration: "none", marginTop: 4, display: "inline-block", wordBreak: "break-all" }}>{p.url}</a>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* Cannibalization */}
+          {(audit.cannibalization_constraints || []).length > 0 && (
+            <div style={{ marginBottom: 14 }}>
+              <div style={{ fontSize: 9, fontWeight: 700, color: "#eab308", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 8 }}>Cannibalization constraints · {audit.cannibalization_constraints.length}</div>
+              <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 4 }}>
+                {audit.cannibalization_constraints.map((c, i) => (
+                  <li key={i} style={{ fontSize: 12, color: "#ccc", lineHeight: 1.55, paddingLeft: 14, position: "relative" }}>
+                    <span style={{ position: "absolute", left: 0, color: "#eab308" }}>!</span>
+                    {c}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {/* Synergies */}
+          {(audit.synergy_opportunities || []).length > 0 && (
+            <div>
+              <div style={{ fontSize: 9, fontWeight: 700, color: "#22c55e", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 8 }}>Synergy opportunities · {audit.synergy_opportunities.length}</div>
+              <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 4 }}>
+                {audit.synergy_opportunities.map((s, i) => (
+                  <li key={i} style={{ fontSize: 12, color: "#ccc", lineHeight: 1.55, paddingLeft: 14, position: "relative" }}>
+                    <span style={{ position: "absolute", left: 0, color: "#22c55e" }}>+</span>
+                    {s}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {runAt && (
+            <div style={{ fontSize: 10, color: "#333", marginTop: 14, paddingTop: 10, borderTop: "1px solid rgba(255,255,255,0.04)" }}>
+              Last run: {new Date(runAt).toLocaleString("pt-PT")}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────
+// Phase 2 · Archetype + Fame Tier viewer (internal use only).
+//
+// Reads from creator.offer.internal_metadata.archetype_classification.
+// NEVER renders to the creator — operator-only insight that biases the
+// downstream offer playbook (Checkpoint 1 of the wizard).
+// ─────────────────────────────────────────────────────────────────
+
+function ArchetypePanel({ creator, running, error, diag, onRun }) {
+  const c = creator?.offer?.internal_metadata?.archetype_classification || null;
+  const runAt = creator?.offer?.internal_metadata?.generation_timestamps?.archetype_classification || null;
+
+  const ARCHETYPE_LABELS = {
+    expert_educator: 'Expert / Educator',
+    performer_practitioner: 'Performer / Practitioner',
+    coach_transformation: 'Coach / Transformation',
+    personality_entertainer: 'Personality / Entertainer',
+    curator_aggregator: 'Curator / Aggregator',
+    builder_operator: 'Builder / Operator',
+  };
+  const ARCHETYPE_DESC = {
+    expert_educator: 'Teaches concrete knowledge — frameworks, lessons, how-tos.',
+    performer_practitioner: 'Does the craft in public — process, skill, output.',
+    coach_transformation: 'Sells measurable personal change — before/after.',
+    personality_entertainer: 'Audience follows for the person, not the topic.',
+    curator_aggregator: 'Trusted filter / taste — picks, reviews, finds.',
+    builder_operator: 'Builds in public — revenue, ops, behind-the-scenes.',
+  };
+  const FAME_LABELS = {
+    micro: 'Micro · known only to direct followers',
+    niche_recognized: 'Niche-recognized · known inside their professional niche',
+    cross_niche_recognized: 'Cross-niche · mainstream press / national TV / book',
+    celebrity: 'Celebrity · household name',
+  };
+
+  // Confidence color: green ≥85, yellow 70-84, amber 50-69, red <50.
+  const confColor = (n) => {
+    if (n == null) return '#444';
+    if (n >= 85) return '#22c55e';
+    if (n >= 70) return '#3b82f6';
+    if (n >= 50) return '#eab308';
+    return '#ef4444';
+  };
+  const ambiguous = c && typeof c.primary_confidence === 'number' && c.primary_confidence < 70;
+
+  return (
+    <div style={{ marginBottom: 28, padding: "18px 20px", background: "rgba(255,255,255,0.015)", border: "1px solid rgba(255,255,255,0.05)", borderRadius: 10 }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+        <div>
+          <div style={{ fontSize: 9, fontWeight: 700, color: "#7A0E18", letterSpacing: "0.16em", textTransform: "uppercase", marginBottom: 4 }}>● Phase 2 · Internal</div>
+          <h3 style={{ fontSize: 14, fontWeight: 600, margin: 0, color: "#f5f5f5" }}>Archetype + Fame Tier</h3>
+          <p style={{ fontSize: 11, color: "#555", margin: "4px 0 0" }}>
+            Classifies the creator into 1 of 6 archetypes + assesses fame outside their direct audience. Operator-only.
+          </p>
+        </div>
+        <button
+          onClick={onRun}
+          disabled={running}
+          style={{
+            padding: "8px 16px",
+            borderRadius: 6,
+            border: "1px solid rgba(122,14,24,0.4)",
+            background: running ? "rgba(255,255,255,0.02)" : "rgba(122,14,24,0.08)",
+            color: running ? "#555" : "#B11E2F",
+            fontSize: 11,
+            fontWeight: 600,
+            cursor: running ? "wait" : "pointer",
+            fontFamily: "inherit",
+            whiteSpace: "nowrap",
+          }}
+        >
+          {running ? "A classificar..." : c ? "↻ Re-run" : "Run classifier"}
+        </button>
+      </div>
+
+      {error && (
+        <div style={{ padding: "10px 14px", borderRadius: 6, background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.25)", color: "#ef4444", fontSize: 11, marginBottom: 12, whiteSpace: "pre-wrap" }}>{error}</div>
+      )}
+      {diag && !running && (
+        <div style={{ fontSize: 10, color: "#444", marginBottom: 12, fontFamily: "'JetBrains Mono', ui-monospace, monospace" }}>
+          {diag.captions_available} captions analysed · ecosystem audit {diag.ecosystem_audit_used ? 'used' : 'not yet run'} · {diag.retries} retries
+        </div>
+      )}
+
+      {!c && !running && (
+        <div style={{ padding: "20px 16px", textAlign: "center", color: "#444", fontSize: 12, border: "1px dashed rgba(255,255,255,0.06)", borderRadius: 6 }}>
+          No archetype yet. Click <strong style={{ color: "#888" }}>Run classifier</strong> (~30-60s, uses web_search for fame signals).
+        </div>
+      )}
+
+      {c && (
+        <div>
+          {/* Ambiguity banner — surfaces when the model wasn't sure */}
+          {ambiguous && (
+            <div style={{ padding: "10px 14px", borderRadius: 6, background: "rgba(234,179,8,0.06)", border: "1px solid rgba(234,179,8,0.25)", color: "#eab308", fontSize: 11, marginBottom: 12 }}>
+              ⚠ <strong>Ambiguous classification</strong> · primary confidence below 70%. Both options shown — operator decides at Checkpoint 1.
+            </div>
+          )}
+
+          {/* Primary + Secondary archetype cards */}
+          <div style={{ display: "grid", gridTemplateColumns: c.secondary_archetype ? "1fr 1fr" : "1fr", gap: 12, marginBottom: 16 }}>
+            <div style={{ padding: "14px 16px", background: "#0a0a0a", borderRadius: 8, border: `1px solid ${ambiguous ? 'rgba(234,179,8,0.25)' : 'rgba(122,14,24,0.35)'}` }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+                <div style={{ fontSize: 9, fontWeight: 700, color: ambiguous ? '#eab308' : '#7A0E18', letterSpacing: "0.16em", textTransform: "uppercase" }}>Primary</div>
+                <div style={{ fontSize: 16, fontWeight: 700, color: confColor(c.primary_confidence) }}>{c.primary_confidence}%</div>
+              </div>
+              <div style={{ fontSize: 15, fontWeight: 700, color: "#f5f5f5", marginBottom: 4 }}>{ARCHETYPE_LABELS[c.primary_archetype] || c.primary_archetype}</div>
+              <p style={{ fontSize: 11, color: "#888", margin: 0, lineHeight: 1.5 }}>{ARCHETYPE_DESC[c.primary_archetype]}</p>
+            </div>
+            {c.secondary_archetype && (
+              <div style={{ padding: "14px 16px", background: "#0a0a0a", borderRadius: 8, border: "1px solid rgba(255,255,255,0.06)" }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+                  <div style={{ fontSize: 9, fontWeight: 700, color: "#666", letterSpacing: "0.16em", textTransform: "uppercase" }}>Secondary</div>
+                  <div style={{ fontSize: 16, fontWeight: 700, color: confColor(c.secondary_confidence) }}>{c.secondary_confidence}%</div>
+                </div>
+                <div style={{ fontSize: 15, fontWeight: 600, color: "#ccc", marginBottom: 4 }}>{ARCHETYPE_LABELS[c.secondary_archetype] || c.secondary_archetype}</div>
+                <p style={{ fontSize: 11, color: "#666", margin: 0, lineHeight: 1.5 }}>{ARCHETYPE_DESC[c.secondary_archetype]}</p>
+              </div>
+            )}
+          </div>
+
+          {/* Classification evidence */}
+          {(c.classification_evidence || []).length > 0 && (
+            <div style={{ marginBottom: 16 }}>
+              <div style={{ fontSize: 9, fontWeight: 700, color: "#666", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 8 }}>Evidence · {c.classification_evidence.length}</div>
+              <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 4 }}>
+                {c.classification_evidence.map((e, i) => (
+                  <li key={i} style={{ fontSize: 12, color: "#ccc", lineHeight: 1.55, paddingLeft: 14, position: "relative" }}>
+                    <span style={{ position: "absolute", left: 0, color: "#7A0E18" }}>›</span>{e}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {/* Fame tier */}
+          <div style={{ padding: "12px 14px", background: "#0a0a0a", borderRadius: 8, border: "1px solid rgba(255,255,255,0.04)", marginBottom: runAt ? 14 : 0 }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+              <div style={{ fontSize: 9, fontWeight: 700, color: "#3b82f6", letterSpacing: "0.16em", textTransform: "uppercase" }}>Fame Tier</div>
+              <span style={{ fontSize: 10, fontWeight: 700, padding: "3px 9px", borderRadius: 3, background: "rgba(59,130,246,0.08)", color: "#3b82f6", border: "1px solid rgba(59,130,246,0.25)", textTransform: "uppercase", letterSpacing: "0.08em" }}>{(c.fame_tier || '').replace('_', ' ')}</span>
+            </div>
+            <div style={{ fontSize: 12, color: "#ccc", marginBottom: 6 }}>{FAME_LABELS[c.fame_tier] || c.fame_tier}</div>
+            <p style={{ fontSize: 11, color: "#888", margin: 0, lineHeight: 1.55 }}>{c.fame_tier_evidence}</p>
+          </div>
+
+          {runAt && (
+            <div style={{ fontSize: 10, color: "#333", paddingTop: 10, borderTop: "1px solid rgba(255,255,255,0.04)" }}>
+              Last run: {new Date(runAt).toLocaleString("pt-PT")}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ──────────────────────────────────────────────────────────────────────────
+// Phase 3 · Uniqueness Extraction (internal-only)
+// ──────────────────────────────────────────────────────────────────────────
+// Renders the 5-8 unique elements + creator_voice_summary that live under
+//   creator.offer.internal_metadata.uniqueness_extraction
+// Each element carries category, monetization_potential, evidence_source,
+// and a usable_in_modules flag. Phase 4 will pick the strongest elements and
+// translate them into client-facing differentiator copy.
+function UniquenessPanel({ creator, running, error, diag, onRun }) {
+  const u = creator?.offer?.internal_metadata?.uniqueness_extraction || null;
+  const runAt = creator?.offer?.internal_metadata?.generation_timestamps?.uniqueness_extraction || null;
+
+  // Category visuals — kept aligned with the 7-enum in schemas/uniqueness.js
+  const CATEGORY_LABELS = {
+    story: 'Story',
+    credential: 'Credential',
+    viral_moment: 'Viral Moment',
+    vocabulary: 'Vocabulary',
+    contrarian_angle: 'Contrarian Angle',
+    proprietary_method: 'Proprietary Method',
+    behind_the_scenes_access: 'BTS Access',
+  };
+  const CATEGORY_COLORS = {
+    story: '#a855f7',                  // purple
+    credential: '#3b82f6',             // blue
+    viral_moment: '#ef4444',           // red
+    vocabulary: '#14b8a6',             // teal
+    contrarian_angle: '#f97316',       // orange
+    proprietary_method: '#7A0E18',     // brand red
+    behind_the_scenes_access: '#eab308', // amber
+  };
+
+  // Monetization tier visuals — high = green, medium = blue, low = grey.
+  const MON_COLORS = {
+    high: '#22c55e',
+    medium: '#3b82f6',
+    low: '#666',
+  };
+  const MON_LABELS = {
+    high: 'HIGH $',
+    medium: 'MED $',
+    low: 'LOW $',
+  };
+
+  const usableCount = u ? (u.unique_elements || []).filter(e => e.usable_in_modules).length : 0;
+
+  return (
+    <div style={{ marginBottom: 28, padding: "18px 20px", background: "rgba(255,255,255,0.015)", border: "1px solid rgba(255,255,255,0.05)", borderRadius: 10 }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+        <div>
+          <div style={{ fontSize: 9, fontWeight: 700, color: "#7A0E18", letterSpacing: "0.16em", textTransform: "uppercase", marginBottom: 4 }}>● Phase 3 · Internal</div>
+          <h3 style={{ fontSize: 14, fontWeight: 600, margin: 0, color: "#f5f5f5" }}>Uniqueness Extraction</h3>
+          <p style={{ fontSize: 11, color: "#555", margin: "4px 0 0" }}>
+            5-8 elements that ONLY this creator can claim, each with concrete evidence. Phase 4 turns the strongest into sales copy.
+          </p>
+        </div>
+        <button
+          onClick={onRun}
+          disabled={running}
+          style={{
+            padding: "8px 16px",
+            borderRadius: 6,
+            border: "1px solid rgba(122,14,24,0.4)",
+            background: running ? "rgba(255,255,255,0.02)" : "rgba(122,14,24,0.08)",
+            color: running ? "#555" : "#B11E2F",
+            fontSize: 11,
+            fontWeight: 600,
+            cursor: running ? "wait" : "pointer",
+            fontFamily: "inherit",
+            whiteSpace: "nowrap",
+          }}
+        >
+          {running ? "A extrair..." : u ? "↻ Re-run" : "Run extractor"}
+        </button>
+      </div>
+
+      {error && (
+        <div style={{ padding: "10px 14px", borderRadius: 6, background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.25)", color: "#ef4444", fontSize: 11, marginBottom: 12, whiteSpace: "pre-wrap" }}>{error}</div>
+      )}
+      {diag && !running && (
+        <div style={{ fontSize: 10, color: "#444", marginBottom: 12, fontFamily: "'JetBrains Mono', ui-monospace, monospace" }}>
+          {diag.elements_returned} elements · {diag.captions_analysed} captions · archetype {diag.archetype_used ? '✓' : '—'} · ecosystem {diag.ecosystem_audit_used ? '✓' : '—'} · {diag.retries} retries
+        </div>
+      )}
+
+      {!u && !running && (
+        <div style={{ padding: "20px 16px", textAlign: "center", color: "#444", fontSize: 12, border: "1px dashed rgba(255,255,255,0.06)", borderRadius: 6 }}>
+          No uniqueness yet. Click <strong style={{ color: "#888" }}>Run extractor</strong> (~15-30s, Sonnet only, uses Phase 1+2 outputs).
+        </div>
+      )}
+
+      {u && (
+        <div>
+          {/* Summary row — usable_in_modules count drives Phase 4 module generation */}
+          <div style={{ fontSize: 10, color: "#666", marginBottom: 10, fontFamily: "'JetBrains Mono', ui-monospace, monospace", letterSpacing: "0.04em" }}>
+            {(u.unique_elements || []).length} elements · <span style={{ color: usableCount >= 3 ? '#22c55e' : '#eab308' }}>{usableCount} module-usable</span>
+          </div>
+
+          {/* Element cards — one per unique element */}
+          <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 16 }}>
+            {(u.unique_elements || []).map((el, i) => {
+              const catColor = CATEGORY_COLORS[el.category] || '#666';
+              const monColor = MON_COLORS[el.monetization_potential] || '#666';
+              return (
+                <div
+                  key={i}
+                  style={{
+                    padding: "13px 15px",
+                    background: "#0a0a0a",
+                    borderRadius: 8,
+                    border: `1px solid ${el.usable_in_modules ? 'rgba(34,197,94,0.18)' : 'rgba(255,255,255,0.05)'}`,
+                  }}
+                >
+                  {/* Header row — number + category badge + monetization badge + module flag */}
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8, flexWrap: "wrap" }}>
+                    <span style={{ fontSize: 10, fontWeight: 700, color: "#444", fontFamily: "'JetBrains Mono', ui-monospace, monospace", minWidth: 18 }}>#{i + 1}</span>
+                    <span
+                      style={{
+                        fontSize: 9,
+                        fontWeight: 700,
+                        padding: "3px 8px",
+                        borderRadius: 3,
+                        background: `${catColor}15`,
+                        color: catColor,
+                        border: `1px solid ${catColor}40`,
+                        textTransform: "uppercase",
+                        letterSpacing: "0.08em",
+                      }}
+                    >
+                      {CATEGORY_LABELS[el.category] || el.category}
+                    </span>
+                    <span
+                      style={{
+                        fontSize: 9,
+                        fontWeight: 700,
+                        padding: "3px 8px",
+                        borderRadius: 3,
+                        background: `${monColor}15`,
+                        color: monColor,
+                        border: `1px solid ${monColor}40`,
+                        letterSpacing: "0.06em",
+                      }}
+                    >
+                      {MON_LABELS[el.monetization_potential] || el.monetization_potential}
+                    </span>
+                    {el.usable_in_modules && (
+                      <span
+                        style={{
+                          fontSize: 9,
+                          fontWeight: 700,
+                          padding: "3px 8px",
+                          borderRadius: 3,
+                          background: "rgba(34,197,94,0.08)",
+                          color: "#22c55e",
+                          border: "1px solid rgba(34,197,94,0.3)",
+                          letterSpacing: "0.06em",
+                          marginLeft: "auto",
+                        }}
+                      >
+                        ✓ MODULE-USABLE
+                      </span>
+                    )}
+                  </div>
+
+                  {/* The element itself */}
+                  <div style={{ fontSize: 13, color: "#f5f5f5", lineHeight: 1.5, marginBottom: 8, fontWeight: 500 }}>{el.element}</div>
+
+                  {/* Evidence quote — italicised, indented, with corner mark */}
+                  <div
+                    style={{
+                      fontSize: 11,
+                      color: "#888",
+                      lineHeight: 1.5,
+                      fontStyle: "italic",
+                      paddingLeft: 10,
+                      borderLeft: "2px solid rgba(255,255,255,0.08)",
+                    }}
+                  >
+                    <span style={{ fontSize: 9, fontWeight: 700, color: "#555", letterSpacing: "0.1em", textTransform: "uppercase", fontStyle: "normal", marginRight: 6 }}>Evidence:</span>
+                    {el.evidence_source}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Creator voice summary — drives tone for every piece of generated copy in Phase 4 */}
+          {u.creator_voice_summary && (
+            <div style={{ padding: "13px 15px", background: "rgba(122,14,24,0.04)", borderRadius: 8, border: "1px solid rgba(122,14,24,0.18)", marginBottom: runAt ? 14 : 0 }}>
+              <div style={{ fontSize: 9, fontWeight: 700, color: "#7A0E18", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 6 }}>Creator Voice</div>
+              <p style={{ fontSize: 12, color: "#ddd", margin: 0, lineHeight: 1.55, fontStyle: "italic" }}>{u.creator_voice_summary}</p>
+            </div>
+          )}
+
+          {runAt && (
+            <div style={{ fontSize: 10, color: "#333", paddingTop: 10, borderTop: "1px solid rgba(255,255,255,0.04)" }}>
+              Last run: {new Date(runAt).toLocaleString("pt-PT")}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
   );
 }

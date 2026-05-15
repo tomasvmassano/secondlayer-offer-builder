@@ -3,7 +3,8 @@
 import { useState, useEffect, useMemo, useRef, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { SCENARIOS as SHARED_SCENARIOS, projectGrowth as sharedProjectGrowth, cumulativeRevenue as sharedCumulative, calculateSteadyMRR } from "../lib/revenue";
-import { parseOutput } from "../offer-builder/lib/shared";
+import { parseOutput } from "../lib/offerParser";
+import { readClientFacing, legacyParsedToOfferState } from "../lib/offerSchema";
 
 // ─────────────────────────────────────────────────────────────────
 // PITCH DECK — 10 slides + optional slide 11 (Investimento)
@@ -565,6 +566,15 @@ function PitchPageContent() {
             <input type="checkbox" checked={showInvestimento} onChange={(e) => setShowInvestimento(e.target.checked)} />
             Incluir Investimento
           </label>
+          {creatorId && (
+            <a
+              href={`/api/launch-plan/${creatorId}/pdf`}
+              target="_blank"
+              rel="noopener noreferrer"
+              title="Generate the 8-page Lia-style 60-day launch plan PDF. Send this between calls — auto-populates from Conteúdo Semanal + Biblioteca."
+              style={btnLaunchPlan}
+            >Plano de Lançamento</a>
+          )}
           <button onClick={exportPdf} style={btnSecondary}>Export PDF</button>
           <button onClick={exportPptx} disabled={exporting} style={btnPrimary}>{exporting ? "A exportar..." : "Export PPTX"}</button>
         </div>
@@ -672,20 +682,6 @@ function PitchPageContent() {
           transform: translate(-50%,-50%);
           z-index: 0; opacity: 0.4;
           pointer-events: none;
-        }
-
-        /* Hero gradient number (slide 8) — display:inline-block helps html2canvas
-           apply the text-clip mask reliably; falls back to solid red if not supported. */
-        .hero-num {
-          display: inline-block;
-          color: #B11E2F;
-          background: linear-gradient(180deg, #FFFFFF 0%, #FF6478 60%, #B11E2F 100%);
-          -webkit-background-clip: text;
-          background-clip: text;
-          -webkit-text-fill-color: transparent;
-        }
-        @supports not ((-webkit-background-clip: text) or (background-clip: text)) {
-          .hero-num { color: #B11E2F; -webkit-text-fill-color: #B11E2F; background: none; }
         }
 
         /* Audience dot grid */
@@ -796,7 +792,7 @@ function PitchPageContent() {
         }
         .receipt::before { top: -8px; }
         .receipt::after  { bottom: -8px; }
-        .receipt .r-line { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px dashed rgba(0,0,0,0.18); font-size: 14px; }
+        .receipt .r-line { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px dashed rgba(0,0,0,0.45); font-size: 14px; }
         .receipt .r-line.no-b { border: none; }
         .receipt .r-total { display: flex; justify-content: space-between; padding-top: 12px; font-weight: 700; font-size: 16px; }
 
@@ -837,7 +833,7 @@ function PitchPageContent() {
       `}</style>
 
       {/* SLIDE 1: COVER — logo + centered subtitle + cinematic orb */}
-      <Slide num={1} total={15} hidePageMark decor={
+      <Slide num={1} total={11} hidePageMark decor={
         <>
           <div className="cover-orb" />
           <div className="aurora red"  style={{ left: -200, top: -200, width: 700, height: 700 }} />
@@ -877,7 +873,7 @@ function PitchPageContent() {
       </Slide>
 
       {/* SLIDE 2: CORE PROMISE — waveform + aurora */}
-      <Slide num={2} total={15} decor={
+      <Slide num={2} total={11} decor={
         <>
           <div className="aurora red" style={{ right: -300, top: "30%", width: 900, height: 900 }} />
           <svg className="promise-wave" viewBox="0 0 1920 1080" preserveAspectRatio="none">
@@ -917,7 +913,7 @@ function PitchPageContent() {
       </Slide>
 
       {/* SLIDE 3: TRANSFORMATION — bigger text + aurora */}
-      <Slide num={3} total={15} decor={
+      <Slide num={3} total={11} decor={
         <div className="aurora red" style={{ right: -200, top: "20%", width: 700, height: 700, opacity: 0.35 }} />
       }>
         <div style={{ flex: 1, display: "flex", flexDirection: "column", width: "100%" }}>
@@ -973,55 +969,8 @@ function PitchPageContent() {
         </div>
       </Slide>
 
-      {/* SLIDE 4: WHAT YOU GET — deep aurora */}
-      <Slide num={4} total={15} decor={
-        <div className="aurora deep" style={{ left: -200, bottom: -150, width: 700, height: 700 }} />
-      }>
-        <div style={{ flex: 1, display: "flex", flexDirection: "column", width: "100%" }}>
-          <div style={{ fontSize: 18, fontWeight: 600, color: "#B11E2F", letterSpacing: "0.28em", textTransform: "uppercase" }}>
-            {creator?.primaryLanguage === 'en' ? 'What you get' : 'O que recebes'}
-          </div>
-          <div style={{ height: 28 }} />
-          <h1 style={{ fontSize: 76, fontWeight: 800, margin: 0, lineHeight: 1.0, letterSpacing: "-0.03em", color: "#f5f5f5", maxWidth: 1500 }}>
-            <StyledKeyword
-              text={slides.whatYouGet.hero}
-              keyword={creator?.primaryLanguage === 'en' ? 'real business' : 'negócio a sério'}
-              italicStyle={{ ...italicSerif, color: "#B11E2F" }}
-            />
-          </h1>
-
-          <div style={{ marginTop: 56, display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 28, flex: 1 }}>
-            {slides.whatYouGet.pillars.map((pillar, i) => (
-              <div key={i} style={{ padding: 44, background: "rgba(15,15,15,0.78)", border: "1px solid #1F1F1F", borderRadius: 14, display: "flex", flexDirection: "column" }}>
-                <div style={{ ...italicSerif, fontSize: 96, color: "#B11E2F", lineHeight: 1, marginBottom: 18 }}>0{i + 1}</div>
-                <div style={{ fontSize: 16, fontWeight: 600, color: "#B11E2F", letterSpacing: "0.22em", textTransform: "uppercase", marginBottom: 14 }}>
-                  {i === 0 ? (creator?.primaryLanguage === 'en' ? 'Community' : 'Comunidade')
-                  : i === 1 ? (creator?.primaryLanguage === 'en' ? 'System' : 'Sistema')
-                            : (creator?.primaryLanguage === 'en' ? 'Team' : 'Equipa')}
-                </div>
-                <h3 style={{ fontSize: 38, fontWeight: 700, margin: "0 0 18px", color: "#f5f5f5", lineHeight: 1.15, letterSpacing: "-0.01em" }}>
-                  <Editable value={pillar.title} onChange={v => {
-                    const next = [...slides.whatYouGet.pillars]; next[i] = { ...pillar, title: v };
-                    updateSlide('whatYouGet', 'pillars', next);
-                  }} />
-                </h3>
-                <p style={{ margin: 0, fontSize: 22, color: "#B8B8B8", lineHeight: 1.5 }}>
-                  <Editable value={pillar.desc} onChange={v => {
-                    const next = [...slides.whatYouGet.pillars]; next[i] = { ...pillar, desc: v };
-                    updateSlide('whatYouGet', 'pillars', next);
-                  }} multiline />
-                </p>
-              </div>
-            ))}
-          </div>
-          <p style={{ ...italicSerif, marginTop: 32, fontSize: 24, color: "#A8A8A8" }}>
-            <Editable value={slides.whatYouGet.closer} onChange={v => updateSlide('whatYouGet', 'closer', v)} multiline />
-          </p>
-        </div>
-      </Slide>
-
-      {/* SLIDE 5 NEW: A TUA COMUNIDADE — concrete spec */}
-      <Slide num={5} total={15} decor={
+      {/* SLIDE 4: A TUA COMUNIDADE — concrete spec */}
+      <Slide num={4} total={11} decor={
         <div className="aurora red" style={{ right: -250, top: "20%", width: 700, height: 700, opacity: 0.35 }} />
       }>
         <div style={{ flex: 1, display: "flex", flexDirection: "column", width: "100%" }}>
@@ -1138,63 +1087,112 @@ function PitchPageContent() {
         </div>
       </Slide>
 
-      {/* SLIDE 6 NEW: O SISTEMA — Unique Mechanism (acronym-style branded method) */}
-      <Slide num={6} total={15} decor={
+      {/* SLIDE 5: O SISTEMA · CONTEÚDO SEMANAL — branded mechanism + weekly formats + pre-recorded library */}
+      <Slide num={5} total={11} decor={
         <div className="aurora deep" style={{ right: -200, top: "30%", width: 700, height: 700, opacity: 0.4 }} />
       }>
         <div style={{ flex: 1, display: "flex", flexDirection: "column", width: "100%" }}>
           <div style={{ fontSize: 18, fontWeight: 600, color: "#B11E2F", letterSpacing: "0.28em", textTransform: "uppercase" }}>
             {creator?.primaryLanguage === 'en' ? 'The system' : 'O sistema'}
           </div>
-          <div style={{ height: 18 }} />
-          <h1 style={{ fontSize: 88, fontWeight: 800, margin: 0, lineHeight: 1.0, letterSpacing: "-0.03em", color: "#f5f5f5" }}>
+          <div style={{ height: 14 }} />
+          <h1 style={{ fontSize: 72, fontWeight: 800, margin: 0, lineHeight: 1.0, letterSpacing: "-0.03em", color: "#f5f5f5" }}>
             <Editable value={slides.system.title} onChange={v => updateSlide('system', 'title', v)} />
           </h1>
-          <p style={{ ...italicSerif, fontSize: 28, color: "#A8A8A8", margin: "16px 0 0", maxWidth: 1300 }}>
+          <p style={{ ...italicSerif, fontSize: 24, color: "#A8A8A8", margin: "14px 0 0", maxWidth: 1300 }}>
             <Editable value={slides.system.subtitle} onChange={v => updateSlide('system', 'subtitle', v)} />
           </p>
 
-          {/* Branded acronym name — hero */}
-          <div style={{ marginTop: 48, padding: "44px 48px", background: "rgba(15,15,15,0.85)", border: "1px solid rgba(177,30,47,0.5)", borderRadius: 14, textAlign: "center" }}>
-            <div style={{ ...italicSerif, fontSize: 88, color: "#f5f5f5", lineHeight: 1.0, letterSpacing: "-0.02em" }}>
+          {/* Mechanism brand banner — kept slim so the weekly + library blocks below have room */}
+          <div style={{ marginTop: 24, padding: "22px 36px", background: "rgba(15,15,15,0.85)", border: "1px solid rgba(177,30,47,0.5)", borderRadius: 12, textAlign: "center" }}>
+            <div style={{ ...italicSerif, fontSize: 56, color: "#f5f5f5", lineHeight: 1.0, letterSpacing: "-0.02em" }}>
               <Editable value={slides.system.name} onChange={v => updateSlide('system', 'name', v)} />
             </div>
           </div>
 
-          {/* Letters grid */}
-          <div style={{ marginTop: 32, display: "grid", gridTemplateColumns: `repeat(${Math.min(slides.system.letters.length, 5)}, 1fr)`, gap: 20, flex: 1 }}>
-            {slides.system.letters.map((l, i) => (
-              <div key={i} style={{ padding: 28, background: "rgba(15,15,15,0.78)", border: "1px solid #1F1F1F", borderRadius: 12, display: "flex", flexDirection: "column" }}>
-                <div style={{ ...italicSerif, fontSize: 88, color: "#B11E2F", lineHeight: 1, marginBottom: 14 }}>
-                  <Editable value={l.letter} onChange={v => {
-                    const next = [...slides.system.letters]; next[i] = { ...l, letter: v };
-                    updateSlide('system', 'letters', next);
-                  }} />
-                </div>
-                <div style={{ fontSize: 22, fontWeight: 700, color: "#f5f5f5", letterSpacing: "-0.01em", marginBottom: 10 }}>
-                  <Editable value={l.word} onChange={v => {
-                    const next = [...slides.system.letters]; next[i] = { ...l, word: v };
-                    updateSlide('system', 'letters', next);
-                  }} />
-                </div>
-                <p style={{ margin: 0, fontSize: 16, color: "#B8B8B8", lineHeight: 1.5 }}>
-                  <Editable value={l.explanation} onChange={v => {
-                    const next = [...slides.system.letters]; next[i] = { ...l, explanation: v };
-                    updateSlide('system', 'letters', next);
-                  }} multiline />
-                </p>
+          {/* 2-column: Weekly Formats LEFT (4 cards) | Pre-recorded Library RIGHT (6 modules in 2-col) */}
+          <div style={{ marginTop: 26, display: "grid", gridTemplateColumns: "1.05fr 1fr", gap: 24, flex: 1 }}>
+            {/* LEFT: Weekly content formats */}
+            <div style={{ padding: 28, background: "rgba(15,15,15,0.78)", border: "1px solid rgba(177,30,47,0.35)", borderRadius: 12, display: "flex", flexDirection: "column" }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: "#B11E2F", letterSpacing: "0.22em", textTransform: "uppercase", marginBottom: 14 }}>
+                {creator?.primaryLanguage === 'en' ? 'Weekly content' : 'Conteúdo semanal'}
               </div>
-            ))}
-          </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 12, flex: 1 }}>
+                {slides.system.weeklyFormats.map((f, i) => (
+                  <div key={i} style={{ display: "grid", gridTemplateColumns: "64px 1fr", gap: 14, alignItems: "start", padding: "12px 0", borderTop: i === 0 ? "none" : "1px solid #1F1F1F" }}>
+                    <div style={{ fontFamily: "'JetBrains Mono', ui-monospace, monospace", fontSize: 11, fontWeight: 700, color: "#f5f5f5", letterSpacing: "0.14em", textTransform: "uppercase", padding: "4px 8px", border: "1px solid rgba(177,30,47,0.55)", background: "rgba(177,30,47,0.08)", borderRadius: 6, textAlign: "center", whiteSpace: "nowrap" }}>
+                      <Editable value={f.day} onChange={v => {
+                        const next = [...slides.system.weeklyFormats]; next[i] = { ...f, day: v };
+                        updateSlide('system', 'weeklyFormats', next);
+                      }} />
+                    </div>
+                    <div>
+                      <div style={{ display: "flex", alignItems: "baseline", gap: 10, marginBottom: 2 }}>
+                        <span style={{ ...italicSerif, fontSize: 22, color: "#f5f5f5", lineHeight: 1.1 }}>
+                          <Editable value={f.name} onChange={v => {
+                            const next = [...slides.system.weeklyFormats]; next[i] = { ...f, name: v };
+                            updateSlide('system', 'weeklyFormats', next);
+                          }} />
+                        </span>
+                        {f.type && (
+                          <span style={{ fontFamily: "'JetBrains Mono', ui-monospace, monospace", fontSize: 10, color: "#8A8A8A", letterSpacing: "0.14em", textTransform: "uppercase" }}>
+                            · <Editable value={f.type} onChange={v => {
+                              const next = [...slides.system.weeklyFormats]; next[i] = { ...f, type: v };
+                              updateSlide('system', 'weeklyFormats', next);
+                            }} />
+                          </span>
+                        )}
+                      </div>
+                      <p style={{ margin: 0, fontSize: 14, color: "#B8B8B8", lineHeight: 1.45 }}>
+                        <Editable value={f.desc} onChange={v => {
+                          const next = [...slides.system.weeklyFormats]; next[i] = { ...f, desc: v };
+                          updateSlide('system', 'weeklyFormats', next);
+                        }} multiline />
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
 
-          <p style={{ marginTop: 28, fontSize: 22, color: "#D5D5D5", lineHeight: 1.5, textAlign: "center", maxWidth: 1500, margin: "28px auto 0" }}>
-            <Editable value={slides.system.description} onChange={v => updateSlide('system', 'description', v)} multiline />
-          </p>
+            {/* RIGHT: Pre-recorded library */}
+            <div style={{ padding: 28, background: "rgba(15,15,15,0.78)", border: "1px solid rgba(31,138,76,0.35)", borderRadius: 12, display: "flex", flexDirection: "column" }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: "#1F8A4C", letterSpacing: "0.22em", textTransform: "uppercase", marginBottom: 14 }}>
+                {creator?.primaryLanguage === 'en' ? 'Pre-recorded library' : 'Biblioteca pré-gravada'}
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 18, flex: 1 }}>
+                {slides.system.library.map((m, i) => (
+                  <div key={i} style={{ padding: "18px 20px", background: "rgba(31,138,76,0.04)", border: "1px solid rgba(31,138,76,0.2)", borderRadius: 10, display: "flex", flexDirection: "column" }}>
+                    {m.format && (
+                      <div style={{ fontFamily: "'JetBrains Mono', ui-monospace, monospace", fontSize: 11, color: "#1F8A4C", letterSpacing: "0.16em", textTransform: "uppercase", marginBottom: 10 }}>
+                        <Editable value={m.format} onChange={v => {
+                          const next = [...slides.system.library]; next[i] = { ...m, format: v };
+                          updateSlide('system', 'library', next);
+                        }} />
+                      </div>
+                    )}
+                    <div style={{ ...italicSerif, fontSize: 26, color: "#f5f5f5", lineHeight: 1.15, marginBottom: 8 }}>
+                      <Editable value={m.name} onChange={v => {
+                        const next = [...slides.system.library]; next[i] = { ...m, name: v };
+                        updateSlide('system', 'library', next);
+                      }} />
+                    </div>
+                    <p style={{ margin: 0, fontSize: 15, color: "#B8B8B8", lineHeight: 1.45 }}>
+                      <Editable value={m.desc} onChange={v => {
+                        const next = [...slides.system.library]; next[i] = { ...m, desc: v };
+                        updateSlide('system', 'library', next);
+                      }} multiline />
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
         </div>
       </Slide>
 
       {/* SLIDE 7 NEW: O VALOR — Hormozi value stack */}
-      <Slide num={7} total={15} decor={
+      <Slide num={6} total={11} decor={
         <div className="aurora red" style={{ left: -200, top: -100, width: 700, height: 700, opacity: 0.35 }} />
       }>
         <div style={{ flex: 1, display: "flex", flexDirection: "column", width: "100%" }}>
@@ -1276,35 +1274,27 @@ function PitchPageContent() {
       </Slide>
 
       {/* SLIDE 8: AUDIENCE — aurora + dot grid */}
-      <Slide num={8} total={15} decor={
+      <Slide num={7} total={11} decor={
         <div className="aurora red" style={{ left: -200, top: -100, width: 600, height: 600, opacity: 0.3 }} />
       }>
         <div style={{ flex: 1, display: "flex", flexDirection: "column", width: "100%" }}>
-          {/* Top row: eyebrow + headline LEFT, "1 ponto = 1k seguidores" RIGHT */}
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
-            <div>
-              <div style={{ fontSize: 18, fontWeight: 600, color: "#B11E2F", letterSpacing: "0.28em", textTransform: "uppercase" }}>
-                {creator?.primaryLanguage === 'en' ? 'Audit' : 'Auditoria'}
-              </div>
-              <div style={{ height: 18 }} />
-              <h1 style={{ fontSize: 88, fontWeight: 800, margin: 0, lineHeight: 1.0, letterSpacing: "-0.03em", color: "#f5f5f5" }}>
-                <StyledLastWord
-                  text={slides.audience.title}
-                  italicStyle={{ ...italicSerif, color: "#B11E2F", fontSize: 92 }}
-                />
-              </h1>
+          {/* Eyebrow + headline */}
+          <div>
+            <div style={{ fontSize: 18, fontWeight: 600, color: "#B11E2F", letterSpacing: "0.28em", textTransform: "uppercase" }}>
+              {creator?.primaryLanguage === 'en' ? 'Audit' : 'Auditoria'}
             </div>
-            <div style={{ textAlign: "right" }}>
-              <div style={{ fontSize: 16, fontWeight: 600, color: "#8A8A8A", letterSpacing: "0.22em", textTransform: "uppercase", marginBottom: 6 }}>
-                {creator?.primaryLanguage === 'en' ? 'Each dot =' : 'Cada ponto ='}
-              </div>
-              <div style={{ fontFamily: "'JetBrains Mono', ui-monospace, monospace", fontSize: 22, color: "#f5f5f5" }}>1 000 {creator?.primaryLanguage === 'en' ? 'followers' : 'seguidores'}</div>
-            </div>
+            <div style={{ height: 18 }} />
+            <h1 style={{ fontSize: 88, fontWeight: 800, margin: 0, lineHeight: 1.0, letterSpacing: "-0.03em", color: "#f5f5f5" }}>
+              <StyledLastWord
+                text={slides.audience.title}
+                italicStyle={{ ...italicSerif, color: "#B11E2F", fontSize: 92 }}
+              />
+            </h1>
           </div>
 
           {/* Stat strip — full-width 4-card row */}
           <div style={{ marginTop: 36, display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 18 }}>
-            <div style={{ padding: "28px 32px", background: "rgba(15,15,15,0.78)", border: "1px solid rgba(177,30,47,0.55)", borderRadius: 14, boxShadow: "inset 0 0 0 1px rgba(177,30,47,0.18), 0 0 80px rgba(177,30,47,0.18)" }}>
+            <div style={{ padding: "28px 32px", background: "rgba(15,15,15,0.78)", border: "1px solid rgba(177,30,47,0.55)", borderRadius: 14 }}>
               <div style={{ fontSize: 16, fontWeight: 600, color: "#B11E2F", letterSpacing: "0.22em", textTransform: "uppercase", marginBottom: 14 }}>
                 {creator?.primaryLanguage === 'en' ? 'Total audience' : 'Audiência total'}
               </div>
@@ -1328,9 +1318,6 @@ function PitchPageContent() {
             </div>
           </div>
 
-          {/* Dot grid */}
-          <DotGrid audience={audience} />
-
           {/* Audience estimate split into 4 columns inside the card */}
           {(translatedAudience || creator?.audienceEstimate) && (() => {
             const aud = translatedAudience || creator.audienceEstimate;
@@ -1353,102 +1340,49 @@ function PitchPageContent() {
               </div>
             );
           })()}
-        </div>
-      </Slide>
 
-      {/* SLIDE 7: BUILD + OPERATE — iso machine backdrop */}
-      <Slide num={9} total={15} decor={
-        <>
-          <div className="iso-stage">
-            <div className="iso-world">
-              <div className="iso-grid" />
-              <div className="iso-panel" style={{ left: 80,  top: 180, width: 260, height: 160 }} />
-              <div className="iso-panel" style={{ left: 420, top: 180, width: 260, height: 160 }} />
-              <div className="iso-panel" style={{ left: 760, top: 180, width: 260, height: 160 }} />
-              <div className="iso-panel" style={{ left: 250, top: 460, width: 280, height: 200, background: "rgba(177,30,47,0.12)", borderColor: "rgba(177,30,47,0.7)" }} />
-              <div className="iso-panel" style={{ left: 600, top: 460, width: 280, height: 200 }} />
-              <div className="iso-panel" style={{ left: 350, top: 760, width: 460, height: 140, borderColor: "rgba(31,138,76,0.6)", background: "rgba(31,138,76,0.06)" }} />
-              <div className="iso-flow"  style={{ left: 80, top: 360, width: 940 }} />
-              <div className="iso-pulse" style={{ left: 80, top: 354 }} />
-              <div className="iso-flow"  style={{ left: 350, top: 660, width: 460 }} />
-              <div className="iso-pulse" style={{ left: 350, top: 654, animationDelay: "1.2s" }} />
-            </div>
-          </div>
-          <div className="iso-veil" />
-        </>
-      }>
-        <div style={{ flex: 1, display: "flex", flexDirection: "column", width: "100%" }}>
-          <div style={{ fontSize: 18, fontWeight: 600, color: "#B11E2F", letterSpacing: "0.28em", textTransform: "uppercase" }}>
-            {creator?.primaryLanguage === 'en' ? 'How we work' : 'Como trabalhamos'}
-          </div>
-          <div style={{ height: 28 }} />
-          <h1 style={{ fontSize: 76, fontWeight: 800, margin: 0, lineHeight: 1.0, letterSpacing: "-0.03em", color: "#f5f5f5" }}>
-            {creator?.primaryLanguage === 'en' ? <>We build once. <span style={{ ...italicSerif, color: "#B11E2F", fontSize: 80 }}>We operate forever.</span></> : <>Construímos uma vez. <span style={{ ...italicSerif, color: "#B11E2F", fontSize: 80 }}>Operamos para sempre.</span></>}
-          </h1>
-
-          <div style={{ marginTop: 56, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 28, flex: 1 }}>
-            {/* Box 1: BUILD */}
-            <div style={{ padding: 44, background: "rgba(15,15,15,0.78)", border: "1px solid #1F1F1F", borderRadius: 14, display: "flex", flexDirection: "column" }}>
-              <h2 style={{ fontSize: 34, fontWeight: 700, margin: 0, color: "#f5f5f5", letterSpacing: "-0.01em" }}>
-                <Editable value={slides.buildOperate.buildTitle} onChange={v => updateSlide('buildOperate', 'buildTitle', v)} />
-              </h2>
-              <div style={{ fontSize: 16, fontWeight: 600, color: "#B11E2F", letterSpacing: "0.22em", textTransform: "uppercase", marginTop: 8, marginBottom: 28 }}>
-                <Editable value={slides.buildOperate.buildSub} onChange={v => updateSlide('buildOperate', 'buildSub', v)} />
-              </div>
-              <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 16 }}>
-                {slides.buildOperate.build.map((item, i) => (
-                  <li key={i}>
-                    <div style={{ fontSize: 22, fontWeight: 600, color: "#f5f5f5" }}>
-                      <Editable value={item.title} onChange={v => {
-                        const next = [...slides.buildOperate.build]; next[i] = { ...item, title: v };
-                        updateSlide('buildOperate', 'build', next);
-                      }} />
+          {/* Top-performing themes strip — signals "we actually read your feed" */}
+          {(() => {
+            const posts = creator?.intelligence?.topPosts;
+            if (!posts || posts.length === 0) return null;
+            // Pick top 3 by engagement rate (parsed as number; falls back to original order).
+            const ranked = [...posts]
+              .map(p => ({ ...p, _er: parseFloat(String(p.engagementRate || '0').replace(/[^0-9.]/g, '')) || 0 }))
+              .sort((a, b) => b._er - a._er)
+              .slice(0, 3)
+              .filter(p => p.topic);
+            if (ranked.length === 0) return null;
+            const en = creator?.primaryLanguage === 'en';
+            return (
+              <div style={{ marginTop: 22, padding: "26px 36px", background: "rgba(15,15,15,0.78)", border: "1px solid rgba(177,30,47,0.4)", borderRadius: 14 }}>
+                <div style={{ fontSize: 12, fontWeight: 600, color: "#B11E2F", letterSpacing: "0.22em", textTransform: "uppercase", marginBottom: 16 }}>
+                  {en ? 'Themes that resonate most' : 'Temas que mais ressoam'}
+                </div>
+                <div style={{ display: "grid", gridTemplateColumns: `repeat(${ranked.length}, 1fr)`, gap: 18 }}>
+                  {ranked.map((p, i) => (
+                    <div key={i} style={{ padding: "16px 18px", background: "rgba(177,30,47,0.06)", border: "1px solid rgba(177,30,47,0.25)", borderRadius: 10 }}>
+                      <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 8, marginBottom: 6 }}>
+                        <div style={{ fontFamily: "'JetBrains Mono', ui-monospace, monospace", fontSize: 11, color: "#8A8A8A", letterSpacing: "0.16em", textTransform: "uppercase" }}>
+                          {p.format || (en ? 'Post' : 'Post')}
+                        </div>
+                        {p._er > 0 && (
+                          <div style={{ fontFamily: "'JetBrains Mono', ui-monospace, monospace", fontSize: 11, color: "#B11E2F", fontWeight: 700 }}>
+                            {p._er.toFixed(1)}%
+                          </div>
+                        )}
+                      </div>
+                      <div style={{ fontSize: 19, fontWeight: 600, color: "#f5f5f5", lineHeight: 1.3, letterSpacing: "-0.005em" }}>{p.topic}</div>
                     </div>
-                    <div style={{ fontSize: 17, color: "#888", lineHeight: 1.45, marginTop: 2 }}>
-                      <Editable value={item.desc} onChange={v => {
-                        const next = [...slides.buildOperate.build]; next[i] = { ...item, desc: v };
-                        updateSlide('buildOperate', 'build', next);
-                      }} multiline />
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            </div>
-
-            {/* Box 2: OPERATE */}
-            <div style={{ padding: 44, background: "rgba(15,15,15,0.78)", border: "1px solid rgba(31,138,76,0.65)", borderRadius: 14, display: "flex", flexDirection: "column" }}>
-              <h2 style={{ fontSize: 34, fontWeight: 700, margin: 0, color: "#f5f5f5", letterSpacing: "-0.01em" }}>
-                <Editable value={slides.buildOperate.operateTitle} onChange={v => updateSlide('buildOperate', 'operateTitle', v)} />
-              </h2>
-              <div style={{ fontSize: 16, fontWeight: 600, color: "#1F8A4C", letterSpacing: "0.22em", textTransform: "uppercase", marginTop: 8, marginBottom: 28 }}>
-                <Editable value={slides.buildOperate.operateSub} onChange={v => updateSlide('buildOperate', 'operateSub', v)} />
+                  ))}
+                </div>
               </div>
-              <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 14 }}>
-                {slides.buildOperate.operate.map((item, i) => (
-                  <li key={i} style={{ display: "flex", gap: 14 }}>
-                    <span style={{ color: "#1F8A4C", width: 28, flexShrink: 0 }}>●</span>
-                    <span style={{ fontSize: 22, color: "#D5D5D5", lineHeight: 1.5, flex: 1 }}>
-                      <Editable value={item} onChange={v => {
-                        const next = [...slides.buildOperate.operate]; next[i] = v;
-                        updateSlide('buildOperate', 'operate', next);
-                      }} multiline />
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          </div>
-          <p style={{ marginTop: 28, fontSize: 26, fontWeight: 700, letterSpacing: "-0.01em", color: "#f5f5f5" }}>
-            <StyledLastWord
-              text={slides.buildOperate.closer}
-              italicStyle={{ ...italicSerif, color: "#B11E2F", fontSize: 30 }}
-            />
-          </p>
+            );
+          })()}
         </div>
       </Slide>
 
       {/* SLIDE 8: LAUNCH — phases with assets, aurora */}
-      <Slide num={10} total={15} decor={
+      <Slide num={8} total={11} decor={
         <div className="aurora red" style={{ left: "30%", top: -200, width: 700, height: 700, opacity: 0.3 }} />
       }>
         <div style={{ flex: 1, display: "flex", flexDirection: "column", width: "100%" }}>
@@ -1467,11 +1401,24 @@ function PitchPageContent() {
             {slides.launch.phases.map((phase, i) => (
               <div key={i} style={{ padding: 44, background: "rgba(15,15,15,0.78)", border: "1px solid #1F1F1F", borderRadius: 14, position: "relative", display: "flex", flexDirection: "column" }}>
                 <div style={{ ...italicSerif, fontSize: 220, color: "#B11E2F", opacity: 0.25, position: "absolute", top: -40, right: 24, lineHeight: 1, pointerEvents: "none" }}>{i + 1}</div>
-                <div style={{ fontSize: 16, fontWeight: 600, color: "#B11E2F", letterSpacing: "0.22em", textTransform: "uppercase", marginBottom: 14, position: "relative" }}>
-                  {i === 0 ? (creator?.primaryLanguage === 'en' ? 'Validate' : 'Validar')
-                  : i === 1 ? (creator?.primaryLanguage === 'en' ? 'Launch' : 'Lançar')
-                            : (creator?.primaryLanguage === 'en' ? 'Scale' : 'Escalar')}
+
+                {/* Top row: phase label LEFT + days pill RIGHT (Lia-style) */}
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14, position: "relative", gap: 12 }}>
+                  <div style={{ fontSize: 16, fontWeight: 600, color: "#B11E2F", letterSpacing: "0.22em", textTransform: "uppercase" }}>
+                    {i === 0 ? (creator?.primaryLanguage === 'en' ? 'Validate' : 'Validar')
+                    : i === 1 ? (creator?.primaryLanguage === 'en' ? 'Launch' : 'Lançar')
+                              : (creator?.primaryLanguage === 'en' ? 'Scale' : 'Escalar')}
+                  </div>
+                  {phase.days && (
+                    <div style={{ padding: "6px 12px", border: "1px solid rgba(177,30,47,0.6)", background: "rgba(177,30,47,0.10)", borderRadius: 8, fontFamily: "'JetBrains Mono', ui-monospace, monospace", fontSize: 12, fontWeight: 700, color: "#f5f5f5", letterSpacing: "0.12em", whiteSpace: "nowrap" }}>
+                      <Editable value={phase.days} onChange={v => {
+                        const next = [...slides.launch.phases]; next[i] = { ...phase, days: v };
+                        updateSlide('launch', 'phases', next);
+                      }} />
+                    </div>
+                  )}
                 </div>
+
                 <h3 style={{ fontSize: 30, fontWeight: 700, margin: "0 0 14px", color: "#f5f5f5", lineHeight: 1.15, letterSpacing: "-0.01em", position: "relative" }}>
                   <Editable value={phase.title} onChange={v => {
                     const next = [...slides.launch.phases]; next[i] = { ...phase, title: v };
@@ -1485,7 +1432,7 @@ function PitchPageContent() {
                   }} multiline />
                 </p>
                 {phase.assets && phase.assets.length > 0 && (
-                  <div style={{ marginTop: "auto", position: "relative" }}>
+                  <div style={{ position: "relative", marginBottom: phase.goal ? 18 : 0 }}>
                     <div style={{ fontSize: 12, fontWeight: 600, color: "#8A8A8A", letterSpacing: "0.22em", textTransform: "uppercase", marginBottom: 12 }}>Assets</div>
                     {phase.assets.map((asset, j) => (
                       <div key={j} style={{ display: "flex", gap: 10, marginBottom: 8, alignItems: "flex-start" }}>
@@ -1501,6 +1448,21 @@ function PitchPageContent() {
                     ))}
                   </div>
                 )}
+
+                {/* Goal/Meta box at bottom — Lia-style */}
+                {phase.goal && (
+                  <div style={{ marginTop: "auto", padding: "14px 18px", border: "1px solid rgba(177,30,47,0.55)", background: "rgba(177,30,47,0.08)", borderRadius: 10, position: "relative" }}>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: "#B11E2F", letterSpacing: "0.22em", textTransform: "uppercase", marginBottom: 4 }}>
+                      {creator?.primaryLanguage === 'en' ? 'Goal' : 'Meta'}
+                    </div>
+                    <div style={{ fontSize: 17, fontWeight: 600, color: "#f5f5f5", lineHeight: 1.35 }}>
+                      <Editable value={phase.goal} onChange={v => {
+                        const next = [...slides.launch.phases]; next[i] = { ...phase, goal: v };
+                        updateSlide('launch', 'phases', next);
+                      }} />
+                    </div>
+                  </div>
+                )}
               </div>
             ))}
           </div>
@@ -1511,7 +1473,7 @@ function PitchPageContent() {
       </Slide>
 
       {/* SLIDE 9: NUMBERS — dual aurora */}
-      <Slide num={11} total={15} decor={
+      <Slide num={9} total={11} decor={
         <>
           <div className="aurora red"  style={{ right: 0, top: -200, width: 800, height: 800, opacity: 0.4 }} />
           <div className="aurora deep" style={{ left: -100, bottom: -200, width: 700, height: 700 }} />
@@ -1531,13 +1493,13 @@ function PitchPageContent() {
           </h1>
 
           {/* Hero MRR — split layout: monthly LEFT, accumulated Year 1 RIGHT */}
-          <div style={{ marginTop: 32, padding: "36px 44px", background: "rgba(122,14,24,0.08)", border: "1px solid rgba(122,14,24,0.55)", borderRadius: 14, boxShadow: "inset 0 0 0 1px rgba(177,30,47,0.18), 0 0 80px rgba(177,30,47,0.18)", display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 40 }}>
+          <div style={{ marginTop: 32, padding: "36px 44px", background: "rgba(122,14,24,0.08)", border: "1px solid rgba(122,14,24,0.55)", borderRadius: 14, display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 40 }}>
             <div>
               <div style={{ fontSize: 16, fontWeight: 600, color: "#B11E2F", letterSpacing: "0.22em", textTransform: "uppercase", marginBottom: 14 }}>
                 <Editable value={slides.numbers.heroLabel} onChange={v => updateSlide('numbers', 'heroLabel', v)} />
               </div>
               <div style={{ lineHeight: 0.9, letterSpacing: "-0.02em" }}>
-                <span className="hero-num" style={{ ...italicSerif, fontSize: 124, fontWeight: 400 }}>{formatEuro(moderateSteadyMRR)}</span>
+                <span style={{ ...italicSerif, fontSize: 124, fontWeight: 400, color: "#B11E2F" }}>{formatEuro(moderateSteadyMRR)}</span>
                 <span style={{ fontSize: 38, color: "#8A8A8A", fontWeight: 500, marginLeft: 4 }}>/{creator?.primaryLanguage === 'en' ? 'mo' : 'mês'}</span>
               </div>
             </div>
@@ -1600,7 +1562,7 @@ function PitchPageContent() {
       </Slide>
 
       {/* SLIDE 10 NEW: CASOS SIMILARES — proof slide */}
-      <Slide num={12} total={15} decor={
+      <Slide num={10} total={11} decor={
         <div className="aurora red" style={{ left: "50%", top: -150, width: 700, height: 700, opacity: 0.3, transform: "translateX(-50%)" }} />
       }>
         <div style={{ flex: 1, display: "flex", flexDirection: "column", width: "100%" }}>
@@ -1681,110 +1643,9 @@ function PitchPageContent() {
         </div>
       </Slide>
 
-      {/* SLIDE 11: PARTNERSHIP — red + green dual aurora */}
-      <Slide num={13} total={15} decor={
-        <>
-          <div className="aurora red"   style={{ left: -200, top: "30%", width: 600, height: 600, opacity: 0.3 }} />
-          <div className="aurora green" style={{ right: -200, top: "30%", width: 600, height: 600 }} />
-        </>
-      }>
-        <div style={{ flex: 1, display: "flex", flexDirection: "column", width: "100%" }}>
-          <div style={{ fontSize: 18, fontWeight: 600, color: "#B11E2F", letterSpacing: "0.28em", textTransform: "uppercase" }}>
-            {creator?.primaryLanguage === 'en' ? 'The partnership' : 'A parceria'}
-          </div>
-          <div style={{ height: 28 }} />
-          <h1 style={{ fontSize: 88, fontWeight: 800, margin: 0, lineHeight: 1.0, letterSpacing: "-0.03em", color: "#f5f5f5" }}>
-            <StyledKeyword
-              text={slides.partnership.title}
-              keyword={creator?.primaryLanguage === 'en' ? 'works' : 'funciona'}
-              italicStyle={{ ...italicSerif, color: "#B11E2F" }}
-            />
-          </h1>
-
-          <div style={{ marginTop: 56, display: "grid", gridTemplateColumns: "1fr 80px 1fr", gap: 28, alignItems: "stretch", flex: 1 }}>
-            <div style={{ padding: 44, background: "linear-gradient(180deg, rgba(177,30,47,0.10), rgba(15,15,15,0.85))", border: "1px solid rgba(177,30,47,0.65)", borderRadius: 14, display: "flex", flexDirection: "column" }}>
-              <div style={{ fontSize: 16, fontWeight: 600, color: "#B11E2F", letterSpacing: "0.22em", textTransform: "uppercase", marginBottom: 28 }}>
-                <Editable value={slides.partnership.youLabel} onChange={v => updateSlide('partnership', 'youLabel', v)} />
-              </div>
-              <p style={{ margin: 0, fontSize: 32, color: "#f5f5f5", lineHeight: 1.4, letterSpacing: "-0.01em", fontWeight: 500 }}>
-                <Editable value={slides.partnership.you} onChange={v => updateSlide('partnership', 'you', v)} multiline />
-              </p>
-            </div>
-
-            {/* Center connector — serif "+" */}
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "center" }}>
-              <div style={{ ...italicSerif, fontSize: 80, color: "#f5f5f5", lineHeight: 1 }}>+</div>
-            </div>
-
-            <div style={{ padding: 44, background: "linear-gradient(180deg, rgba(31,138,76,0.10), rgba(15,15,15,0.85))", border: "1px solid rgba(31,138,76,0.65)", borderRadius: 14, display: "flex", flexDirection: "column" }}>
-              <div style={{ fontSize: 16, fontWeight: 600, color: "#1F8A4C", letterSpacing: "0.22em", textTransform: "uppercase", marginBottom: 28 }}>
-                <Editable value={slides.partnership.usLabel} onChange={v => updateSlide('partnership', 'usLabel', v)} />
-              </div>
-              <p style={{ margin: 0, fontSize: 32, color: "#f5f5f5", lineHeight: 1.4, letterSpacing: "-0.01em", fontWeight: 500 }}>
-                <Editable value={slides.partnership.us} onChange={v => updateSlide('partnership', 'us', v)} multiline />
-              </p>
-            </div>
-          </div>
-
-          {/* Alignment banner */}
-          <div style={{ marginTop: 28, padding: "32px 44px", background: "linear-gradient(90deg, rgba(31,138,76,0.08), rgba(31,138,76,0.18), rgba(31,138,76,0.08))", border: "1px solid rgba(31,138,76,0.65)", borderRadius: 14, textAlign: "center" }}>
-            <p style={{ margin: 0, fontSize: 38, color: "#f5f5f5", fontWeight: 600, letterSpacing: "-0.01em" }}>
-              <StyledLastWord
-                text={slides.partnership.alignment}
-                italicStyle={{ ...italicSerif, color: "#1F8A4C" }}
-              />
-            </p>
-          </div>
-        </div>
-      </Slide>
-
-      {/* SLIDE 12: RECAP — aurora */}
-      <Slide num={14} total={15} decor={
-        <div className="aurora red" style={{ right: -200, top: "50%", width: 700, height: 700, opacity: 0.3 }} />
-      }>
-        <div style={{ flex: 1, display: "flex", flexDirection: "column", width: "100%" }}>
-          <div style={{ fontSize: 18, fontWeight: 600, color: "#B11E2F", letterSpacing: "0.28em", textTransform: "uppercase" }}>
-            {creator?.primaryLanguage === 'en' ? 'The transformation' : 'A transformação'}
-          </div>
-          <div style={{ height: 28 }} />
-          <h1 style={{ fontSize: 88, fontWeight: 800, margin: 0, lineHeight: 1.0, letterSpacing: "-0.03em", color: "#f5f5f5" }}>
-            {creator?.primaryLanguage === 'en' ? 'From ' : 'De '}<span style={{ color: "#B11E2F", fontWeight: 800 }}>→</span> <span style={{ ...italicSerif, color: "#f5f5f5" }}>{creator?.primaryLanguage === 'en' ? 'To.' : 'Para.'}</span>
-          </h1>
-
-          <div style={{ marginTop: 48 }}>
-            {slides.recap.pairs.map((pair, i) => (
-              <div key={i} style={{ display: "grid", gridTemplateColumns: "90px 1fr 80px 1fr", alignItems: "baseline", padding: "30px 0", borderTop: "1px solid #1F1F1F", borderBottom: i === slides.recap.pairs.length - 1 ? "1px solid #1F1F1F" : "none", gap: 24 }}>
-                <div style={{ fontSize: 14, fontWeight: 600, color: "#B11E2F", letterSpacing: "0.24em", textTransform: "uppercase" }}>
-                  <Editable value={slides.recap.fromLabel} onChange={v => updateSlide('recap', 'fromLabel', v)} />
-                </div>
-                <div style={{ fontSize: 36, color: "#C9C9C9", fontWeight: 500, letterSpacing: "-0.01em" }}>
-                  <Editable value={pair.from} onChange={v => {
-                    const next = [...slides.recap.pairs]; next[i] = { ...pair, from: v };
-                    updateSlide('recap', 'pairs', next);
-                  }} />
-                </div>
-                <div style={{ ...italicSerif, fontSize: 44, color: "#B11E2F", textAlign: "center" }}>→</div>
-                <div style={{ ...italicSerif, fontSize: 48, color: "#f5f5f5", letterSpacing: "-0.005em" }}>
-                  <Editable value={pair.to} onChange={v => {
-                    const next = [...slides.recap.pairs]; next[i] = { ...pair, to: v };
-                    updateSlide('recap', 'pairs', next);
-                  }} />
-                </div>
-              </div>
-            ))}
-          </div>
-          <p style={{ marginTop: "auto", paddingTop: 28, fontSize: 36, color: "#f5f5f5", fontWeight: 400 }}>
-            <StyledLastWord
-              text={slides.recap.closer}
-              italicStyle={{ ...italicSerif, color: "#B11E2F" }}
-            />
-          </p>
-        </div>
-      </Slide>
-
-      {/* SLIDE 13 (OPTIONAL): INVESTIMENTO — aurora + receipt */}
+      {/* SLIDE 11 (OPTIONAL): INVESTIMENTO — aurora + receipt */}
       {showInvestimento && (
-        <Slide num={15} total={15} decor={
+        <Slide num={11} total={11} decor={
           <>
             <div className="aurora red"  style={{ right: -200, top: -100, width: 700, height: 700, opacity: 0.35 }} />
             <div className="aurora deep" style={{ left: -200, bottom: -100, width: 700, height: 700 }} />
@@ -1913,20 +1774,68 @@ function buildDefaultSlides(creator) {
   const name = firstName(creator?.name || 'Creator');
   const lang = creator?.primaryLanguage === 'en' ? 'en' : 'pt';
   const t = (pt, en) => lang === 'en' ? en : pt;
-  // Auto-populate from parsed offer if available — falls back to placeholders.
-  // Self-heal: if creator.offer.raw exists but parsed is empty/missing key fields,
-  // re-run parseOutput on the fly. Means stale parses (from older parser versions)
-  // refresh themselves on the next pitch view without needing manual re-parse.
+
+  // ── Canonical accessor: every consumer reads from `client_facing_output` ──
+  // For legacy creators that only have `offer.parsed` (pre-wizard markdown), the
+  // helper derives a client_facing_output on the fly. Self-heal: if the raw
+  // markdown exists but the legacy parse is empty/stale, re-parse first then
+  // map. This keeps both old + new offer shapes rendering correctly during the
+  // transition, and lets `buildDefaultSlides` stay shape-agnostic.
   let parsed = creator?.offer?.parsed || {};
   const raw = creator?.offer?.raw;
   const looksEmpty = !parsed.community?.tiers?.length && !parsed.uniqueMechanism?.name && !parsed.valueStack?.items?.length && !parsed.cases?.length;
   if (raw && looksEmpty) {
     try { parsed = parseOutput(raw); } catch {}
   }
-  const c = parsed.community || {};
-  const cases = parsed.cases || [];
-  const um = parsed.uniqueMechanism || {};
-  const vs = parsed.valueStack || {};
+  // Prefer a wizard-written client_facing_output; otherwise derive from parsed.
+  const cfo = creator?.offer?.client_facing_output
+    || legacyParsedToOfferState(parsed).client_facing_output;
+
+  // Locals kept under their historical names so the rest of the slide builder
+  // (200+ lines below) doesn't need to change. They now point at the new
+  // canonical fields. Phase 4 will refactor the builder to consume cfo directly.
+  const c = {
+    primaryName:    cfo.community_name,
+    nameCandidates: cfo.name_candidates,
+    platform:       cfo.platform,
+    mechanic:       cfo.core_mechanic,
+    weeklyRhythm:   cfo.weekly_rhythm,
+    weeklyFormats:  cfo.weekly_formats,
+    library:        cfo.library,
+    tiers:          cfo.pricing_tiers,
+    bonuses:        cfo.unlocked_bonuses,
+    differentiator: cfo.differentiator_section,
+  };
+  const cases = cfo.cases || [];
+  const um = cfo.mechanism || {};
+  const vs = cfo.value_stack || {};
+
+  // When parsed tiers are missing, derive sensible defaults from the offer's
+  // recommended monthly price (extracted by the offer-generation pipeline).
+  //   T1 monthly:           €P/mês
+  //   T2 annual prepay:     €(P × 10)/ano  (= 2 months free vs 12 × P)
+  //   T3 anchor (premium):  €(P × 5)/mês   (1-on-1 + masterclasses)
+  const recPrice = Number(creator?.revenuePrice) || null;
+  const fallbackTiers = recPrice
+    ? (lang === 'en' ? [
+        { name: 'Monthly',         price: `€${recPrice}/mo`,         note: 'Recommended' },
+        { name: 'Annual Prepay',   price: `€${recPrice * 10}/yr`,    note: '2 months free' },
+        { name: 'Founders Circle', price: `€${recPrice * 5}/mo`,     note: '1-on-1 + masterclasses' },
+      ] : [
+        { name: 'Mensal',          price: `€${recPrice}/mês`,        note: 'Recomendado' },
+        { name: 'Anual',           price: `€${recPrice * 10}/ano`,   note: '2 meses grátis' },
+        { name: 'Founders Circle', price: `€${recPrice * 5}/mês`,    note: '1-on-1 + masterclasses' },
+      ])
+    : (lang === 'en' ? [
+        { name: 'Monthly',         price: '€[X]/mo',  note: 'Recommended' },
+        { name: 'Annual Prepay',   price: '€[X]/yr',  note: '2 months free' },
+        { name: 'Founders Circle', price: '€[X]/mo',  note: '1-on-1 + masterclasses' },
+      ] : [
+        { name: 'Mensal',          price: '€[X]/mês', note: 'Recomendado' },
+        { name: 'Anual',           price: '€[X]/ano', note: '2 meses grátis' },
+        { name: 'Founders Circle', price: '€[X]/mês', note: '1-on-1 + masterclasses' },
+      ]);
+
   return {
     cover: {
       title: creator?.name || 'Creator',
@@ -1970,25 +1879,6 @@ function buildDefaultSlides(creator) {
         'Tu és a cara. Equipa opera a máquina.',
       ],
     },
-    whatYouGet: {
-      hero: t(
-        'Vais ter um negócio a sério por trás do teu conteúdo.',
-        'You\'ll have a real business behind your content.'
-      ),
-      pillars: lang === 'en' ? [
-        { title: 'A paid community', desc: 'Where your members pay monthly to access you and what you teach. It\'s yours. You control who joins, how much they pay, how it grows.' },
-        { title: 'A system that brings and keeps members', desc: 'Ads, sales, emails, onboarding. All built and connected, bringing new members every month.' },
-        { title: 'A dedicated team running it', desc: 'We operate everything behind the scenes. You stay in what you do best: create, show up, lead your audience.' },
-      ] : [
-        { title: 'Uma comunidade paga', desc: 'Onde os teus membros pagam mensalmente para ter acesso a ti e ao que ensinas. É tua. Controlas quem entra, quanto paga, como cresce.' },
-        { title: 'Um sistema que traz e mantém membros', desc: 'Publicidade, vendas, emails, onboarding. Tudo construído e ligado, a trazer membros novos todos os meses.' },
-        { title: 'Uma equipa dedicada a operar', desc: 'Nós operamos tudo o que está por trás. Tu mantens-te no que fazes melhor: criar, aparecer, liderar a tua audiência.' },
-      ],
-      closer: t(
-        'No fim, ficas com receita mensal previsível, uma comunidade que é tua, e uma equipa a operar o teu negócio.',
-        'In the end, you have predictable monthly revenue, a community that\'s yours, and a team running your business.'
-      ),
-    },
     // Concrete community spec — auto-populated from parsed.community when offer is generated;
     // falls back to placeholders so the deck renders even before the offer exists.
     community: {
@@ -2001,16 +1891,9 @@ function buildDefaultSlides(creator) {
         '[1 live event/week + weekly drops + private feed for daily Q&A]'
       ),
       // Tiers: parsed comes in [recommended, annual-prepay, anchor]; deck renders 3 cards
-      // with the LAST one (anchor) highlighted. Default order matches that.
-      tiers: c.tiers && c.tiers.length > 0 ? c.tiers : (lang === 'en' ? [
-        { name: 'Monthly', price: '€[X]/mo', note: 'Recommended' },
-        { name: 'Annual Prepay', price: '€[X]/yr', note: '2 months free' },
-        { name: 'Founders Circle', price: '€[X]/mo', note: '1-on-1 + masterclasses' },
-      ] : [
-        { name: 'Mensal', price: '€[X]/mês', note: 'Recomendado' },
-        { name: 'Anual', price: '€[X]/ano', note: '2 meses grátis' },
-        { name: 'Founders Circle', price: '€[X]/mês', note: '1-on-1 + masterclasses' },
-      ]),
+      // with the LAST one (anchor) highlighted. When the parser couldn't extract
+      // tiers from the offer, `fallbackTiers` synthesises them from creator.revenuePrice.
+      tiers: c.tiers && c.tiers.length > 0 ? c.tiers : fallbackTiers,
       rhythm: c.weeklyRhythm && c.weeklyRhythm.length > 0 ? c.weeklyRhythm : (lang === 'en' ? [
         '[Mon: weekly drop]', '[Tue: live event 19h]', '[Thu: live Q&A]', '[Fri: community challenge]',
       ] : [
@@ -2026,21 +1909,43 @@ function buildDefaultSlides(creator) {
         '[What makes this different — one sentence. Something similar communities don\'t have.]'
       ),
     },
-    // NEW: O Sistema — Unique Mechanism (acronym-style branded method).
-    // Auto-populated from parsed.uniqueMechanism.
+    // O Sistema · Conteúdo Semanal — branded mechanism name + weekly named formats
+    // + pre-recorded library. Auto-populated from parsed.community.weeklyFormats
+    // and parsed.community.library (the LLM names them from creator niche + top
+    // IG posts). Legacy `letters` / `description` fields kept for back-compat.
     system: {
-      title: t('O Sistema', 'The System'),
-      subtitle: t('O método que vais ensinar à tua comunidade.', 'The method you will teach your community.'),
-      name: um.name || t('[The X.Y.Z. Method]', '[The X.Y.Z. Method]'),
-      letters: um.letters && um.letters.length > 0 ? um.letters : [
-        { letter: 'X', word: t('[Palavra]', '[Word]'), explanation: t('[1 frase]', '[1 sentence]') },
-        { letter: 'Y', word: t('[Palavra]', '[Word]'), explanation: t('[1 frase]', '[1 sentence]') },
-        { letter: 'Z', word: t('[Palavra]', '[Word]'), explanation: t('[1 frase]', '[1 sentence]') },
-      ],
-      description: um.description || t(
-        '[1 parágrafo a explicar como o sistema funciona como um todo — o que o membro experiencia ao passar por X → Y → Z.]',
-        '[1 paragraph explaining how the system works as a whole — what the member experiences moving through X → Y → Z.]'
-      ),
+      title: t('O Sistema · Conteúdo Semanal', 'The System · Weekly Content'),
+      subtitle: t('O método que a tua comunidade consome todas as semanas.', 'The method your community consumes every week.'),
+      name: um.name || t('[The X.Y.Z. Method™]', '[The X.Y.Z. Method™]'),
+      weeklyFormats: c.weeklyFormats && c.weeklyFormats.length > 0 ? c.weeklyFormats : (lang === 'en' ? [
+        { day: 'MON', name: '[Format Name™]', type: 'Post',     desc: '[1-line description of what happens]' },
+        { day: 'WED', name: '[Format Name™]', type: 'Live 30m', desc: '[1-line description]' },
+        { day: 'SAT', name: '[Format Name™]', type: 'Video',    desc: '[1-line description]' },
+        { day: 'SUN', name: '[Format Name™]', type: 'Community',desc: '[1-line description]' },
+      ] : [
+        { day: 'SEG', name: '[Nome do Formato™]', type: 'Post',         desc: '[1 linha sobre o que acontece]' },
+        { day: 'QUA', name: '[Nome do Formato™]', type: 'Live 30min',   desc: '[1 linha]' },
+        { day: 'SÁB', name: '[Nome do Formato™]', type: 'Vídeo',        desc: '[1 linha]' },
+        { day: 'DOM', name: '[Nome do Formato™]', type: 'Comunidade',   desc: '[1 linha]' },
+      ]),
+      library: c.library && c.library.length > 0 ? c.library : (lang === 'en' ? [
+        { name: '[Module Name™]', format: 'Masterclass',    desc: '[Theme drawn from top post]' },
+        { name: '[Module Name™]', format: 'Mini-course',    desc: '[Theme]' },
+        { name: '[Module Name™]', format: 'PDF',            desc: '[Theme]' },
+        { name: '[Module Name™]', format: 'Calculator',     desc: '[Theme]' },
+        { name: '[Module Name™]', format: 'Template Pack',  desc: '[Theme]' },
+        { name: '[Module Name™]', format: 'Audio Program',  desc: '[Theme]' },
+      ] : [
+        { name: '[Nome do Módulo™]', format: 'Masterclass',     desc: '[Tema vindo de um post de topo]' },
+        { name: '[Nome do Módulo™]', format: 'Mini-curso',      desc: '[Tema]' },
+        { name: '[Nome do Módulo™]', format: 'PDF',             desc: '[Tema]' },
+        { name: '[Nome do Módulo™]', format: 'Calculadora',     desc: '[Tema]' },
+        { name: '[Nome do Módulo™]', format: 'Pack Templates',  desc: '[Tema]' },
+        { name: '[Nome do Módulo™]', format: 'Programa Áudio',  desc: '[Tema]' },
+      ]),
+      // Legacy fields — preserved so older offers still render if loaded into the new slide.
+      letters: um.letters && um.letters.length > 0 ? um.letters : [],
+      description: um.description || '',
     },
     // NEW: O Valor — Value Stack (problems → solutions → € values, Hormozi style).
     // Auto-populated from parsed.valueStack.
@@ -2055,7 +1960,12 @@ function buildDefaultSlides(creator) {
         { problem: t('[Problema 5]', '[Problem 5]'), solution: t('[Solução]', '[Solution]'), delivery: t('[Entrega]', '[Delivery]'), dollarValue: '€[X]' },
       ],
       total: vs.total || '€[X total]',
-      actualPrice: vs.actualPrice || '€[X]/mês',
+      // Preço Real follows the offer page: creator.revenuePrice is the single
+      // source of truth set on the offer tab. Falls back to the LLM-parsed value
+      // then to a placeholder.
+      actualPrice: recPrice
+        ? (lang === 'en' ? `€${recPrice}/mo` : `€${recPrice}/mês`)
+        : (vs.actualPrice || '€[X]/mês'),
     },
     audience: {
       title: t('A Tua Audiência', 'Your Audience'),
@@ -2085,83 +1995,51 @@ function buildDefaultSlides(creator) {
         'Our model is making this happen in other niches today. Yours is next.'
       ),
     },
-    buildOperate: {
-      buildTitle: t('O Que Construímos', 'What We Build'),
-      operateTitle: t('O Que Operamos', 'What We Operate'),
-      buildSub: t('uma vez, no início', 'one time, at setup'),
-      operateSub: t('todos os meses', 'every month'),
-      build: lang === 'en' ? [
-        { title: 'Paid community', desc: 'the platform where members pay monthly to access you' },
-        { title: 'Sales page', desc: 'where people learn about the offer and pay' },
-        { title: 'Automated email system', desc: 'messages at the right moment (welcome, sales, re-engagement)' },
-        { title: 'Paid ads infrastructure', desc: 'Instagram, Facebook, and TikTok bringing in new members' },
-        { title: 'Performance dashboard', desc: 'see in real time how many members, how much you earned, what works' },
-        { title: 'Member onboarding playbook', desc: 'ensures every new member starts strong and stays' },
-      ] : [
-        { title: 'Comunidade paga', desc: 'a plataforma onde os membros pagam mensalmente para ter acesso a ti' },
-        { title: 'Página de vendas', desc: 'onde as pessoas conhecem a oferta e pagam' },
-        { title: 'Sistema de emails automático', desc: 'mensagens no momento certo (boas-vindas, vendas, reengagement)' },
-        { title: 'Anúncios pagos', desc: 'Instagram, Facebook e TikTok a trazer membros novos' },
-        { title: 'Painel com os teus números', desc: 'vês em tempo real quantos membros tens, quanto ganhaste, o que funciona' },
-        { title: 'Playbook de boas-vindas', desc: 'garante que cada novo membro entra bem e fica' },
-      ],
-      operate: lang === 'en' ? [
-        'We manage and optimize ads to bring in new members at the best cost',
-        'We analyze email performance and adjust what isn\'t converting',
-        'We keep the community alive (engagement, questions, activities)',
-        'We identify members about to leave and bring them back',
-        'Monthly call with you to align strategy and next steps',
-        'Monthly report with all the numbers and what we\'ll do next',
-        'We onboard every new member personally',
-        'We turn your public content into a steady stream of new members',
-      ] : [
-        'Gerimos e otimizamos os anúncios para trazer novos membros ao melhor custo',
-        'Analisamos os emails e ajustamos o que não está a vender',
-        'Mantemos a comunidade viva (interação, dúvidas, atividades)',
-        'Identificamos membros prestes a sair e trazemos de volta',
-        'Call mensal contigo para alinhar estratégia e próximos passos',
-        'Relatório mensal com todos os números e o que vamos fazer a seguir',
-        'Fazemos o onboarding de cada novo membro',
-        'Transformamos o teu conteúdo público num fluxo constante de novos membros',
-      ],
-      closer: t(
-        'Não construímos e vamos embora. A máquina fica ligada e a crescer, todos os meses.',
-        'We don\'t build and disappear. The machine stays running and growing, every month.'
-      ),
-    },
     launch: {
       title: t('Como Lançamos', 'How We Launch'),
       phases: lang === 'en' ? [
         {
+          days: 'DAYS 1 — 21',
           title: 'We validate before spending',
           desc: 'We open a waitlist and welcome the first founding members with a special price. Validates the message before investing in ads.',
           assets: ['Waitlist landing page', 'Founding members offer', 'Pre-launch email sequence', 'Soft-launch campaign'],
+          goal: '1,500 leads on waitlist',
         },
         {
+          days: 'DAYS 22 — 42',
           title: 'We turn the growth machine on',
           desc: 'Ads on the right platforms. Emails on autopilot. Public content feeding the funnel. Live launch event.',
           assets: ['Meta + TikTok ad campaigns', 'Sales page + checkout', 'Live launch webinar', 'Launch email sequence (5+ emails)'],
+          goal: '100 founding members confirmed',
         },
         {
+          days: 'DAYS 43 — 60',
           title: 'We optimize continuously',
           desc: 'Every month we test new angles, emails, formats. What works scales. What doesn\'t, we cut.',
           assets: ['Monthly creative refresh', 'A/B testing on emails + ads', 'Retention campaigns', 'New tier / pricing experiments'],
+          goal: '300 paid members',
         },
       ] : [
         {
+          days: 'DIAS 1 — 21',
           title: 'Validamos antes de gastar',
           desc: 'Abrimos uma lista de espera e acolhemos os primeiros membros fundadores com preço especial. Serve para validar a mensagem antes de investir em anúncios.',
           assets: ['Landing page de waitlist', 'Oferta de membros fundadores', 'Sequência de emails pre-launch', 'Campanha de soft-launch'],
+          goal: '1.500 leads na waitlist',
         },
         {
+          days: 'DIAS 22 — 42',
           title: 'Ligamos a máquina de crescimento',
           desc: 'Anúncios ligados nas plataformas certas. Emails em automático. Conteúdo público a alimentar o funil. Evento ao vivo de lançamento.',
           assets: ['Campanhas de anúncios Meta + TikTok', 'Sales page + checkout', 'Webinar de lançamento ao vivo', 'Sequência de emails de lançamento (5+ emails)'],
+          goal: '100 founding members confirmados',
         },
         {
+          days: 'DIAS 43 — 60',
           title: 'Otimizamos continuamente',
           desc: 'Todos os meses testamos novos ângulos, emails, formatos. O que funciona escala. O que não funciona, corta-se.',
           assets: ['Refresh mensal de criativos', 'A/B testing em emails + anúncios', 'Campanhas de retenção', 'Novos tiers / experiências de preço'],
+          goal: '300 membros pagos',
         },
       ],
       closer: t(
@@ -2194,26 +2072,6 @@ function buildDefaultSlides(creator) {
       alignment: t(
         'Só ganhamos quando tu ganhas. Estamos alinhados.',
         'We only earn when you earn. We\'re aligned.'
-      ),
-    },
-    recap: {
-      title: t('De → Para', 'From → To'),
-      fromLabel: t('De', 'From'),
-      toLabel: t('Para', 'To'),
-      pairs: lang === 'en' ? [
-        { from: 'Dependent on the algorithm', to: 'A real business' },
-        { from: 'You do everything', to: 'You\'re the face, we operate' },
-        { from: 'Unpredictable income', to: 'Recurring revenue' },
-        { from: 'Brands controlling you', to: 'A community that\'s yours' },
-      ] : [
-        { from: 'Dependência do algoritmo', to: 'Negócio próprio' },
-        { from: 'Tu fazes tudo', to: 'Tu és a cara, nós operamos' },
-        { from: 'Receita imprevisível', to: 'Receita recorrente' },
-        { from: 'Marcas a mandar em ti', to: 'Comunidade que é tua' },
-      ],
-      closer: t(
-        'Vais continuar a ser criador. Mas com um negócio a sério por trás.',
-        'You\'ll keep being a creator. But with a real business behind you.'
       ),
     },
     close: {
@@ -2415,6 +2273,24 @@ const btnSecondary = {
   fontWeight: 600,
   cursor: "pointer",
   fontFamily: "inherit",
+};
+
+// Launch-plan trigger — red-accent variant of btnSecondary. Same shape as the
+// other toolbar buttons but tinted so it reads as a "share this asset" CTA,
+// not a generic export. Matches the pitch deck's red/cream language.
+const btnLaunchPlan = {
+  padding: "8px 16px",
+  background: "rgba(177,30,47,0.08)",
+  border: "1px solid rgba(177,30,47,0.45)",
+  borderRadius: 6,
+  color: "#B11E2F",
+  fontSize: 12,
+  fontWeight: 600,
+  cursor: "pointer",
+  fontFamily: "inherit",
+  textDecoration: "none",
+  display: "inline-flex",
+  alignItems: "center",
 };
 
 export default function PitchPage() {

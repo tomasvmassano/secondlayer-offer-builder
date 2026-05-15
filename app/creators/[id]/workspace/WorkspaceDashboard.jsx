@@ -2,7 +2,7 @@
 
 import { useState, useCallback } from "react";
 import { calculateDealScore } from "../../../lib/dealScore";
-import { renderMd } from "../../../offer-builder/lib/shared";
+import { renderMd } from "../../../lib/offerParser";
 import KickoffSection from "./KickoffSection";
 
 // ─── Constants ───

@@ -283,7 +283,15 @@ export async function POST(request) {
     return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 });
   }
 
-  const { template, inputs, creatorProfile, notes } = body;
+  const { template, inputs, creatorProfile, notes, stage: rawStage } = body;
+  // Stage gate — don't generate content we won't ship today.
+  //   'initial'      → Cold DM + T+3 comment + Email Day 1 only  (default)
+  //   'followup_7'   → Email Day 7 only
+  //   'followup_14'  → Email Day 14 only
+  // The system prompt stays identical (cache stays warm); we just tell the LLM
+  // which delimiters to emit in the user message. Parser handles missing
+  // sections gracefully (optional chaining throughout).
+  const stage = ['initial', 'followup_7', 'followup_14'].includes(rawStage) ? rawStage : 'initial';
   if (!creatorProfile) return NextResponse.json({ error: 'Missing creator profile' }, { status: 400 });
 
   const cp = creatorProfile;
@@ -364,6 +372,12 @@ como_cheguei: ${inputFields.como_cheguei || '[FILL FROM PROFILE]'}
 reacao_pessoal: ${inputFields.reacao_pessoal || '[FILL FROM PROFILE]'}
 observacao_dor: ${inputFields.observacao_dor || inputFields.buraco_identificado || '[FILL FROM PROFILE]'}`;
 
+  const stageInstruction = stage === 'followup_7'
+    ? `Compose ONLY the Day 7 follow-up email. Output ONLY the EMAIL_DAY7_SUBJECT and EMAIL_DAY7 delimiters and skip EVERY other section (no INPUTS, no DM, no COMMENT_T3, no Day 1, no Day 14).`
+    : stage === 'followup_14'
+    ? `Compose ONLY the Day 14 breakup email. Output ONLY the EMAIL_DAY14_SUBJECT and EMAIL_DAY14 delimiters and skip EVERY other section.`
+    : `Compose ONLY: the Cold DM, the T+3 Comment, and the Day 1 Email. Output the INPUTS block + DM + COMMENT_T3 + EMAIL_DAY1_SUBJECT + EMAIL_DAY1. DO NOT generate EMAIL_DAY7 or EMAIL_DAY14 — those are generated later on demand. Skip those delimiters entirely.`;
+
   const userMessage = `Generate the DM outreach for this creator.
 
 ## PROFILE
@@ -375,7 +389,7 @@ ${inputsSummary}
 ## TEMPLATE: ${template || 'A'}
 ${notes ? `\n## NOTES\n${notes}` : ''}
 
-Compose DM, T+3 comment, and 3 follow-up emails. Follow the output format exactly. ZERO em dashes.`;
+${stageInstruction} Follow the output format exactly. ZERO em dashes.`;
 
   try {
     const callAnthropic = async () => fetch('https://api.anthropic.com/v1/messages', {
@@ -445,26 +459,33 @@ Compose DM, T+3 comment, and 3 follow-up emails. Follow the output format exactl
       }
     }
 
+    // Build the response per stage so the client can merge into existing
+    // dmSequence without clobbering fields from other stages.
     const result = {
-      inputs: parsedInputs,
+      stage,
       template: template || 'A',
       language,
-      dm: extract('DM', 'COMMENT_T3'),
-      comment_t3: extract('COMMENT_T3', 'EMAIL_DAY1_SUBJECT'),
-      email_day1: {
-        subject: extract('EMAIL_DAY1_SUBJECT', 'EMAIL_DAY1'),
-        body: extract('EMAIL_DAY1', 'EMAIL_DAY7_SUBJECT'),
-      },
-      email_day7: {
-        subject: extract('EMAIL_DAY7_SUBJECT', 'EMAIL_DAY7'),
-        body: extract('EMAIL_DAY7', 'EMAIL_DAY14_SUBJECT'),
-      },
-      email_day14: {
-        subject: extract('EMAIL_DAY14_SUBJECT', 'EMAIL_DAY14'),
-        body: extract('EMAIL_DAY14', ''),
-      },
       _usage: data.usage || null,
     };
+    if (stage === 'initial') {
+      result.inputs = parsedInputs;
+      result.dm = extract('DM', 'COMMENT_T3');
+      result.comment_t3 = extract('COMMENT_T3', 'EMAIL_DAY1_SUBJECT');
+      result.email_day1 = {
+        subject: extract('EMAIL_DAY1_SUBJECT', 'EMAIL_DAY1'),
+        body: extract('EMAIL_DAY1', 'EMAIL_DAY7_SUBJECT'),
+      };
+    } else if (stage === 'followup_7') {
+      result.email_day7 = {
+        subject: extract('EMAIL_DAY7_SUBJECT', 'EMAIL_DAY7'),
+        body: extract('EMAIL_DAY7', 'EMAIL_DAY14_SUBJECT'),
+      };
+    } else if (stage === 'followup_14') {
+      result.email_day14 = {
+        subject: extract('EMAIL_DAY14_SUBJECT', 'EMAIL_DAY14'),
+        body: extract('EMAIL_DAY14', ''),
+      };
+    }
 
     return NextResponse.json(result);
   } catch (err) {

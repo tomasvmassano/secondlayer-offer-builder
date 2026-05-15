@@ -37,7 +37,7 @@ export async function signSessionJWT({ userId, email, role, creatorId }) {
 }
 
 /** Verify a session JWT. Returns { userId, email, role, creatorId } or null. */
-export async function verifySessionJWT(token) {
+async function verifySessionJWT(token) {
   if (!token) return null;
   try {
     const { payload } = await jwtVerify(token, getSecret(), { issuer: ISSUER });
@@ -66,7 +66,7 @@ export function sessionCookieHeader(token, { clear = false } = {}) {
 }
 
 /** Read session JWT from a Request (works in middleware + route handlers). */
-export function getSessionTokenFromRequest(request) {
+function getSessionTokenFromRequest(request) {
   const cookieHeader = request.headers.get('cookie') || '';
   const match = cookieHeader.match(/(?:^|;\s*)sl_session=([^;]+)/);
   return match ? decodeURIComponent(match[1]) : null;
@@ -74,12 +74,10 @@ export function getSessionTokenFromRequest(request) {
 
 /**
  * Get the current user from a Request — null if no session or invalid.
- * Use inside route handlers. In middleware, prefer verifySessionJWT directly
- * (you can't call this without crafting the cookie header).
+ * Use inside route handlers. Middleware verifies the JWT directly with
+ * `jose.jwtVerify` against the same secret.
  */
 export async function getCurrentUser(request) {
   const token = getSessionTokenFromRequest(request);
   return await verifySessionJWT(token);
 }
-
-export const COOKIE_NAME_EXPORT = COOKIE_NAME;
