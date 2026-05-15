@@ -134,6 +134,11 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
   const [frameRunning, setFrameRunning] = useState(false);
   const [frameError, setFrameError] = useState(null);
   const [frameDiag, setFrameDiag] = useState(null);
+  // Phase 4 · CP2 — Core Offer (first creator-facing checkpoint).
+  // Writes the offer spine into client_facing_output.
+  const [coreOfferRunning, setCoreOfferRunning] = useState(false);
+  const [coreOfferError, setCoreOfferError] = useState(null);
+  const [coreOfferDiag, setCoreOfferDiag] = useState(null);
   const nameRef = useRef(null);
 
   // DM Writer state
@@ -1606,6 +1611,20 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
                 />
               );
             }
+            if (prog.current === 2) {
+              return (
+                <CoreOfferPanel
+                  creator={creator}
+                  setCreator={setCreator}
+                  running={coreOfferRunning}
+                  setRunning={setCoreOfferRunning}
+                  error={coreOfferError}
+                  setError={setCoreOfferError}
+                  diag={coreOfferDiag}
+                  setDiag={setCoreOfferDiag}
+                />
+              );
+            }
             return <CheckpointStubPanel checkpoint={cp} />;
           })()}
 
@@ -2991,6 +3010,388 @@ function StrategicFramePanel({ creator, setCreator, running, setRunning, error, 
               Last run: {new Date(runAt).toLocaleString("pt-PT")}
               {cp1Locked && progress.locked[1] && (
                 <> · Locked: {new Date(progress.locked[1]).toLocaleString("pt-PT")}</>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ──────────────────────────────────────────────────────────────────────────
+// Phase 4 · CP2 — Core Offer Panel
+// ──────────────────────────────────────────────────────────────────────────
+// First creator-facing checkpoint. Renders the offer spine from
+// client_facing_output + lets the operator pick the pricing tier BEFORE
+// generation (the tier shapes the entire output).
+//
+// Workflow:
+//   1. (no offer yet) → operator picks Low/Mid/High → click Generate
+//   2. Review the output (community name, transformation, pricing, mechanic)
+//   3. Approve & Continue → locks CP2, advances to CP3
+//   4. To edit → Unlock (cascades to CP3-5)
+function CoreOfferPanel({ creator, setCreator, running, setRunning, error, setError, diag, setDiag }) {
+  const meta = creator?.offer?.internal_metadata || {};
+  const client = creator?.offer?.client_facing_output || {};
+  const progress = readCheckpointProgress(meta);
+  const cp2Locked = !!progress.locked[2];
+  const runAt = meta.generation_timestamps?.core_offer || null;
+  const frame = meta.strategic_frame || null;
+
+  // Has CP2 produced its required fields? central_promise is the canonical
+  // sentinel — if it exists, CP2 has run at least once.
+  const hasOutput = !!client.central_promise;
+
+  // Operator picks pricing_tier BEFORE generation. Default suggestion:
+  //   - If frame.confirmed_role is premium_upsell → high
+  //   - If continuity + fame_tier >= niche_recognized → mid
+  //   - else low
+  const archetype = meta.archetype_classification || {};
+  const suggestedTier = (() => {
+    if (frame?.confirmed_role === 'premium_upsell') return 'high';
+    if (frame?.confirmed_role === 'continuity' && ['niche_recognized', 'cross_niche_recognized', 'celebrity'].includes(archetype.fame_tier)) return 'mid';
+    return 'low';
+  })();
+  // Default state: if CP2 already ran, show its tier. Otherwise, the suggestion.
+  const [pendingTier, setPendingTier] = useState(client.pricing_tier || suggestedTier);
+  const [lockBusy, setLockBusy] = useState(false);
+
+  const TIER_LABELS = {
+    low: 'Low · €30-100/mo',
+    mid: 'Mid · €200-500/mo',
+    high: 'High · €1K+/mo or €3K+ one-time',
+  };
+
+  const generate = async () => {
+    if (!creator?.id || running) return;
+    setRunning(true);
+    setError(null);
+    try {
+      const r = await fetch(`/api/creators/${creator.id}/wizard/core-offer`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pricing_tier: pendingTier }),
+      });
+      const data = await r.json();
+      if (!r.ok) {
+        const detail = data.errors?.length ? '\n\n' + data.errors.join('\n') : '';
+        throw new Error((data.error || 'Core offer failed') + detail);
+      }
+      setDiag(data._diagnostics || null);
+      // Merge core_offer fields into client_facing_output, preserve everything else
+      setCreator(prev => prev ? ({
+        ...prev,
+        offer: {
+          ...(prev.offer || {}),
+          client_facing_output: {
+            ...((prev.offer || {}).client_facing_output || {}),
+            ...data.core_offer,
+          },
+        },
+      }) : prev);
+    } catch (e) {
+      setError(e.message || 'Unknown error');
+    } finally {
+      setRunning(false);
+    }
+  };
+
+  const lockAndContinue = async () => {
+    if (!creator?.id || lockBusy) return;
+    setLockBusy(true);
+    setError(null);
+    try {
+      const r = await fetch(`/api/creators/${creator.id}/wizard/checkpoint/2/lock`, { method: 'POST' });
+      const data = await r.json();
+      if (!r.ok) throw new Error(data.error || 'Lock failed');
+      setCreator(prev => prev ? ({
+        ...prev,
+        offer: {
+          ...(prev.offer || {}),
+          internal_metadata: {
+            ...((prev.offer || {}).internal_metadata || {}),
+            checkpoint_progress: data.checkpoint_progress,
+          },
+        },
+      }) : prev);
+    } catch (e) {
+      setError(e.message || 'Lock failed');
+    } finally {
+      setLockBusy(false);
+    }
+  };
+
+  const unlock = async () => {
+    if (!creator?.id || lockBusy) return;
+    if (!confirm('Unlock CP2? This will cascade-clear CP3-5 if any have been generated.')) return;
+    setLockBusy(true);
+    setError(null);
+    try {
+      const r = await fetch(`/api/creators/${creator.id}/wizard/checkpoint/2/unlock`, { method: 'POST' });
+      const data = await r.json();
+      if (!r.ok) throw new Error(data.error || 'Unlock failed');
+      setCreator(prev => prev ? ({
+        ...prev,
+        offer: {
+          ...(prev.offer || {}),
+          internal_metadata: {
+            ...((prev.offer || {}).internal_metadata || {}),
+            checkpoint_progress: data.checkpoint_progress,
+          },
+          client_facing_output: (() => {
+            const c = (prev.offer || {}).client_facing_output || {};
+            const cleared = { ...c };
+            (data.cleared?.client || []).forEach(k => {
+              // Reset to a sensible empty per field shape
+              const empty = Array.isArray(c[k]) ? [] : (typeof c[k] === 'object' && c[k] !== null && !Array.isArray(c[k])) ? null : null;
+              cleared[k] = empty;
+            });
+            return cleared;
+          })(),
+        },
+      }) : prev);
+    } catch (e) {
+      setError(e.message || 'Unlock failed');
+    } finally {
+      setLockBusy(false);
+    }
+  };
+
+  return (
+    <div style={{ marginBottom: 28, padding: "18px 20px", background: "rgba(255,255,255,0.015)", border: `1px solid ${cp2Locked ? 'rgba(34,197,94,0.18)' : 'rgba(255,255,255,0.05)'}`, borderRadius: 10 }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14, flexWrap: "wrap", gap: 12 }}>
+        <div>
+          <div style={{ fontSize: 9, fontWeight: 700, color: cp2Locked ? "#22c55e" : "#7A0E18", letterSpacing: "0.16em", textTransform: "uppercase", marginBottom: 4 }}>
+            ● Checkpoint 2 of 5 · {cp2Locked ? 'Locked ✓' : 'In Progress'}
+          </div>
+          <h3 style={{ fontSize: 14, fontWeight: 600, margin: 0, color: "#f5f5f5" }}>Core Offer</h3>
+          <p style={{ fontSize: 11, color: "#555", margin: "4px 0 0" }}>
+            The offer spine — Big Idea, transformation, pricing, community name, weekly rhythm. First creator-facing checkpoint, voice matters.
+          </p>
+        </div>
+        <div style={{ display: "flex", gap: 8 }}>
+          {!cp2Locked && hasOutput && (
+            <button
+              onClick={lockAndContinue}
+              disabled={running || lockBusy}
+              style={{
+                padding: "8px 16px",
+                borderRadius: 6,
+                border: "1px solid rgba(34,197,94,0.45)",
+                background: "rgba(34,197,94,0.08)",
+                color: "#22c55e",
+                fontSize: 11,
+                fontWeight: 600,
+                cursor: lockBusy ? "wait" : "pointer",
+                fontFamily: "inherit",
+                whiteSpace: "nowrap",
+              }}
+            >
+              {lockBusy ? "..." : "✓ Approve & continue →"}
+            </button>
+          )}
+          {cp2Locked && (
+            <button
+              onClick={unlock}
+              disabled={lockBusy}
+              style={{
+                padding: "8px 16px",
+                borderRadius: 6,
+                border: "1px solid rgba(234,179,8,0.4)",
+                background: "rgba(234,179,8,0.06)",
+                color: "#eab308",
+                fontSize: 11,
+                fontWeight: 600,
+                cursor: lockBusy ? "wait" : "pointer",
+                fontFamily: "inherit",
+                whiteSpace: "nowrap",
+              }}
+            >
+              {lockBusy ? "..." : "↺ Unlock"}
+            </button>
+          )}
+        </div>
+      </div>
+
+      {error && (
+        <div style={{ padding: "10px 14px", borderRadius: 6, background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.25)", color: "#ef4444", fontSize: 11, marginBottom: 12, whiteSpace: "pre-wrap" }}>{error}</div>
+      )}
+
+      {/* Tier picker — only when editable */}
+      {!cp2Locked && (
+        <div style={{ marginBottom: 16, padding: "12px 14px", background: "rgba(255,255,255,0.02)", borderRadius: 8, border: "1px solid rgba(255,255,255,0.05)" }}>
+          <div style={{ fontSize: 9, fontWeight: 700, color: "#666", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 8 }}>
+            Pricing tier {pendingTier === suggestedTier ? <span style={{ color: "#888", fontWeight: 500, letterSpacing: 0, textTransform: "none" }}>· suggested based on frame + archetype</span> : null}
+          </div>
+          <div style={{ display: "flex", gap: 8 }}>
+            {(['low', 'mid', 'high']).map(t => {
+              const active = pendingTier === t;
+              return (
+                <button
+                  key={t}
+                  onClick={() => setPendingTier(t)}
+                  disabled={running}
+                  style={{
+                    flex: 1,
+                    padding: "10px 12px",
+                    borderRadius: 6,
+                    border: `1px solid ${active ? 'rgba(122,14,24,0.5)' : 'rgba(255,255,255,0.08)'}`,
+                    background: active ? "rgba(122,14,24,0.12)" : "rgba(255,255,255,0.02)",
+                    color: active ? "#B11E2F" : "#888",
+                    fontSize: 11,
+                    fontWeight: 700,
+                    cursor: running ? "wait" : "pointer",
+                    fontFamily: "inherit",
+                    textAlign: "left",
+                    letterSpacing: "0.02em",
+                  }}
+                >
+                  {TIER_LABELS[t]}
+                </button>
+              );
+            })}
+          </div>
+          <button
+            onClick={generate}
+            disabled={running}
+            style={{
+              marginTop: 12,
+              width: "100%",
+              padding: "10px 14px",
+              borderRadius: 6,
+              border: "1px solid rgba(122,14,24,0.4)",
+              background: running ? "rgba(255,255,255,0.02)" : "rgba(122,14,24,0.08)",
+              color: running ? "#555" : "#B11E2F",
+              fontSize: 11,
+              fontWeight: 600,
+              cursor: running ? "wait" : "pointer",
+              fontFamily: "inherit",
+            }}
+          >
+            {running ? "A gerar..." : hasOutput ? `↻ Re-run @ ${pendingTier}` : `Generate @ ${pendingTier} (~$0.04)`}
+          </button>
+        </div>
+      )}
+
+      {diag && !running && (
+        <div style={{ fontSize: 10, color: "#444", marginBottom: 12, fontFamily: "'JetBrains Mono', ui-monospace, monospace" }}>
+          tier: {diag.pricing_tier_input} · frame role: {diag.frame_role || '—'} · uniqueness elements: {diag.uniqueness_elements_input} · {diag.retries} retries
+        </div>
+      )}
+
+      {!hasOutput && !running && (
+        <div style={{ padding: "20px 16px", textAlign: "center", color: "#444", fontSize: 12, border: "1px dashed rgba(255,255,255,0.06)", borderRadius: 6 }}>
+          No core offer yet. Pick a tier above, then click <strong style={{ color: "#888" }}>Generate</strong> (~15-25s, Sonnet only).
+        </div>
+      )}
+
+      {hasOutput && (
+        <div>
+          {/* Community name + alternates */}
+          <div style={{ padding: "14px 16px", background: "#0a0a0a", borderRadius: 8, border: "1px solid rgba(122,14,24,0.25)", marginBottom: 12 }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6, flexWrap: "wrap", gap: 8 }}>
+              <div style={{ fontSize: 9, fontWeight: 700, color: "#7A0E18", letterSpacing: "0.14em", textTransform: "uppercase" }}>Community Name</div>
+              <div style={{ fontSize: 10, fontWeight: 700, color: "#3b82f6", letterSpacing: "0.06em", padding: "2px 8px", background: "rgba(59,130,246,0.08)", borderRadius: 3, border: "1px solid rgba(59,130,246,0.25)" }}>{client.platform}</div>
+            </div>
+            <div style={{ fontSize: 17, fontWeight: 700, color: "#f5f5f5", marginBottom: 6, fontFamily: "'Instrument Serif', Georgia, serif", letterSpacing: "-0.01em" }}>{client.community_name}</div>
+            {Array.isArray(client.name_candidates) && client.name_candidates.length > 0 && (
+              <div style={{ fontSize: 10.5, color: "#666", fontStyle: "italic" }}>
+                <span style={{ fontStyle: "normal", color: "#555", fontWeight: 700, marginRight: 6, letterSpacing: "0.06em", textTransform: "uppercase", fontSize: 9 }}>Alts:</span>
+                {client.name_candidates.join(' · ')}
+              </div>
+            )}
+          </div>
+
+          {/* Central promise (Big Idea) */}
+          <div style={{ padding: "14px 16px", background: "rgba(122,14,24,0.04)", borderRadius: 8, border: "1px solid rgba(122,14,24,0.18)", marginBottom: 12 }}>
+            <div style={{ fontSize: 9, fontWeight: 700, color: "#7A0E18", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 6 }}>Central Promise · Big Idea</div>
+            <div style={{ fontSize: 14, color: "#f5f5f5", lineHeight: 1.55, fontWeight: 500 }}>{client.central_promise}</div>
+          </div>
+
+          {/* Transformation */}
+          {client.transformation && (
+            <div style={{ padding: "14px 16px", background: "#0a0a0a", borderRadius: 8, border: "1px solid rgba(255,255,255,0.05)", marginBottom: 12 }}>
+              <div style={{ fontSize: 9, fontWeight: 700, color: "#666", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 8 }}>Transformation</div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr auto 1fr", gap: 12, alignItems: "center" }}>
+                <div>
+                  <div style={{ fontSize: 9, fontWeight: 700, color: "#ef4444", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 4 }}>From</div>
+                  <div style={{ fontSize: 12, color: "#ccc", lineHeight: 1.5 }}>{client.transformation.from}</div>
+                </div>
+                <div style={{ fontSize: 16, color: "#666", fontWeight: 700 }}>→</div>
+                <div>
+                  <div style={{ fontSize: 9, fontWeight: 700, color: "#22c55e", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 4 }}>To</div>
+                  <div style={{ fontSize: 12, color: "#ccc", lineHeight: 1.5 }}>{client.transformation.to}</div>
+                </div>
+              </div>
+              <div style={{ marginTop: 10, paddingTop: 10, borderTop: "1px solid rgba(255,255,255,0.04)", fontSize: 11, color: "#888" }}>
+                <span style={{ color: "#555", fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", fontSize: 9, marginRight: 6 }}>Timeframe:</span>
+                {client.transformation.timeframe}
+              </div>
+            </div>
+          )}
+
+          {/* Pricing */}
+          <div style={{ padding: "14px 16px", background: "#0a0a0a", borderRadius: 8, border: "1px solid rgba(255,255,255,0.05)", marginBottom: 12 }}>
+            <div style={{ fontSize: 9, fontWeight: 700, color: "#666", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 8 }}>Pricing</div>
+            <div style={{ display: "flex", alignItems: "baseline", gap: 12, flexWrap: "wrap" }}>
+              <div style={{ fontSize: 22, fontWeight: 700, color: "#f5f5f5", fontFamily: "'Instrument Serif', Georgia, serif", letterSpacing: "-0.02em" }}>{client.target_price}</div>
+              <div style={{ fontSize: 10, color: "#666", letterSpacing: "0.06em" }}>
+                <span style={{ padding: "2px 8px", borderRadius: 3, background: "rgba(34,197,94,0.08)", color: "#22c55e", border: "1px solid rgba(34,197,94,0.25)", fontWeight: 700, marginRight: 6, textTransform: "uppercase" }}>{client.pricing_tier}</span>
+                <span style={{ padding: "2px 8px", borderRadius: 3, background: "rgba(59,130,246,0.08)", color: "#3b82f6", border: "1px solid rgba(59,130,246,0.25)", fontWeight: 700, textTransform: "uppercase" }}>{(client.pricing_model || '').replace('_', ' ')}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Audience fit — two columns */}
+          {client.audience_fit && (
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 12 }}>
+              <div style={{ padding: "13px 15px", background: "rgba(34,197,94,0.04)", borderRadius: 8, border: "1px solid rgba(34,197,94,0.18)" }}>
+                <div style={{ fontSize: 9, fontWeight: 700, color: "#22c55e", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 8 }}>For ({(client.audience_fit.for || []).length})</div>
+                <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 4 }}>
+                  {(client.audience_fit.for || []).map((s, i) => (
+                    <li key={i} style={{ fontSize: 11.5, color: "#ccc", lineHeight: 1.5, paddingLeft: 14, position: "relative" }}>
+                      <span style={{ position: "absolute", left: 0, color: "#22c55e" }}>✓</span>{s}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+              <div style={{ padding: "13px 15px", background: "rgba(239,68,68,0.03)", borderRadius: 8, border: "1px solid rgba(239,68,68,0.18)" }}>
+                <div style={{ fontSize: 9, fontWeight: 700, color: "#ef4444", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 8 }}>Not For ({(client.audience_fit.not_for || []).length})</div>
+                <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 4 }}>
+                  {(client.audience_fit.not_for || []).map((s, i) => (
+                    <li key={i} style={{ fontSize: 11.5, color: "#ccc", lineHeight: 1.5, paddingLeft: 14, position: "relative" }}>
+                      <span style={{ position: "absolute", left: 0, color: "#ef4444" }}>✕</span>{s}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+          )}
+
+          {/* Core mechanic + weekly rhythm */}
+          <div style={{ padding: "14px 16px", background: "#0a0a0a", borderRadius: 8, border: "1px solid rgba(255,255,255,0.05)", marginBottom: runAt ? 14 : 0 }}>
+            <div style={{ fontSize: 9, fontWeight: 700, color: "#666", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 8 }}>Core Mechanic</div>
+            <div style={{ fontSize: 12.5, color: "#ddd", lineHeight: 1.55, marginBottom: 12 }}>{client.core_mechanic}</div>
+            {Array.isArray(client.weekly_rhythm) && client.weekly_rhythm.length > 0 && (
+              <>
+                <div style={{ fontSize: 9, fontWeight: 700, color: "#666", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 6 }}>Weekly Rhythm</div>
+                <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 3 }}>
+                  {client.weekly_rhythm.map((s, i) => (
+                    <li key={i} style={{ fontSize: 11.5, color: "#ccc", lineHeight: 1.5, paddingLeft: 14, position: "relative", fontFamily: "'JetBrains Mono', ui-monospace, monospace" }}>
+                      <span style={{ position: "absolute", left: 0, color: "#7A0E18" }}>›</span>{s}
+                    </li>
+                  ))}
+                </ul>
+              </>
+            )}
+          </div>
+
+          {runAt && (
+            <div style={{ fontSize: 10, color: "#333", paddingTop: 10, borderTop: "1px solid rgba(255,255,255,0.04)" }}>
+              Last run: {new Date(runAt).toLocaleString("pt-PT")}
+              {cp2Locked && progress.locked[2] && (
+                <> · Locked: {new Date(progress.locked[2]).toLocaleString("pt-PT")}</>
               )}
             </div>
           )}
