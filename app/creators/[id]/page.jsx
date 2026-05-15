@@ -146,6 +146,11 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
   const [modulesRunning, setModulesRunning] = useState(false);
   const [modulesError, setModulesError] = useState(null);
   const [modulesDiag, setModulesDiag] = useState(null);
+  // Phase 4 · CP4 — Value Stack + Pricing. Largest output of any CP
+  // (mechanism + stack + tiers + bonuses all in one).
+  const [stackRunning, setStackRunning] = useState(false);
+  const [stackError, setStackError] = useState(null);
+  const [stackDiag, setStackDiag] = useState(null);
   const nameRef = useRef(null);
 
   // DM Writer state
@@ -1643,6 +1648,20 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
                   setError={setModulesError}
                   diag={modulesDiag}
                   setDiag={setModulesDiag}
+                />
+              );
+            }
+            if (prog.current === 4) {
+              return (
+                <ValueStackPanel
+                  creator={creator}
+                  setCreator={setCreator}
+                  running={stackRunning}
+                  setRunning={setStackRunning}
+                  error={stackError}
+                  setError={setStackError}
+                  diag={stackDiag}
+                  setDiag={setStackDiag}
                 />
               );
             }
@@ -3840,6 +3859,319 @@ function ModulesPanel({ creator, setCreator, running, setRunning, error, setErro
           Last batch run: {new Date(runAt).toLocaleString("pt-PT")}
           {cp3Locked && progress.locked[3] && (
             <> · Locked: {new Date(progress.locked[3]).toLocaleString("pt-PT")}</>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ──────────────────────────────────────────────────────────────────────────
+// Phase 4 · CP4 — Value Stack + Pricing Panel
+// ──────────────────────────────────────────────────────────────────────────
+// The Hormozi step. Renders four coordinated outputs:
+//   1. Mechanism card (named acronym with per-letter breakdown)
+//   2. Value stack table (items + total vs actualPrice + multiple)
+//   3. Pricing tiers (1-3 tier cards)
+//   4. Unlocked bonuses (month-by-month drops)
+//
+// The "Total Value" → "Today's Price" delta is the Hormozi flex — operator
+// should be able to eyeball whether the multiple is honest (5-10×).
+function ValueStackPanel({ creator, setCreator, running, setRunning, error, setError, diag, setDiag }) {
+  const meta = creator?.offer?.internal_metadata || {};
+  const client = creator?.offer?.client_facing_output || {};
+  const progress = readCheckpointProgress(meta);
+  const cp4Locked = !!progress.locked[4];
+  const runAt = meta.generation_timestamps?.value_stack || null;
+  const [lockBusy, setLockBusy] = useState(false);
+
+  const mechanism = client.mechanism;
+  const stack = client.value_stack;
+  const tiers = Array.isArray(client.pricing_tiers) ? client.pricing_tiers : [];
+  const bonuses = Array.isArray(client.unlocked_bonuses) ? client.unlocked_bonuses : [];
+  const hasOutput = !!(mechanism && stack && tiers.length > 0 && bonuses.length > 0);
+
+  const generate = async () => {
+    if (!creator?.id || running) return;
+    setRunning(true);
+    setError(null);
+    try {
+      const r = await fetch(`/api/creators/${creator.id}/wizard/value-stack`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+      });
+      const data = await r.json();
+      if (!r.ok) {
+        const detail = data.errors?.length ? '\n\n' + data.errors.join('\n') : '';
+        throw new Error((data.error || 'Value stack failed') + detail);
+      }
+      setDiag(data._diagnostics || null);
+      setCreator(prev => prev ? ({
+        ...prev,
+        offer: {
+          ...(prev.offer || {}),
+          client_facing_output: {
+            ...((prev.offer || {}).client_facing_output || {}),
+            mechanism: data.mechanism,
+            value_stack: data.value_stack,
+            pricing_tiers: data.pricing_tiers,
+            unlocked_bonuses: data.unlocked_bonuses,
+          },
+        },
+      }) : prev);
+    } catch (e) {
+      setError(e.message || 'Unknown error');
+    } finally {
+      setRunning(false);
+    }
+  };
+
+  const lockAndContinue = async () => {
+    if (!creator?.id || lockBusy) return;
+    setLockBusy(true);
+    setError(null);
+    try {
+      const r = await fetch(`/api/creators/${creator.id}/wizard/checkpoint/4/lock`, { method: 'POST' });
+      const data = await r.json();
+      if (!r.ok) throw new Error(data.error || 'Lock failed');
+      setCreator(prev => prev ? ({
+        ...prev,
+        offer: {
+          ...(prev.offer || {}),
+          internal_metadata: {
+            ...((prev.offer || {}).internal_metadata || {}),
+            checkpoint_progress: data.checkpoint_progress,
+          },
+        },
+      }) : prev);
+    } catch (e) {
+      setError(e.message || 'Lock failed');
+    } finally {
+      setLockBusy(false);
+    }
+  };
+
+  const unlock = async () => {
+    if (!creator?.id || lockBusy) return;
+    if (!confirm('Unlock CP4? This will cascade-clear CP5 if it has been generated.')) return;
+    setLockBusy(true);
+    setError(null);
+    try {
+      const r = await fetch(`/api/creators/${creator.id}/wizard/checkpoint/4/unlock`, { method: 'POST' });
+      const data = await r.json();
+      if (!r.ok) throw new Error(data.error || 'Unlock failed');
+      setCreator(prev => prev ? ({
+        ...prev,
+        offer: {
+          ...(prev.offer || {}),
+          internal_metadata: {
+            ...((prev.offer || {}).internal_metadata || {}),
+            checkpoint_progress: data.checkpoint_progress,
+          },
+        },
+      }) : prev);
+    } catch (e) {
+      setError(e.message || 'Unlock failed');
+    } finally {
+      setLockBusy(false);
+    }
+  };
+
+  return (
+    <div style={{ marginBottom: 28, padding: "18px 20px", background: "rgba(255,255,255,0.015)", border: `1px solid ${cp4Locked ? 'rgba(34,197,94,0.18)' : 'rgba(255,255,255,0.05)'}`, borderRadius: 10 }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14, flexWrap: "wrap", gap: 12 }}>
+        <div>
+          <div style={{ fontSize: 9, fontWeight: 700, color: cp4Locked ? "#22c55e" : "#7A0E18", letterSpacing: "0.16em", textTransform: "uppercase", marginBottom: 4 }}>
+            ● Checkpoint 4 of 5 · {cp4Locked ? 'Locked ✓' : 'In Progress'}
+          </div>
+          <h3 style={{ fontSize: 14, fontWeight: 600, margin: 0, color: "#f5f5f5" }}>Value Stack + Pricing</h3>
+          <p style={{ fontSize: 11, color: "#555", margin: "4px 0 0" }}>
+            Hormozi step: mechanism + stack with $ values + pricing tiers + month-by-month bonuses. Total should be 5-10× the actual price.
+          </p>
+        </div>
+        <div style={{ display: "flex", gap: 8 }}>
+          {!cp4Locked && (
+            <button
+              onClick={generate}
+              disabled={running || lockBusy}
+              style={{
+                padding: "8px 16px",
+                borderRadius: 6,
+                border: "1px solid rgba(122,14,24,0.4)",
+                background: running ? "rgba(255,255,255,0.02)" : "rgba(122,14,24,0.08)",
+                color: running ? "#555" : "#B11E2F",
+                fontSize: 11,
+                fontWeight: 600,
+                cursor: running ? "wait" : "pointer",
+                fontFamily: "inherit",
+                whiteSpace: "nowrap",
+              }}
+            >
+              {running ? "A gerar..." : hasOutput ? "↻ Re-run" : "Generate (~$0.08-0.12)"}
+            </button>
+          )}
+          {!cp4Locked && hasOutput && (
+            <button
+              onClick={lockAndContinue}
+              disabled={running || lockBusy}
+              style={{
+                padding: "8px 16px",
+                borderRadius: 6,
+                border: "1px solid rgba(34,197,94,0.45)",
+                background: "rgba(34,197,94,0.08)",
+                color: "#22c55e",
+                fontSize: 11,
+                fontWeight: 600,
+                cursor: lockBusy ? "wait" : "pointer",
+                fontFamily: "inherit",
+                whiteSpace: "nowrap",
+              }}
+            >
+              {lockBusy ? "..." : "✓ Approve & continue →"}
+            </button>
+          )}
+          {cp4Locked && (
+            <button
+              onClick={unlock}
+              disabled={lockBusy}
+              style={{
+                padding: "8px 16px",
+                borderRadius: 6,
+                border: "1px solid rgba(234,179,8,0.4)",
+                background: "rgba(234,179,8,0.06)",
+                color: "#eab308",
+                fontSize: 11,
+                fontWeight: 600,
+                cursor: lockBusy ? "wait" : "pointer",
+                fontFamily: "inherit",
+                whiteSpace: "nowrap",
+              }}
+            >
+              {lockBusy ? "..." : "↺ Unlock"}
+            </button>
+          )}
+        </div>
+      </div>
+
+      {error && (
+        <div style={{ padding: "10px 14px", borderRadius: 6, background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.25)", color: "#ef4444", fontSize: 11, marginBottom: 12, whiteSpace: "pre-wrap" }}>{error}</div>
+      )}
+      {diag && !running && (
+        <div style={{ fontSize: 10, color: "#444", marginBottom: 12, fontFamily: "'JetBrains Mono', ui-monospace, monospace" }}>
+          modules input: {diag.modules_input} · target_price input: {diag.target_price_input} · {diag.retries} retries
+          {Array.isArray(diag.warnings) && diag.warnings.length > 0 && (
+            <div style={{ marginTop: 6, color: "#eab308" }}>⚠ {diag.warnings.join(' · ')}</div>
+          )}
+        </div>
+      )}
+
+      {!hasOutput && !running && (
+        <div style={{ padding: "20px 16px", textAlign: "center", color: "#444", fontSize: 12, border: "1px dashed rgba(255,255,255,0.06)", borderRadius: 6 }}>
+          No value stack yet. Click <strong style={{ color: "#888" }}>Generate</strong> (~30-50s, Sonnet only). Largest checkpoint output.
+        </div>
+      )}
+
+      {hasOutput && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+          {/* ── Mechanism */}
+          {mechanism && (
+            <div style={{ padding: "16px 18px", background: "rgba(122,14,24,0.04)", borderRadius: 8, border: "1px solid rgba(122,14,24,0.25)" }}>
+              <div style={{ display: "flex", alignItems: "baseline", gap: 12, marginBottom: 8, flexWrap: "wrap" }}>
+                <div style={{ fontSize: 9, fontWeight: 700, color: "#7A0E18", letterSpacing: "0.14em", textTransform: "uppercase" }}>Mechanism</div>
+                <div style={{ fontSize: 22, fontWeight: 700, color: "#f5f5f5", fontFamily: "'Instrument Serif', Georgia, serif", letterSpacing: "0.06em" }}>{mechanism.name}</div>
+              </div>
+              <p style={{ fontSize: 12, color: "#ccc", lineHeight: 1.55, margin: "0 0 12px", fontStyle: "italic" }}>{mechanism.description}</p>
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                {(mechanism.letters || []).map((l, i) => (
+                  <div key={i} style={{ display: "grid", gridTemplateColumns: "32px 1fr", gap: 12, alignItems: "baseline" }}>
+                    <div style={{ fontSize: 20, fontWeight: 700, color: "#B11E2F", fontFamily: "'JetBrains Mono', ui-monospace, monospace", textAlign: "center" }}>{l.letter}</div>
+                    <div>
+                      <div style={{ fontSize: 13, fontWeight: 600, color: "#f5f5f5", marginBottom: 2 }}>{l.word}</div>
+                      <div style={{ fontSize: 11, color: "#999", lineHeight: 1.5 }}>{l.explanation}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* ── Value Stack */}
+          {stack && (
+            <div style={{ padding: "16px 18px", background: "#0a0a0a", borderRadius: 8, border: "1px solid rgba(255,255,255,0.05)" }}>
+              <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 12, flexWrap: "wrap", gap: 8 }}>
+                <div style={{ fontSize: 9, fontWeight: 700, color: "#666", letterSpacing: "0.14em", textTransform: "uppercase" }}>Value Stack · {(stack.items || []).length} items</div>
+                <div style={{ display: "flex", alignItems: "baseline", gap: 14 }}>
+                  <div>
+                    <span style={{ fontSize: 9, color: "#666", letterSpacing: "0.1em", textTransform: "uppercase", marginRight: 6 }}>Total value:</span>
+                    <span style={{ fontSize: 16, fontWeight: 700, color: "#22c55e", fontFamily: "'Instrument Serif', Georgia, serif" }}>{stack.total}</span>
+                  </div>
+                  <div>
+                    <span style={{ fontSize: 9, color: "#666", letterSpacing: "0.1em", textTransform: "uppercase", marginRight: 6 }}>Today:</span>
+                    <span style={{ fontSize: 16, fontWeight: 700, color: "#B11E2F", fontFamily: "'Instrument Serif', Georgia, serif" }}>{stack.actualPrice}</span>
+                  </div>
+                </div>
+              </div>
+
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                {(stack.items || []).map((it, i) => (
+                  <div key={i} style={{ display: "grid", gridTemplateColumns: "24px 1fr auto", gap: 10, padding: "10px 12px", background: "rgba(255,255,255,0.02)", borderRadius: 6, alignItems: "start" }}>
+                    <div style={{ fontSize: 10, fontWeight: 700, color: "#444", fontFamily: "'JetBrains Mono', ui-monospace, monospace", paddingTop: 2 }}>#{i + 1}</div>
+                    <div>
+                      <div style={{ fontSize: 12, color: "#f5f5f5", fontWeight: 600, marginBottom: 4 }}>{it.solution}</div>
+                      <div style={{ fontSize: 10.5, color: "#777", lineHeight: 1.5, marginBottom: 4 }}>
+                        <span style={{ color: "#555", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", marginRight: 6, fontSize: 9 }}>Pain:</span>
+                        {it.problem}
+                      </div>
+                      <div style={{ fontSize: 10.5, color: "#999", lineHeight: 1.5, fontFamily: "'JetBrains Mono', ui-monospace, monospace" }}>
+                        <span style={{ color: "#555", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", marginRight: 6, fontSize: 9, fontFamily: "inherit" }}>How:</span>
+                        {it.delivery}
+                      </div>
+                    </div>
+                    <div style={{ fontSize: 14, fontWeight: 700, color: "#22c55e", fontFamily: "'Instrument Serif', Georgia, serif", whiteSpace: "nowrap" }}>{it.dollarValue}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* ── Pricing Tiers */}
+          {tiers.length > 0 && (
+            <div style={{ padding: "16px 18px", background: "#0a0a0a", borderRadius: 8, border: "1px solid rgba(255,255,255,0.05)" }}>
+              <div style={{ fontSize: 9, fontWeight: 700, color: "#666", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 12 }}>Pricing · {tiers.length} {tiers.length === 1 ? 'tier' : 'tiers'}</div>
+              <div style={{ display: "grid", gridTemplateColumns: `repeat(${Math.min(tiers.length, 3)}, 1fr)`, gap: 10 }}>
+                {tiers.map((t, i) => (
+                  <div key={i} style={{ padding: "14px 14px", background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 6 }}>
+                    <div style={{ fontSize: 10, fontWeight: 700, color: "#B11E2F", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 6 }}>{t.name}</div>
+                    <div style={{ fontSize: 22, fontWeight: 700, color: "#f5f5f5", fontFamily: "'Instrument Serif', Georgia, serif", marginBottom: 8 }}>{t.price}</div>
+                    <div style={{ fontSize: 11, color: "#999", lineHeight: 1.5 }}>{t.note}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* ── Unlocked Bonuses */}
+          {bonuses.length > 0 && (
+            <div style={{ padding: "16px 18px", background: "rgba(234,179,8,0.04)", borderRadius: 8, border: "1px solid rgba(234,179,8,0.2)" }}>
+              <div style={{ fontSize: 9, fontWeight: 700, color: "#eab308", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 10 }}>Unlocked Bonuses · {bonuses.length} drops</div>
+              <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 4 }}>
+                {bonuses.map((b, i) => (
+                  <li key={i} style={{ fontSize: 11.5, color: "#ddd", lineHeight: 1.5, paddingLeft: 18, position: "relative" }}>
+                    <span style={{ position: "absolute", left: 0, color: "#eab308" }}>★</span>{b}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
+      )}
+
+      {runAt && hasOutput && (
+        <div style={{ fontSize: 10, color: "#333", paddingTop: 12, marginTop: 12, borderTop: "1px solid rgba(255,255,255,0.04)" }}>
+          Last run: {new Date(runAt).toLocaleString("pt-PT")}
+          {cp4Locked && progress.locked[4] && (
+            <> · Locked: {new Date(progress.locked[4]).toLocaleString("pt-PT")}</>
           )}
         </div>
       )}
