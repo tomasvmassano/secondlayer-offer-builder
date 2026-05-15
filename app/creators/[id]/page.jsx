@@ -124,6 +124,11 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
   const [archetypeRunning, setArchetypeRunning] = useState(false);
   const [archetypeError, setArchetypeError] = useState(null);
   const [archetypeDiag, setArchetypeDiag] = useState(null);
+  // Phase 3 — Uniqueness Extraction (5-8 differentiator elements + voice).
+  // Internal-only. Phase 4 wizard translates strongest elements into sales copy.
+  const [uniquenessRunning, setUniquenessRunning] = useState(false);
+  const [uniquenessError, setUniquenessError] = useState(null);
+  const [uniquenessDiag, setUniquenessDiag] = useState(null);
   const nameRef = useRef(null);
 
   // DM Writer state
@@ -683,6 +688,46 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
       setArchetypeRunning(false);
     }
   }, [creator, archetypeRunning]);
+
+  // ── Phase 3 · Uniqueness Extraction ──
+  // Extracts 5-8 concrete differentiator elements (each with evidence citation)
+  // plus a creator_voice_summary. Pure Sonnet call, no web_search — Phase 1
+  // (ecosystem) + Phase 2 (archetype) outputs are passed in as context so the
+  // model doesn't re-derive them. Output is internal_metadata only; Phase 4
+  // wizard will translate strongest elements into sales-language copy that
+  // lands in client_facing_output.differentiator_section.
+  const runUniqueness = useCallback(async () => {
+    if (!creator?.id || uniquenessRunning) return;
+    setUniquenessRunning(true);
+    setUniquenessError(null);
+    try {
+      const r = await fetch(`/api/creators/${creator.id}/uniqueness`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+      });
+      const data = await r.json();
+      if (!r.ok) {
+        const detail = data.errors?.length ? '\n\n' + data.errors.join('\n') : '';
+        throw new Error((data.error || 'Uniqueness extraction failed') + detail);
+      }
+      setUniquenessDiag(data._diagnostics || null);
+      setCreator(prev => prev ? ({
+        ...prev,
+        offer: {
+          ...(prev.offer || {}),
+          internal_metadata: {
+            ...((prev.offer || {}).internal_metadata || {}),
+            uniqueness_extraction: data.uniqueness_extraction,
+          },
+        },
+      }) : prev);
+    } catch (err) {
+      setUniquenessError(err.message || 'Unknown error');
+    } finally {
+      setUniquenessRunning(false);
+    }
+  }, [creator, uniquenessRunning]);
 
   // Re-parse button — re-runs parseOutput on existing offer.raw without burning a new API call.
   // Useful when parser improves and stale parsed data needs refresh. Refreshes
@@ -1519,6 +1564,16 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
             diag={archetypeDiag}
             onRun={runArchetype}
           />
+          {/* Phase 3 · Uniqueness Extraction. Internal-only. Sits under Archetype
+              so the operator sees the triad (role + archetype + uniqueness)
+              before generating offer copy. */}
+          <UniquenessPanel
+            creator={creator}
+            running={uniquenessRunning}
+            error={uniquenessError}
+            diag={uniquenessDiag}
+            onRun={runUniqueness}
+          />
           {!creator.offer && !offerLoading && (() => {
             const sec = OFFER_STEPS[offerStep] || OFFER_STEPS[0];
             return (
@@ -2286,6 +2341,211 @@ function ArchetypePanel({ creator, running, error, diag, onRun }) {
             <div style={{ fontSize: 12, color: "#ccc", marginBottom: 6 }}>{FAME_LABELS[c.fame_tier] || c.fame_tier}</div>
             <p style={{ fontSize: 11, color: "#888", margin: 0, lineHeight: 1.55 }}>{c.fame_tier_evidence}</p>
           </div>
+
+          {runAt && (
+            <div style={{ fontSize: 10, color: "#333", paddingTop: 10, borderTop: "1px solid rgba(255,255,255,0.04)" }}>
+              Last run: {new Date(runAt).toLocaleString("pt-PT")}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ──────────────────────────────────────────────────────────────────────────
+// Phase 3 · Uniqueness Extraction (internal-only)
+// ──────────────────────────────────────────────────────────────────────────
+// Renders the 5-8 unique elements + creator_voice_summary that live under
+//   creator.offer.internal_metadata.uniqueness_extraction
+// Each element carries category, monetization_potential, evidence_source,
+// and a usable_in_modules flag. Phase 4 will pick the strongest elements and
+// translate them into client-facing differentiator copy.
+function UniquenessPanel({ creator, running, error, diag, onRun }) {
+  const u = creator?.offer?.internal_metadata?.uniqueness_extraction || null;
+  const runAt = creator?.offer?.internal_metadata?.generation_timestamps?.uniqueness_extraction || null;
+
+  // Category visuals — kept aligned with the 7-enum in schemas/uniqueness.js
+  const CATEGORY_LABELS = {
+    story: 'Story',
+    credential: 'Credential',
+    viral_moment: 'Viral Moment',
+    vocabulary: 'Vocabulary',
+    contrarian_angle: 'Contrarian Angle',
+    proprietary_method: 'Proprietary Method',
+    behind_the_scenes_access: 'BTS Access',
+  };
+  const CATEGORY_COLORS = {
+    story: '#a855f7',                  // purple
+    credential: '#3b82f6',             // blue
+    viral_moment: '#ef4444',           // red
+    vocabulary: '#14b8a6',             // teal
+    contrarian_angle: '#f97316',       // orange
+    proprietary_method: '#7A0E18',     // brand red
+    behind_the_scenes_access: '#eab308', // amber
+  };
+
+  // Monetization tier visuals — high = green, medium = blue, low = grey.
+  const MON_COLORS = {
+    high: '#22c55e',
+    medium: '#3b82f6',
+    low: '#666',
+  };
+  const MON_LABELS = {
+    high: 'HIGH $',
+    medium: 'MED $',
+    low: 'LOW $',
+  };
+
+  const usableCount = u ? (u.unique_elements || []).filter(e => e.usable_in_modules).length : 0;
+
+  return (
+    <div style={{ marginBottom: 28, padding: "18px 20px", background: "rgba(255,255,255,0.015)", border: "1px solid rgba(255,255,255,0.05)", borderRadius: 10 }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+        <div>
+          <div style={{ fontSize: 9, fontWeight: 700, color: "#7A0E18", letterSpacing: "0.16em", textTransform: "uppercase", marginBottom: 4 }}>● Phase 3 · Internal</div>
+          <h3 style={{ fontSize: 14, fontWeight: 600, margin: 0, color: "#f5f5f5" }}>Uniqueness Extraction</h3>
+          <p style={{ fontSize: 11, color: "#555", margin: "4px 0 0" }}>
+            5-8 elements that ONLY this creator can claim, each with concrete evidence. Phase 4 turns the strongest into sales copy.
+          </p>
+        </div>
+        <button
+          onClick={onRun}
+          disabled={running}
+          style={{
+            padding: "8px 16px",
+            borderRadius: 6,
+            border: "1px solid rgba(122,14,24,0.4)",
+            background: running ? "rgba(255,255,255,0.02)" : "rgba(122,14,24,0.08)",
+            color: running ? "#555" : "#B11E2F",
+            fontSize: 11,
+            fontWeight: 600,
+            cursor: running ? "wait" : "pointer",
+            fontFamily: "inherit",
+            whiteSpace: "nowrap",
+          }}
+        >
+          {running ? "A extrair..." : u ? "↻ Re-run" : "Run extractor"}
+        </button>
+      </div>
+
+      {error && (
+        <div style={{ padding: "10px 14px", borderRadius: 6, background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.25)", color: "#ef4444", fontSize: 11, marginBottom: 12, whiteSpace: "pre-wrap" }}>{error}</div>
+      )}
+      {diag && !running && (
+        <div style={{ fontSize: 10, color: "#444", marginBottom: 12, fontFamily: "'JetBrains Mono', ui-monospace, monospace" }}>
+          {diag.elements_returned} elements · {diag.captions_analysed} captions · archetype {diag.archetype_used ? '✓' : '—'} · ecosystem {diag.ecosystem_audit_used ? '✓' : '—'} · {diag.retries} retries
+        </div>
+      )}
+
+      {!u && !running && (
+        <div style={{ padding: "20px 16px", textAlign: "center", color: "#444", fontSize: 12, border: "1px dashed rgba(255,255,255,0.06)", borderRadius: 6 }}>
+          No uniqueness yet. Click <strong style={{ color: "#888" }}>Run extractor</strong> (~15-30s, Sonnet only, uses Phase 1+2 outputs).
+        </div>
+      )}
+
+      {u && (
+        <div>
+          {/* Summary row — usable_in_modules count drives Phase 4 module generation */}
+          <div style={{ fontSize: 10, color: "#666", marginBottom: 10, fontFamily: "'JetBrains Mono', ui-monospace, monospace", letterSpacing: "0.04em" }}>
+            {(u.unique_elements || []).length} elements · <span style={{ color: usableCount >= 3 ? '#22c55e' : '#eab308' }}>{usableCount} module-usable</span>
+          </div>
+
+          {/* Element cards — one per unique element */}
+          <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 16 }}>
+            {(u.unique_elements || []).map((el, i) => {
+              const catColor = CATEGORY_COLORS[el.category] || '#666';
+              const monColor = MON_COLORS[el.monetization_potential] || '#666';
+              return (
+                <div
+                  key={i}
+                  style={{
+                    padding: "13px 15px",
+                    background: "#0a0a0a",
+                    borderRadius: 8,
+                    border: `1px solid ${el.usable_in_modules ? 'rgba(34,197,94,0.18)' : 'rgba(255,255,255,0.05)'}`,
+                  }}
+                >
+                  {/* Header row — number + category badge + monetization badge + module flag */}
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8, flexWrap: "wrap" }}>
+                    <span style={{ fontSize: 10, fontWeight: 700, color: "#444", fontFamily: "'JetBrains Mono', ui-monospace, monospace", minWidth: 18 }}>#{i + 1}</span>
+                    <span
+                      style={{
+                        fontSize: 9,
+                        fontWeight: 700,
+                        padding: "3px 8px",
+                        borderRadius: 3,
+                        background: `${catColor}15`,
+                        color: catColor,
+                        border: `1px solid ${catColor}40`,
+                        textTransform: "uppercase",
+                        letterSpacing: "0.08em",
+                      }}
+                    >
+                      {CATEGORY_LABELS[el.category] || el.category}
+                    </span>
+                    <span
+                      style={{
+                        fontSize: 9,
+                        fontWeight: 700,
+                        padding: "3px 8px",
+                        borderRadius: 3,
+                        background: `${monColor}15`,
+                        color: monColor,
+                        border: `1px solid ${monColor}40`,
+                        letterSpacing: "0.06em",
+                      }}
+                    >
+                      {MON_LABELS[el.monetization_potential] || el.monetization_potential}
+                    </span>
+                    {el.usable_in_modules && (
+                      <span
+                        style={{
+                          fontSize: 9,
+                          fontWeight: 700,
+                          padding: "3px 8px",
+                          borderRadius: 3,
+                          background: "rgba(34,197,94,0.08)",
+                          color: "#22c55e",
+                          border: "1px solid rgba(34,197,94,0.3)",
+                          letterSpacing: "0.06em",
+                          marginLeft: "auto",
+                        }}
+                      >
+                        ✓ MODULE-USABLE
+                      </span>
+                    )}
+                  </div>
+
+                  {/* The element itself */}
+                  <div style={{ fontSize: 13, color: "#f5f5f5", lineHeight: 1.5, marginBottom: 8, fontWeight: 500 }}>{el.element}</div>
+
+                  {/* Evidence quote — italicised, indented, with corner mark */}
+                  <div
+                    style={{
+                      fontSize: 11,
+                      color: "#888",
+                      lineHeight: 1.5,
+                      fontStyle: "italic",
+                      paddingLeft: 10,
+                      borderLeft: "2px solid rgba(255,255,255,0.08)",
+                    }}
+                  >
+                    <span style={{ fontSize: 9, fontWeight: 700, color: "#555", letterSpacing: "0.1em", textTransform: "uppercase", fontStyle: "normal", marginRight: 6 }}>Evidence:</span>
+                    {el.evidence_source}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Creator voice summary — drives tone for every piece of generated copy in Phase 4 */}
+          {u.creator_voice_summary && (
+            <div style={{ padding: "13px 15px", background: "rgba(122,14,24,0.04)", borderRadius: 8, border: "1px solid rgba(122,14,24,0.18)", marginBottom: runAt ? 14 : 0 }}>
+              <div style={{ fontSize: 9, fontWeight: 700, color: "#7A0E18", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 6 }}>Creator Voice</div>
+              <p style={{ fontSize: 12, color: "#ddd", margin: 0, lineHeight: 1.55, fontStyle: "italic" }}>{u.creator_voice_summary}</p>
+            </div>
+          )}
 
           {runAt && (
             <div style={{ fontSize: 10, color: "#333", paddingTop: 10, borderTop: "1px solid rgba(255,255,255,0.04)" }}>
