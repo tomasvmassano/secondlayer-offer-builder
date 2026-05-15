@@ -913,59 +913,145 @@ function PitchPageContent() {
       </Slide>
 
       {/* SLIDE 3: TRANSFORMATION — bigger text + aurora */}
+      {/* SLIDE 3 · BUSINESS CONTEXT — phase 4 / Q3-overhaul.
+          For warm creators (has products): existing funnel mapped, new
+          community slotted in at its tier, strategic role prose, price
+          ladder.
+          For cold creators (no products): the projected-foundation framing
+          + the role explanation forward-looking + the anchor price.
+          All copy bilingual via the slide builder (`buildDefaultSlides`).
+          The slide stays at num={3}, total stays at 11 — this REPLACES the
+          old generic diagnosis/transformation slide. */}
       <Slide num={3} total={11} decor={
         <div className="aurora red" style={{ right: -200, top: "20%", width: 700, height: 700, opacity: 0.35 }} />
       }>
         <div style={{ flex: 1, display: "flex", flexDirection: "column", width: "100%" }}>
           <div style={{ fontSize: 18, fontWeight: 600, color: "#B11E2F", letterSpacing: "0.28em", textTransform: "uppercase" }}>
-            {creator?.primaryLanguage === 'en' ? 'Diagnosis' : 'Diagnóstico'}
+            {slides.businessContext.eyebrow}
           </div>
           <div style={{ height: 28 }} />
-          <h1 style={{ fontSize: 88, fontWeight: 800, margin: 0, lineHeight: 1.0, letterSpacing: "-0.03em", color: "#f5f5f5" }}>
+          <h1 style={{ fontSize: 76, fontWeight: 800, margin: 0, lineHeight: 1.0, letterSpacing: "-0.03em", color: "#f5f5f5" }}>
             <StyledLastWord
-              text={slides.transformation.title}
-              italicStyle={{ ...italicSerif, color: "#B11E2F", fontSize: 92 }}
+              text={slides.businessContext.title}
+              italicStyle={{ ...italicSerif, color: "#B11E2F", fontSize: 80 }}
             />
           </h1>
 
-          <div style={{ marginTop: 64, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 36, flex: 1 }}>
-            <div style={{ padding: 44, background: "rgba(15,15,15,0.78)", border: "1px solid #1F1F1F", borderRadius: 14 }}>
-              <div style={{ fontSize: 16, fontWeight: 600, color: "#8A8A8A", letterSpacing: "0.22em", textTransform: "uppercase", marginBottom: 28 }}>
-                <Editable value={slides.transformation.beforeLabel} onChange={v => updateSlide('transformation', 'beforeLabel', v)} />
+          {slides.businessContext.hasProducts ? (
+            // ─────────────── WARM PATH ───────────────
+            <div style={{ marginTop: 44, display: "grid", gridTemplateColumns: "1.4fr 1fr", gap: 28, flex: 1 }}>
+              {/* LEFT · Funnel diagram (tier rows, existing products, NEW community highlighted) */}
+              <div style={{ padding: "32px 36px", background: "rgba(15,15,15,0.85)", border: "1px solid #1F1F1F", borderRadius: 14, display: "flex", flexDirection: "column", gap: 12 }}>
+                <div style={{ fontSize: 14, fontWeight: 600, color: "#8A8A8A", letterSpacing: "0.22em", textTransform: "uppercase", marginBottom: 8 }}>
+                  {creator?.primaryLanguage === 'en' ? 'Ecosystem map' : 'Mapa do ecossistema'}
+                </div>
+                {PITCH_TIER_ORDER.map((tier) => {
+                  const productsAtTier = slides.businessContext.products.filter(p => p.tier === tier);
+                  const isNewOfferTier = tier === slides.businessContext.newOfferTier;
+                  // Hide tiers that have no existing products AND aren't where the new offer goes
+                  if (productsAtTier.length === 0 && !isNewOfferTier) return null;
+                  const label = (PITCH_TIER_LABELS[tier] || { pt: tier, en: tier });
+                  const labelText = creator?.primaryLanguage === 'en' ? label.en : label.pt;
+                  return (
+                    <div key={tier} style={{ display: "grid", gridTemplateColumns: "160px 1fr", gap: 16, alignItems: "center" }}>
+                      <div style={{ fontSize: 11, fontWeight: 700, color: "#8A8A8A", letterSpacing: "0.16em", textTransform: "uppercase", fontFamily: "'JetBrains Mono', ui-monospace, monospace" }}>
+                        {labelText}
+                      </div>
+                      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                        {productsAtTier.map((p, i) => (
+                          <div key={i} style={{ padding: "8px 14px", background: "rgba(255,255,255,0.025)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 8, display: "flex", justifyContent: "space-between", gap: 10 }}>
+                            <span style={{ fontSize: 17, color: "#D9D9D9" }}>{p.name}</span>
+                            {p.price && <span style={{ fontSize: 14, color: "#666", fontFamily: "'JetBrains Mono', ui-monospace, monospace", whiteSpace: "nowrap" }}>{p.price}</span>}
+                          </div>
+                        ))}
+                        {isNewOfferTier && (
+                          <div style={{ padding: "10px 14px", background: "linear-gradient(90deg, rgba(177,30,47,0.18), rgba(177,30,47,0.06))", border: "1px solid #B11E2F", borderRadius: 8, display: "flex", justifyContent: "space-between", gap: 10, alignItems: "center" }}>
+                            <span style={{ fontSize: 17, color: "#f5f5f5", fontWeight: 600 }}>
+                              <span style={{ color: "#B11E2F", marginRight: 8, letterSpacing: "0.08em", fontSize: 11, fontWeight: 700 }}>● {creator?.primaryLanguage === 'en' ? 'NEW' : 'NOVO'}</span>
+                              {slides.businessContext.newOfferName}
+                            </span>
+                            <span style={{ fontSize: 14, color: "#B11E2F", fontFamily: "'JetBrains Mono', ui-monospace, monospace", whiteSpace: "nowrap", fontWeight: 700 }}>{slides.businessContext.newOfferPrice}</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
-              <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 26 }}>
-                {slides.transformation.before.map((item, i) => (
-                  <li key={i} style={{ display: "flex", gap: 16 }}>
-                    <span style={{ color: "#8A8A8A", width: 28, flexShrink: 0, fontSize: 22, lineHeight: 1.45 }}>✕</span>
-                    <span style={{ fontSize: 28, color: "#D9D9D9", lineHeight: 1.45 }}>
-                      <Editable value={item} onChange={v => {
-                        const next = [...slides.transformation.before]; next[i] = v;
-                        updateSlide('transformation', 'before', next);
-                      }} />
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-            <div style={{ padding: 44, background: "linear-gradient(180deg, rgba(177,30,47,0.10), rgba(15,15,15,0.85))", border: "1px solid rgba(177,30,47,0.65)", borderRadius: 14 }}>
-              <div style={{ fontSize: 16, fontWeight: 600, color: "#B11E2F", letterSpacing: "0.22em", textTransform: "uppercase", marginBottom: 28 }}>
-                <Editable value={slides.transformation.afterLabel} onChange={v => updateSlide('transformation', 'afterLabel', v)} />
+
+              {/* RIGHT · Role explanation + (later) price ladder */}
+              <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                <div style={{ padding: "26px 30px", background: "linear-gradient(180deg, rgba(177,30,47,0.10), rgba(15,15,15,0.85))", border: "1px solid rgba(177,30,47,0.55)", borderRadius: 14, flex: 1 }}>
+                  <div style={{ fontSize: 12, fontWeight: 600, color: "#B11E2F", letterSpacing: "0.22em", textTransform: "uppercase", marginBottom: 14 }}>
+                    {creator?.primaryLanguage === 'en' ? 'Strategic role' : 'Papel estratégico'}
+                  </div>
+                  <p style={{ fontSize: 21, color: "#f5f5f5", lineHeight: 1.45, margin: 0, fontWeight: 500 }}>
+                    {slides.businessContext.roleExplanation}
+                  </p>
+                </div>
+                {/* Price ladder — horizontal arrows */}
+                <div style={{ padding: "20px 24px", background: "rgba(15,15,15,0.85)", border: "1px solid #1F1F1F", borderRadius: 14 }}>
+                  <div style={{ fontSize: 11, fontWeight: 600, color: "#8A8A8A", letterSpacing: "0.22em", textTransform: "uppercase", marginBottom: 12 }}>
+                    {creator?.primaryLanguage === 'en' ? 'Price ladder' : 'Escada de preços'}
+                  </div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                    {(() => {
+                      // Build a sorted-by-tier list including the new offer, in tier order
+                      const rungs = [];
+                      const sortedTiers = PITCH_TIER_ORDER;
+                      sortedTiers.forEach(tier => {
+                        slides.businessContext.products
+                          .filter(p => p.tier === tier)
+                          .forEach(p => rungs.push({ name: p.name, price: p.price || '—', isNew: false }));
+                        if (tier === slides.businessContext.newOfferTier) {
+                          rungs.push({ name: slides.businessContext.newOfferName, price: slides.businessContext.newOfferPrice, isNew: true });
+                        }
+                      });
+                      return rungs.map((r, i) => (
+                        <span key={i} style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
+                          <span style={{ padding: "4px 9px", borderRadius: 4, background: r.isNew ? "rgba(177,30,47,0.18)" : "rgba(255,255,255,0.025)", border: `1px solid ${r.isNew ? '#B11E2F' : 'rgba(255,255,255,0.08)'}`, fontSize: 12.5, color: r.isNew ? "#f5f5f5" : "#bbb", fontWeight: r.isNew ? 700 : 500, letterSpacing: "0.01em" }}>
+                            {r.price}
+                          </span>
+                          {i !== rungs.length - 1 && <span style={{ color: "#444", fontSize: 12 }}>→</span>}
+                        </span>
+                      ));
+                    })()}
+                  </div>
+                </div>
               </div>
-              <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 26 }}>
-                {slides.transformation.after.map((item, i) => (
-                  <li key={i} style={{ display: "flex", gap: 16 }}>
-                    <span style={{ color: "#B11E2F", width: 28, flexShrink: 0, fontWeight: 700, fontSize: 22, lineHeight: 1.45 }}>→</span>
-                    <span style={{ fontSize: 28, color: "#f5f5f5", lineHeight: 1.45 }}>
-                      <Editable value={item} onChange={v => {
-                        const next = [...slides.transformation.after]; next[i] = v;
-                        updateSlide('transformation', 'after', next);
-                      }} />
-                    </span>
-                  </li>
-                ))}
-              </ul>
             </div>
-          </div>
+          ) : (
+            // ─────────────── COLD PATH ───────────────
+            // Creator has no current product ecosystem. Frame the community
+            // as the foundation; show a single highlighted card + the
+            // forward-looking strategic role.
+            <div style={{ marginTop: 56, display: "flex", flexDirection: "column", gap: 24, flex: 1, justifyContent: "center", maxWidth: 900 }}>
+              <p style={{ fontSize: 22, color: "#D9D9D9", lineHeight: 1.5, margin: 0 }}>
+                {slides.businessContext.coldFraming}
+              </p>
+              <div style={{ padding: "26px 32px", background: "linear-gradient(180deg, rgba(177,30,47,0.18), rgba(15,15,15,0.85))", border: "1px solid #B11E2F", borderRadius: 14, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 20 }}>
+                <div>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: "#B11E2F", letterSpacing: "0.16em", textTransform: "uppercase", marginBottom: 6 }}>
+                    {creator?.primaryLanguage === 'en' ? '● The Foundation' : '● O Alicerce'}
+                  </div>
+                  <div style={{ fontSize: 26, color: "#f5f5f5", fontWeight: 700 }}>
+                    {slides.businessContext.newOfferName}
+                  </div>
+                </div>
+                <div style={{ fontSize: 22, color: "#B11E2F", fontFamily: "'JetBrains Mono', ui-monospace, monospace", fontWeight: 700, whiteSpace: "nowrap" }}>
+                  {slides.businessContext.newOfferPrice}
+                </div>
+              </div>
+              <div style={{ padding: "22px 28px", background: "rgba(15,15,15,0.85)", border: "1px solid #1F1F1F", borderRadius: 14 }}>
+                <div style={{ fontSize: 11, fontWeight: 600, color: "#8A8A8A", letterSpacing: "0.22em", textTransform: "uppercase", marginBottom: 10 }}>
+                  {creator?.primaryLanguage === 'en' ? 'Strategic role' : 'Papel estratégico'}
+                </div>
+                <p style={{ fontSize: 19, color: "#D9D9D9", lineHeight: 1.5, margin: 0 }}>
+                  {slides.businessContext.roleExplanation}
+                </p>
+              </div>
+            </div>
+          )}
         </div>
       </Slide>
 
@@ -1284,13 +1370,21 @@ function PitchPageContent() {
               {creator?.primaryLanguage === 'en' ? 'Audit' : 'Auditoria'}
             </div>
             <div style={{ height: 18 }} />
-            <h1 style={{ fontSize: 88, fontWeight: 800, margin: 0, lineHeight: 1.0, letterSpacing: "-0.03em", color: "#f5f5f5" }}>
+            <h1 style={{ fontSize: 78, fontWeight: 800, margin: 0, lineHeight: 1.0, letterSpacing: "-0.03em", color: "#f5f5f5" }}>
               <StyledLastWord
                 text={slides.audience.title}
-                italicStyle={{ ...italicSerif, color: "#B11E2F", fontSize: 92 }}
+                italicStyle={{ ...italicSerif, color: "#B11E2F", fontSize: 82 }}
               />
             </h1>
           </div>
+
+          {/* CP1 segment description — strategic header line above the stats.
+              Only renders when the wizard's strategic_frame has produced it. */}
+          {slides.audience.segmentDescription && (
+            <div style={{ marginTop: 20, fontSize: 20, color: "#D9D9D9", lineHeight: 1.5, maxWidth: 920 }}>
+              {slides.audience.segmentDescription}
+            </div>
+          )}
 
           {/* Stat strip — full-width 4-card row */}
           <div style={{ marginTop: 36, display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 18 }}>
@@ -1378,6 +1472,44 @@ function PitchPageContent() {
               </div>
             );
           })()}
+
+          {/* CP2 audience_fit — who this is exactly FOR / NOT FOR.
+              Renders only when the wizard has produced at least one column.
+              Two-column block; preserved-language. */}
+          {(slides.audience.audienceForList.length > 0 || slides.audience.audienceNotForList.length > 0) && (
+            <div style={{ marginTop: 22, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 18 }}>
+              {slides.audience.audienceForList.length > 0 && (
+                <div style={{ padding: "26px 30px", background: "rgba(15,15,15,0.78)", border: "1px solid rgba(177,30,47,0.45)", borderRadius: 14 }}>
+                  <div style={{ fontSize: 12, fontWeight: 600, color: "#B11E2F", letterSpacing: "0.22em", textTransform: "uppercase", marginBottom: 14 }}>
+                    {creator?.primaryLanguage === 'en' ? 'For' : 'Para quem é'}
+                  </div>
+                  <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 10 }}>
+                    {slides.audience.audienceForList.map((s, i) => (
+                      <li key={i} style={{ display: "flex", gap: 12, fontSize: 17, color: "#D9D9D9", lineHeight: 1.45 }}>
+                        <span style={{ color: "#B11E2F", flexShrink: 0, fontWeight: 700 }}>→</span>
+                        <span>{s}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              {slides.audience.audienceNotForList.length > 0 && (
+                <div style={{ padding: "26px 30px", background: "rgba(15,15,15,0.78)", border: "1px solid #1F1F1F", borderRadius: 14 }}>
+                  <div style={{ fontSize: 12, fontWeight: 600, color: "#8A8A8A", letterSpacing: "0.22em", textTransform: "uppercase", marginBottom: 14 }}>
+                    {creator?.primaryLanguage === 'en' ? 'Not for' : 'Não é para'}
+                  </div>
+                  <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 10 }}>
+                    {slides.audience.audienceNotForList.map((s, i) => (
+                      <li key={i} style={{ display: "flex", gap: 12, fontSize: 17, color: "#9E9E9E", lineHeight: 1.45 }}>
+                        <span style={{ color: "#666", flexShrink: 0 }}>✕</span>
+                        <span>{s}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </Slide>
 
@@ -1767,6 +1899,75 @@ function PitchPageContent() {
 }
 
 // ─────────────────────────────────────────────────────────────────
+// PHASE 4 · pitch-deck-only helpers for the Business Context slide
+// ─────────────────────────────────────────────────────────────────
+
+// Where does the NEW community sit in the tier ladder? Drives the "slotted-in"
+// highlight on the funnel diagram. Falls back to 'recurring' (the default
+// shape of a paid community) when neither CP1.confirmed_role nor Phase 1's
+// suggested role is present.
+function guessNewOfferTier(role, pricingModel) {
+  if (role === 'entry_point') return 'low_ticket';
+  if (role === 'premium_upsell') return 'high_ticket';
+  if (role === 'standalone') return pricingModel === 'one_time' ? 'mid_ticket' : 'recurring';
+  // continuity or unknown
+  return 'recurring';
+}
+
+// Tier rendering — order top-of-funnel to bottom, bilingual labels.
+// Anything not in this list falls back to its raw key (defensive).
+export const PITCH_TIER_ORDER = ['lead_magnet', 'low_ticket', 'mid_ticket', 'recurring', 'high_ticket', 'service', 'physical_product'];
+export const PITCH_TIER_LABELS = {
+  lead_magnet:      { pt: 'Lead Magnet · Grátis',    en: 'Lead Magnet · Free' },
+  low_ticket:       { pt: 'Low Ticket',              en: 'Low Ticket' },
+  mid_ticket:       { pt: 'Mid Ticket',              en: 'Mid Ticket' },
+  recurring:        { pt: 'Recorrente · Mensal',     en: 'Recurring · Monthly' },
+  high_ticket:      { pt: 'High Ticket',             en: 'High Ticket' },
+  service:          { pt: 'Serviço 1-on-1',          en: '1-on-1 Service' },
+  physical_product: { pt: 'Produto Físico',          en: 'Physical Product' },
+};
+
+// Plain-language strategic-role prose. Reuses the high-ticket product name
+// + the new community name + price so the slide reads as creator-specific,
+// not template-y. Falls back to generic if we don't have enough data.
+function buildRoleExplanation({ role, products, communityName, targetPrice, lang }) {
+  const en = lang === 'en';
+  const cn = communityName || (en ? 'the new community' : 'a nova comunidade');
+  // Identify a relevant anchor product for the prose (highest-ticket non-lead-magnet).
+  const ordered = [...(products || [])].sort((a, b) => {
+    const ai = PITCH_TIER_ORDER.indexOf(a.tier);
+    const bi = PITCH_TIER_ORDER.indexOf(b.tier);
+    return bi - ai;
+  });
+  const anchor = ordered.find(p => p.tier !== 'lead_magnet') || ordered[0] || null;
+  const leadMagnet = (products || []).find(p => p.tier === 'lead_magnet');
+
+  if (role === 'entry_point') {
+    if (en) return `${cn} is the entry point — the cheapest way into your funnel${anchor ? ` and the warm-up that leads buyers to ${anchor.name}` : ''}.`;
+    return `${cn} é o ponto de entrada — a porta de acesso mais acessível ao teu funil${anchor ? `, e o aquecimento que conduz compradores até ${anchor.name}` : ''}.`;
+  }
+  if (role === 'premium_upsell') {
+    if (en) return `${cn} is the premium upsell — your highest-ticket offer${anchor ? `, sitting above ${anchor.name} for graduates ready to go deeper` : ''}.`;
+    return `${cn} é o upsell premium — a tua oferta mais alta${anchor ? `, acima de ${anchor.name} para graduates prontos para ir mais fundo` : ''}.`;
+  }
+  if (role === 'standalone') {
+    if (en) return `${cn} is a standalone offer — it doesn't sit inside your current funnel, it runs alongside it as its own product line.`;
+    return `${cn} é uma oferta autónoma — não encaixa no teu funil atual, opera ao lado dele como linha de produto própria.`;
+  }
+  // continuity (default)
+  if (anchor && leadMagnet) {
+    if (en) return `${cn} is the continuity layer — it retains the audience between your free ${leadMagnet.name} and your ${anchor.name}${anchor.price ? ` (${anchor.price})` : ''}, turning one-time buyers into recurring revenue.`;
+    return `${cn} é a camada de continuidade — retém a audiência entre o teu ${leadMagnet.name} gratuito e o ${anchor.name}${anchor.price ? ` (${anchor.price})` : ''}, transformando compradores únicos em receita recorrente.`;
+  }
+  if (anchor) {
+    if (en) return `${cn} is the continuity layer that retains buyers between your free content and your ${anchor.name}${anchor.price ? ` (${anchor.price})` : ''}, turning attention into recurring revenue.`;
+    return `${cn} é a camada de continuidade que retém compradores entre o teu conteúdo gratuito e o ${anchor.name}${anchor.price ? ` (${anchor.price})` : ''}, transformando atenção em receita recorrente.`;
+  }
+  if (en) return `${cn} is the continuity layer — recurring revenue that compounds while you keep posting${targetPrice ? ` (${targetPrice})` : ''}.`;
+  return `${cn} é a camada de continuidade — receita recorrente que compõe enquanto continuas a publicar${targetPrice ? ` (${targetPrice})` : ''}.`;
+}
+
+// ─────────────────────────────────────────────────────────────────
 // DEFAULT SLIDES
 // ─────────────────────────────────────────────────────────────────
 
@@ -1810,6 +2011,31 @@ function buildDefaultSlides(creator) {
   const um = cfo.mechanism || {};
   const vs = cfo.value_stack || {};
 
+  // ── Phase 1-3 + CP1 internal data — the pitch deck draws sparingly from
+  // internal_metadata to demonstrate strategic understanding of the creator's
+  // existing business. Used by the new Business Context slide (slide 3) and
+  // by the audience slide (slide 7). Treat these as operator-curated
+  // insertions, not "render everything internal".
+  const internalMeta = creator?.offer?.internal_metadata || {};
+  const ecosystemMap = internalMeta.ecosystem_audit?.ecosystem_map || null;
+  const ecosystemRole = internalMeta.ecosystem_audit?.strategic_role || null;
+  const products = Array.isArray(ecosystemMap?.products_found) ? ecosystemMap.products_found : [];
+  const hasProducts = products.length > 0;
+  const frame = internalMeta.strategic_frame || null;
+  const newOfferTier = guessNewOfferTier(frame?.confirmed_role || ecosystemRole, cfo.pricing_model);
+
+  // Plain-language explanations of the strategic role. Drives the prose
+  // block on the Business Context slide. We expand role-only generic strings
+  // with creator-specific fragments (high-ticket product name, free entry,
+  // etc.) so the pitch reads "we know your funnel".
+  const roleExplanation = buildRoleExplanation({
+    role: frame?.confirmed_role || ecosystemRole,
+    products,
+    communityName: cfo.community_name,
+    targetPrice: cfo.target_price,
+    lang,
+  });
+
   // When parsed tiers are missing, derive sensible defaults from the offer's
   // recommended monthly price (extracted by the offer-generation pipeline).
   //   T1 monthly:           €P/mês
@@ -1852,6 +2078,34 @@ function buildDefaultSlides(creator) {
         'You stay the face. We handle the rest.'
       ),
     },
+    // Slide 3 — Business Context. Replaces the old generic diagnosis slide.
+    // Two render variants based on whether the creator has an existing
+    // product ecosystem (Phase 1 has products_found or not):
+    //   - WARM: existing funnel mapped + the new community slotted in
+    //   - COLD: projected funnel with the new community as anchor
+    // Driven by Phase 1 ecosystem_audit + CP1 strategic_frame + CP2 pricing.
+    businessContext: {
+      eyebrow: hasProducts
+        ? t('Onde isto encaixa', 'Where this fits')
+        : t('Onde isto começa', 'Where this starts'),
+      title: hasProducts
+        ? t('O Teu Negócio · Hoje', 'Your Business · Today')
+        : t('O Teu Negócio · A Construir', 'Your Business · The Foundation'),
+      hasProducts,
+      products,
+      newOfferTier,
+      newOfferName: cfo.community_name || (lang === 'en' ? 'New Community' : 'Nova Comunidade'),
+      newOfferPrice: cfo.target_price || '—',
+      roleExplanation,
+      // Cold-creator framing: a single sentence that ties the new offer to
+      // future ecosystem growth. Only used when hasProducts === false.
+      coldFraming: lang === 'en'
+        ? `You have an audience but nothing for them to buy. The community is the foundation — recurring revenue you can build everything else around.`
+        : `Tens audiência mas ainda nada para venderem. A comunidade é o alicerce — receita recorrente em torno da qual vamos construir tudo o resto.`,
+    },
+    // Old generic transformation slide preserved as a defensive fallback. Not
+    // rendered in the current JSX (slide 3 is now businessContext) but the
+    // key stays so any external consumer that imported it doesn't explode.
     transformation: {
       title: t('Onde estás. Onde podes estar.', 'Where you are. Where you can be.'),
       beforeLabel: t('Hoje', 'Today'),
@@ -1967,8 +2221,19 @@ function buildDefaultSlides(creator) {
         ? (lang === 'en' ? `€${recPrice}/mo` : `€${recPrice}/mês`)
         : (vs.actualPrice || '€[X]/mês'),
     },
+    // Slide 7 — Audience. The existing rendering kept (stat strip + theme
+    // strip), and now augmented with the wizard's audience-fit data when
+    // available: CP1 audience_segment (description + demographics_anchor)
+    // and CP2 audience_fit ({ for: [...], not_for: [...] }).
     audience: {
       title: t('A Tua Audiência', 'Your Audience'),
+      // The 1-sentence "who exactly this is for" line from CP1. Renders as
+      // a strategic header above the existing stat strip when present.
+      segmentDescription: frame?.audience_segment?.description || null,
+      // 3-6 for / 2-5 not_for from CP2. Rendered as two-column block under
+      // the existing stat strip. Hidden when both arrays empty.
+      audienceForList:    Array.isArray(cfo.audience_fit?.for) ? cfo.audience_fit.for : [],
+      audienceNotForList: Array.isArray(cfo.audience_fit?.not_for) ? cfo.audience_fit.not_for : [],
     },
     // Auto-populated from parsed.cases (3 real Skool/Whop communities the LLM picked from
     // the case-studies skill, niche-matched to this creator). Falls back to placeholders.
