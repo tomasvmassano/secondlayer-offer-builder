@@ -115,6 +115,11 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
   const [showResearch, setShowResearch] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [runningFullScrape, setRunningFullScrape] = useState(false);
+  // Phase 1 — Ecosystem Audit run state. Operator-only; output lives under
+  // creator.offer.internal_metadata.ecosystem_audit and is NEVER shown to creators.
+  const [auditRunning, setAuditRunning] = useState(false);
+  const [auditError, setAuditError] = useState(null);
+  const [auditDiag, setAuditDiag] = useState(null);
   const nameRef = useRef(null);
 
   // DM Writer state
@@ -596,6 +601,47 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
       setRunningFullScrape(false);
     }
   }, [creator]);
+
+  // ── Phase 1 · Ecosystem Audit ──
+  // Maps the creator's existing product ecosystem (every IG bio link, every
+  // bio-link aggregator destination, every product on intelligence.bioLinks)
+  // and decides the strategic role of the future paid community within their
+  // funnel. Output is internal_metadata only — never rendered to the creator.
+  // Long-running (web_search Claude call, up to ~90s).
+  const runEcosystemAudit = useCallback(async () => {
+    if (!creator?.id || auditRunning) return;
+    setAuditRunning(true);
+    setAuditError(null);
+    try {
+      const r = await fetch(`/api/creators/${creator.id}/ecosystem-audit`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+      });
+      const data = await r.json();
+      if (!r.ok) {
+        const detail = data.errors?.length ? '\n\n' + data.errors.join('\n') : '';
+        throw new Error((data.error || 'Audit failed') + detail);
+      }
+      setAuditDiag(data._diagnostics || null);
+      // Merge the audit into the local creator state so the viewer updates
+      // without a full reload. Server already persisted to Redis.
+      setCreator(prev => prev ? ({
+        ...prev,
+        offer: {
+          ...(prev.offer || {}),
+          internal_metadata: {
+            ...((prev.offer || {}).internal_metadata || {}),
+            ecosystem_audit: data.ecosystem_audit,
+          },
+        },
+      }) : prev);
+    } catch (err) {
+      setAuditError(err.message || 'Falha desconhecida');
+    } finally {
+      setAuditRunning(false);
+    }
+  }, [creator, auditRunning]);
 
   // Re-parse button — re-runs parseOutput on existing offer.raw without burning a new API call.
   // Useful when parser improves and stale parsed data needs refresh. Refreshes
@@ -1410,6 +1456,18 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
 
         {/* ════════════ OFERTA TAB ════════════ */}
         {tab === "oferta" && (<>
+          {/* ── Phase 1 · Ecosystem Audit ──
+              Internal-only analysis of the creator's existing product
+              ecosystem. Renders ABOVE the offer flow so the operator can map
+              the funnel before generating the offer. Never visible to the
+              creator. */}
+          <EcosystemAuditPanel
+            creator={creator}
+            running={auditRunning}
+            error={auditError}
+            diag={auditDiag}
+            onRun={runEcosystemAudit}
+          />
           {!creator.offer && !offerLoading && (() => {
             const sec = OFFER_STEPS[offerStep] || OFFER_STEPS[0];
             return (
@@ -1855,5 +1913,180 @@ export default function CreatorProfilePage(props) {
     <Suspense fallback={<div style={{ minHeight: "100vh", background: "#0a0a0a", color: "#555", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif" }}>A carregar...</div>}>
       <CreatorProfilePageImpl {...props} />
     </Suspense>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────
+// Phase 1 · Ecosystem Audit viewer (internal use only).
+//
+// Renders the structured output of the audit endpoint with operator-facing
+// labels. Every value here is from `creator.offer.internal_metadata.ecosystem_audit`
+// and is NOT rendered anywhere the creator sees.
+// ─────────────────────────────────────────────────────────────────
+
+function EcosystemAuditPanel({ creator, running, error, diag, onRun }) {
+  const audit = creator?.offer?.internal_metadata?.ecosystem_audit || null;
+  const runAt = creator?.offer?.internal_metadata?.generation_timestamps?.ecosystem_audit || null;
+
+  const TIER_COLORS = {
+    lead_magnet: { bg: 'rgba(120,120,120,0.08)', border: 'rgba(120,120,120,0.25)', color: '#aaa' },
+    low_ticket:  { bg: 'rgba(59,130,246,0.08)', border: 'rgba(59,130,246,0.25)', color: '#3b82f6' },
+    mid_ticket:  { bg: 'rgba(168,85,247,0.08)', border: 'rgba(168,85,247,0.25)', color: '#a855f7' },
+    high_ticket: { bg: 'rgba(177,30,47,0.10)', border: 'rgba(177,30,47,0.35)', color: '#B11E2F' },
+    recurring:   { bg: 'rgba(31,138,76,0.08)', border: 'rgba(31,138,76,0.25)', color: '#1F8A4C' },
+    service:     { bg: 'rgba(234,179,8,0.08)', border: 'rgba(234,179,8,0.25)', color: '#eab308' },
+    physical_product: { bg: 'rgba(245,245,245,0.04)', border: 'rgba(245,245,245,0.12)', color: '#ccc' },
+  };
+  const ROLE_LABELS = {
+    entry_point:    'Entry point · warm-up funnel into existing high-ticket',
+    continuity:    'Continuity · keeps mid-ticket buyers paying monthly',
+    premium_upsell: 'Premium upsell · top of low-ticket catalog',
+    standalone:    'Standalone · first real offer in the funnel',
+  };
+
+  return (
+    <div style={{ marginBottom: 28, padding: "18px 20px", background: "rgba(255,255,255,0.015)", border: "1px solid rgba(255,255,255,0.05)", borderRadius: 10 }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+        <div>
+          <div style={{ fontSize: 9, fontWeight: 700, color: "#7A0E18", letterSpacing: "0.16em", textTransform: "uppercase", marginBottom: 4 }}>● Phase 1 · Internal</div>
+          <h3 style={{ fontSize: 14, fontWeight: 600, margin: 0, color: "#f5f5f5" }}>Ecosystem Audit</h3>
+          <p style={{ fontSize: 11, color: "#555", margin: "4px 0 0" }}>
+            Maps existing products + decides the strategic role of the community in the funnel. Operator-only — never shown to the creator.
+          </p>
+        </div>
+        <button
+          onClick={onRun}
+          disabled={running}
+          style={{
+            padding: "8px 16px",
+            borderRadius: 6,
+            border: "1px solid rgba(122,14,24,0.4)",
+            background: running ? "rgba(255,255,255,0.02)" : "rgba(122,14,24,0.08)",
+            color: running ? "#555" : "#B11E2F",
+            fontSize: 11,
+            fontWeight: 600,
+            cursor: running ? "wait" : "pointer",
+            fontFamily: "inherit",
+            whiteSpace: "nowrap",
+          }}
+        >
+          {running ? "A correr audit..." : audit ? "↻ Re-run audit" : "Run audit"}
+        </button>
+      </div>
+
+      {error && (
+        <div style={{ padding: "10px 14px", borderRadius: 6, background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.25)", color: "#ef4444", fontSize: 11, marginBottom: 12, whiteSpace: "pre-wrap" }}>{error}</div>
+      )}
+      {diag && !running && (
+        <div style={{ fontSize: 10, color: "#444", marginBottom: 12, fontFamily: "'JetBrains Mono', ui-monospace, monospace" }}>
+          {diag.seed_urls} seed urls · {diag.aggregators_resolved} aggregators resolved · {diag.final_urls_inspected} urls inspected · {diag.retries} retries
+        </div>
+      )}
+
+      {!audit && !running && (
+        <div style={{ padding: "20px 16px", textAlign: "center", color: "#444", fontSize: 12, border: "1px dashed rgba(255,255,255,0.06)", borderRadius: 6 }}>
+          No audit yet. Click <strong style={{ color: "#888" }}>Run audit</strong> to inspect the creator's product ecosystem (~60-90s, uses web_search).
+        </div>
+      )}
+
+      {audit && (
+        <div>
+          {/* Strategic role + completeness header */}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: 14, marginBottom: 16, padding: "14px 16px", background: "#0a0a0a", borderRadius: 8, border: "1px solid rgba(255,255,255,0.04)" }}>
+            <div>
+              <div style={{ fontSize: 9, fontWeight: 700, color: "#7A0E18", letterSpacing: "0.16em", textTransform: "uppercase", marginBottom: 6 }}>Strategic role</div>
+              <div style={{ fontSize: 14, fontWeight: 700, color: "#f5f5f5", marginBottom: 4 }}>{ROLE_LABELS[audit.strategic_role] || audit.strategic_role}</div>
+              <p style={{ fontSize: 12, color: "#888", margin: 0, lineHeight: 1.55 }}>{audit.strategic_role_reasoning}</p>
+            </div>
+            <div style={{ textAlign: "right" }}>
+              <div style={{ fontSize: 9, fontWeight: 700, color: "#555", letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 4 }}>Completeness</div>
+              <div style={{ fontSize: 28, fontWeight: 700, color: "#f5f5f5", lineHeight: 1, letterSpacing: "-0.02em" }}>{audit.ecosystem_map?.ecosystem_completeness_score ?? 0}</div>
+              <div style={{ fontSize: 9, color: "#444", marginTop: 2 }}>/ 100</div>
+            </div>
+          </div>
+
+          {/* Tier flags */}
+          <div style={{ display: "flex", gap: 8, marginBottom: 14, flexWrap: "wrap" }}>
+            {[
+              { k: 'has_high_ticket', label: 'High-ticket' },
+              { k: 'has_mid_ticket', label: 'Mid-ticket' },
+              { k: 'has_recurring', label: 'Recurring' },
+            ].map(({ k, label }) => {
+              const on = !!audit.ecosystem_map?.[k];
+              return (
+                <span key={k} style={{
+                  fontSize: 10, fontWeight: 600, padding: "4px 10px", borderRadius: 4,
+                  background: on ? "rgba(34,197,94,0.08)" : "rgba(255,255,255,0.02)",
+                  color: on ? "#22c55e" : "#444",
+                  border: `1px solid ${on ? "rgba(34,197,94,0.25)" : "rgba(255,255,255,0.04)"}`,
+                }}>{on ? "✓" : "○"} {label}</span>
+              );
+            })}
+          </div>
+
+          {/* Products found */}
+          <div style={{ marginBottom: 14 }}>
+            <div style={{ fontSize: 9, fontWeight: 700, color: "#666", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 8 }}>Products found · {audit.ecosystem_map?.products_found?.length || 0}</div>
+            {(audit.ecosystem_map?.products_found || []).length === 0 ? (
+              <div style={{ fontSize: 11, color: "#444", padding: "12px 14px", background: "#0a0a0a", borderRadius: 6, border: "1px dashed rgba(255,255,255,0.04)" }}>No public products found.</div>
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                {audit.ecosystem_map.products_found.map((p, i) => {
+                  const tc = TIER_COLORS[p.tier] || TIER_COLORS.physical_product;
+                  return (
+                    <div key={i} style={{ padding: "12px 14px", background: "#0a0a0a", borderRadius: 6, border: "1px solid rgba(255,255,255,0.04)" }}>
+                      <div style={{ display: "flex", alignItems: "baseline", gap: 10, marginBottom: 4 }}>
+                        <span style={{ fontSize: 13, fontWeight: 600, color: "#f5f5f5" }}>{p.name}</span>
+                        <span style={{ fontSize: 9, fontWeight: 700, padding: "2px 8px", borderRadius: 3, background: tc.bg, color: tc.color, border: `1px solid ${tc.border}`, textTransform: "uppercase", letterSpacing: "0.06em" }}>{p.tier.replace('_', ' ')}</span>
+                        <span style={{ fontSize: 10, color: "#666" }}>· {p.format}</span>
+                        <span style={{ marginLeft: "auto", fontSize: 11, fontWeight: 700, color: p.price_eur != null ? "#f5f5f5" : "#555" }}>{p.price_eur != null ? `€${p.price_eur}` : 'No public price'}</span>
+                      </div>
+                      <p style={{ fontSize: 11, color: "#888", margin: 0, lineHeight: 1.55 }}>{p.transformation_offered}</p>
+                      <a href={p.url} target="_blank" rel="noopener noreferrer" style={{ fontSize: 10, color: "#7A0E18", textDecoration: "none", marginTop: 4, display: "inline-block", wordBreak: "break-all" }}>{p.url}</a>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* Cannibalization */}
+          {(audit.cannibalization_constraints || []).length > 0 && (
+            <div style={{ marginBottom: 14 }}>
+              <div style={{ fontSize: 9, fontWeight: 700, color: "#eab308", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 8 }}>Cannibalization constraints · {audit.cannibalization_constraints.length}</div>
+              <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 4 }}>
+                {audit.cannibalization_constraints.map((c, i) => (
+                  <li key={i} style={{ fontSize: 12, color: "#ccc", lineHeight: 1.55, paddingLeft: 14, position: "relative" }}>
+                    <span style={{ position: "absolute", left: 0, color: "#eab308" }}>!</span>
+                    {c}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {/* Synergies */}
+          {(audit.synergy_opportunities || []).length > 0 && (
+            <div>
+              <div style={{ fontSize: 9, fontWeight: 700, color: "#22c55e", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 8 }}>Synergy opportunities · {audit.synergy_opportunities.length}</div>
+              <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 4 }}>
+                {audit.synergy_opportunities.map((s, i) => (
+                  <li key={i} style={{ fontSize: 12, color: "#ccc", lineHeight: 1.55, paddingLeft: 14, position: "relative" }}>
+                    <span style={{ position: "absolute", left: 0, color: "#22c55e" }}>+</span>
+                    {s}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {runAt && (
+            <div style={{ fontSize: 10, color: "#333", marginTop: 14, paddingTop: 10, borderTop: "1px solid rgba(255,255,255,0.04)" }}>
+              Last run: {new Date(runAt).toLocaleString("pt-PT")}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
   );
 }
