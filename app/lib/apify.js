@@ -137,8 +137,11 @@ export async function scrapeInstagram(username) {
     followerFollowingRatio: following > 0 ? (followers / following).toFixed(1) : '0',
     botScore,
     relatedProfiles: related,
-    recentPosts: posts.slice(0, 12).map(post => ({
-      caption: (post.caption || '').slice(0, 200),
+    // Capture up to 30 captions (whatever Apify actually returned, capped).
+    // Used downstream by the Phase 2 archetype classifier — it needs breadth
+    // of caption signal to classify content patterns reliably.
+    recentPosts: posts.slice(0, 30).map(post => ({
+      caption: (post.caption || '').slice(0, 240),
       likes: post.likesCount || post.likes || 0,
       comments: post.commentsCount || post.comments || 0,
       timestamp: post.timestamp || '',

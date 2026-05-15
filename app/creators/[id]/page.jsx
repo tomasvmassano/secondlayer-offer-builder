@@ -120,6 +120,10 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
   const [auditRunning, setAuditRunning] = useState(false);
   const [auditError, setAuditError] = useState(null);
   const [auditDiag, setAuditDiag] = useState(null);
+  // Phase 2 — Archetype + Fame Tier. Same internal-only treatment.
+  const [archetypeRunning, setArchetypeRunning] = useState(false);
+  const [archetypeError, setArchetypeError] = useState(null);
+  const [archetypeDiag, setArchetypeDiag] = useState(null);
   const nameRef = useRef(null);
 
   // DM Writer state
@@ -642,6 +646,43 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
       setAuditRunning(false);
     }
   }, [creator, auditRunning]);
+
+  // ── Phase 2 · Archetype + Fame Tier ──
+  // Classifies the creator into one of 6 archetypes and assesses fame tier
+  // (external recognition signals, not follower count). Stays in
+  // internal_metadata — the creator NEVER sees their archetype label.
+  const runArchetype = useCallback(async () => {
+    if (!creator?.id || archetypeRunning) return;
+    setArchetypeRunning(true);
+    setArchetypeError(null);
+    try {
+      const r = await fetch(`/api/creators/${creator.id}/archetype`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+      });
+      const data = await r.json();
+      if (!r.ok) {
+        const detail = data.errors?.length ? '\n\n' + data.errors.join('\n') : '';
+        throw new Error((data.error || 'Archetype classification failed') + detail);
+      }
+      setArchetypeDiag(data._diagnostics || null);
+      setCreator(prev => prev ? ({
+        ...prev,
+        offer: {
+          ...(prev.offer || {}),
+          internal_metadata: {
+            ...((prev.offer || {}).internal_metadata || {}),
+            archetype_classification: data.archetype_classification,
+          },
+        },
+      }) : prev);
+    } catch (err) {
+      setArchetypeError(err.message || 'Unknown error');
+    } finally {
+      setArchetypeRunning(false);
+    }
+  }, [creator, archetypeRunning]);
 
   // Re-parse button — re-runs parseOutput on existing offer.raw without burning a new API call.
   // Useful when parser improves and stale parsed data needs refresh. Refreshes
@@ -1468,6 +1509,16 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
             diag={auditDiag}
             onRun={runEcosystemAudit}
           />
+          {/* Phase 2 · Archetype + Fame Tier. Internal-only. Sits directly under
+              the Ecosystem panel so the operator can scan strategic role +
+              archetype + fame as a triad before deciding offer direction. */}
+          <ArchetypePanel
+            creator={creator}
+            running={archetypeRunning}
+            error={archetypeError}
+            diag={archetypeDiag}
+            onRun={runArchetype}
+          />
           {!creator.offer && !offerLoading && (() => {
             const sec = OFFER_STEPS[offerStep] || OFFER_STEPS[0];
             return (
@@ -2082,6 +2133,162 @@ function EcosystemAuditPanel({ creator, running, error, diag, onRun }) {
 
           {runAt && (
             <div style={{ fontSize: 10, color: "#333", marginTop: 14, paddingTop: 10, borderTop: "1px solid rgba(255,255,255,0.04)" }}>
+              Last run: {new Date(runAt).toLocaleString("pt-PT")}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────
+// Phase 2 · Archetype + Fame Tier viewer (internal use only).
+//
+// Reads from creator.offer.internal_metadata.archetype_classification.
+// NEVER renders to the creator — operator-only insight that biases the
+// downstream offer playbook (Checkpoint 1 of the wizard).
+// ─────────────────────────────────────────────────────────────────
+
+function ArchetypePanel({ creator, running, error, diag, onRun }) {
+  const c = creator?.offer?.internal_metadata?.archetype_classification || null;
+  const runAt = creator?.offer?.internal_metadata?.generation_timestamps?.archetype_classification || null;
+
+  const ARCHETYPE_LABELS = {
+    expert_educator: 'Expert / Educator',
+    performer_practitioner: 'Performer / Practitioner',
+    coach_transformation: 'Coach / Transformation',
+    personality_entertainer: 'Personality / Entertainer',
+    curator_aggregator: 'Curator / Aggregator',
+    builder_operator: 'Builder / Operator',
+  };
+  const ARCHETYPE_DESC = {
+    expert_educator: 'Teaches concrete knowledge — frameworks, lessons, how-tos.',
+    performer_practitioner: 'Does the craft in public — process, skill, output.',
+    coach_transformation: 'Sells measurable personal change — before/after.',
+    personality_entertainer: 'Audience follows for the person, not the topic.',
+    curator_aggregator: 'Trusted filter / taste — picks, reviews, finds.',
+    builder_operator: 'Builds in public — revenue, ops, behind-the-scenes.',
+  };
+  const FAME_LABELS = {
+    micro: 'Micro · known only to direct followers',
+    niche_recognized: 'Niche-recognized · known inside their professional niche',
+    cross_niche_recognized: 'Cross-niche · mainstream press / national TV / book',
+    celebrity: 'Celebrity · household name',
+  };
+
+  // Confidence color: green ≥85, yellow 70-84, amber 50-69, red <50.
+  const confColor = (n) => {
+    if (n == null) return '#444';
+    if (n >= 85) return '#22c55e';
+    if (n >= 70) return '#3b82f6';
+    if (n >= 50) return '#eab308';
+    return '#ef4444';
+  };
+  const ambiguous = c && typeof c.primary_confidence === 'number' && c.primary_confidence < 70;
+
+  return (
+    <div style={{ marginBottom: 28, padding: "18px 20px", background: "rgba(255,255,255,0.015)", border: "1px solid rgba(255,255,255,0.05)", borderRadius: 10 }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+        <div>
+          <div style={{ fontSize: 9, fontWeight: 700, color: "#7A0E18", letterSpacing: "0.16em", textTransform: "uppercase", marginBottom: 4 }}>● Phase 2 · Internal</div>
+          <h3 style={{ fontSize: 14, fontWeight: 600, margin: 0, color: "#f5f5f5" }}>Archetype + Fame Tier</h3>
+          <p style={{ fontSize: 11, color: "#555", margin: "4px 0 0" }}>
+            Classifies the creator into 1 of 6 archetypes + assesses fame outside their direct audience. Operator-only.
+          </p>
+        </div>
+        <button
+          onClick={onRun}
+          disabled={running}
+          style={{
+            padding: "8px 16px",
+            borderRadius: 6,
+            border: "1px solid rgba(122,14,24,0.4)",
+            background: running ? "rgba(255,255,255,0.02)" : "rgba(122,14,24,0.08)",
+            color: running ? "#555" : "#B11E2F",
+            fontSize: 11,
+            fontWeight: 600,
+            cursor: running ? "wait" : "pointer",
+            fontFamily: "inherit",
+            whiteSpace: "nowrap",
+          }}
+        >
+          {running ? "A classificar..." : c ? "↻ Re-run" : "Run classifier"}
+        </button>
+      </div>
+
+      {error && (
+        <div style={{ padding: "10px 14px", borderRadius: 6, background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.25)", color: "#ef4444", fontSize: 11, marginBottom: 12, whiteSpace: "pre-wrap" }}>{error}</div>
+      )}
+      {diag && !running && (
+        <div style={{ fontSize: 10, color: "#444", marginBottom: 12, fontFamily: "'JetBrains Mono', ui-monospace, monospace" }}>
+          {diag.captions_available} captions analysed · ecosystem audit {diag.ecosystem_audit_used ? 'used' : 'not yet run'} · {diag.retries} retries
+        </div>
+      )}
+
+      {!c && !running && (
+        <div style={{ padding: "20px 16px", textAlign: "center", color: "#444", fontSize: 12, border: "1px dashed rgba(255,255,255,0.06)", borderRadius: 6 }}>
+          No archetype yet. Click <strong style={{ color: "#888" }}>Run classifier</strong> (~30-60s, uses web_search for fame signals).
+        </div>
+      )}
+
+      {c && (
+        <div>
+          {/* Ambiguity banner — surfaces when the model wasn't sure */}
+          {ambiguous && (
+            <div style={{ padding: "10px 14px", borderRadius: 6, background: "rgba(234,179,8,0.06)", border: "1px solid rgba(234,179,8,0.25)", color: "#eab308", fontSize: 11, marginBottom: 12 }}>
+              ⚠ <strong>Ambiguous classification</strong> · primary confidence below 70%. Both options shown — operator decides at Checkpoint 1.
+            </div>
+          )}
+
+          {/* Primary + Secondary archetype cards */}
+          <div style={{ display: "grid", gridTemplateColumns: c.secondary_archetype ? "1fr 1fr" : "1fr", gap: 12, marginBottom: 16 }}>
+            <div style={{ padding: "14px 16px", background: "#0a0a0a", borderRadius: 8, border: `1px solid ${ambiguous ? 'rgba(234,179,8,0.25)' : 'rgba(122,14,24,0.35)'}` }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+                <div style={{ fontSize: 9, fontWeight: 700, color: ambiguous ? '#eab308' : '#7A0E18', letterSpacing: "0.16em", textTransform: "uppercase" }}>Primary</div>
+                <div style={{ fontSize: 16, fontWeight: 700, color: confColor(c.primary_confidence) }}>{c.primary_confidence}%</div>
+              </div>
+              <div style={{ fontSize: 15, fontWeight: 700, color: "#f5f5f5", marginBottom: 4 }}>{ARCHETYPE_LABELS[c.primary_archetype] || c.primary_archetype}</div>
+              <p style={{ fontSize: 11, color: "#888", margin: 0, lineHeight: 1.5 }}>{ARCHETYPE_DESC[c.primary_archetype]}</p>
+            </div>
+            {c.secondary_archetype && (
+              <div style={{ padding: "14px 16px", background: "#0a0a0a", borderRadius: 8, border: "1px solid rgba(255,255,255,0.06)" }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+                  <div style={{ fontSize: 9, fontWeight: 700, color: "#666", letterSpacing: "0.16em", textTransform: "uppercase" }}>Secondary</div>
+                  <div style={{ fontSize: 16, fontWeight: 700, color: confColor(c.secondary_confidence) }}>{c.secondary_confidence}%</div>
+                </div>
+                <div style={{ fontSize: 15, fontWeight: 600, color: "#ccc", marginBottom: 4 }}>{ARCHETYPE_LABELS[c.secondary_archetype] || c.secondary_archetype}</div>
+                <p style={{ fontSize: 11, color: "#666", margin: 0, lineHeight: 1.5 }}>{ARCHETYPE_DESC[c.secondary_archetype]}</p>
+              </div>
+            )}
+          </div>
+
+          {/* Classification evidence */}
+          {(c.classification_evidence || []).length > 0 && (
+            <div style={{ marginBottom: 16 }}>
+              <div style={{ fontSize: 9, fontWeight: 700, color: "#666", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 8 }}>Evidence · {c.classification_evidence.length}</div>
+              <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 4 }}>
+                {c.classification_evidence.map((e, i) => (
+                  <li key={i} style={{ fontSize: 12, color: "#ccc", lineHeight: 1.55, paddingLeft: 14, position: "relative" }}>
+                    <span style={{ position: "absolute", left: 0, color: "#7A0E18" }}>›</span>{e}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {/* Fame tier */}
+          <div style={{ padding: "12px 14px", background: "#0a0a0a", borderRadius: 8, border: "1px solid rgba(255,255,255,0.04)", marginBottom: runAt ? 14 : 0 }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+              <div style={{ fontSize: 9, fontWeight: 700, color: "#3b82f6", letterSpacing: "0.16em", textTransform: "uppercase" }}>Fame Tier</div>
+              <span style={{ fontSize: 10, fontWeight: 700, padding: "3px 9px", borderRadius: 3, background: "rgba(59,130,246,0.08)", color: "#3b82f6", border: "1px solid rgba(59,130,246,0.25)", textTransform: "uppercase", letterSpacing: "0.08em" }}>{(c.fame_tier || '').replace('_', ' ')}</span>
+            </div>
+            <div style={{ fontSize: 12, color: "#ccc", marginBottom: 6 }}>{FAME_LABELS[c.fame_tier] || c.fame_tier}</div>
+            <p style={{ fontSize: 11, color: "#888", margin: 0, lineHeight: 1.55 }}>{c.fame_tier_evidence}</p>
+          </div>
+
+          {runAt && (
+            <div style={{ fontSize: 10, color: "#333", paddingTop: 10, borderTop: "1px solid rgba(255,255,255,0.04)" }}>
               Last run: {new Date(runAt).toLocaleString("pt-PT")}
             </div>
           )}
