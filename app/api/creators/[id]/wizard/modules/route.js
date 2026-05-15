@@ -66,6 +66,8 @@ export async function POST(_request, { params }) {
         client_facing_output: {
           ...existingClient,
           modules: result.data.modules,
+          weekly_formats: result.data.weekly_formats,
+          library: result.data.library,
         },
         internal_metadata: {
           ...existingMeta,
@@ -80,8 +82,12 @@ export async function POST(_request, { params }) {
     return NextResponse.json({
       ok: true,
       modules: result.data.modules,
+      weekly_formats: result.data.weekly_formats,
+      library: result.data.library,
       _diagnostics: {
         modules_returned: result.data.modules.length,
+        weekly_formats_returned: result.data.weekly_formats.length,
+        library_returned: result.data.library.length,
         usable_elements_input: result.usableElementsInput,
         warnings: result.warnings,
         retries: result.retries,
@@ -98,7 +104,17 @@ export async function POST(_request, { params }) {
 
 export const MODULES_SYSTEM_PROMPT = `# MODULES — Phase 4 · Checkpoint 3
 
-You are designing the curriculum (4-8 modules) that delivers the transformation locked in CP2. Every module must be:
+You are designing THREE coordinated arrays that together describe the offer's content surface:
+
+  - modules         : 4-8 curriculum modules — the offer's spine
+  - weekly_formats  : 3-5 day-of-week live cadence entries
+  - library         : 3-6 on-demand catalogue entries
+
+modules is the source of truth. weekly_formats + library are the
+operational face — what the creator's audience SEES as the rhythm of
+consumption. They derive from modules + the locked CP2 weekly_rhythm.
+
+## REQUIREMENTS FOR EACH MODULE
 
 1. **Grounded in a concrete creator advantage** — each module's linked_unique_elements array MUST include the index of at least one Phase 3 uniqueness element (those marked usable_in_modules=true preferred). If a module can't cite a specific creator advantage, it's generic and shouldn't exist.
 
@@ -131,6 +147,43 @@ The Phase 3 uniqueness elements you'll receive are indexed 0..N-1. Each module's
 
 It is REQUIRED that ≥1 index appears per module. Modules that cite 2-3 elements are stronger.
 
+## WEEKLY_FORMATS (3-5 entries)
+
+The day-of-week live cadence the audience SEES every week. Each entry:
+  - day  : short label, ≤10 chars. Use the LANGUAGE of the creator's audience
+           (PT: SEG/TER/QUA/QUI/SEX/SAB/DOM; EN: MON/TUE/WED/THU/FRI/SAT/SUN)
+  - name : the recurring format's name (≤60 chars), creator-voiced. Pull
+           directly from a module with format=live_call or community_ritual.
+           If CP2's weekly_rhythm has named beats ("Mon · Decision Documentation Thread"),
+           reuse those names.
+  - type : short kind label (≤40 chars). Examples: "Live 45m", "Thread",
+           "Workshop", "AMA", "Group call", "Community channel"
+  - desc : ≤140 chars, one-line description of what happens on this day
+
+Coverage rules:
+  - Cover the full weekly_rhythm from CP2 — if CP2 has 4 weekly beats,
+    weekly_formats should reflect all 4 (or consolidate where it makes sense)
+  - At least one live entry per week (otherwise the offer doesn't feel alive)
+  - Don't invent days that conflict with CP2's weekly_rhythm
+
+## LIBRARY (3-6 entries)
+
+The on-demand catalogue — recorded modules, docs, templates the audience
+gets when they join. Each entry:
+  - name   : module name (≤60 chars)
+  - format : short kind label (≤40 chars). Examples: "Masterclass",
+             "Mini-course", "PDF Playbook", "Template Pack", "Audio Program",
+             "Calculator", "Notion Doc"
+  - desc   : ≤140 chars, theme + outcome
+
+Sourcing:
+  - Primary source: modules with format ∈ [recorded_module, doc, template]
+  - Secondary source: Phase 1 ecosystem_audit.products_found — existing
+    assets the creator can drop in as part of the library (e.g. "Stride
+    System Template" if it exists in their bio links)
+  - DO include diverse formats — a library of 5 PDFs is boring; mix
+    masterclasses, templates, audio, etc.
+
 ## OUTPUT
 
 Return ONLY a JSON object. No prose, no markdown.
@@ -146,6 +199,14 @@ Return ONLY a JSON object. No prose, no markdown.
       "delivery_cadence": "string (≤80 chars, when/how often)"
     },
     ...
+  ],
+  "weekly_formats": [
+    { "day": "MON", "name": "...", "type": "Live 45m", "desc": "..." },
+    ...   // 3-5 entries
+  ],
+  "library": [
+    { "name": "...", "format": "Masterclass", "desc": "..." },
+    ...   // 3-6 entries
   ]
 }`;
 
@@ -201,7 +262,13 @@ ${elementsBlock || '  (none)'}
 
 CREATOR VOICE: ${uniqueness?.creator_voice_summary || '(none)'}`;
 
-  const userMessage = `Design 4-8 modules for this offer. Every module must link to ≥1 Phase 3 uniqueness element by its [index] number.
+  const langHint = creator?.primaryLanguage === 'en'
+    ? `LANGUAGE: Creator's primary audience language is ENGLISH. Use English day labels (MON/TUE/WED/THU/FRI/SAT/SUN) for weekly_formats.day. All other strings in English.`
+    : `LANGUAGE: Creator's primary audience language is PORTUGUESE. Use Portuguese day labels (SEG/TER/QUA/QUI/SEX/SÁB/DOM) for weekly_formats.day. All other strings in Portuguese.`;
+
+  const userMessage = `Design 4-8 modules for this offer plus the weekly_formats + library arrays that derive from them. Every module must link to ≥1 Phase 3 uniqueness element by its [index] number.
+
+${langHint}
 
 ${frameBlock}
 
@@ -220,7 +287,7 @@ ${extraInstruction ? `## ADDITIONAL INSTRUCTION\n${extraInstruction}\n\n` : ''}R
     headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01' },
     body: JSON.stringify({
       model: 'claude-sonnet-4-20250514',
-      max_tokens: 4500,
+      max_tokens: 5500,
       system: MODULES_SYSTEM_PROMPT,
       messages: [{ role: 'user', content: userMessage }],
     }),
@@ -245,7 +312,7 @@ ${extraInstruction ? `## ADDITIONAL INSTRUCTION\n${extraInstruction}\n\n` : ''}R
         headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01' },
         body: JSON.stringify({
           model: 'claude-sonnet-4-20250514',
-          max_tokens: 4500,
+          max_tokens: 5500,
           system: MODULES_SYSTEM_PROMPT,
           messages: [
             { role: 'user', content: userMessage },

@@ -3474,6 +3474,8 @@ function ModulesPanel({ creator, setCreator, running, setRunning, error, setErro
   const cp3Locked = !!progress.locked[3];
   const runAt = meta.generation_timestamps?.modules || null;
   const modules = Array.isArray(client.modules) ? client.modules : [];
+  const weeklyFormats = Array.isArray(client.weekly_formats) ? client.weekly_formats : [];
+  const library = Array.isArray(client.library) ? client.library : [];
   const hasOutput = modules.length > 0;
   const uniqueElements = meta.uniqueness_extraction?.unique_elements || [];
 
@@ -3519,6 +3521,8 @@ function ModulesPanel({ creator, setCreator, running, setRunning, error, setErro
           client_facing_output: {
             ...((prev.offer || {}).client_facing_output || {}),
             modules: data.modules,
+            weekly_formats: data.weekly_formats,
+            library: data.library,
           },
         },
       }) : prev);
@@ -3862,6 +3866,49 @@ function ModulesPanel({ creator, setCreator, running, setRunning, error, setErro
               </div>
             );
           })}
+        </div>
+      )}
+
+      {/* ── Weekly formats + Library — the operational face of the modules.
+          Renders as two-column block under the modules list. These are what
+          the pitch deck system slide consumes (slide 5). */}
+      {hasOutput && (weeklyFormats.length > 0 || library.length > 0) && (
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginTop: 14 }}>
+          {weeklyFormats.length > 0 && (
+            <div style={{ padding: "14px 16px", background: "#0a0a0a", borderRadius: 8, border: "1px solid rgba(255,255,255,0.05)" }}>
+              <div style={{ fontSize: 9, fontWeight: 700, color: "#666", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 10 }}>Weekly Cadence · {weeklyFormats.length}</div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                {weeklyFormats.map((w, i) => (
+                  <div key={i} style={{ display: "grid", gridTemplateColumns: "44px 1fr", gap: 10, alignItems: "start" }}>
+                    <div style={{ fontSize: 10, fontWeight: 700, color: "#B11E2F", fontFamily: "'JetBrains Mono', ui-monospace, monospace", letterSpacing: "0.06em", paddingTop: 2 }}>{w.day}</div>
+                    <div>
+                      <div style={{ fontSize: 12, color: "#f5f5f5", fontWeight: 600, marginBottom: 2 }}>
+                        {w.name}
+                        <span style={{ color: "#666", fontWeight: 500, marginLeft: 6, fontSize: 10, letterSpacing: "0.04em" }}>· {w.type}</span>
+                      </div>
+                      <div style={{ fontSize: 10.5, color: "#888", lineHeight: 1.5 }}>{w.desc}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+          {library.length > 0 && (
+            <div style={{ padding: "14px 16px", background: "#0a0a0a", borderRadius: 8, border: "1px solid rgba(255,255,255,0.05)" }}>
+              <div style={{ fontSize: 9, fontWeight: 700, color: "#666", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 10 }}>Library · {library.length}</div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                {library.map((l, i) => (
+                  <div key={i}>
+                    <div style={{ fontSize: 12, color: "#f5f5f5", fontWeight: 600, marginBottom: 2 }}>
+                      {l.name}
+                      <span style={{ color: "#3b82f6", fontWeight: 500, marginLeft: 6, fontSize: 10, letterSpacing: "0.04em" }}>· {l.format}</span>
+                    </div>
+                    <div style={{ fontSize: 10.5, color: "#888", lineHeight: 1.5 }}>{l.desc}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       )}
 
