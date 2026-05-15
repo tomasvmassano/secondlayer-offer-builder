@@ -139,6 +139,13 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
   const [coreOfferRunning, setCoreOfferRunning] = useState(false);
   const [coreOfferError, setCoreOfferError] = useState(null);
   const [coreOfferDiag, setCoreOfferDiag] = useState(null);
+  // Phase 4 · CP3 — Modules. 4-8 curriculum modules. Single-module regen
+  // supported — `regenBusy` maps index → in-flight bool so the operator can
+  // regenerate one card without blocking others (in principle; we serialise
+  // for now to keep state simple).
+  const [modulesRunning, setModulesRunning] = useState(false);
+  const [modulesError, setModulesError] = useState(null);
+  const [modulesDiag, setModulesDiag] = useState(null);
   const nameRef = useRef(null);
 
   // DM Writer state
@@ -1622,6 +1629,20 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
                   setError={setCoreOfferError}
                   diag={coreOfferDiag}
                   setDiag={setCoreOfferDiag}
+                />
+              );
+            }
+            if (prog.current === 3) {
+              return (
+                <ModulesPanel
+                  creator={creator}
+                  setCreator={setCreator}
+                  running={modulesRunning}
+                  setRunning={setModulesRunning}
+                  error={modulesError}
+                  setError={setModulesError}
+                  diag={modulesDiag}
+                  setDiag={setModulesDiag}
                 />
               );
             }
@@ -3394,6 +3415,431 @@ function CoreOfferPanel({ creator, setCreator, running, setRunning, error, setEr
                 <> · Locked: {new Date(progress.locked[2]).toLocaleString("pt-PT")}</>
               )}
             </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ──────────────────────────────────────────────────────────────────────────
+// Phase 4 · CP3 — Modules Panel
+// ──────────────────────────────────────────────────────────────────────────
+// Renders 4-8 module cards. Each card shows:
+//   - format badge (live_call / recorded_module / doc / template / community_ritual)
+//   - name (creator voice)
+//   - description
+//   - transformation_delivered
+//   - linked uniqueness elements (the defensibility chain — what proves
+//     this module isn't a generic course module)
+//   - delivery_cadence
+//   - per-card Regen button with optional operator instruction
+//
+// Single-module regen is the key UX feature here: you don't have to nuke
+// the whole set when one card is wrong.
+function ModulesPanel({ creator, setCreator, running, setRunning, error, setError, diag, setDiag }) {
+  const meta = creator?.offer?.internal_metadata || {};
+  const client = creator?.offer?.client_facing_output || {};
+  const progress = readCheckpointProgress(meta);
+  const cp3Locked = !!progress.locked[3];
+  const runAt = meta.generation_timestamps?.modules || null;
+  const modules = Array.isArray(client.modules) ? client.modules : [];
+  const hasOutput = modules.length > 0;
+  const uniqueElements = meta.uniqueness_extraction?.unique_elements || [];
+
+  const [lockBusy, setLockBusy] = useState(false);
+  // Per-index regen tracking: { [index]: { busy, instruction, showInput } }
+  const [regenState, setRegenState] = useState({});
+
+  const FORMAT_LABELS = {
+    live_call: 'Live Call',
+    recorded_module: 'Recorded',
+    doc: 'Playbook',
+    template: 'Template',
+    community_ritual: 'Ritual',
+  };
+  const FORMAT_COLORS = {
+    live_call: '#ef4444',
+    recorded_module: '#3b82f6',
+    doc: '#a855f7',
+    template: '#14b8a6',
+    community_ritual: '#eab308',
+  };
+
+  const generate = async () => {
+    if (!creator?.id || running) return;
+    setRunning(true);
+    setError(null);
+    try {
+      const r = await fetch(`/api/creators/${creator.id}/wizard/modules`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+      });
+      const data = await r.json();
+      if (!r.ok) {
+        const detail = data.errors?.length ? '\n\n' + data.errors.join('\n') : '';
+        throw new Error((data.error || 'Modules failed') + detail);
+      }
+      setDiag(data._diagnostics || null);
+      setCreator(prev => prev ? ({
+        ...prev,
+        offer: {
+          ...(prev.offer || {}),
+          client_facing_output: {
+            ...((prev.offer || {}).client_facing_output || {}),
+            modules: data.modules,
+          },
+        },
+      }) : prev);
+    } catch (e) {
+      setError(e.message || 'Unknown error');
+    } finally {
+      setRunning(false);
+    }
+  };
+
+  const regenSingle = async (ix) => {
+    if (!creator?.id) return;
+    if ((regenState[ix] || {}).busy) return;
+    setRegenState(s => ({ ...s, [ix]: { ...(s[ix] || {}), busy: true } }));
+    setError(null);
+    try {
+      const r = await fetch(`/api/creators/${creator.id}/wizard/modules/${ix}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ instruction: (regenState[ix] || {}).instruction || null }),
+      });
+      const data = await r.json();
+      if (!r.ok) {
+        const detail = data.errors?.length ? '\n\n' + data.errors.join('\n') : '';
+        throw new Error((data.error || 'Single-module regen failed') + detail);
+      }
+      setCreator(prev => prev ? ({
+        ...prev,
+        offer: {
+          ...(prev.offer || {}),
+          client_facing_output: {
+            ...((prev.offer || {}).client_facing_output || {}),
+            modules: (() => {
+              const m = ((prev.offer || {}).client_facing_output?.modules || []).slice();
+              m[ix] = data.module;
+              return m;
+            })(),
+          },
+        },
+      }) : prev);
+      // Collapse the instruction input on success
+      setRegenState(s => ({ ...s, [ix]: { busy: false, instruction: '', showInput: false } }));
+    } catch (e) {
+      setError(e.message || 'Regen failed');
+      setRegenState(s => ({ ...s, [ix]: { ...(s[ix] || {}), busy: false } }));
+    }
+  };
+
+  const lockAndContinue = async () => {
+    if (!creator?.id || lockBusy) return;
+    setLockBusy(true);
+    setError(null);
+    try {
+      const r = await fetch(`/api/creators/${creator.id}/wizard/checkpoint/3/lock`, { method: 'POST' });
+      const data = await r.json();
+      if (!r.ok) throw new Error(data.error || 'Lock failed');
+      setCreator(prev => prev ? ({
+        ...prev,
+        offer: {
+          ...(prev.offer || {}),
+          internal_metadata: {
+            ...((prev.offer || {}).internal_metadata || {}),
+            checkpoint_progress: data.checkpoint_progress,
+          },
+        },
+      }) : prev);
+    } catch (e) {
+      setError(e.message || 'Lock failed');
+    } finally {
+      setLockBusy(false);
+    }
+  };
+
+  const unlock = async () => {
+    if (!creator?.id || lockBusy) return;
+    if (!confirm('Unlock CP3? This will cascade-clear CP4 + CP5 if any have been generated.')) return;
+    setLockBusy(true);
+    setError(null);
+    try {
+      const r = await fetch(`/api/creators/${creator.id}/wizard/checkpoint/3/unlock`, { method: 'POST' });
+      const data = await r.json();
+      if (!r.ok) throw new Error(data.error || 'Unlock failed');
+      setCreator(prev => prev ? ({
+        ...prev,
+        offer: {
+          ...(prev.offer || {}),
+          internal_metadata: {
+            ...((prev.offer || {}).internal_metadata || {}),
+            checkpoint_progress: data.checkpoint_progress,
+          },
+        },
+      }) : prev);
+    } catch (e) {
+      setError(e.message || 'Unlock failed');
+    } finally {
+      setLockBusy(false);
+    }
+  };
+
+  return (
+    <div style={{ marginBottom: 28, padding: "18px 20px", background: "rgba(255,255,255,0.015)", border: `1px solid ${cp3Locked ? 'rgba(34,197,94,0.18)' : 'rgba(255,255,255,0.05)'}`, borderRadius: 10 }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14, flexWrap: "wrap", gap: 12 }}>
+        <div>
+          <div style={{ fontSize: 9, fontWeight: 700, color: cp3Locked ? "#22c55e" : "#7A0E18", letterSpacing: "0.16em", textTransform: "uppercase", marginBottom: 4 }}>
+            ● Checkpoint 3 of 5 · {cp3Locked ? 'Locked ✓' : 'In Progress'}
+          </div>
+          <h3 style={{ fontSize: 14, fontWeight: 600, margin: 0, color: "#f5f5f5" }}>Modules</h3>
+          <p style={{ fontSize: 11, color: "#555", margin: "4px 0 0" }}>
+            4-8 curriculum modules. Each must cite ≥1 Phase 3 uniqueness element — the defensibility chain that proves the offer isn't generic.
+          </p>
+        </div>
+        <div style={{ display: "flex", gap: 8 }}>
+          {!cp3Locked && !hasOutput && (
+            <button
+              onClick={generate}
+              disabled={running || lockBusy}
+              style={{
+                padding: "8px 16px",
+                borderRadius: 6,
+                border: "1px solid rgba(122,14,24,0.4)",
+                background: running ? "rgba(255,255,255,0.02)" : "rgba(122,14,24,0.08)",
+                color: running ? "#555" : "#B11E2F",
+                fontSize: 11,
+                fontWeight: 600,
+                cursor: running ? "wait" : "pointer",
+                fontFamily: "inherit",
+                whiteSpace: "nowrap",
+              }}
+            >
+              {running ? "A gerar..." : "Generate (~$0.05-0.08)"}
+            </button>
+          )}
+          {!cp3Locked && hasOutput && (
+            <>
+              <button
+                onClick={generate}
+                disabled={running || lockBusy}
+                style={{
+                  padding: "8px 16px",
+                  borderRadius: 6,
+                  border: "1px solid rgba(122,14,24,0.4)",
+                  background: running ? "rgba(255,255,255,0.02)" : "rgba(122,14,24,0.08)",
+                  color: running ? "#555" : "#B11E2F",
+                  fontSize: 11,
+                  fontWeight: 600,
+                  cursor: running ? "wait" : "pointer",
+                  fontFamily: "inherit",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {running ? "..." : "↻ Re-run all"}
+              </button>
+              <button
+                onClick={lockAndContinue}
+                disabled={running || lockBusy}
+                style={{
+                  padding: "8px 16px",
+                  borderRadius: 6,
+                  border: "1px solid rgba(34,197,94,0.45)",
+                  background: "rgba(34,197,94,0.08)",
+                  color: "#22c55e",
+                  fontSize: 11,
+                  fontWeight: 600,
+                  cursor: lockBusy ? "wait" : "pointer",
+                  fontFamily: "inherit",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {lockBusy ? "..." : "✓ Approve & continue →"}
+              </button>
+            </>
+          )}
+          {cp3Locked && (
+            <button
+              onClick={unlock}
+              disabled={lockBusy}
+              style={{
+                padding: "8px 16px",
+                borderRadius: 6,
+                border: "1px solid rgba(234,179,8,0.4)",
+                background: "rgba(234,179,8,0.06)",
+                color: "#eab308",
+                fontSize: 11,
+                fontWeight: 600,
+                cursor: lockBusy ? "wait" : "pointer",
+                fontFamily: "inherit",
+                whiteSpace: "nowrap",
+              }}
+            >
+              {lockBusy ? "..." : "↺ Unlock"}
+            </button>
+          )}
+        </div>
+      </div>
+
+      {error && (
+        <div style={{ padding: "10px 14px", borderRadius: 6, background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.25)", color: "#ef4444", fontSize: 11, marginBottom: 12, whiteSpace: "pre-wrap" }}>{error}</div>
+      )}
+      {diag && !running && (
+        <div style={{ fontSize: 10, color: "#444", marginBottom: 12, fontFamily: "'JetBrains Mono', ui-monospace, monospace" }}>
+          {diag.modules_returned} modules · {diag.usable_elements_input} elements available · {diag.retries} retries
+          {Array.isArray(diag.warnings) && diag.warnings.length > 0 && (
+            <div style={{ marginTop: 6, color: "#eab308" }}>⚠ {diag.warnings.join(' · ')}</div>
+          )}
+        </div>
+      )}
+
+      {!hasOutput && !running && (
+        <div style={{ padding: "20px 16px", textAlign: "center", color: "#444", fontSize: 12, border: "1px dashed rgba(255,255,255,0.06)", borderRadius: 6 }}>
+          No modules yet. Click <strong style={{ color: "#888" }}>Generate</strong> (~20-40s, Sonnet only).
+        </div>
+      )}
+
+      {hasOutput && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          {modules.map((m, ix) => {
+            const fmtColor = FORMAT_COLORS[m.format] || '#666';
+            const linkedEls = (m.linked_unique_elements || []).map(i => uniqueElements[i]).filter(Boolean);
+            const rState = regenState[ix] || {};
+            return (
+              <div
+                key={ix}
+                style={{
+                  padding: "14px 16px",
+                  background: "#0a0a0a",
+                  borderRadius: 8,
+                  border: `1px solid ${rState.busy ? 'rgba(122,14,24,0.5)' : 'rgba(255,255,255,0.05)'}`,
+                  opacity: rState.busy ? 0.6 : 1,
+                  transition: 'opacity 0.2s',
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8, flexWrap: "wrap" }}>
+                  <span style={{ fontSize: 10, fontWeight: 700, color: "#444", fontFamily: "'JetBrains Mono', ui-monospace, monospace", minWidth: 22 }}>#{ix + 1}</span>
+                  <span
+                    style={{
+                      fontSize: 9,
+                      fontWeight: 700,
+                      padding: "3px 8px",
+                      borderRadius: 3,
+                      background: `${fmtColor}15`,
+                      color: fmtColor,
+                      border: `1px solid ${fmtColor}40`,
+                      textTransform: "uppercase",
+                      letterSpacing: "0.08em",
+                    }}
+                  >
+                    {FORMAT_LABELS[m.format] || m.format}
+                  </span>
+                  <span style={{ fontSize: 10, color: "#666", letterSpacing: "0.02em", fontFamily: "'JetBrains Mono', ui-monospace, monospace" }}>
+                    {m.delivery_cadence}
+                  </span>
+                  {!cp3Locked && (
+                    <button
+                      onClick={() => setRegenState(s => ({ ...s, [ix]: { ...(s[ix] || {}), showInput: !rState.showInput } }))}
+                      disabled={rState.busy}
+                      style={{
+                        marginLeft: "auto",
+                        padding: "3px 10px",
+                        borderRadius: 4,
+                        border: "1px solid rgba(255,255,255,0.08)",
+                        background: rState.showInput ? "rgba(122,14,24,0.1)" : "transparent",
+                        color: rState.busy ? "#555" : "#888",
+                        fontSize: 10,
+                        fontWeight: 600,
+                        cursor: rState.busy ? "wait" : "pointer",
+                        fontFamily: "inherit",
+                      }}
+                    >
+                      {rState.busy ? "..." : rState.showInput ? "Cancel" : "↻ Regen"}
+                    </button>
+                  )}
+                </div>
+
+                {/* Per-module regen input (collapses by default) */}
+                {!cp3Locked && rState.showInput && (
+                  <div style={{ marginBottom: 10, display: "flex", gap: 6 }}>
+                    <input
+                      type="text"
+                      placeholder="Optional: 'make this a live ritual', 'more technical', etc."
+                      value={rState.instruction || ''}
+                      onChange={(e) => setRegenState(s => ({ ...s, [ix]: { ...(s[ix] || {}), instruction: e.target.value } }))}
+                      disabled={rState.busy}
+                      style={{
+                        flex: 1,
+                        padding: "6px 10px",
+                        background: "rgba(255,255,255,0.02)",
+                        border: "1px solid rgba(255,255,255,0.08)",
+                        borderRadius: 4,
+                        color: "#ddd",
+                        fontSize: 11,
+                        fontFamily: "inherit",
+                      }}
+                    />
+                    <button
+                      onClick={() => regenSingle(ix)}
+                      disabled={rState.busy}
+                      style={{
+                        padding: "6px 14px",
+                        borderRadius: 4,
+                        border: "1px solid rgba(122,14,24,0.45)",
+                        background: rState.busy ? "rgba(255,255,255,0.02)" : "rgba(122,14,24,0.08)",
+                        color: rState.busy ? "#555" : "#B11E2F",
+                        fontSize: 10,
+                        fontWeight: 700,
+                        cursor: rState.busy ? "wait" : "pointer",
+                        fontFamily: "inherit",
+                      }}
+                    >
+                      {rState.busy ? "..." : "Regen"}
+                    </button>
+                  </div>
+                )}
+
+                <div style={{ fontSize: 14, fontWeight: 600, color: "#f5f5f5", marginBottom: 6, lineHeight: 1.4 }}>{m.name}</div>
+                <div style={{ fontSize: 12, color: "#bbb", lineHeight: 1.55, marginBottom: 10 }}>{m.description}</div>
+                <div style={{ padding: "8px 12px", background: "rgba(34,197,94,0.04)", borderRadius: 6, border: "1px solid rgba(34,197,94,0.18)", marginBottom: 10 }}>
+                  <div style={{ fontSize: 9, fontWeight: 700, color: "#22c55e", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 4 }}>Delivers</div>
+                  <div style={{ fontSize: 11.5, color: "#ddd", lineHeight: 1.5 }}>{m.transformation_delivered}</div>
+                </div>
+
+                {/* Linked uniqueness elements — the defensibility chain */}
+                {linkedEls.length > 0 && (
+                  <div>
+                    <div style={{ fontSize: 9, fontWeight: 700, color: "#666", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 6 }}>
+                      Grounded in {linkedEls.length} uniqueness element{linkedEls.length === 1 ? '' : 's'}
+                    </div>
+                    <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 3 }}>
+                      {(m.linked_unique_elements || []).map((eix, j) => {
+                        const el = uniqueElements[eix];
+                        if (!el) return null;
+                        return (
+                          <li key={j} style={{ fontSize: 10.5, color: "#888", lineHeight: 1.5, paddingLeft: 18, position: "relative" }}>
+                            <span style={{ position: "absolute", left: 0, color: "#444", fontFamily: "'JetBrains Mono', ui-monospace, monospace", fontWeight: 700 }}>[{eix}]</span>
+                            {el.element}
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {runAt && hasOutput && (
+        <div style={{ fontSize: 10, color: "#333", paddingTop: 12, marginTop: 12, borderTop: "1px solid rgba(255,255,255,0.04)" }}>
+          Last batch run: {new Date(runAt).toLocaleString("pt-PT")}
+          {cp3Locked && progress.locked[3] && (
+            <> · Locked: {new Date(progress.locked[3]).toLocaleString("pt-PT")}</>
           )}
         </div>
       )}
