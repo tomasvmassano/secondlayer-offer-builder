@@ -151,6 +151,11 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
   const [stackRunning, setStackRunning] = useState(false);
   const [stackError, setStackError] = useState(null);
   const [stackDiag, setStackDiag] = useState(null);
+  // Phase 4 · CP5 — Sales Copy (final assembly).
+  // differentiator_section, hero, objections, faq, social_proof_line.
+  const [copyRunning, setCopyRunning] = useState(false);
+  const [copyError, setCopyError] = useState(null);
+  const [copyDiag, setCopyDiag] = useState(null);
   const nameRef = useRef(null);
 
   // DM Writer state
@@ -1662,6 +1667,20 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
                   setError={setStackError}
                   diag={stackDiag}
                   setDiag={setStackDiag}
+                />
+              );
+            }
+            if (prog.current === 5) {
+              return (
+                <SalesCopyPanel
+                  creator={creator}
+                  setCreator={setCreator}
+                  running={copyRunning}
+                  setRunning={setCopyRunning}
+                  error={copyError}
+                  setError={setCopyError}
+                  diag={copyDiag}
+                  setDiag={setCopyDiag}
                 />
               );
             }
@@ -4172,6 +4191,320 @@ function ValueStackPanel({ creator, setCreator, running, setRunning, error, setE
           Last run: {new Date(runAt).toLocaleString("pt-PT")}
           {cp4Locked && progress.locked[4] && (
             <> · Locked: {new Date(progress.locked[4]).toLocaleString("pt-PT")}</>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ──────────────────────────────────────────────────────────────────────────
+// Phase 4 · CP5 — Sales Copy Panel (final assembly)
+// ──────────────────────────────────────────────────────────────────────────
+// After CP5 locks, the offer is "complete" — pitch deck, launch-plan PDF
+// and PPTX export should all render from client_facing_output exclusively.
+//
+// Renders five blocks:
+//   - Differentiator section (the "Why this isn't another X" prose)
+//   - Strategic context line (single italic header line)
+//   - Hero card (headline + sub + CTA button)
+//   - Objections list (4-6 expandable cards)
+//   - FAQ list (8-12 items)
+//   - Social proof line (only if fame_tier ≥ niche_recognized)
+function SalesCopyPanel({ creator, setCreator, running, setRunning, error, setError, diag, setDiag }) {
+  const meta = creator?.offer?.internal_metadata || {};
+  const client = creator?.offer?.client_facing_output || {};
+  const progress = readCheckpointProgress(meta);
+  const cp5Locked = !!progress.locked[5];
+  const runAt = meta.generation_timestamps?.sales_copy || null;
+  const [lockBusy, setLockBusy] = useState(false);
+
+  const hero = client.hero;
+  const diff = client.differentiator_section;
+  const ctx = client.strategic_context_line;
+  const objections = Array.isArray(client.objections) ? client.objections : [];
+  const faq = Array.isArray(client.faq) ? client.faq : [];
+  const social = client.social_proof_line;
+  const hasOutput = !!(diff && hero && objections.length > 0 && faq.length > 0);
+
+  const generate = async () => {
+    if (!creator?.id || running) return;
+    setRunning(true);
+    setError(null);
+    try {
+      const r = await fetch(`/api/creators/${creator.id}/wizard/sales-copy`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+      });
+      const data = await r.json();
+      if (!r.ok) {
+        const detail = data.errors?.length ? '\n\n' + data.errors.join('\n') : '';
+        throw new Error((data.error || 'Sales copy failed') + detail);
+      }
+      setDiag(data._diagnostics || null);
+      setCreator(prev => prev ? ({
+        ...prev,
+        offer: {
+          ...(prev.offer || {}),
+          client_facing_output: {
+            ...((prev.offer || {}).client_facing_output || {}),
+            differentiator_section: data.differentiator_section,
+            strategic_context_line: data.strategic_context_line,
+            hero: data.hero,
+            objections: data.objections,
+            faq: data.faq,
+            social_proof_line: data.social_proof_line,
+          },
+        },
+      }) : prev);
+    } catch (e) {
+      setError(e.message || 'Unknown error');
+    } finally {
+      setRunning(false);
+    }
+  };
+
+  const lock = async () => {
+    if (!creator?.id || lockBusy) return;
+    setLockBusy(true);
+    setError(null);
+    try {
+      const r = await fetch(`/api/creators/${creator.id}/wizard/checkpoint/5/lock`, { method: 'POST' });
+      const data = await r.json();
+      if (!r.ok) throw new Error(data.error || 'Lock failed');
+      setCreator(prev => prev ? ({
+        ...prev,
+        offer: {
+          ...(prev.offer || {}),
+          internal_metadata: {
+            ...((prev.offer || {}).internal_metadata || {}),
+            checkpoint_progress: data.checkpoint_progress,
+          },
+        },
+      }) : prev);
+    } catch (e) {
+      setError(e.message || 'Lock failed');
+    } finally {
+      setLockBusy(false);
+    }
+  };
+
+  const unlock = async () => {
+    if (!creator?.id || lockBusy) return;
+    if (!confirm('Unlock CP5? The offer will be marked incomplete until you re-lock.')) return;
+    setLockBusy(true);
+    setError(null);
+    try {
+      const r = await fetch(`/api/creators/${creator.id}/wizard/checkpoint/5/unlock`, { method: 'POST' });
+      const data = await r.json();
+      if (!r.ok) throw new Error(data.error || 'Unlock failed');
+      setCreator(prev => prev ? ({
+        ...prev,
+        offer: {
+          ...(prev.offer || {}),
+          internal_metadata: {
+            ...((prev.offer || {}).internal_metadata || {}),
+            checkpoint_progress: data.checkpoint_progress,
+          },
+        },
+      }) : prev);
+    } catch (e) {
+      setError(e.message || 'Unlock failed');
+    } finally {
+      setLockBusy(false);
+    }
+  };
+
+  return (
+    <div style={{ marginBottom: 28, padding: "18px 20px", background: "rgba(255,255,255,0.015)", border: `1px solid ${cp5Locked ? 'rgba(34,197,94,0.18)' : 'rgba(255,255,255,0.05)'}`, borderRadius: 10 }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14, flexWrap: "wrap", gap: 12 }}>
+        <div>
+          <div style={{ fontSize: 9, fontWeight: 700, color: cp5Locked ? "#22c55e" : "#7A0E18", letterSpacing: "0.16em", textTransform: "uppercase", marginBottom: 4 }}>
+            ● Checkpoint 5 of 5 · {cp5Locked ? 'Locked ✓ · Offer Complete' : 'In Progress'}
+          </div>
+          <h3 style={{ fontSize: 14, fontWeight: 600, margin: 0, color: "#f5f5f5" }}>Sales Copy · Final Assembly</h3>
+          <p style={{ fontSize: 11, color: "#555", margin: "4px 0 0" }}>
+            Differentiator, hero, objections, FAQ, social proof. After this locks, the pitch deck + launch-plan PDF render from client_facing_output.
+          </p>
+        </div>
+        <div style={{ display: "flex", gap: 8 }}>
+          {!cp5Locked && (
+            <button
+              onClick={generate}
+              disabled={running || lockBusy}
+              style={{
+                padding: "8px 16px",
+                borderRadius: 6,
+                border: "1px solid rgba(122,14,24,0.4)",
+                background: running ? "rgba(255,255,255,0.02)" : "rgba(122,14,24,0.08)",
+                color: running ? "#555" : "#B11E2F",
+                fontSize: 11,
+                fontWeight: 600,
+                cursor: running ? "wait" : "pointer",
+                fontFamily: "inherit",
+                whiteSpace: "nowrap",
+              }}
+            >
+              {running ? "A gerar..." : hasOutput ? "↻ Re-run" : "Generate (~$0.10-0.15)"}
+            </button>
+          )}
+          {!cp5Locked && hasOutput && (
+            <button
+              onClick={lock}
+              disabled={running || lockBusy}
+              style={{
+                padding: "8px 16px",
+                borderRadius: 6,
+                border: "1px solid rgba(34,197,94,0.45)",
+                background: "rgba(34,197,94,0.08)",
+                color: "#22c55e",
+                fontSize: 11,
+                fontWeight: 600,
+                cursor: lockBusy ? "wait" : "pointer",
+                fontFamily: "inherit",
+                whiteSpace: "nowrap",
+              }}
+            >
+              {lockBusy ? "..." : "✓ Lock & finalise offer"}
+            </button>
+          )}
+          {cp5Locked && (
+            <button
+              onClick={unlock}
+              disabled={lockBusy}
+              style={{
+                padding: "8px 16px",
+                borderRadius: 6,
+                border: "1px solid rgba(234,179,8,0.4)",
+                background: "rgba(234,179,8,0.06)",
+                color: "#eab308",
+                fontSize: 11,
+                fontWeight: 600,
+                cursor: lockBusy ? "wait" : "pointer",
+                fontFamily: "inherit",
+                whiteSpace: "nowrap",
+              }}
+            >
+              {lockBusy ? "..." : "↺ Unlock"}
+            </button>
+          )}
+        </div>
+      </div>
+
+      {error && (
+        <div style={{ padding: "10px 14px", borderRadius: 6, background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.25)", color: "#ef4444", fontSize: 11, marginBottom: 12, whiteSpace: "pre-wrap" }}>{error}</div>
+      )}
+      {diag && !running && (
+        <div style={{ fontSize: 10, color: "#444", marginBottom: 12, fontFamily: "'JetBrains Mono', ui-monospace, monospace" }}>
+          fame tier: {diag.fame_tier || '—'} · objections: {diag.objections_returned} · faq: {diag.faq_returned} · {diag.retries} retries
+          {Array.isArray(diag.warnings) && diag.warnings.length > 0 && (
+            <div style={{ marginTop: 6, color: "#eab308" }}>⚠ {diag.warnings.join(' · ')}</div>
+          )}
+        </div>
+      )}
+
+      {!hasOutput && !running && (
+        <div style={{ padding: "20px 16px", textAlign: "center", color: "#444", fontSize: 12, border: "1px dashed rgba(255,255,255,0.06)", borderRadius: 6 }}>
+          No sales copy yet. Click <strong style={{ color: "#888" }}>Generate</strong> (~30-60s, Sonnet only, reads every previous CP).
+        </div>
+      )}
+
+      {hasOutput && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+          {/* ── Hero card */}
+          {hero && (
+            <div style={{ padding: "18px 20px", background: "#0a0a0a", borderRadius: 8, border: "1px solid rgba(122,14,24,0.25)" }}>
+              <div style={{ fontSize: 9, fontWeight: 700, color: "#7A0E18", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 8 }}>Hero</div>
+              <h2 style={{ fontSize: 24, fontWeight: 700, margin: "0 0 10px", color: "#f5f5f5", fontFamily: "'Instrument Serif', Georgia, serif", letterSpacing: "-0.02em", lineHeight: 1.2 }}>{hero.headline}</h2>
+              <p style={{ fontSize: 13, color: "#bbb", margin: "0 0 14px", lineHeight: 1.55 }}>{hero.sub}</p>
+              <button
+                disabled
+                style={{
+                  padding: "9px 22px",
+                  borderRadius: 6,
+                  border: "1px solid rgba(122,14,24,0.45)",
+                  background: "rgba(122,14,24,0.18)",
+                  color: "#B11E2F",
+                  fontSize: 11,
+                  fontWeight: 700,
+                  cursor: "default",
+                  fontFamily: "inherit",
+                  letterSpacing: "0.04em",
+                }}
+              >
+                {hero.cta}
+              </button>
+            </div>
+          )}
+
+          {/* ── Strategic context line */}
+          {ctx && (
+            <div style={{ padding: "10px 14px", background: "rgba(255,255,255,0.02)", borderRadius: 6, border: "1px solid rgba(255,255,255,0.04)" }}>
+              <div style={{ fontSize: 9, fontWeight: 700, color: "#666", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 4 }}>Strategic Context</div>
+              <p style={{ fontSize: 12, color: "#ccc", margin: 0, fontStyle: "italic", lineHeight: 1.55 }}>{ctx}</p>
+            </div>
+          )}
+
+          {/* ── Differentiator section */}
+          {diff && (
+            <div style={{ padding: "16px 18px", background: "rgba(122,14,24,0.04)", borderRadius: 8, border: "1px solid rgba(122,14,24,0.22)" }}>
+              <div style={{ fontSize: 9, fontWeight: 700, color: "#7A0E18", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 10 }}>Differentiator · Why This Isn't Another X</div>
+              <p style={{ fontSize: 13, color: "#ddd", margin: 0, lineHeight: 1.7, whiteSpace: "pre-line" }}>{diff}</p>
+            </div>
+          )}
+
+          {/* ── Social proof line (only if present) */}
+          {social && (
+            <div style={{ padding: "12px 14px", background: "rgba(59,130,246,0.05)", borderRadius: 6, border: "1px solid rgba(59,130,246,0.2)" }}>
+              <div style={{ fontSize: 9, fontWeight: 700, color: "#3b82f6", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 4 }}>Social Proof</div>
+              <p style={{ fontSize: 12, color: "#ccc", margin: 0, lineHeight: 1.55 }}>{social}</p>
+            </div>
+          )}
+
+          {/* ── Objections */}
+          {objections.length > 0 && (
+            <div style={{ padding: "16px 18px", background: "#0a0a0a", borderRadius: 8, border: "1px solid rgba(255,255,255,0.05)" }}>
+              <div style={{ fontSize: 9, fontWeight: 700, color: "#666", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 12 }}>Objections · {objections.length}</div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                {objections.map((o, i) => (
+                  <div key={i} style={{ padding: "10px 12px", background: "rgba(255,255,255,0.02)", borderRadius: 6, border: "1px solid rgba(255,255,255,0.04)" }}>
+                    <div style={{ fontSize: 12, color: "#ef4444", marginBottom: 6, lineHeight: 1.5, fontWeight: 600 }}>
+                      <span style={{ color: "#666", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", marginRight: 8, fontSize: 9 }}>Objection:</span>
+                      {o.objection}
+                    </div>
+                    <div style={{ fontSize: 12, color: "#ccc", lineHeight: 1.55 }}>
+                      <span style={{ color: "#22c55e", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", marginRight: 8, fontSize: 9 }}>Rebuttal:</span>
+                      {o.rebuttal}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* ── FAQ */}
+          {faq.length > 0 && (
+            <div style={{ padding: "16px 18px", background: "#0a0a0a", borderRadius: 8, border: "1px solid rgba(255,255,255,0.05)" }}>
+              <div style={{ fontSize: 9, fontWeight: 700, color: "#666", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 12 }}>FAQ · {faq.length}</div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                {faq.map((f, i) => (
+                  <div key={i} style={{ paddingBottom: 10, borderBottom: i === faq.length - 1 ? "none" : "1px solid rgba(255,255,255,0.04)" }}>
+                    <div style={{ fontSize: 12.5, color: "#f5f5f5", fontWeight: 600, marginBottom: 5, lineHeight: 1.45 }}>{f.q}</div>
+                    <div style={{ fontSize: 11.5, color: "#999", lineHeight: 1.6 }}>{f.a}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {runAt && hasOutput && (
+        <div style={{ fontSize: 10, color: "#333", paddingTop: 12, marginTop: 12, borderTop: "1px solid rgba(255,255,255,0.04)" }}>
+          Last run: {new Date(runAt).toLocaleString("pt-PT")}
+          {cp5Locked && progress.locked[5] && (
+            <> · Locked: {new Date(progress.locked[5]).toLocaleString("pt-PT")}</>
           )}
         </div>
       )}
