@@ -1670,20 +1670,12 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
                 />
               );
             }
-            if (prog.current === 5) {
-              return (
-                <SalesCopyPanel
-                  creator={creator}
-                  setCreator={setCreator}
-                  running={copyRunning}
-                  setRunning={setCopyRunning}
-                  error={copyError}
-                  setError={setCopyError}
-                  diag={copyDiag}
-                  setDiag={setCopyDiag}
-                />
-              );
-            }
+            // CP5 dispatch deliberately removed — see app/lib/offerSchema.js
+            // header note. SalesCopyPanel is preserved at the bottom of this
+            // file for the future launch-assets tool. If prog.current somehow
+            // lands at 5 (legacy creator), fall through to the stub which
+            // reads "Not yet implemented" — acceptable until cascade-unlock
+            // brings it back to 4.
             return <CheckpointStubPanel checkpoint={cp} />;
           })()}
 
@@ -4047,7 +4039,10 @@ function ValueStackPanel({ creator, setCreator, running, setRunning, error, setE
                 whiteSpace: "nowrap",
               }}
             >
-              {lockBusy ? "..." : "✓ Approve & continue →"}
+              {/* CP4 is now the last checkpoint in the pitch-the-creator flow.
+                  CP5 (audience-facing sales copy) is disconnected — comes back
+                  in the post-close launch-assets tool. */}
+              {lockBusy ? "..." : "✓ Lock & finalise offer"}
             </button>
           )}
           {cp4Locked && (

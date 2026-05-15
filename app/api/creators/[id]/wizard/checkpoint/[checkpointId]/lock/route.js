@@ -35,10 +35,11 @@ export async function POST(_request, { params }) {
     // its required output field.
     const REQUIRED_FIELDS_INTERNAL = { 1: 'strategic_frame' };
     const REQUIRED_FIELDS_CLIENT = {
-      2: 'central_promise',          // CP2 hasn't shipped yet — placeholder
-      3: 'modules',                  // CP3 hasn't shipped yet
-      4: 'value_stack',              // CP4 hasn't shipped yet
-      5: 'differentiator_section',   // CP5 hasn't shipped yet
+      2: 'central_promise',
+      3: 'modules',
+      4: 'value_stack',
+      // 5 intentionally omitted — sales-copy disconnected from the wizard.
+      // If you revive CP5, restore: 5: 'differentiator_section'
     };
     const internalKey = REQUIRED_FIELDS_INTERNAL[cpId];
     const clientKey = REQUIRED_FIELDS_CLIENT[cpId];

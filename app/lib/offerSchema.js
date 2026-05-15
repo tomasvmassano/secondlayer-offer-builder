@@ -2,10 +2,15 @@
  * Offer state schema — single source of truth for everything stored under
  * `creator.offer`. Built for the checkpoint-based generation flow.
  *
- * The hard rule: `internal_metadata` is for the system + operator only and
- * MUST NEVER appear in any artefact the creator sees (pitch deck, launch-plan
- * PDF, PPTX export). `client_facing_output` is the only thing rendered to
- * the creator.
+ * The rule: `internal_metadata` is the RAW operator-side data. By default
+ * it is not rendered to the creator. The pitch deck IS allowed to surface
+ * specific, operator-curated subsets (e.g. ecosystem_audit.products_found
+ * to demonstrate strategic understanding of the creator's existing funnel)
+ * — but those insertions are made deliberately at the slide-builder level,
+ * not from a "render everything in internal_metadata" pattern. Treat
+ * client_facing_output as the wizard's structured output and
+ * internal_metadata as an operator-only knowledge base that the slide
+ * builder is allowed to draw from sparingly.
  *
  *   creator.offer = {
  *     // Markdown blob from the LLM (kept so we can re-parse if the parser improves).
@@ -67,14 +72,21 @@
  *   }
  */
 
-// The 5 wizard checkpoints. Used for stepper UI, lock state, and the
+// The wizard checkpoints. Used for stepper UI, lock state, and the
 // downstream-cascade-invalidation logic in lockCheckpoint/unlockCheckpoint.
+//
+// CP5 (Sales Copy — differentiator section, hero, objections, FAQ,
+// social_proof_line) was disconnected: those outputs are AUDIENCE-facing
+// sales copy that the creator pushes AFTER closing the partnership with us.
+// Premature for the pitch-the-creator stage. The schema + endpoint + panel
+// stay in the codebase (app/lib/schemas/salesCopy.js, app/api/.../wizard/
+// sales-copy/route.js, SalesCopyPanel) so we can resurrect them when we
+// build the post-close "launch assets" tool.
 export const CHECKPOINTS = [
   { id: 1, key: 'strategic_frame',   name: 'Strategic Frame',  short: 'Frame'   },
   { id: 2, key: 'core_offer',        name: 'Core Offer',       short: 'Offer'   },
   { id: 3, key: 'modules',           name: 'Modules',          short: 'Modules' },
   { id: 4, key: 'value_stack',       name: 'Value Stack',      short: 'Stack'   },
-  { id: 5, key: 'sales_copy',        name: 'Sales Copy',       short: 'Copy'    },
 ];
 export const TOTAL_CHECKPOINTS = CHECKPOINTS.length;
 
@@ -297,11 +309,17 @@ export function unlockCheckpoint(internalMetadata, checkpointId) {
   // Internal metadata side:
   const INTERNAL_BY_CP = { 1: ['strategic_frame'] };
   // Client-facing side — each entry is the field name to reset to its empty value.
+  // CP3 now also produces weekly_formats + library (formerly CP2 fallbacks);
+  // unlocking CP3 clears them too. mechanism + sales-copy fields moved out of
+  // CP4/5 because CP5 is disconnected; they live in a quiet hold-zone in case
+  // the launch-assets tool revives them later.
   const CLIENT_BY_CP = {
-    2: ['central_promise', 'transformation', 'audience_fit', 'pricing_model', 'pricing_tier', 'target_price', 'community_name', 'name_candidates', 'platform', 'core_mechanic', 'weekly_rhythm', 'weekly_formats', 'library'],
-    3: ['modules'],
-    4: ['value_stack', 'pricing_tiers', 'unlocked_bonuses'],
-    5: ['differentiator_section', 'strategic_context_line', 'hero', 'objections', 'faq', 'social_proof_line', 'mechanism'],
+    2: ['central_promise', 'transformation', 'audience_fit', 'pricing_model', 'pricing_tier', 'target_price', 'community_name', 'name_candidates', 'platform', 'core_mechanic', 'weekly_rhythm'],
+    3: ['modules', 'weekly_formats', 'library'],
+    4: ['value_stack', 'pricing_tiers', 'unlocked_bonuses', 'mechanism'],
+    // 5 intentionally omitted — disconnected from the wizard. If sales-copy
+    // returns, restore: ['differentiator_section', 'strategic_context_line',
+    // 'hero', 'objections', 'faq', 'social_proof_line']
   };
 
   const internalClears = [];
