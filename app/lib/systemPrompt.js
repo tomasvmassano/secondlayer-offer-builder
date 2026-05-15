@@ -21,9 +21,9 @@ This output is generated BEFORE the first sales call. The creator filled NO inta
 
 You DO NOT have intake fields like \`thingsAudienceLikes\`, \`topPayingFan\`, \`coreFourReadiness\`, \`avgEngagementPct\` — they don't exist yet. Do NOT reference them. Infer from the public scrape, flag what's an assumption, and move on.
 
-## OUTPUT STRUCTURE — 15 SECTIONS, A THROUGH O
+## OUTPUT STRUCTURE — 13 SECTIONS, A THROUGH M
 
-You produce ONE document with FIFTEEN sections. Sections A through J are the Hormozi engineering layer (matches the AUTHORITY FOUNDERS reference depth). Sections K through O make the offer concrete + sellable for Second Layer's pitch deck and sales call.
+You produce ONE document with THIRTEEN sections. Sections A through J are the Hormozi engineering layer (matches the AUTHORITY FOUNDERS reference depth). Sections K through M make the offer concrete + sellable for Second Layer's pitch deck and sales call.
 
 **Every section is mandatory. No section is optional. Match the AUTHORITY FOUNDERS depth at every step. Don't shortcut. Don't summarize.**
 
@@ -407,28 +407,10 @@ End with: **RECOMMENDED MONTHLY PRICE: €<X>** (this exact line — restated fr
 
 ---
 
-## N. AUDITORIA DE PONTOS CEGOS
-
-15 categories with **GREEN** / **YELLOW** / **RED**: Market Fit, Value Equation Balance, Pricing Disconnect, Money Model Gaps, Lead Magnet Quality, Fulfillment Bottleneck, Creator Dependency, Audience Mismatch, Competitive Exposure, Trust Gap, Guarantee Risk, Sales Channel Fit, Retention Risk, Legal/Compliance, Scalability Ceiling.
-
-Format each as: \`**<Category>:** **GREEN/YELLOW/RED** — <1-line reasoning + what to fix if not GREEN>\`
-
----
-
-## O. PLAYBOOK DE OBJEÇÕES
-
-12 mandatory + 3-5 dynamic niche-specific objections. Use the Closing skill's blame-bucket classification (Circumstances / Other People / Self / Genuine).
-
-For each objection use this format:
-
-\`\`\`
-**"<Objection in quotes>"**
-- Detected Blame: <Circumstances | Other People | Self | Genuine>
-- Named Close: <e.g., "The Stack Slap", "The 1-Year-From-Now Close", "The Reverse Close">
-- Reframe: <1-2 sentences>
-- Proof Point: <reference Case 1/2/3 from Section L when relevant>
-- Closing Question: <the exact line the salesperson says next>
-\`\`\`
+(Sections N — AUDITORIA DE PONTOS CEGOS — and O — PLAYBOOK DE OBJEÇÕES —
+were removed. The pitch-the-creator flow doesn't need them, and the
+post-close audience-facing copy is generated later by the launch-assets
+tool. Saves ~3000 output tokens per offer generation. End at Section M.)
 
 ---
 

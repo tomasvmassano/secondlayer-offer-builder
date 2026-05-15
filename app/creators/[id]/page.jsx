@@ -803,10 +803,16 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
   let dealScore = null;
   try { if (creator) dealScore = calculateDealScore(creator); } catch (e) { console.error(e); }
 
+  // Top-level view switch on the Oferta tab.
+  //  - "offer"   → Phase 1-3 panels + Phase 4 wizard + Grand Slam Offer markdown
+  //  - "revenue" → just the Revenue Projector (reads price from CP2.target_price
+  //                first, then falls back to the legacy `RECOMMENDED MONTHLY PRICE`
+  //                match, then to the niche DB)
+  // Blind Spot Audit + Objection Playbook were removed — the audience-facing
+  // sales copy that those tabs used to render belongs in the post-close
+  // launch-assets tool. The system prompt was also trimmed (sections N+O dropped).
   const OFFER_TABS = [
     { key: "offer", label: "Grand Slam Offer" },
-    { key: "blindspots", label: "Blind Spot Audit" },
-    { key: "objections", label: "Objection Playbook" },
     { key: "revenue", label: "Revenue Projector" },
   ];
 
@@ -1569,6 +1575,31 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
 
         {/* ════════════ OFERTA TAB ════════════ */}
         {tab === "oferta" && (<>
+          {/* Top-level view switch — sits ABOVE the wizard panels so the
+              operator can flip between the offer-generation flow and the
+              revenue projection without scrolling. Blind Spot Audit +
+              Objection Playbook were removed in this rev; system prompt
+              also trimmed to drop sections N+O. */}
+          <div style={{ display: "flex", gap: 0, borderBottom: "1px solid rgba(255,255,255,0.06)", marginBottom: 24 }}>
+            {OFFER_TABS.map(t => (
+              <button key={t.key} onClick={() => setOfferTab(t.key)} style={{
+                padding: "10px 18px",
+                border: "none",
+                background: "transparent",
+                color: offerTab === t.key ? "#f5f5f5" : "#444",
+                fontSize: 11,
+                fontWeight: 600,
+                cursor: "pointer",
+                fontFamily: "inherit",
+                textTransform: "uppercase",
+                letterSpacing: "0.06em",
+                borderBottom: offerTab === t.key ? "2px solid #7A0E18" : "2px solid transparent",
+                marginBottom: -1,
+              }}>{t.label}</button>
+            ))}
+          </div>
+
+          {offerTab === "offer" && (<>
           {/* ── Phase 1 · Ecosystem Audit ──
               Internal-only analysis of the creator's existing product
               ecosystem. Renders ABOVE the offer flow so the operator can map
@@ -1732,215 +1763,215 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
           {offerError && <div style={{ padding: "10px 14px", borderRadius: 6, background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.2)", color: "#ef4444", fontSize: 11, marginBottom: 16 }}>{offerError}</div>}
           {creator.offer && (
             <div>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-                <div style={{ display: "flex", gap: 0, borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
-                  {OFFER_TABS.map(t => <button key={t.key} onClick={() => setOfferTab(t.key)} style={{
-                    padding: "8px 14px", border: "none", background: "transparent", color: offerTab === t.key ? "#f5f5f5" : "#444",
-                    fontSize: 10, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase",
-                    borderBottom: offerTab === t.key ? "2px solid #7A0E18" : "2px solid transparent", marginBottom: -1,
-                  }}>{t.label}</button>)}
-                </div>
-                <div style={{ display: "flex", gap: 6 }}>
-                  <button onClick={reparseOffer} title="Re-extract structured fields (Community/Sistema/Valor) from the existing offer text — no new AI call. Use this if the Pitch Deck slides show placeholders." style={{ padding: "6px 14px", borderRadius: 6, border: "1px solid rgba(34,197,94,0.3)", background: "rgba(34,197,94,0.08)", color: "#22c55e", fontSize: 10, cursor: "pointer", fontFamily: "inherit" }}>↻ Re-parse</button>
-                  <button onClick={() => { setOfferForm({ _filled: false }); setOfferStep(0); patchCreator({ offer: null }); }} style={{ padding: "6px 14px", borderRadius: 6, border: "1px solid rgba(255,255,255,0.08)", background: "transparent", color: "#888", fontSize: 10, cursor: "pointer", fontFamily: "inherit" }}>Regenerar</button>
-                </div>
+              {/* Inner tab strip removed — moved to the top of the Oferta tab.
+                  Action buttons stay here, right-aligned. */}
+              <div style={{ display: "flex", justifyContent: "flex-end", alignItems: "center", marginBottom: 16, gap: 6 }}>
+                <button onClick={reparseOffer} title="Re-extract structured fields (Community/Sistema/Valor) from the existing offer text — no new AI call. Use this if the Pitch Deck slides show placeholders." style={{ padding: "6px 14px", borderRadius: 6, border: "1px solid rgba(34,197,94,0.3)", background: "rgba(34,197,94,0.08)", color: "#22c55e", fontSize: 10, cursor: "pointer", fontFamily: "inherit" }}>↻ Re-parse</button>
+                <button onClick={() => { setOfferForm({ _filled: false }); setOfferStep(0); patchCreator({ offer: null }); }} style={{ padding: "6px 14px", borderRadius: 6, border: "1px solid rgba(255,255,255,0.08)", background: "transparent", color: "#888", fontSize: 10, cursor: "pointer", fontFamily: "inherit" }}>Regenerar</button>
               </div>
               <div style={{ padding: 20, background: "#141414", border: "1px solid rgba(255,255,255,0.04)", borderRadius: 10, minHeight: 200 }}>
-                {offerTab === "revenue" ? (() => {
-                  // Audience: use creator.revenueAudience override if set, else scraped data
-                  const scrapedF = igData?.followers || tkData?.followers || ytData?.subscribers || 10000;
-                  const primaryF = creator.revenueAudience ?? scrapedF;
-                  const nichePrice = dealScore?.nicheData?.mid || 39;
-                  const rawPriceMatch = creator.offer?.raw?.match(/RECOMMENDED MONTHLY PRICE:\s*€?\s*(\d+)/i);
-                  const defaultPrice = rawPriceMatch ? parseInt(rawPriceMatch[1], 10) : nichePrice;
-                  const price = revenuePrice ?? creator.revenuePrice ?? defaultPrice;
-                  const fmt = (n) => "€" + Math.round(n).toLocaleString();
-
-                  // Engagement rate
-                  const rawEng = creator.engagement || igData?.engagementRate || "";
-                  const defaultEng = parseFloat(String(rawEng).replace(/[^0-9.]/g, "")) || 2.0;
-                  const eng = engagementRate ?? creator.revenueEngagement ?? defaultEng;
-
-                  // Use SHARED revenue lib — same scenarios + same formula as the Pitch deck
-                  const scenarios = [
-                    { ...REVENUE_SCENARIOS.conservador, label: "Conservative", color: "#888", border: "rgba(255,255,255,0.04)" },
-                    { ...REVENUE_SCENARIOS.moderado, label: "Moderate", color: "#f5f5f5", border: "rgba(122,14,24,0.2)" },
-                    { ...REVENUE_SCENARIOS.agressivo, label: "Aggressive", color: "#7A0E18", border: "rgba(255,255,255,0.04)" },
-                  ];
-
-                  const calcSteady = (s) => sharedCalcMRR({ audience: primaryF, price, engagementRate: eng, scenario: s });
-                  const calcClients = (s) => calcSteady(s).activeMembers;
-                  const engMultiplier = sharedCalcMRR({ audience: primaryF, price, engagementRate: eng, scenario: scenarios[1] }).engMultiplier;
-
-                  const modScenario = scenarios[1];
-                  const modSteady = calcSteady(modScenario);
-                  const modClients = modSteady.activeMembers;
-                  const modRevenue = modSteady.monthlyRevenue;
-
-                  return (
-                    <div>
-                      <div style={{ textAlign: "center", padding: "28px 20px 24px", marginBottom: 20, background: "#0a0a0a", borderRadius: 8, border: "1px solid rgba(255,255,255,0.04)" }}>
-                        <div style={{ fontSize: 9, fontWeight: 600, color: "#555", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 4 }}>Estimated Monthly Recurring Revenue</div>
-                        <div style={{ fontSize: 42, fontWeight: 200, color: "#7A0E18", letterSpacing: "-0.03em", lineHeight: 1.1 }}>{fmt(modRevenue)}</div>
-                        <div style={{ fontSize: 11, color: "#444", marginTop: 6 }}>/mês · {modClients} active clients · {creator.primaryPlatform} {primaryF.toLocaleString()} followers · {eng.toFixed(2)}% eng</div>
-                      </div>
-
-                      {/* Inputs: Price, Engagement, Commission */}
-                      <div style={{ padding: "16px 18px", marginBottom: 20, background: "#0a0a0a", borderRadius: 8, border: "1px solid rgba(255,255,255,0.04)" }}>
-                        {/* Monthly Price */}
-                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
-                          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                            <span style={{ fontSize: 10, fontWeight: 600, color: "#555", letterSpacing: "0.05em", textTransform: "uppercase" }}>Monthly Price</span>
-                            {price === defaultPrice && <span style={{ fontSize: 8, fontWeight: 600, color: "#7A0E18", letterSpacing: "0.06em", padding: "1px 5px", borderRadius: 2, border: "1px solid rgba(122,14,24,0.2)", textTransform: "uppercase" }}>Recommended</span>}
-                          </div>
-                          <span style={{ fontSize: 14, fontWeight: 700, color: "#f5f5f5" }}>{fmt(price)}</span>
-                        </div>
-                        <input type="range" min={5} max={497} step={1} value={price}
-                          onChange={e => setRevenuePrice(Number(e.target.value))}
-                          style={{ width: "100%", height: 4, appearance: "none", background: "#222", borderRadius: 2, outline: "none", cursor: "pointer", accentColor: "#7A0E18" }} />
-
-                        {/* Engagement Rate */}
-                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 14, marginBottom: 6 }}>
-                          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                            <span style={{ fontSize: 10, fontWeight: 600, color: "#555", letterSpacing: "0.05em", textTransform: "uppercase" }}>Engagement Rate</span>
-                            {eng === defaultEng && <span style={{ fontSize: 8, fontWeight: 600, color: "#7A0E18", letterSpacing: "0.06em", padding: "1px 5px", borderRadius: 2, border: "1px solid rgba(122,14,24,0.2)", textTransform: "uppercase" }}>From Profile</span>}
-                          </div>
-                          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                            <span style={{ fontSize: 14, fontWeight: 700, color: "#f5f5f5" }}>{eng.toFixed(2)}%</span>
-                            <span style={{ fontSize: 9, color: engMultiplier >= 1.5 ? "#22c55e" : engMultiplier >= 0.8 ? "#eab308" : "#ef4444", fontWeight: 600 }}>{engMultiplier.toFixed(2)}x</span>
-                          </div>
-                        </div>
-                        <input type="range" min={0.1} max={15} step={0.1} value={eng}
-                          onChange={e => setEngagementRate(Number(e.target.value))}
-                          style={{ width: "100%", height: 4, appearance: "none", background: "#222", borderRadius: 2, outline: "none", cursor: "pointer", accentColor: "#7A0E18" }} />
-
-                        {/* SL Commission */}
-                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 14, marginBottom: 6 }}>
-                          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                            <span style={{ fontSize: 10, fontWeight: 600, color: "#555", letterSpacing: "0.05em", textTransform: "uppercase" }}>SL Commission</span>
-                            {revenueCommission === 30 && <span style={{ fontSize: 8, fontWeight: 600, color: "#7A0E18", letterSpacing: "0.06em", padding: "1px 5px", borderRadius: 2, border: "1px solid rgba(122,14,24,0.2)", textTransform: "uppercase" }}>Default</span>}
-                          </div>
-                          <span style={{ fontSize: 14, fontWeight: 700, color: "#f5f5f5" }}>{revenueCommission}%</span>
-                        </div>
-                        <input type="range" min={15} max={50} step={1} value={revenueCommission}
-                          onChange={e => setRevenueCommission(Number(e.target.value))}
-                          style={{ width: "100%", height: 4, appearance: "none", background: "#222", borderRadius: 2, outline: "none", cursor: "pointer", accentColor: "#7A0E18" }} />
-                      </div>
-
-                      <div style={{ display: "flex", gap: 8, marginBottom: 20 }}>
-                        {scenarios.map(s => {
-                          const clients = calcClients(s);
-                          const monthly = clients * price;
-                          const year1 = monthly * 12;
-                          const slComm = Math.round(year1 * (revenueCommission / 100));
-                          const ltv = s.churn > 0 ? Math.round(price / s.churn) : price * 12;
-                          const pct = primaryF > 0 ? ((clients / primaryF) * 100).toFixed(2) : "0";
-                          return (
-                            <div key={s.label} style={{ flex: 1, padding: 14, borderRadius: 8, background: "#0a0a0a", border: `1px solid ${s.border}` }}>
-                              <div style={{ fontSize: 9, fontWeight: 700, color: s.color, letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 10 }}>{s.label}</div>
-                              <div style={{ fontSize: 11, color: "#666", marginBottom: 3 }}>Active clients: <span style={{ color: "#f5f5f5", fontWeight: 600 }}>{clients.toLocaleString()}</span></div>
-                              <div style={{ fontSize: 11, color: "#666", marginBottom: 3 }}>% of followers: <span style={{ color: "#888" }}>{pct}%</span></div>
-                              <div style={{ paddingTop: 8, marginTop: 8, borderTop: "1px solid rgba(255,255,255,0.04)" }}>
-                                <div style={{ fontSize: 11, color: "#666", marginBottom: 3 }}>Monthly: <span style={{ color: "#f5f5f5", fontWeight: 600 }}>{fmt(monthly)}</span></div>
-                                <div style={{ fontSize: 11, color: "#666", marginBottom: 3 }}>Year 1: <span style={{ color: "#f5f5f5", fontWeight: 600 }}>{fmt(year1)}</span></div>
-                                <div style={{ fontSize: 11, color: "#666", marginBottom: 3 }}>LTV/client: <span style={{ color: "#888" }}>{fmt(ltv)}</span></div>
-                                <div style={{ fontSize: 11, color: "#666" }}>SL commission: <span style={{ color: "#7A0E18", fontWeight: 600 }}>{fmt(slComm)}</span></div>
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                      {/* Funnel explanation + live calculation breakdown */}
-                      {(() => {
-                        const mod = scenarios[1];
-                        const vrAdj = mod.vr * engMultiplier;
-                        const step1 = Math.round(primaryF * vrAdj);
-                        const step2 = Math.round(step1 * mod.lr);
-                        const step3 = Math.round(step2 * mod.cr);
-                        const step4 = step3 * mod.p;
-                        const step5 = Math.round(step4 * (1 - mod.churn));
-                        const maxCap = Math.round(primaryF * mod.cap);
-                        const finalClients = Math.min(step5, maxCap);
-                        const capped = step5 > maxCap;
-                        return (
-                          <div style={{ padding: "16px 18px", borderRadius: 8, background: "rgba(122,14,24,0.05)", border: "1px solid rgba(122,14,24,0.1)", fontSize: 11, color: "#888", lineHeight: 1.8 }}>
-                            <div style={{ fontSize: 10, fontWeight: 700, color: "#888", letterSpacing: "0.06em", textTransform: "uppercase", marginBottom: 10 }}>How we calculate (Moderate scenario)</div>
-
-                            <div style={{ marginBottom: 12, color: "#666", lineHeight: 1.7 }}>
-                              Your followers go through 5 filters. Only the ones who survive all 5 become paying clients.
-                            </div>
-
-                            <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 14 }}>
-                              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                                <span style={{ width: 18, height: 18, borderRadius: 4, background: "rgba(122,14,24,0.15)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 9, fontWeight: 700, color: "#7A0E18", flexShrink: 0 }}>1</span>
-                                <span style={{ color: "#888" }}><strong style={{ color: "#ccc" }}>See it</strong> — {(vrAdj * 100).toFixed(1)}% of followers see the offer (15% base × {engMultiplier.toFixed(2)}x engagement)</span>
-                              </div>
-                              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                                <span style={{ width: 18, height: 18, borderRadius: 4, background: "rgba(122,14,24,0.15)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 9, fontWeight: 700, color: "#7A0E18", flexShrink: 0 }}>2</span>
-                                <span style={{ color: "#888" }}><strong style={{ color: "#ccc" }}>Click</strong> — {(mod.lr * 100)}% of those click the link to learn more</span>
-                              </div>
-                              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                                <span style={{ width: 18, height: 18, borderRadius: 4, background: "rgba(122,14,24,0.15)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 9, fontWeight: 700, color: "#7A0E18", flexShrink: 0 }}>3</span>
-                                <span style={{ color: "#888" }}><strong style={{ color: "#ccc" }}>Buy</strong> — {(mod.cr * 100)}% of those actually pay</span>
-                              </div>
-                              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                                <span style={{ width: 18, height: 18, borderRadius: 4, background: "rgba(122,14,24,0.15)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 9, fontWeight: 700, color: "#7A0E18", flexShrink: 0 }}>4</span>
-                                <span style={{ color: "#888" }}><strong style={{ color: "#ccc" }}>Stack</strong> — New batch every month for {mod.p} months, clients accumulate</span>
-                              </div>
-                              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                                <span style={{ width: 18, height: 18, borderRadius: 4, background: "rgba(122,14,24,0.15)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 9, fontWeight: 700, color: "#7A0E18", flexShrink: 0 }}>5</span>
-                                <span style={{ color: "#888" }}><strong style={{ color: "#ccc" }}>Stay</strong> — {((1 - mod.churn) * 100)}% of clients stay each month ({(mod.churn * 100)}% churn)</span>
-                              </div>
-                            </div>
-
-                            <div style={{ padding: "12px 14px", borderRadius: 6, background: "rgba(0,0,0,0.3)", border: "1px solid rgba(255,255,255,0.04)", fontFamily: "monospace", fontSize: 11, color: "#ccc", lineHeight: 2 }}>
-                              <div>{primaryF.toLocaleString()} followers</div>
-                              <div>× {(vrAdj * 100).toFixed(1)}% see it = <span style={{ color: "#f5f5f5" }}>{step1.toLocaleString()}</span> people</div>
-                              <div>× {(mod.lr * 100)}% click = <span style={{ color: "#f5f5f5" }}>{step2.toLocaleString()}</span> people</div>
-                              <div>× {(mod.cr * 100)}% buy = <span style={{ color: "#f5f5f5" }}>{step3.toLocaleString()}</span> new clients/month</div>
-                              <div>× {mod.p} months stacked = <span style={{ color: "#f5f5f5" }}>{step4.toLocaleString()}</span> total</div>
-                              <div>× {((1 - mod.churn) * 100)}% stay = <span style={{ color: "#7A0E18", fontWeight: 700 }}>{step5.toLocaleString()} active clients</span></div>
-                              {capped && <div style={{ color: "#eab308", marginTop: 4 }}>Capped at {(mod.cap * 100)}% of followers = {maxCap.toLocaleString()} clients</div>}
-                            </div>
-
-                            {/* Engagement multiplier reference table */}
-                            <div style={{ marginTop: 14, paddingTop: 14, borderTop: "1px solid rgba(255,255,255,0.04)" }}>
-                              <div style={{ fontSize: 10, fontWeight: 700, color: "#888", letterSpacing: "0.06em", textTransform: "uppercase", marginBottom: 8 }}>Engagement Rate Impact</div>
-                              <div style={{ fontSize: 10, color: "#666", marginBottom: 10, lineHeight: 1.5 }}>The engagement rate determines how many followers actually see the offer. A creator with high engagement has an audience that pays attention. Low engagement means a passive audience that scrolls past.</div>
-                              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 0, fontSize: 10, borderRadius: 6, overflow: "hidden", border: "1px solid rgba(255,255,255,0.06)" }}>
-                                <div style={{ padding: "6px 10px", background: "rgba(255,255,255,0.04)", fontWeight: 700, color: "#888" }}>Engagement</div>
-                                <div style={{ padding: "6px 10px", background: "rgba(255,255,255,0.04)", fontWeight: 700, color: "#888" }}>Multiplier</div>
-                                <div style={{ padding: "6px 10px", background: "rgba(255,255,255,0.04)", fontWeight: 700, color: "#888" }}>Effect</div>
-                                {[
-                                  { eng: "0.5%", mult: "0.63x", effect: "-37% visibility", color: "#ef4444" },
-                                  { eng: "1.0%", mult: "0.75x", effect: "-25% visibility", color: "#ef4444" },
-                                  { eng: "2.0%", mult: "1.0x", effect: "baseline", color: "#f5f5f5", bold: true },
-                                  { eng: "3.0%", mult: "1.25x", effect: "+25% visibility", color: "#eab308" },
-                                  { eng: "5.0%", mult: "1.75x", effect: "+75% visibility", color: "#22c55e" },
-                                  { eng: "10.0%", mult: "3.0x", effect: "+200% (capped)", color: "#22c55e" },
-                                ].map((row, i) => (
-                                  <div key={i} style={{ display: "contents" }}>
-                                    <div style={{ padding: "5px 10px", borderTop: "1px solid rgba(255,255,255,0.04)", color: row.bold ? "#f5f5f5" : "#888", fontWeight: row.bold ? 700 : 400 }}>{row.eng}</div>
-                                    <div style={{ padding: "5px 10px", borderTop: "1px solid rgba(255,255,255,0.04)", color: row.color, fontWeight: 600 }}>{row.mult}</div>
-                                    <div style={{ padding: "5px 10px", borderTop: "1px solid rgba(255,255,255,0.04)", color: row.color, fontWeight: row.bold ? 700 : 400 }}>{row.effect}</div>
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-
-                            <div style={{ marginTop: 10, fontSize: 10, color: "#555" }}>
-                              Benchmark: 2% (avg Instagram creator). Max cap per scenario: {(mod.cap * 100)}% of followers. Price: {fmt(defaultPrice)}/mês ({rawPriceMatch ? "from offer" : "niche DB"}).
-                            </div>
-                          </div>
-                        );
-                      })()}
-                    </div>
-                  );
-                })() : renderMd(creator.offer.parsed?.[offerTab])}
+                {/* The Revenue Projector content moved out to the top-level
+                    `offerTab === "revenue"` block. This view always renders
+                    the parsed Grand Slam Offer markdown now. */}
+                {renderMd(creator.offer.parsed?.offer || '')}
+                {/* — Revenue Projector IIFE relocated; see top-level "revenue" block — */}
               </div>
               <div style={{ marginTop: 8, fontSize: 10, color: "#444" }}>Gerado: {new Date(creator.offer.generatedAt).toLocaleString("pt-PT")}</div>
             </div>
           )}
+          </>)}{/* end offerTab === "offer" */}
+
+          {/* ─── Revenue Projector view ─────────────────────────────────────
+              Top-level sibling to the offer-generation flow. Reads price
+              from CP2 client_facing_output.target_price first (preserving
+              creator-currency formatting like "€297/mo"), then falls back
+              to the legacy RECOMMENDED MONTHLY PRICE markdown match, then
+              to the niche-DB mid-tier. State shared with the rest of the
+              page (revenuePrice / engagementRate / revenueCommission
+              hooks at component top). */}
+          {offerTab === "revenue" && (<>
+            {!creator.offer ? (
+              <div style={{ padding: "40px 20px", textAlign: "center", border: "1px dashed rgba(255,255,255,0.06)", borderRadius: 10 }}>
+                <div style={{ width: 40, height: 40, margin: "0 auto 16px", borderRadius: 10, background: "rgba(255,255,255,0.03)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, color: "#444" }}>€</div>
+                <p style={{ fontSize: 13, color: "#666", marginBottom: 6 }}>Generate the Grand Slam Offer first.</p>
+                <p style={{ fontSize: 11, color: "#444" }}>The Revenue Projector reads the price from the offer to project monthly recurring revenue across three scenarios.</p>
+              </div>
+            ) : (() => {
+              // ─── Audience: scraped first, override if creator.revenueAudience set
+              const scrapedF = igData?.followers || tkData?.followers || ytData?.subscribers || 10000;
+              const primaryF = creator.revenueAudience ?? scrapedF;
+
+              // ─── Price resolution (priority order):
+              //   1. revenuePrice (operator slider override, lives in component state)
+              //   2. creator.revenuePrice (persisted operator override)
+              //   3. CP2 target_price (Phase 4 wizard) — strip € sign + suffix
+              //   4. RECOMMENDED MONTHLY PRICE markdown match (legacy)
+              //   5. niche DB mid-tier fallback
+              const cfo = creator.offer?.client_facing_output || {};
+              const cfoPriceMatch = cfo.target_price ? String(cfo.target_price).match(/[\d.,]+/) : null;
+              const cfoPrice = cfoPriceMatch ? parseFloat(cfoPriceMatch[0].replace(/,/g, '')) : null;
+              const nichePrice = dealScore?.nicheData?.mid || 39;
+              const rawPriceMatch = creator.offer?.raw?.match(/RECOMMENDED MONTHLY PRICE:\s*€?\s*(\d+)/i);
+              const defaultPrice = (Number.isFinite(cfoPrice) && cfoPrice > 0)
+                ? Math.round(cfoPrice)
+                : (rawPriceMatch ? parseInt(rawPriceMatch[1], 10) : nichePrice);
+              const price = revenuePrice ?? creator.revenuePrice ?? defaultPrice;
+              const fmt = (n) => "€" + Math.round(n).toLocaleString();
+              const priceSource = (Number.isFinite(cfoPrice) && cfoPrice > 0) ? 'from CP2' : (rawPriceMatch ? 'from offer markdown' : 'niche DB');
+
+              // ─── Engagement
+              const rawEng = creator.engagement || igData?.engagementRate || "";
+              const defaultEng = parseFloat(String(rawEng).replace(/[^0-9.]/g, "")) || 2.0;
+              const eng = engagementRate ?? creator.revenueEngagement ?? defaultEng;
+
+              // ─── Shared revenue lib (same scenarios + formula as the pitch deck)
+              const scenarios = [
+                { ...REVENUE_SCENARIOS.conservador, label: "Conservative", color: "#888", border: "rgba(255,255,255,0.04)" },
+                { ...REVENUE_SCENARIOS.moderado, label: "Moderate", color: "#f5f5f5", border: "rgba(122,14,24,0.2)" },
+                { ...REVENUE_SCENARIOS.agressivo, label: "Aggressive", color: "#7A0E18", border: "rgba(255,255,255,0.04)" },
+              ];
+              const calcSteady = (s) => sharedCalcMRR({ audience: primaryF, price, engagementRate: eng, scenario: s });
+              const calcClients = (s) => calcSteady(s).activeMembers;
+              const engMultiplier = sharedCalcMRR({ audience: primaryF, price, engagementRate: eng, scenario: scenarios[1] }).engMultiplier;
+              const modScenario = scenarios[1];
+              const modSteady = calcSteady(modScenario);
+              const modClients = modSteady.activeMembers;
+              const modRevenue = modSteady.monthlyRevenue;
+
+              return (
+                <div style={{ padding: 20, background: "#141414", border: "1px solid rgba(255,255,255,0.04)", borderRadius: 10 }}>
+                  <div style={{ textAlign: "center", padding: "28px 20px 24px", marginBottom: 20, background: "#0a0a0a", borderRadius: 8, border: "1px solid rgba(255,255,255,0.04)" }}>
+                    <div style={{ fontSize: 9, fontWeight: 600, color: "#555", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 4 }}>Estimated Monthly Recurring Revenue</div>
+                    <div style={{ fontSize: 42, fontWeight: 200, color: "#7A0E18", letterSpacing: "-0.03em", lineHeight: 1.1 }}>{fmt(modRevenue)}</div>
+                    <div style={{ fontSize: 11, color: "#444", marginTop: 6 }}>/mês · {modClients} active clients · {creator.primaryPlatform} {primaryF.toLocaleString()} followers · {eng.toFixed(2)}% eng</div>
+                  </div>
+
+                  {/* Inputs: Price, Engagement, Commission */}
+                  <div style={{ padding: "16px 18px", marginBottom: 20, background: "#0a0a0a", borderRadius: 8, border: "1px solid rgba(255,255,255,0.04)" }}>
+                    {/* Monthly Price */}
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                        <span style={{ fontSize: 10, fontWeight: 600, color: "#555", letterSpacing: "0.05em", textTransform: "uppercase" }}>Monthly Price</span>
+                        {price === defaultPrice && <span style={{ fontSize: 8, fontWeight: 600, color: "#7A0E18", letterSpacing: "0.06em", padding: "1px 5px", borderRadius: 2, border: "1px solid rgba(122,14,24,0.2)", textTransform: "uppercase" }}>{priceSource}</span>}
+                      </div>
+                      <span style={{ fontSize: 14, fontWeight: 700, color: "#f5f5f5" }}>{fmt(price)}</span>
+                    </div>
+                    <input type="range" min={5} max={1500} step={1} value={price}
+                      onChange={e => setRevenuePrice(Number(e.target.value))}
+                      style={{ width: "100%", height: 4, appearance: "none", background: "#222", borderRadius: 2, outline: "none", cursor: "pointer", accentColor: "#7A0E18" }} />
+
+                    {/* Engagement Rate */}
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 14, marginBottom: 6 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                        <span style={{ fontSize: 10, fontWeight: 600, color: "#555", letterSpacing: "0.05em", textTransform: "uppercase" }}>Engagement Rate</span>
+                        {eng === defaultEng && <span style={{ fontSize: 8, fontWeight: 600, color: "#7A0E18", letterSpacing: "0.06em", padding: "1px 5px", borderRadius: 2, border: "1px solid rgba(122,14,24,0.2)", textTransform: "uppercase" }}>From Profile</span>}
+                      </div>
+                      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                        <span style={{ fontSize: 14, fontWeight: 700, color: "#f5f5f5" }}>{eng.toFixed(2)}%</span>
+                        <span style={{ fontSize: 9, color: engMultiplier >= 1.5 ? "#22c55e" : engMultiplier >= 0.8 ? "#eab308" : "#ef4444", fontWeight: 600 }}>{engMultiplier.toFixed(2)}x</span>
+                      </div>
+                    </div>
+                    <input type="range" min={0.1} max={15} step={0.1} value={eng}
+                      onChange={e => setEngagementRate(Number(e.target.value))}
+                      style={{ width: "100%", height: 4, appearance: "none", background: "#222", borderRadius: 2, outline: "none", cursor: "pointer", accentColor: "#7A0E18" }} />
+
+                    {/* SL Commission */}
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 14, marginBottom: 6 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                        <span style={{ fontSize: 10, fontWeight: 600, color: "#555", letterSpacing: "0.05em", textTransform: "uppercase" }}>SL Commission</span>
+                        {revenueCommission === 30 && <span style={{ fontSize: 8, fontWeight: 600, color: "#7A0E18", letterSpacing: "0.06em", padding: "1px 5px", borderRadius: 2, border: "1px solid rgba(122,14,24,0.2)", textTransform: "uppercase" }}>Default</span>}
+                      </div>
+                      <span style={{ fontSize: 14, fontWeight: 700, color: "#f5f5f5" }}>{revenueCommission}%</span>
+                    </div>
+                    <input type="range" min={15} max={50} step={1} value={revenueCommission}
+                      onChange={e => setRevenueCommission(Number(e.target.value))}
+                      style={{ width: "100%", height: 4, appearance: "none", background: "#222", borderRadius: 2, outline: "none", cursor: "pointer", accentColor: "#7A0E18" }} />
+                  </div>
+
+                  {/* Scenario cards */}
+                  <div style={{ display: "flex", gap: 8, marginBottom: 20 }}>
+                    {scenarios.map(s => {
+                      const clients = calcClients(s);
+                      const monthly = clients * price;
+                      const year1 = monthly * 12;
+                      const slComm = Math.round(year1 * (revenueCommission / 100));
+                      const ltv = s.churn > 0 ? Math.round(price / s.churn) : price * 12;
+                      const pct = primaryF > 0 ? ((clients / primaryF) * 100).toFixed(2) : "0";
+                      return (
+                        <div key={s.label} style={{ flex: 1, padding: 14, borderRadius: 8, background: "#0a0a0a", border: `1px solid ${s.border}` }}>
+                          <div style={{ fontSize: 9, fontWeight: 700, color: s.color, letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 10 }}>{s.label}</div>
+                          <div style={{ fontSize: 11, color: "#666", marginBottom: 3 }}>Active clients: <span style={{ color: "#f5f5f5", fontWeight: 600 }}>{clients.toLocaleString()}</span></div>
+                          <div style={{ fontSize: 11, color: "#666", marginBottom: 3 }}>% of followers: <span style={{ color: "#888" }}>{pct}%</span></div>
+                          <div style={{ paddingTop: 8, marginTop: 8, borderTop: "1px solid rgba(255,255,255,0.04)" }}>
+                            <div style={{ fontSize: 11, color: "#666", marginBottom: 3 }}>Monthly: <span style={{ color: "#f5f5f5", fontWeight: 600 }}>{fmt(monthly)}</span></div>
+                            <div style={{ fontSize: 11, color: "#666", marginBottom: 3 }}>Year 1: <span style={{ color: "#f5f5f5", fontWeight: 600 }}>{fmt(year1)}</span></div>
+                            <div style={{ fontSize: 11, color: "#666", marginBottom: 3 }}>LTV/client: <span style={{ color: "#888" }}>{fmt(ltv)}</span></div>
+                            <div style={{ fontSize: 11, color: "#666" }}>SL commission: <span style={{ color: "#7A0E18", fontWeight: 600 }}>{fmt(slComm)}</span></div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* Funnel explanation + live calculation breakdown */}
+                  {(() => {
+                    const mod = scenarios[1];
+                    const vrAdj = mod.vr * engMultiplier;
+                    const step1 = Math.round(primaryF * vrAdj);
+                    const step2 = Math.round(step1 * mod.lr);
+                    const step3 = Math.round(step2 * mod.cr);
+                    const step4 = step3 * mod.p;
+                    const step5 = Math.round(step4 * (1 - mod.churn));
+                    const maxCap = Math.round(primaryF * mod.cap);
+                    const finalClients = Math.min(step5, maxCap);
+                    const capped = step5 > maxCap;
+                    return (
+                      <div style={{ padding: "16px 18px", borderRadius: 8, background: "rgba(122,14,24,0.05)", border: "1px solid rgba(122,14,24,0.1)", fontSize: 11, color: "#888", lineHeight: 1.8 }}>
+                        <div style={{ fontSize: 10, fontWeight: 700, color: "#888", letterSpacing: "0.06em", textTransform: "uppercase", marginBottom: 10 }}>How we calculate (Moderate scenario)</div>
+                        <div style={{ marginBottom: 12, color: "#666", lineHeight: 1.7 }}>
+                          Your followers go through 5 filters. Only the ones who survive all 5 become paying clients.
+                        </div>
+                        <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 14 }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                            <span style={{ width: 18, height: 18, borderRadius: 4, background: "rgba(122,14,24,0.15)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 9, fontWeight: 700, color: "#7A0E18", flexShrink: 0 }}>1</span>
+                            <span style={{ color: "#888" }}><strong style={{ color: "#ccc" }}>See it</strong> — {(vrAdj * 100).toFixed(1)}% of followers see the offer (15% base × {engMultiplier.toFixed(2)}x engagement)</span>
+                          </div>
+                          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                            <span style={{ width: 18, height: 18, borderRadius: 4, background: "rgba(122,14,24,0.15)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 9, fontWeight: 700, color: "#7A0E18", flexShrink: 0 }}>2</span>
+                            <span style={{ color: "#888" }}><strong style={{ color: "#ccc" }}>Click</strong> — {(mod.lr * 100)}% of those click the link to learn more</span>
+                          </div>
+                          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                            <span style={{ width: 18, height: 18, borderRadius: 4, background: "rgba(122,14,24,0.15)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 9, fontWeight: 700, color: "#7A0E18", flexShrink: 0 }}>3</span>
+                            <span style={{ color: "#888" }}><strong style={{ color: "#ccc" }}>Buy</strong> — {(mod.cr * 100)}% of those actually pay</span>
+                          </div>
+                          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                            <span style={{ width: 18, height: 18, borderRadius: 4, background: "rgba(122,14,24,0.15)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 9, fontWeight: 700, color: "#7A0E18", flexShrink: 0 }}>4</span>
+                            <span style={{ color: "#888" }}><strong style={{ color: "#ccc" }}>Stack</strong> — New batch every month for {mod.p} months, clients accumulate</span>
+                          </div>
+                          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                            <span style={{ width: 18, height: 18, borderRadius: 4, background: "rgba(122,14,24,0.15)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 9, fontWeight: 700, color: "#7A0E18", flexShrink: 0 }}>5</span>
+                            <span style={{ color: "#888" }}><strong style={{ color: "#ccc" }}>Stay</strong> — {((1 - mod.churn) * 100)}% of clients stay each month ({(mod.churn * 100)}% churn)</span>
+                          </div>
+                        </div>
+                        <div style={{ padding: "12px 14px", borderRadius: 6, background: "rgba(0,0,0,0.3)", border: "1px solid rgba(255,255,255,0.04)", fontFamily: "monospace", fontSize: 11, color: "#ccc", lineHeight: 2 }}>
+                          <div>{primaryF.toLocaleString()} followers</div>
+                          <div>× {(vrAdj * 100).toFixed(1)}% see it = <span style={{ color: "#f5f5f5" }}>{step1.toLocaleString()}</span> people</div>
+                          <div>× {(mod.lr * 100)}% click = <span style={{ color: "#f5f5f5" }}>{step2.toLocaleString()}</span> people</div>
+                          <div>× {(mod.cr * 100)}% buy = <span style={{ color: "#f5f5f5" }}>{step3.toLocaleString()}</span> new clients/month</div>
+                          <div>× {mod.p} months stacked = <span style={{ color: "#f5f5f5" }}>{step4.toLocaleString()}</span> total</div>
+                          <div>× {((1 - mod.churn) * 100)}% stay = <span style={{ color: "#7A0E18", fontWeight: 700 }}>{step5.toLocaleString()} active clients</span></div>
+                          {capped && <div style={{ color: "#eab308", marginTop: 4 }}>Capped at {(mod.cap * 100)}% of followers = {maxCap.toLocaleString()} clients</div>}
+                        </div>
+                        <div style={{ marginTop: 10, fontSize: 10, color: "#555" }}>
+                          Benchmark: 2% (avg Instagram creator). Max cap per scenario: {(mod.cap * 100)}% of followers. Price: {fmt(defaultPrice)}/mês ({priceSource}).
+                        </div>
+                      </div>
+                    );
+                  })()}
+                </div>
+              );
+            })()}
+          </>)}{/* end offerTab === "revenue" */}
         </>)}
 
         {/* ════════════ LAUNCH TAB ════════════ */}

@@ -408,11 +408,12 @@ function parseValueStack(block) {
 //
 // Returns:
 //   offer       — markdown shown on the "Grand Slam Offer" tab (engineering
-//                 layer + community + cases; excludes math/blindspots/objections
-//                 which have their own tabs).
-//   blindspots  — markdown for the "Blind Spot Audit" tab.
-//   objections  — markdown for the "Objection Playbook" tab.
+//                 layer + community + cases; excludes math).
 //   math        — markdown used by the projection/revenue tools.
+//   (blindspots + objections — the "Blind Spot Audit" + "Objection Playbook"
+//   tabs were removed. The system prompt no longer generates sections N + O,
+//   so these fields will be empty on new offers. Parser still extracts them
+//   from legacy offers for back-compat; they don't render anywhere.)
 //   community   — structured spec for pitch slide "A Tua Comunidade".
 //   cases       — array for pitch slide "Casos Similares".
 //   uniqueMechanism — for pitch slide "O Sistema".
