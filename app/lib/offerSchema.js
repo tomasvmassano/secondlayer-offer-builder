@@ -67,14 +67,36 @@
  *   }
  */
 
+// The 5 wizard checkpoints. Used for stepper UI, lock state, and the
+// downstream-cascade-invalidation logic in lockCheckpoint/unlockCheckpoint.
+export const CHECKPOINTS = [
+  { id: 1, key: 'strategic_frame',   name: 'Strategic Frame',  short: 'Frame'   },
+  { id: 2, key: 'core_offer',        name: 'Core Offer',       short: 'Offer'   },
+  { id: 3, key: 'modules',           name: 'Modules',          short: 'Modules' },
+  { id: 4, key: 'value_stack',       name: 'Value Stack',      short: 'Stack'   },
+  { id: 5, key: 'sales_copy',        name: 'Sales Copy',       short: 'Copy'    },
+];
+export const TOTAL_CHECKPOINTS = CHECKPOINTS.length;
+
 // Empty starting shape (used when no offer has been generated yet).
 export function emptyInternalMetadata() {
   return {
     generation_id: null,
     status: null,
-    ecosystem_audit: null,
-    archetype_classification: null,
-    uniqueness_extraction: null,
+    ecosystem_audit: null,            // Phase 1
+    archetype_classification: null,   // Phase 2
+    uniqueness_extraction: null,      // Phase 3
+    // Phase 4 · CP1 raw output. Internal — informs CP2+ but is never rendered
+    // to the creator. CP2-5 outputs live under client_facing_output.
+    strategic_frame: null,
+    // Wizard state. `current` is the active checkpoint; `locked` maps each CP
+    // id → ISO lock timestamp (null = not yet locked). Downstream
+    // invalidation: unlocking CP2 clears locked[3..5] and zeroes their
+    // client_facing_output slices.
+    checkpoint_progress: {
+      current: 1,
+      locked: { 1: null, 2: null, 3: null, 4: null, 5: null },
+    },
     checkpoint_history: [],
     generation_timestamps: {},
     legacy_parsed: null,
@@ -87,18 +109,32 @@ export function emptyClientFacingOutput() {
     name_candidates: [],          // alternates shown on pitch slide 4 header
     platform: null,                // Skool / Whop / Circle / Discord — pitch slide 4
     core_mechanic: null,           // 1-3 sentence "what happens weekly" — pitch slide 4
-    central_promise: null,
-    transformation: { from: null, to: null, timeframe: null },
+    central_promise: null,         // CP2 "Big Idea" — one-sentence hook in creator voice
+    transformation: { from: null, to: null, timeframe: null }, // CP2
+    // CP2 — who the offer IS / IS NOT for. Two-column rendering on the pitch.
+    audience_fit: { for: [], not_for: [] },
+    // CP2 — pricing model: 'one_time' | 'monthly' | 'annual' | 'hybrid'.
+    // Tier is locked by operator at CP2; CP4 sizes the value stack to back it.
+    // 'low' (€30-100/mo), 'mid' (€200-500/mo), 'high' (€1K+/mo or €3K+ one-time).
+    pricing_model: null,
+    pricing_tier: null,
+    target_price: null,
     weekly_rhythm: [],
     weekly_formats: [],
     library: [],
+    // CP3 modules. Each must link ≥1 uniqueness element (schema-enforced).
     modules: [],
     unlocked_bonuses: [],
     pricing_tiers: [],
-    differentiator_section: null,
-    strategic_context_line: null,
+    differentiator_section: null,  // CP5
+    strategic_context_line: null,  // CP1/CP5 — separately editable
     mechanism: null,
-    value_stack: null,
+    value_stack: null,             // CP4
+    // CP5 — sales-copy artefacts.
+    hero: null,                    // { headline, sub, cta }
+    objections: [],                // [{ objection, rebuttal }]
+    faq: [],                       // [{ q, a }]
+    social_proof_line: null,       // sourced from fame_tier_evidence if available
     cases: [],
   };
 }
@@ -181,4 +217,130 @@ export function readOfferState(creator) {
 // Convenience for the most common usage site (pitch deck / launch-plan PDF).
 export function readClientFacing(creator) {
   return readOfferState(creator).client_facing_output;
+}
+
+// ──────────────────────────────────────────────────────────────────────────
+// Phase 4 wizard — checkpoint progress helpers
+// ──────────────────────────────────────────────────────────────────────────
+// All pure functions. Endpoints call these, persist the result, and return.
+// Frontend mirrors the same logic for stepper UI.
+
+// Coerce a possibly-missing/partial `checkpoint_progress` into the canonical
+// shape. Safe to call on legacy creators that pre-date Phase 4.
+export function readCheckpointProgress(internalMetadata) {
+  const p = internalMetadata?.checkpoint_progress || {};
+  const locked = p.locked || {};
+  return {
+    current: typeof p.current === 'number' ? p.current : 1,
+    locked: {
+      1: locked[1] || null,
+      2: locked[2] || null,
+      3: locked[3] || null,
+      4: locked[4] || null,
+      5: locked[5] || null,
+    },
+  };
+}
+
+// A checkpoint can run only if every checkpoint before it is locked.
+// CP1 can always run (no prerequisites). The endpoint should 412 if this
+// returns false; the UI should disable the Run button.
+export function canRunCheckpoint(internalMetadata, checkpointId) {
+  if (checkpointId < 1 || checkpointId > TOTAL_CHECKPOINTS) return false;
+  const prog = readCheckpointProgress(internalMetadata);
+  for (let i = 1; i < checkpointId; i++) {
+    if (!prog.locked[i]) return false;
+  }
+  return true;
+}
+
+// Lock a checkpoint (operator approved its output and is ready to advance).
+// Returns the next progress object — caller persists it. Locking CP3 with
+// CP2 unlocked is a programmer error and throws.
+export function lockCheckpoint(internalMetadata, checkpointId) {
+  if (!canRunCheckpoint(internalMetadata, checkpointId)) {
+    throw new Error(`Cannot lock CP${checkpointId} — prior checkpoints aren't locked`);
+  }
+  const prog = readCheckpointProgress(internalMetadata);
+  return {
+    current: Math.min(checkpointId + 1, TOTAL_CHECKPOINTS),
+    locked: { ...prog.locked, [checkpointId]: new Date().toISOString() },
+  };
+}
+
+// Unlock a checkpoint with downstream cascade invalidation.
+// Unlocking CP2 must clear CP3-5 locks AND blank their client_facing_output
+// slices (modules, value_stack, pricing_tiers, hero, objections, faq,
+// social_proof_line, differentiator_section). The caller is responsible for
+// applying the returned slices to the persisted creator.
+//
+// Returns:
+//   {
+//     progress: { current, locked },  // updated checkpoint_progress
+//     internal_clears: string[],      // keys under internal_metadata to null
+//     client_clears: string[],        // keys under client_facing_output to reset
+//   }
+//
+// internal_clears/client_clears tell the API route which keys to wipe so we
+// don't leak stale CP3 modules into a re-run CP3.
+export function unlockCheckpoint(internalMetadata, checkpointId) {
+  if (checkpointId < 1 || checkpointId > TOTAL_CHECKPOINTS) {
+    throw new Error(`Invalid checkpoint id ${checkpointId}`);
+  }
+  const prog = readCheckpointProgress(internalMetadata);
+  const newLocked = { ...prog.locked };
+  for (let i = checkpointId; i <= TOTAL_CHECKPOINTS; i++) {
+    newLocked[i] = null;
+  }
+
+  // Which fields each CP wrote — these get cleared on unlock.
+  // Internal metadata side:
+  const INTERNAL_BY_CP = { 1: ['strategic_frame'] };
+  // Client-facing side — each entry is the field name to reset to its empty value.
+  const CLIENT_BY_CP = {
+    2: ['central_promise', 'transformation', 'audience_fit', 'pricing_model', 'pricing_tier', 'target_price', 'community_name', 'name_candidates', 'platform', 'core_mechanic', 'weekly_rhythm', 'weekly_formats', 'library'],
+    3: ['modules'],
+    4: ['value_stack', 'pricing_tiers', 'unlocked_bonuses'],
+    5: ['differentiator_section', 'strategic_context_line', 'hero', 'objections', 'faq', 'social_proof_line', 'mechanism'],
+  };
+
+  const internalClears = [];
+  const clientClears = [];
+  for (let i = checkpointId; i <= TOTAL_CHECKPOINTS; i++) {
+    (INTERNAL_BY_CP[i] || []).forEach(k => internalClears.push(k));
+    (CLIENT_BY_CP[i] || []).forEach(k => clientClears.push(k));
+  }
+
+  return {
+    progress: {
+      current: checkpointId,
+      locked: newLocked,
+    },
+    internal_clears: internalClears,
+    client_clears: clientClears,
+  };
+}
+
+// Apply an unlockCheckpoint() result to a draft offer object.
+// Returns a new offer with the relevant fields zeroed. Pure — no I/O.
+export function applyUnlock(offer, unlockResult) {
+  const emptyInternal = emptyInternalMetadata();
+  const emptyClient = emptyClientFacingOutput();
+  const nextInternal = { ...(offer.internal_metadata || {}) };
+  const nextClient = { ...(offer.client_facing_output || emptyClient) };
+
+  for (const k of unlockResult.internal_clears) {
+    nextInternal[k] = emptyInternal[k] ?? null;
+  }
+  for (const k of unlockResult.client_clears) {
+    nextClient[k] = emptyClient[k];
+  }
+
+  nextInternal.checkpoint_progress = unlockResult.progress;
+
+  return {
+    ...offer,
+    internal_metadata: nextInternal,
+    client_facing_output: nextClient,
+  };
 }

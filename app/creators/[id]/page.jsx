@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { calculateDealScore } from "../../lib/dealScore";
 import { SCENARIOS as REVENUE_SCENARIOS, calculateSteadyMRR as sharedCalcMRR } from "../../lib/revenue";
 import { renderMd, parseOutput, extractAudience } from "../../lib/offerParser";
-import { legacyParsedToOfferState } from "../../lib/offerSchema";
+import { legacyParsedToOfferState, CHECKPOINTS, readCheckpointProgress } from "../../lib/offerSchema";
 import { OFFER_SYSTEM_PROMPT } from "../../lib/systemPrompt";
 import WorkspaceDashboard from "./workspace/WorkspaceDashboard";
 
@@ -1574,6 +1574,23 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
             diag={uniquenessDiag}
             onRun={runUniqueness}
           />
+
+          {/* Phase 4 · 5-Checkpoint Wizard.
+              Stitches Phase 1+2+3 internal_metadata into the actual offer
+              (client_facing_output). The stepper shows lock state; the active
+              checkpoint expands below it. CP panels are stubs for now —
+              individual CPs ship in follow-up commits. */}
+          <WizardStepper creator={creator} />
+          {/* Stub checkpoint panels. The wizard always renders the panel for
+              the currently active CP (`progress.current`) — locked ones are
+              collapsed in the stepper. Each stub will be replaced with the
+              real CP component in its own commit. */}
+          {(() => {
+            const prog = readCheckpointProgress(creator?.offer?.internal_metadata);
+            const cp = CHECKPOINTS.find(c => c.id === prog.current) || CHECKPOINTS[0];
+            return <CheckpointStubPanel checkpoint={cp} />;
+          })()}
+
           {!creator.offer && !offerLoading && (() => {
             const sec = OFFER_STEPS[offerStep] || OFFER_STEPS[0];
             return (
@@ -2554,6 +2571,125 @@ function UniquenessPanel({ creator, running, error, diag, onRun }) {
           )}
         </div>
       )}
+    </div>
+  );
+}
+
+// ──────────────────────────────────────────────────────────────────────────
+// Phase 4 · Wizard Stepper
+// ──────────────────────────────────────────────────────────────────────────
+// Renders the 5-checkpoint progress bar above the active checkpoint panel.
+// State source-of-truth is creator.offer.internal_metadata.checkpoint_progress.
+// Visual states per checkpoint:
+//   - locked        : green check, dim
+//   - current       : highlighted brand-red, full opacity
+//   - upcoming      : grey, dim, disabled
+//   - invalidated   : (after unlock cascade) — treated same as upcoming
+function WizardStepper({ creator }) {
+  const prog = readCheckpointProgress(creator?.offer?.internal_metadata);
+
+  const isLocked = (id) => !!prog.locked[id];
+  const isCurrent = (id) => prog.current === id;
+
+  // Required pre-flight signals (Phases 1-3) — operator should see at a
+  // glance if anything's missing before the wizard can start producing
+  // meaningful output. Doesn't block running CP1 (people may want a sketch
+  // even with partial data) but surfaces the gap.
+  const meta = creator?.offer?.internal_metadata || {};
+  const haveAudit = !!meta.ecosystem_audit;
+  const haveArchetype = !!meta.archetype_classification;
+  const haveUniqueness = !!meta.uniqueness_extraction;
+  const allReady = haveAudit && haveArchetype && haveUniqueness;
+
+  return (
+    <div style={{ marginBottom: 28, padding: "18px 20px", background: "rgba(255,255,255,0.015)", border: "1px solid rgba(255,255,255,0.05)", borderRadius: 10 }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
+        <div>
+          <div style={{ fontSize: 9, fontWeight: 700, color: "#7A0E18", letterSpacing: "0.16em", textTransform: "uppercase", marginBottom: 4 }}>● Phase 4 · Wizard</div>
+          <h3 style={{ fontSize: 14, fontWeight: 600, margin: 0, color: "#f5f5f5" }}>Offer Generation · 5 Checkpoints</h3>
+          <p style={{ fontSize: 11, color: "#555", margin: "4px 0 0" }}>
+            Stitches Phase 1+2+3 internal signals into the offer the creator sees. Each checkpoint locks before advancing.
+          </p>
+        </div>
+        {/* Pre-flight readiness chips */}
+        <div style={{ display: "flex", gap: 6, fontSize: 9, fontWeight: 700, letterSpacing: "0.08em" }}>
+          <span style={{ padding: "3px 8px", borderRadius: 3, background: haveAudit ? "rgba(34,197,94,0.08)" : "rgba(239,68,68,0.06)", color: haveAudit ? "#22c55e" : "#666", border: `1px solid ${haveAudit ? 'rgba(34,197,94,0.3)' : 'rgba(255,255,255,0.06)'}` }}>P1 {haveAudit ? '✓' : '—'}</span>
+          <span style={{ padding: "3px 8px", borderRadius: 3, background: haveArchetype ? "rgba(34,197,94,0.08)" : "rgba(239,68,68,0.06)", color: haveArchetype ? "#22c55e" : "#666", border: `1px solid ${haveArchetype ? 'rgba(34,197,94,0.3)' : 'rgba(255,255,255,0.06)'}` }}>P2 {haveArchetype ? '✓' : '—'}</span>
+          <span style={{ padding: "3px 8px", borderRadius: 3, background: haveUniqueness ? "rgba(34,197,94,0.08)" : "rgba(239,68,68,0.06)", color: haveUniqueness ? "#22c55e" : "#666", border: `1px solid ${haveUniqueness ? 'rgba(34,197,94,0.3)' : 'rgba(255,255,255,0.06)'}` }}>P3 {haveUniqueness ? '✓' : '—'}</span>
+        </div>
+      </div>
+
+      {!allReady && (
+        <div style={{ padding: "8px 12px", borderRadius: 6, background: "rgba(234,179,8,0.05)", border: "1px solid rgba(234,179,8,0.18)", color: "#eab308", fontSize: 10.5, marginBottom: 14 }}>
+          ⚠ Run Phase 1 + 2 + 3 first for full-quality wizard output. CP1 will still run but with weaker grounding.
+        </div>
+      )}
+
+      {/* The stepper itself — 5 circles connected by line segments */}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 4 }}>
+        {CHECKPOINTS.map((cp, idx) => {
+          const locked = isLocked(cp.id);
+          const current = isCurrent(cp.id);
+          const dotBg = locked ? "rgba(34,197,94,0.12)" : current ? "rgba(122,14,24,0.18)" : "rgba(255,255,255,0.025)";
+          const dotBorder = locked ? "rgba(34,197,94,0.5)" : current ? "rgba(122,14,24,0.6)" : "rgba(255,255,255,0.08)";
+          const dotColor = locked ? "#22c55e" : current ? "#B11E2F" : "#444";
+          const labelColor = locked ? "#888" : current ? "#f5f5f5" : "#444";
+          return (
+            <div key={cp.id} style={{ display: "flex", alignItems: "center", flex: idx === CHECKPOINTS.length - 1 ? "0 0 auto" : 1 }}>
+              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6, minWidth: 80 }}>
+                <div
+                  style={{
+                    width: 30,
+                    height: 30,
+                    borderRadius: "50%",
+                    background: dotBg,
+                    border: `1.5px solid ${dotBorder}`,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    fontSize: 12,
+                    fontWeight: 700,
+                    color: dotColor,
+                    fontFamily: "'JetBrains Mono', ui-monospace, monospace",
+                  }}
+                >
+                  {locked ? "✓" : cp.id}
+                </div>
+                <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: labelColor }}>{cp.short}</div>
+              </div>
+              {idx !== CHECKPOINTS.length - 1 && (
+                <div
+                  style={{
+                    flex: 1,
+                    height: 1,
+                    background: locked ? "rgba(34,197,94,0.25)" : "rgba(255,255,255,0.06)",
+                    margin: "0 4px",
+                    marginTop: -22, // align with the circle midline
+                  }}
+                />
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// Placeholder for un-built checkpoints. Each CP1-CP5 commit replaces the
+// switch arm for its checkpoint with the real implementation. Keeping a
+// single stub here means the wizard stepper + offer tab structure work end-
+// to-end even when only some CPs are built.
+function CheckpointStubPanel({ checkpoint }) {
+  return (
+    <div style={{ marginBottom: 28, padding: "20px 24px", background: "rgba(255,255,255,0.015)", border: "1px dashed rgba(255,255,255,0.08)", borderRadius: 10, textAlign: "center" }}>
+      <div style={{ fontSize: 9, fontWeight: 700, color: "#7A0E18", letterSpacing: "0.16em", textTransform: "uppercase", marginBottom: 6 }}>
+        ● Checkpoint {checkpoint.id} of 5
+      </div>
+      <h3 style={{ fontSize: 15, fontWeight: 600, margin: "0 0 8px", color: "#f5f5f5" }}>{checkpoint.name}</h3>
+      <p style={{ fontSize: 11, color: "#666", margin: 0 }}>
+        Not yet implemented — ships in the next commit.
+      </p>
     </div>
   );
 }
