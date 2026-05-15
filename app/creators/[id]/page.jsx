@@ -129,6 +129,11 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
   const [uniquenessRunning, setUniquenessRunning] = useState(false);
   const [uniquenessError, setUniquenessError] = useState(null);
   const [uniquenessDiag, setUniquenessDiag] = useState(null);
+  // Phase 4 · CP1 — Strategic Frame (operator-language strategic commitment).
+  // Internal-only; never rendered to creator.
+  const [frameRunning, setFrameRunning] = useState(false);
+  const [frameError, setFrameError] = useState(null);
+  const [frameDiag, setFrameDiag] = useState(null);
   const nameRef = useRef(null);
 
   // DM Writer state
@@ -1581,13 +1586,26 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
               checkpoint expands below it. CP panels are stubs for now —
               individual CPs ship in follow-up commits. */}
           <WizardStepper creator={creator} />
-          {/* Stub checkpoint panels. The wizard always renders the panel for
-              the currently active CP (`progress.current`) — locked ones are
-              collapsed in the stepper. Each stub will be replaced with the
-              real CP component in its own commit. */}
+          {/* Active checkpoint panel — dispatched on progress.current.
+              Each CP commit replaces its stub with the real component.
+              CP1 (Strategic Frame) is built; CP2-5 are still stubs. */}
           {(() => {
             const prog = readCheckpointProgress(creator?.offer?.internal_metadata);
             const cp = CHECKPOINTS.find(c => c.id === prog.current) || CHECKPOINTS[0];
+            if (prog.current === 1) {
+              return (
+                <StrategicFramePanel
+                  creator={creator}
+                  setCreator={setCreator}
+                  running={frameRunning}
+                  setRunning={setFrameRunning}
+                  error={frameError}
+                  setError={setFrameError}
+                  diag={frameDiag}
+                  setDiag={setFrameDiag}
+                />
+              );
+            }
             return <CheckpointStubPanel checkpoint={cp} />;
           })()}
 
@@ -2690,6 +2708,294 @@ function CheckpointStubPanel({ checkpoint }) {
       <p style={{ fontSize: 11, color: "#666", margin: 0 }}>
         Not yet implemented — ships in the next commit.
       </p>
+    </div>
+  );
+}
+
+// ──────────────────────────────────────────────────────────────────────────
+// Phase 4 · CP1 — Strategic Frame Panel
+// ──────────────────────────────────────────────────────────────────────────
+// Renders the strategic_frame from internal_metadata + handles three actions:
+//   - Generate (POST /wizard/strategic-frame) — runs the LLM, populates frame
+//   - Approve & Continue (POST /wizard/checkpoint/1/lock) — locks CP1, advances to CP2
+//   - Unlock (POST /wizard/checkpoint/1/unlock) — wipes frame + cascades to CP2-5
+//
+// This panel stays internal — content is the operator's strategic commit,
+// NOT the creator's sales copy. CP2 will pull these fields in as system
+// context and translate them into client-facing language.
+function StrategicFramePanel({ creator, setCreator, running, setRunning, error, setError, diag, setDiag }) {
+  const meta = creator?.offer?.internal_metadata || {};
+  const frame = meta.strategic_frame || null;
+  const runAt = meta.generation_timestamps?.strategic_frame || null;
+  const progress = readCheckpointProgress(meta);
+  const cp1Locked = !!progress.locked[1];
+  const [lockBusy, setLockBusy] = useState(false);
+
+  const ROLE_LABELS = {
+    entry_point: 'Entry Point',
+    continuity: 'Continuity',
+    premium_upsell: 'Premium Upsell',
+    standalone: 'Standalone',
+  };
+  const ROLE_COLORS = {
+    entry_point: '#22c55e',
+    continuity: '#3b82f6',
+    premium_upsell: '#a855f7',
+    standalone: '#eab308',
+  };
+
+  const generate = async () => {
+    if (!creator?.id || running) return;
+    setRunning(true);
+    setError(null);
+    try {
+      const r = await fetch(`/api/creators/${creator.id}/wizard/strategic-frame`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+      });
+      const data = await r.json();
+      if (!r.ok) {
+        const detail = data.errors?.length ? '\n\n' + data.errors.join('\n') : '';
+        throw new Error((data.error || 'Strategic frame failed') + detail);
+      }
+      setDiag(data._diagnostics || null);
+      setCreator(prev => prev ? ({
+        ...prev,
+        offer: {
+          ...(prev.offer || {}),
+          internal_metadata: {
+            ...((prev.offer || {}).internal_metadata || {}),
+            strategic_frame: data.strategic_frame,
+          },
+        },
+      }) : prev);
+    } catch (e) {
+      setError(e.message || 'Unknown error');
+    } finally {
+      setRunning(false);
+    }
+  };
+
+  const lockAndContinue = async () => {
+    if (!creator?.id || lockBusy) return;
+    setLockBusy(true);
+    setError(null);
+    try {
+      const r = await fetch(`/api/creators/${creator.id}/wizard/checkpoint/1/lock`, { method: 'POST' });
+      const data = await r.json();
+      if (!r.ok) throw new Error(data.error || 'Lock failed');
+      setCreator(prev => prev ? ({
+        ...prev,
+        offer: {
+          ...(prev.offer || {}),
+          internal_metadata: {
+            ...((prev.offer || {}).internal_metadata || {}),
+            checkpoint_progress: data.checkpoint_progress,
+          },
+        },
+      }) : prev);
+    } catch (e) {
+      setError(e.message || 'Lock failed');
+    } finally {
+      setLockBusy(false);
+    }
+  };
+
+  const unlock = async () => {
+    if (!creator?.id || lockBusy) return;
+    if (!confirm('Unlock CP1? This will clear CP2-5 if any have been generated.')) return;
+    setLockBusy(true);
+    setError(null);
+    try {
+      const r = await fetch(`/api/creators/${creator.id}/wizard/checkpoint/1/unlock`, { method: 'POST' });
+      const data = await r.json();
+      if (!r.ok) throw new Error(data.error || 'Unlock failed');
+      // Lazy refresh — re-fetch the creator so we get the cascade-cleared shape
+      setCreator(prev => prev ? ({
+        ...prev,
+        offer: {
+          ...(prev.offer || {}),
+          internal_metadata: {
+            ...((prev.offer || {}).internal_metadata || {}),
+            checkpoint_progress: data.checkpoint_progress,
+            // Per the spec, unlocking CP1 also wipes strategic_frame.
+            strategic_frame: null,
+          },
+          client_facing_output: (() => {
+            const c = (prev.offer || {}).client_facing_output || {};
+            const cleared = { ...c };
+            (data.cleared?.client || []).forEach(k => { cleared[k] = Array.isArray(c[k]) ? [] : null; });
+            return cleared;
+          })(),
+        },
+      }) : prev);
+    } catch (e) {
+      setError(e.message || 'Unlock failed');
+    } finally {
+      setLockBusy(false);
+    }
+  };
+
+  return (
+    <div style={{ marginBottom: 28, padding: "18px 20px", background: "rgba(255,255,255,0.015)", border: `1px solid ${cp1Locked ? 'rgba(34,197,94,0.18)' : 'rgba(255,255,255,0.05)'}`, borderRadius: 10 }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14, flexWrap: "wrap", gap: 12 }}>
+        <div>
+          <div style={{ fontSize: 9, fontWeight: 700, color: cp1Locked ? "#22c55e" : "#7A0E18", letterSpacing: "0.16em", textTransform: "uppercase", marginBottom: 4 }}>
+            ● Checkpoint 1 of 5 · {cp1Locked ? 'Locked ✓' : 'In Progress'}
+          </div>
+          <h3 style={{ fontSize: 14, fontWeight: 600, margin: 0, color: "#f5f5f5" }}>Strategic Frame</h3>
+          <p style={{ fontSize: 11, color: "#555", margin: "4px 0 0" }}>
+            Operator's strategic commit — internal language only, never shown to creator. CP2-5 use this as system context.
+          </p>
+        </div>
+        <div style={{ display: "flex", gap: 8 }}>
+          {!cp1Locked && (
+            <button
+              onClick={generate}
+              disabled={running || lockBusy}
+              style={{
+                padding: "8px 16px",
+                borderRadius: 6,
+                border: "1px solid rgba(122,14,24,0.4)",
+                background: running ? "rgba(255,255,255,0.02)" : "rgba(122,14,24,0.08)",
+                color: running ? "#555" : "#B11E2F",
+                fontSize: 11,
+                fontWeight: 600,
+                cursor: running ? "wait" : "pointer",
+                fontFamily: "inherit",
+                whiteSpace: "nowrap",
+              }}
+            >
+              {running ? "A gerar..." : frame ? "↻ Re-run" : "Generate (~$0.02)"}
+            </button>
+          )}
+          {!cp1Locked && frame && (
+            <button
+              onClick={lockAndContinue}
+              disabled={running || lockBusy}
+              style={{
+                padding: "8px 16px",
+                borderRadius: 6,
+                border: "1px solid rgba(34,197,94,0.45)",
+                background: "rgba(34,197,94,0.08)",
+                color: "#22c55e",
+                fontSize: 11,
+                fontWeight: 600,
+                cursor: lockBusy ? "wait" : "pointer",
+                fontFamily: "inherit",
+                whiteSpace: "nowrap",
+              }}
+            >
+              {lockBusy ? "..." : "✓ Approve & continue →"}
+            </button>
+          )}
+          {cp1Locked && (
+            <button
+              onClick={unlock}
+              disabled={lockBusy}
+              style={{
+                padding: "8px 16px",
+                borderRadius: 6,
+                border: "1px solid rgba(234,179,8,0.4)",
+                background: "rgba(234,179,8,0.06)",
+                color: "#eab308",
+                fontSize: 11,
+                fontWeight: 600,
+                cursor: lockBusy ? "wait" : "pointer",
+                fontFamily: "inherit",
+                whiteSpace: "nowrap",
+              }}
+            >
+              {lockBusy ? "..." : "↺ Unlock"}
+            </button>
+          )}
+        </div>
+      </div>
+
+      {error && (
+        <div style={{ padding: "10px 14px", borderRadius: 6, background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.25)", color: "#ef4444", fontSize: 11, marginBottom: 12, whiteSpace: "pre-wrap" }}>{error}</div>
+      )}
+      {diag && !running && (
+        <div style={{ fontSize: 10, color: "#444", marginBottom: 12, fontFamily: "'JetBrains Mono', ui-monospace, monospace" }}>
+          audit role input: {diag.audit_role_input || '—'} · archetype {diag.archetype_used ? '✓' : '—'} · uniqueness elements: {diag.uniqueness_elements_input} · {diag.retries} retries
+        </div>
+      )}
+
+      {!frame && !running && (
+        <div style={{ padding: "20px 16px", textAlign: "center", color: "#444", fontSize: 12, border: "1px dashed rgba(255,255,255,0.06)", borderRadius: 6 }}>
+          No frame yet. Click <strong style={{ color: "#888" }}>Generate</strong> (~10-20s, Sonnet only, uses Phase 1+2+3 as context).
+        </div>
+      )}
+
+      {frame && (
+        <div>
+          {/* Top row: confirmed role badge + dominant transformation */}
+          <div style={{ display: "grid", gridTemplateColumns: "auto 1fr", gap: 14, alignItems: "start", marginBottom: 16 }}>
+            <div style={{ padding: "14px 16px", background: "#0a0a0a", borderRadius: 8, border: `1px solid ${ROLE_COLORS[frame.confirmed_role] || '#444'}40`, minWidth: 130 }}>
+              <div style={{ fontSize: 9, fontWeight: 700, color: "#666", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 6 }}>Role</div>
+              <div style={{ fontSize: 13, fontWeight: 700, color: ROLE_COLORS[frame.confirmed_role] || '#ccc' }}>{ROLE_LABELS[frame.confirmed_role] || frame.confirmed_role}</div>
+            </div>
+            <div style={{ padding: "14px 16px", background: "#0a0a0a", borderRadius: 8, border: "1px solid rgba(255,255,255,0.05)" }}>
+              <div style={{ fontSize: 9, fontWeight: 700, color: "#666", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 6 }}>Dominant Transformation</div>
+              <div style={{ fontSize: 13, color: "#f5f5f5", lineHeight: 1.55, fontWeight: 500 }}>{frame.dominant_transformation}</div>
+            </div>
+          </div>
+
+          {/* Audience segment */}
+          <div style={{ padding: "13px 15px", background: "#0a0a0a", borderRadius: 8, border: "1px solid rgba(255,255,255,0.05)", marginBottom: 12 }}>
+            <div style={{ fontSize: 9, fontWeight: 700, color: "#666", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 6 }}>Audience Segment</div>
+            <div style={{ fontSize: 12, color: "#ddd", lineHeight: 1.55, marginBottom: 6 }}>{frame.audience_segment?.description}</div>
+            <div style={{ fontSize: 10.5, color: "#888", fontStyle: "italic", lineHeight: 1.5 }}>
+              <span style={{ fontStyle: "normal", color: "#555", fontWeight: 700, marginRight: 6, letterSpacing: "0.06em" }}>ANCHOR:</span>
+              {frame.audience_segment?.demographics_anchor}
+            </div>
+          </div>
+
+          {/* Negative qualifiers */}
+          {(frame.negative_qualifiers || []).length > 0 && (
+            <div style={{ padding: "13px 15px", background: "rgba(239,68,68,0.03)", borderRadius: 8, border: "1px solid rgba(239,68,68,0.18)", marginBottom: 12 }}>
+              <div style={{ fontSize: 9, fontWeight: 700, color: "#ef4444", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 8 }}>Not For ({(frame.negative_qualifiers || []).length})</div>
+              <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 4 }}>
+                {frame.negative_qualifiers.map((q, i) => (
+                  <li key={i} style={{ fontSize: 12, color: "#ccc", lineHeight: 1.5, paddingLeft: 14, position: "relative" }}>
+                    <span style={{ position: "absolute", left: 0, color: "#ef4444" }}>✕</span>{q}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {/* Positioning tension */}
+          <div style={{ padding: "13px 15px", background: "rgba(122,14,24,0.04)", borderRadius: 8, border: "1px solid rgba(122,14,24,0.18)", marginBottom: 12 }}>
+            <div style={{ fontSize: 9, fontWeight: 700, color: "#7A0E18", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 6 }}>Positioning Tension</div>
+            <div style={{ fontSize: 12.5, color: "#f5f5f5", lineHeight: 1.55, fontStyle: "italic" }}>{frame.positioning_tension}</div>
+          </div>
+
+          {/* Rationale — collapsed under a subtle header so it doesn't dominate */}
+          {(frame.rationale || []).length > 0 && (
+            <div style={{ marginBottom: runAt ? 14 : 0 }}>
+              <div style={{ fontSize: 9, fontWeight: 700, color: "#666", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 8 }}>Rationale ({(frame.rationale || []).length})</div>
+              <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 4 }}>
+                {frame.rationale.map((r, i) => (
+                  <li key={i} style={{ fontSize: 11.5, color: "#aaa", lineHeight: 1.55, paddingLeft: 14, position: "relative" }}>
+                    <span style={{ position: "absolute", left: 0, color: "#666" }}>›</span>{r}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {runAt && (
+            <div style={{ fontSize: 10, color: "#333", paddingTop: 10, borderTop: "1px solid rgba(255,255,255,0.04)" }}>
+              Last run: {new Date(runAt).toLocaleString("pt-PT")}
+              {cp1Locked && progress.locked[1] && (
+                <> · Locked: {new Date(progress.locked[1]).toLocaleString("pt-PT")}</>
+              )}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
