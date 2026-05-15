@@ -14,6 +14,39 @@ function hasApify() {
   return !!APIFY_TOKEN;
 }
 
+// Extract Instagram's multi-link bio (the "Links" popup on the profile —
+// Instagram lets accounts add up to 5 titled links, the array is exposed by
+// most scrapers but under different field names across actor versions).
+//
+// We try every known field name and normalise into a `[{ title, url }]` array.
+// Falls back to wrapping the single `externalUrl` if no array is present.
+function extractIgBioLinks(p) {
+  if (!p) return [];
+  const candidates = [
+    p.bio_links, p.bioLinks, p.bioLink, p.biolinks,
+    p.externalUrls, p.external_urls,
+  ];
+  for (const c of candidates) {
+    if (Array.isArray(c) && c.length > 0) {
+      const out = [];
+      for (const item of c) {
+        if (typeof item === 'string' && /^https?:\/\//i.test(item)) {
+          out.push({ title: '', url: item });
+        } else if (item && typeof item === 'object') {
+          const url = item.url || item.href || item.link || item.lynx_url || item.web_url || '';
+          const title = item.title || item.text || item.linkText || item.lynx_text || '';
+          if (url) out.push({ title: String(title || '').trim(), url: String(url).trim() });
+        }
+      }
+      if (out.length > 0) return out;
+    }
+  }
+  // Last resort: wrap the single externalUrl as a one-item list.
+  const single = p.externalUrlShimmed || p.externalUrl || p.website || '';
+  if (single) return [{ title: '', url: String(single).trim() }];
+  return [];
+}
+
 async function runApifyActor(actorId, input) {
   // Use sync API with 45-second timeout (fits within Vercel's 60s limit)
   const controller = new AbortController();
@@ -94,6 +127,9 @@ export async function scrapeInstagram(username) {
     isBusinessAccount: p.isBusinessAccount || p.isBusiness || false,
     externalUrl: p.externalUrl || p.externalUrlShimmed || p.website || '',
     externalUrls: p.externalUrls || [],
+    // Instagram's multi-link bio (the "Links" popup) — `[{ title, url }]`.
+    // Reads multiple Apify field aliases; falls back to wrapping externalUrl.
+    igBioLinks: extractIgBioLinks(p),
     profilePicUrl: p.profilePicUrlHD || p.profilePicUrl || p.profilePic || '',
     engagementRate,
     avgLikes,
@@ -149,6 +185,7 @@ export async function scrapeInstagramBasic(username) {
     isVerified: p.verified || p.isVerified || false,
     isBusinessAccount: p.isBusinessAccount || p.isBusiness || false,
     externalUrl: p.externalUrl || p.externalUrlShimmed || p.website || '',
+    igBioLinks: extractIgBioLinks(p),
     profilePicUrl: p.profilePicUrlHD || p.profilePicUrl || p.profilePic || '',
     engagementRate,
     avgLikes,
@@ -406,6 +443,10 @@ export async function scrapeMultiplePlatforms(instagramUrl, tiktokUrl, youtubeUr
       engagementRate: igData.engagementRate || '',
       botScore: igData.botScore,
       url: instagramUrl,
+      // IG's multi-link bio — the popup with up to 5 titled links. Captured
+      // verbatim from Apify so the operator can see every link the creator
+      // is funnelling traffic to (not just the primary externalUrl).
+      bioLinks: igData.igBioLinks || [],
       recentPosts: igData.recentPosts || [],
     };
   }
@@ -513,6 +554,9 @@ export async function scrapeLean(instagramUrl, tiktokUrl, youtubeUrl) {
       followerFollowingRatio: igData.followerFollowingRatio || '0',
       engagementRate: igData.engagementRate || '',
       url: instagramUrl,
+      // IG multi-link bio captured even on lean scrape — it's the same Apify
+      // call so no extra cost. Lets us inspect ecosystem links on day one.
+      bioLinks: igData.igBioLinks || [],
       recentPosts: (igData.recentPosts || []).slice(0, 5),
     };
   }

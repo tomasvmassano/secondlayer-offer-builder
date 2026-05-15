@@ -883,6 +883,27 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
                   {creator.externalUrl && <a href={creator.externalUrl.startsWith("http") ? creator.externalUrl : "https://" + creator.externalUrl} target="_blank" rel="noopener noreferrer" style={{ display: "block", marginTop: 6, fontSize: 11, color: "#7A0E18", textDecoration: "none" }}>{creator.externalUrl}</a>}
                 </div>
               )}
+              {/* IG multi-link bio — Instagram's native "Links" feature, up to 5
+                  titled links per profile. Captured on every scrape; falls back
+                  silently if the actor didn't return any (some accounts have
+                  only one externalUrl which is already shown above). */}
+              {(igData.bioLinks || []).length > 0 && (
+                <div style={{ marginBottom: 12, padding: "10px 14px", background: "rgba(122,14,24,0.04)", border: "1px solid rgba(122,14,24,0.15)", borderRadius: 8 }}>
+                  <div style={{ fontSize: 9, fontWeight: 700, color: "#7A0E18", letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 8 }}>Bio Links · {igData.bioLinks.length}</div>
+                  <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 6 }}>
+                    {igData.bioLinks.map((l, i) => (
+                      <li key={i} style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
+                        <span style={{ fontFamily: "'JetBrains Mono', ui-monospace, monospace", fontSize: 9, color: "#555", minWidth: 18 }}>{String(i + 1).padStart(2, '0')}</span>
+                        <span style={{ flex: 1, fontSize: 12, color: "#ccc" }}>
+                          {l.title && <span style={{ fontWeight: 600, color: "#f5f5f5" }}>{l.title}</span>}
+                          {l.title && l.url && <span style={{ color: "#444", margin: "0 6px" }}>·</span>}
+                          <a href={l.url} target="_blank" rel="noopener noreferrer" style={{ color: "#7A0E18", textDecoration: "none", wordBreak: "break-all" }}>{l.url}</a>
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(110px, 1fr))", gap: 6, marginBottom: 10 }}>
                 {igData.followers > 0 && <div style={metricCardStyle}><div style={metricLabelStyle}>Followers</div><div style={metricValueStyle}>{formatFollowers(igData.followers)}</div></div>}
                 {igData.following > 0 && <div style={metricCardStyle}><div style={metricLabelStyle}>Following</div><div style={metricValueStyle}>{formatFollowers(igData.following)}</div></div>}
