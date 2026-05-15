@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { jsPDF } from 'jspdf';
 import { getCreator } from '../../../../lib/creators';
+import { readClientFacing } from '../../../../lib/offerSchema';
 import fs from 'node:fs';
 import path from 'node:path';
 
@@ -201,13 +202,16 @@ export async function GET(request, { params }) {
 
     const lang = (creator?.primaryLanguage || '').toLowerCase().includes('en') ? 'en' : 'pt';
     const t = COPY[lang];
-    const community = creator?.offer?.parsed?.community || {};
-    const weeklyFormats = (community.weeklyFormats || []).slice(0, 4);
-    const library = (community.library || []).slice(0, 6);
+    // Read via the canonical accessor — works for both wizard-generated offers
+    // (client_facing_output set directly) and legacy offers (derived from
+    // the parsed markdown blob on the fly). Internal_metadata never leaks here.
+    const cfo = readClientFacing(creator);
+    const weeklyFormats = (cfo.weekly_formats || []).slice(0, 4);
+    const library = (cfo.library || []).slice(0, 6);
     const audience = creator?.revenueAudience || creator?.platforms?.instagram?.followers || 100000;
     const price = Number(creator?.revenuePrice) || 19;
     const goals = deriveGoals(audience, lang);
-    const commName = community.primaryName || creator?.name || '';
+    const commName = cfo.community_name || creator?.name || '';
     const creatorName = (creator?.name || '').toUpperCase();
     const niche = creator?.niche || '';
 
@@ -787,14 +791,14 @@ export async function GET(request, { params }) {
           'Beta founding-members page (restricted access)',
           'Stripe payment + checkout system',
           'Onboarding sequence for the first 100',
-          `Community platform configured (${community.platform || 'Circle / Skool'})`,
+          `Community platform configured (${cfo.platform || 'Circle / Skool'})`,
           'Testimonial collection system',
         ] : [
           '7 emails completos (copy + design + automação)',
           'Página beta founding members (acesso restrito)',
           'Sistema de pagamento Stripe + checkout',
           'Onboarding sequence para os primeiros 100',
-          `Plataforma da comunidade configurada (${community.platform || 'Circle / Skool'})`,
+          `Plataforma da comunidade configurada (${cfo.platform || 'Circle / Skool'})`,
           'Sistema de recolha de testimonials',
         ]},
       ],

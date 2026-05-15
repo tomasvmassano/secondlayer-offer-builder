@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo, useRef, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { SCENARIOS as SHARED_SCENARIOS, projectGrowth as sharedProjectGrowth, cumulativeRevenue as sharedCumulative, calculateSteadyMRR } from "../lib/revenue";
 import { parseOutput } from "../lib/offerParser";
+import { readClientFacing, legacyParsedToOfferState } from "../lib/offerSchema";
 
 // ─────────────────────────────────────────────────────────────────
 // PITCH DECK — 10 slides + optional slide 11 (Investimento)
@@ -1773,20 +1774,41 @@ function buildDefaultSlides(creator) {
   const name = firstName(creator?.name || 'Creator');
   const lang = creator?.primaryLanguage === 'en' ? 'en' : 'pt';
   const t = (pt, en) => lang === 'en' ? en : pt;
-  // Auto-populate from parsed offer if available — falls back to placeholders.
-  // Self-heal: if creator.offer.raw exists but parsed is empty/missing key fields,
-  // re-run parseOutput on the fly. Means stale parses (from older parser versions)
-  // refresh themselves on the next pitch view without needing manual re-parse.
+
+  // ── Canonical accessor: every consumer reads from `client_facing_output` ──
+  // For legacy creators that only have `offer.parsed` (pre-wizard markdown), the
+  // helper derives a client_facing_output on the fly. Self-heal: if the raw
+  // markdown exists but the legacy parse is empty/stale, re-parse first then
+  // map. This keeps both old + new offer shapes rendering correctly during the
+  // transition, and lets `buildDefaultSlides` stay shape-agnostic.
   let parsed = creator?.offer?.parsed || {};
   const raw = creator?.offer?.raw;
   const looksEmpty = !parsed.community?.tiers?.length && !parsed.uniqueMechanism?.name && !parsed.valueStack?.items?.length && !parsed.cases?.length;
   if (raw && looksEmpty) {
     try { parsed = parseOutput(raw); } catch {}
   }
-  const c = parsed.community || {};
-  const cases = parsed.cases || [];
-  const um = parsed.uniqueMechanism || {};
-  const vs = parsed.valueStack || {};
+  // Prefer a wizard-written client_facing_output; otherwise derive from parsed.
+  const cfo = creator?.offer?.client_facing_output
+    || legacyParsedToOfferState(parsed).client_facing_output;
+
+  // Locals kept under their historical names so the rest of the slide builder
+  // (200+ lines below) doesn't need to change. They now point at the new
+  // canonical fields. Phase 4 will refactor the builder to consume cfo directly.
+  const c = {
+    primaryName:    cfo.community_name,
+    nameCandidates: cfo.name_candidates,
+    platform:       cfo.platform,
+    mechanic:       cfo.core_mechanic,
+    weeklyRhythm:   cfo.weekly_rhythm,
+    weeklyFormats:  cfo.weekly_formats,
+    library:        cfo.library,
+    tiers:          cfo.pricing_tiers,
+    bonuses:        cfo.unlocked_bonuses,
+    differentiator: cfo.differentiator_section,
+  };
+  const cases = cfo.cases || [];
+  const um = cfo.mechanism || {};
+  const vs = cfo.value_stack || {};
 
   // When parsed tiers are missing, derive sensible defaults from the offer's
   // recommended monthly price (extracted by the offer-generation pipeline).

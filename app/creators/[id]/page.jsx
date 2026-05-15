@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { calculateDealScore } from "../../lib/dealScore";
 import { SCENARIOS as REVENUE_SCENARIOS, calculateSteadyMRR as sharedCalcMRR } from "../../lib/revenue";
 import { renderMd, parseOutput, extractAudience } from "../../lib/offerParser";
+import { legacyParsedToOfferState } from "../../lib/offerSchema";
 import { OFFER_SYSTEM_PROMPT } from "../../lib/systemPrompt";
 import WorkspaceDashboard from "./workspace/WorkspaceDashboard";
 
@@ -540,7 +541,20 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
       const priceMatch = text.match(/(?:RECOMMENDED MONTHLY PRICE|PRE[CÇ]O MENSAL RECOMENDADO)\s*[:\-]?\s*€?\s*(\d{1,4})/i)
         || (parsed.community?.tiers?.[0]?.price?.match(/(\d{1,4})/));
       const recPrice = priceMatch ? parseInt(priceMatch[1] || priceMatch[0], 10) : null;
-      const updates = { offer: { raw: text, parsed, generatedAt: new Date().toISOString() } };
+      // Write the new dual schema alongside `parsed` for back-compat. Consumers
+      // (pitch deck, launch-plan PDF) prefer client_facing_output and fall back
+      // to parsed for legacy creators. When the wizard ships in Phase 4 it'll
+      // write client_facing_output directly and `parsed` can be dropped.
+      const { internal_metadata, client_facing_output } = legacyParsedToOfferState(parsed);
+      const updates = {
+        offer: {
+          raw: text,
+          parsed,
+          internal_metadata,
+          client_facing_output,
+          generatedAt: new Date().toISOString(),
+        },
+      };
       if (recPrice && recPrice > 0) updates.revenuePrice = recPrice;
       await patchCreator(updates);
       setOfferTab("offer");
@@ -584,7 +598,8 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
   }, [creator]);
 
   // Re-parse button — re-runs parseOutput on existing offer.raw without burning a new API call.
-  // Useful when parser improves and stale parsed data needs refresh.
+  // Useful when parser improves and stale parsed data needs refresh. Refreshes
+  // both `parsed` (back-compat) and the derived `client_facing_output`.
   const reparseOffer = useCallback(async () => {
     if (!creator?.offer?.raw) return;
     const parsed = parseOutput(creator.offer.raw);
@@ -592,7 +607,15 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
     const priceMatch = text.match(/(?:RECOMMENDED MONTHLY PRICE|PRE[CÇ]O MENSAL RECOMENDADO)\s*[:\-]?\s*€?\s*(\d{1,4})/i)
       || (parsed.community?.tiers?.[0]?.price?.match(/(\d{1,4})/));
     const recPrice = priceMatch ? parseInt(priceMatch[1] || priceMatch[0], 10) : null;
-    const updates = { offer: { ...creator.offer, parsed, reparsedAt: new Date().toISOString() } };
+    const { client_facing_output } = legacyParsedToOfferState(parsed);
+    const updates = {
+      offer: {
+        ...creator.offer,
+        parsed,
+        client_facing_output,
+        reparsedAt: new Date().toISOString(),
+      },
+    };
     if (recPrice && recPrice > 0) updates.revenuePrice = recPrice;
     await patchCreator(updates);
   }, [creator, patchCreator]);
