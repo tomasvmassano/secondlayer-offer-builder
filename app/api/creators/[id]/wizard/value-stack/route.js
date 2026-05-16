@@ -151,12 +151,27 @@ PRICING DISCIPLINE — this is non-negotiable:
 
 ## OUTPUT 3 · PRICING TIERS
 
-1-3 tiers. For most offers, 1 tier is enough. Add a second tier only if there's a real differentiator (e.g. core + premium with 1-1 access). Format:
+2-3 tiers. Default shape (mandatory for monthly offers):
+  - Tier 1 (monthly):     value_stack.actualPrice exactly (e.g. "€297/mo")
+  - Tier 2 (annual):      price × 10 framed as annual prepay ("€2,970/yr — 2 months free")
+                          — same currency, no inflation
+  - Tier 3 (premium):     OPTIONAL — only include if there's a real differentiator
+                          (e.g. monthly 1-1 access). Price ~2-3× the monthly tier.
+                          Skip if the creator profile doesn't support it.
+
+For one-time pricing (pricing_model == "one_time"), tiers are usually a
+single-tier with the actualPrice. Don't invent multiple tiers if the offer
+doesn't need them.
+
+The slide deck renders these as cards in a 2-column or 3-column grid. Keep tier names short (≤40 chars) and notes punchy (≤120 chars). Use creator language for tier names: PT creators get "Mensal" / "Anual" / "Premium"; EN creators get "Monthly" / "Annual" / "Premium".
+
+Format:
 
 {
   "pricing_tiers": [
-    { "name": "Core", "price": "€297/mo", "note": "Full system + community" },
-    { "name": "Premium", "price": "€697/mo", "note": "Core + monthly 1-1 with me" }
+    { "name": "Mensal", "price": "€297/mês", "note": "Sistema completo + comunidade" },
+    { "name": "Anual",  "price": "€2.970/ano", "note": "2 meses grátis vs mensal" },
+    { "name": "Premium", "price": "€697/mês", "note": "Mensal + 1-on-1 mensal comigo" }
   ]
 }
 
@@ -263,7 +278,17 @@ Elements (anchor value pricing on the high-monetization ones):
 ${elements || '(none)'}`;
   }
 
+  // Pitch-rendered output — match creator language. Mechanism name is an
+  // acronym; the .word fields per letter follow the language rule (e.g. PT
+  // creator → S = "Submeter", T = "Treinar", etc.). Brand-style phrases
+  // from Phase 3 stay verbatim.
+  const langHint = creator?.primaryLanguage === 'en'
+    ? `LANGUAGE: Output every string field in ENGLISH. mechanism.letters[].word + .explanation in English. value_stack item.problem/solution/delivery in English. unlocked_bonuses in English.`
+    : `LANGUAGE: Output every string field in PORTUGUESE (PT-PT). mechanism.letters[].word + .explanation in Portuguese. value_stack item.problem/solution/delivery in Portuguese. unlocked_bonuses in Portuguese. KEEP proper nouns / brand phrases / Phase 3 vocabulary elements verbatim. Do NOT mix languages within a single sentence.`;
+
   const userMessage = `Build the value stack + pricing for this offer. Each CP3 module typically becomes one stack item. value_stack.total MUST be 5-10× value_stack.actualPrice (use the creator's currency from CP2 target_price). mechanism.letters MUST have one entry per letter of mechanism.name.
+
+${langHint}
 
 ${frameBlock}
 

@@ -216,7 +216,17 @@ IG followers: ${creator.platforms?.instagram?.followers || 0}${creator.platforms
 Bio: ${(creator.bio || '').slice(0, 500) || '(no bio)'}
 Audience: ${audienceLine}`;
 
+  // Wizard outputs feed the pitch deck the creator sees — every string must
+  // be in the creator's primary language. Phase 1-3 inputs above may be in
+  // English (they're operator-only); the model is responsible for outputting
+  // in the target language regardless.
+  const langHint = creator?.primaryLanguage === 'en'
+    ? `LANGUAGE: Output every string field in ENGLISH. The Phase 1-3 inputs above may be in English already — keep it that way.`
+    : `LANGUAGE: Output every string field in PORTUGUESE (PT-PT). The Phase 1-3 inputs above may be in English — translate the strategic substance into Portuguese for the output. Do NOT mix languages.`;
+
   const userMessage = `Synthesise the three internal analyses below into the strategic frame for this creator's new offer.
+
+${langHint}
 
 ${creatorBlock}
 

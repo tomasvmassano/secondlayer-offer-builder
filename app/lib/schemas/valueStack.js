@@ -124,11 +124,15 @@ export function validateValueStack(obj) {
     }
   }
 
-  // ── pricing_tiers — 1-3 rows for the pitch slide 4 table
+  // ── pricing_tiers — 2-3 rows for the pitch slide 4 table.
+  // 2 is the floor: monthly + annual prepay. The 3rd (premium) is optional
+  // and only added when there's a real differentiator. One-time offers can
+  // technically have a single tier, but the prompt steers toward two by
+  // default; if you need to relax this for one-time, drop to 1 below.
   if (!Array.isArray(obj.pricing_tiers)) {
-    push('pricing_tiers', 'must be an array of 1-3 tier objects');
-  } else if (obj.pricing_tiers.length < 1 || obj.pricing_tiers.length > 3) {
-    push('pricing_tiers', `must contain 1-3 tiers (got ${obj.pricing_tiers.length})`);
+    push('pricing_tiers', 'must be an array of 2-3 tier objects');
+  } else if (obj.pricing_tiers.length < 2 || obj.pricing_tiers.length > 3) {
+    push('pricing_tiers', `must contain 2-3 tiers (got ${obj.pricing_tiers.length}) — monthly + annual prepay are the default minimum`);
   } else {
     obj.pricing_tiers.forEach((t, i) => {
       const px = `pricing_tiers[${i}]`;

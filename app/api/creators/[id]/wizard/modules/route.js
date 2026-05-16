@@ -263,8 +263,8 @@ ${elementsBlock || '  (none)'}
 CREATOR VOICE: ${uniqueness?.creator_voice_summary || '(none)'}`;
 
   const langHint = creator?.primaryLanguage === 'en'
-    ? `LANGUAGE: Creator's primary audience language is ENGLISH. Use English day labels (MON/TUE/WED/THU/FRI/SAT/SUN) for weekly_formats.day. All other strings in English.`
-    : `LANGUAGE: Creator's primary audience language is PORTUGUESE. Use Portuguese day labels (SEG/TER/QUA/QUI/SEX/SÁB/DOM) for weekly_formats.day. All other strings in Portuguese.`;
+    ? `LANGUAGE: Output every string field in ENGLISH. Use English day labels (MON/TUE/WED/THU/FRI/SAT/SUN) for weekly_formats.day.`
+    : `LANGUAGE: Output every string field in PORTUGUESE (PT-PT). Use Portuguese day labels (SEG/TER/QUA/QUI/SEX/SÁB/DOM) for weekly_formats.day. Phase 3 vocabulary may be in English — keep proper nouns / brand phrases / vocabulary elements verbatim ("Stride System Template", etc.) but translate descriptions and transformation_delivered into Portuguese. Do NOT mix languages within a single sentence.`;
 
   const userMessage = `Design 4-8 modules for this offer plus the weekly_formats + library arrays that derive from them. Every module must link to ≥1 Phase 3 uniqueness element by its [index] number.
 

@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { SCENARIOS as SHARED_SCENARIOS, projectGrowth as sharedProjectGrowth, cumulativeRevenue as sharedCumulative, calculateSteadyMRR } from "../lib/revenue";
 import { parseOutput } from "../lib/offerParser";
 import { readClientFacing, legacyParsedToOfferState } from "../lib/offerSchema";
+import { pickCases } from "../lib/casesDb";
 
 // ─────────────────────────────────────────────────────────────────
 // PITCH DECK — 10 slides + optional slide 11 (Investimento)
@@ -1189,11 +1190,29 @@ function PitchPageContent() {
             <Editable value={slides.system.subtitle} onChange={v => updateSlide('system', 'subtitle', v)} />
           </p>
 
-          {/* Mechanism brand banner — kept slim so the weekly + library blocks below have room */}
+          {/* Mechanism brand banner — name + (when CP4 ran) the per-letter breakdown */}
           <div style={{ marginTop: 24, padding: "22px 36px", background: "rgba(15,15,15,0.85)", border: "1px solid rgba(177,30,47,0.5)", borderRadius: 12, textAlign: "center" }}>
             <div style={{ ...italicSerif, fontSize: 56, color: "#f5f5f5", lineHeight: 1.0, letterSpacing: "-0.02em" }}>
               <Editable value={slides.system.name} onChange={v => updateSlide('system', 'name', v)} />
             </div>
+            {Array.isArray(slides.system.letters) && slides.system.letters.length > 0 && (
+              <>
+                {slides.system.description && (
+                  <p style={{ fontSize: 14, color: "#9E9E9E", margin: "12px 0 0", lineHeight: 1.5, fontStyle: "italic", maxWidth: 760, marginLeft: "auto", marginRight: "auto" }}>
+                    {slides.system.description}
+                  </p>
+                )}
+                <div style={{ marginTop: 20, display: "grid", gridTemplateColumns: `repeat(${slides.system.letters.length}, 1fr)`, gap: 12, textAlign: "left" }}>
+                  {slides.system.letters.map((l, i) => (
+                    <div key={i} style={{ padding: "12px 14px", background: "rgba(177,30,47,0.06)", border: "1px solid rgba(177,30,47,0.25)", borderRadius: 8 }}>
+                      <div style={{ fontSize: 28, fontWeight: 700, color: "#B11E2F", fontFamily: "'JetBrains Mono', ui-monospace, monospace", lineHeight: 1, marginBottom: 6, textAlign: "center" }}>{l.letter}</div>
+                      <div style={{ fontSize: 14, fontWeight: 700, color: "#f5f5f5", marginBottom: 4, textAlign: "center" }}>{l.word}</div>
+                      <div style={{ fontSize: 11, color: "#9E9E9E", lineHeight: 1.45, textAlign: "center" }}>{l.explanation}</div>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
           </div>
 
           {/* 2-column: Weekly Formats LEFT (4 cards) | Pre-recorded Library RIGHT (6 modules in 2-col) */}
@@ -1412,28 +1431,9 @@ function PitchPageContent() {
             </div>
           </div>
 
-          {/* Audience estimate split into 4 columns inside the card */}
-          {(translatedAudience || creator?.audienceEstimate) && (() => {
-            const aud = translatedAudience || creator.audienceEstimate;
-            const en = creator?.primaryLanguage === 'en';
-            const fields = [
-              aud.age      && [en ? 'Age'      : 'Idade',       aud.age],
-              aud.gender   && [en ? 'Gender'   : 'Género',      aud.gender],
-              aud.location && [en ? 'Location' : 'Localização', aud.location],
-              aud.language && [en ? 'Language' : 'Idioma',      aud.language],
-            ].filter(Boolean);
-            if (fields.length === 0) return null;
-            return (
-              <div style={{ marginTop: 22, padding: "28px 36px", background: "rgba(15,15,15,0.78)", border: "1px solid #1F1F1F", borderRadius: 14, display: "flex", gap: 0 }}>
-                {fields.map(([label, val], i) => (
-                  <div key={i} style={{ flex: 1, paddingLeft: i === 0 ? 0 : 24, paddingRight: i === fields.length - 1 ? 0 : 24, borderRight: i < fields.length - 1 ? "1px solid #1F1F1F" : "none" }}>
-                    <div style={{ fontSize: 12, fontWeight: 600, color: "#8A8A8A", letterSpacing: "0.22em", textTransform: "uppercase", marginBottom: 10 }}>{label}</div>
-                    <div style={{ fontSize: 28, fontWeight: 600, letterSpacing: "-0.01em", color: "#f5f5f5" }}>{val}</div>
-                  </div>
-                ))}
-              </div>
-            );
-          })()}
+          {/* Demographics row (age/gender/location/language) removed —
+              CP1's audience_segment description above already cites these
+              signals in a more strategic frame. Slide was too dense. */}
 
           {/* Top-performing themes strip — signals "we actually read your feed" */}
           {(() => {
@@ -1967,6 +1967,60 @@ function buildRoleExplanation({ role, products, communityName, targetPrice, lang
   return `${cn} é a camada de continuidade — receita recorrente que compõe enquanto continuas a publicar${targetPrice ? ` (${targetPrice})` : ''}.`;
 }
 
+// Auto-derive weekly_formats from the modules array when CP3 didn't ship them
+// (legacy outputs generated before the schema bump). Walks modules in order,
+// picks the ones whose format ∈ {live_call, community_ritual} and maps them
+// into the day-of-week shape the slide expects. delivery_cadence is parsed
+// for day hints if present ("Weekly Tuesday 18:00" → TUE/TER).
+function deriveWeeklyFormatsFromModules(modules, lang) {
+  if (!Array.isArray(modules) || modules.length === 0) return [];
+  const DAY_TOKENS_EN = { mon: 'MON', tue: 'TUE', wed: 'WED', thu: 'THU', fri: 'FRI', sat: 'SAT', sun: 'SUN' };
+  const DAY_TOKENS_PT = { mon: 'SEG', tue: 'TER', wed: 'QUA', thu: 'QUI', fri: 'SEX', sat: 'SÁB', sun: 'DOM' };
+  const dayMap = lang === 'en' ? DAY_TOKENS_EN : DAY_TOKENS_PT;
+  const guessDay = (cadence, idx) => {
+    const c = String(cadence || '').toLowerCase();
+    for (const [eng, label] of Object.entries(dayMap)) {
+      // English (mon/tue/...) AND Portuguese (seg/ter/...) word triggers
+      if (c.includes(eng)) return label;
+    }
+    const ptHints = lang === 'en'
+      ? ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun']
+      : ['seg', 'ter', 'qua', 'qui', 'sex', 'sab', 'dom'];
+    return Object.values(dayMap)[idx % 7];
+  };
+  const typeFor = (m) => {
+    if (m.format === 'live_call') return lang === 'en' ? 'Live' : 'Live';
+    if (m.format === 'community_ritual') return lang === 'en' ? 'Ritual' : 'Ritual';
+    return lang === 'en' ? 'Live' : 'Live';
+  };
+  return modules
+    .filter(m => m.format === 'live_call' || m.format === 'community_ritual')
+    .slice(0, 5)
+    .map((m, i) => ({
+      day: guessDay(m.delivery_cadence, i),
+      name: m.name,
+      type: typeFor(m),
+      desc: m.transformation_delivered || m.description || '',
+    }));
+}
+
+// Auto-derive library from modules whose format ∈ {recorded_module, doc, template}.
+// Same fallback rationale as deriveWeeklyFormatsFromModules.
+function deriveLibraryFromModules(modules, lang) {
+  if (!Array.isArray(modules) || modules.length === 0) return [];
+  const FORMAT_LABELS_EN = { recorded_module: 'Masterclass', doc: 'Playbook', template: 'Template Pack' };
+  const FORMAT_LABELS_PT = { recorded_module: 'Masterclass', doc: 'Playbook', template: 'Pack Templates' };
+  const labels = lang === 'en' ? FORMAT_LABELS_EN : FORMAT_LABELS_PT;
+  return modules
+    .filter(m => m.format === 'recorded_module' || m.format === 'doc' || m.format === 'template')
+    .slice(0, 6)
+    .map(m => ({
+      name: m.name,
+      format: labels[m.format] || m.format,
+      desc: m.transformation_delivered || m.description || '',
+    }));
+}
+
 // ─────────────────────────────────────────────────────────────────
 // DEFAULT SLIDES
 // ─────────────────────────────────────────────────────────────────
@@ -2171,32 +2225,46 @@ function buildDefaultSlides(creator) {
       title: t('O Sistema · Conteúdo Semanal', 'The System · Weekly Content'),
       subtitle: t('O método que a tua comunidade consome todas as semanas.', 'The method your community consumes every week.'),
       name: um.name || t('[The X.Y.Z. Method™]', '[The X.Y.Z. Method™]'),
-      weeklyFormats: c.weeklyFormats && c.weeklyFormats.length > 0 ? c.weeklyFormats : (lang === 'en' ? [
-        { day: 'MON', name: '[Format Name™]', type: 'Post',     desc: '[1-line description of what happens]' },
-        { day: 'WED', name: '[Format Name™]', type: 'Live 30m', desc: '[1-line description]' },
-        { day: 'SAT', name: '[Format Name™]', type: 'Video',    desc: '[1-line description]' },
-        { day: 'SUN', name: '[Format Name™]', type: 'Community',desc: '[1-line description]' },
-      ] : [
-        { day: 'SEG', name: '[Nome do Formato™]', type: 'Post',         desc: '[1 linha sobre o que acontece]' },
-        { day: 'QUA', name: '[Nome do Formato™]', type: 'Live 30min',   desc: '[1 linha]' },
-        { day: 'SÁB', name: '[Nome do Formato™]', type: 'Vídeo',        desc: '[1 linha]' },
-        { day: 'DOM', name: '[Nome do Formato™]', type: 'Comunidade',   desc: '[1 linha]' },
-      ]),
-      library: c.library && c.library.length > 0 ? c.library : (lang === 'en' ? [
-        { name: '[Module Name™]', format: 'Masterclass',    desc: '[Theme drawn from top post]' },
-        { name: '[Module Name™]', format: 'Mini-course',    desc: '[Theme]' },
-        { name: '[Module Name™]', format: 'PDF',            desc: '[Theme]' },
-        { name: '[Module Name™]', format: 'Calculator',     desc: '[Theme]' },
-        { name: '[Module Name™]', format: 'Template Pack',  desc: '[Theme]' },
-        { name: '[Module Name™]', format: 'Audio Program',  desc: '[Theme]' },
-      ] : [
-        { name: '[Nome do Módulo™]', format: 'Masterclass',     desc: '[Tema vindo de um post de topo]' },
-        { name: '[Nome do Módulo™]', format: 'Mini-curso',      desc: '[Tema]' },
-        { name: '[Nome do Módulo™]', format: 'PDF',             desc: '[Tema]' },
-        { name: '[Nome do Módulo™]', format: 'Calculadora',     desc: '[Tema]' },
-        { name: '[Nome do Módulo™]', format: 'Pack Templates',  desc: '[Tema]' },
-        { name: '[Nome do Módulo™]', format: 'Programa Áudio',  desc: '[Tema]' },
-      ]),
+      // Source priority: explicit CP3 weekly_formats/library → derived from
+      // CP3 modules (for stale outputs that pre-date the schema bump) →
+      // placeholder rows. The derive helpers walk the modules array and pick
+      // entries by format. Operator can still edit any row via <Editable>.
+      weeklyFormats: (() => {
+        if (c.weeklyFormats && c.weeklyFormats.length > 0) return c.weeklyFormats;
+        const derived = deriveWeeklyFormatsFromModules(cfo.modules, lang);
+        if (derived.length > 0) return derived;
+        return lang === 'en' ? [
+          { day: 'MON', name: '[Format Name™]', type: 'Post',     desc: '[1-line description of what happens]' },
+          { day: 'WED', name: '[Format Name™]', type: 'Live 30m', desc: '[1-line description]' },
+          { day: 'SAT', name: '[Format Name™]', type: 'Video',    desc: '[1-line description]' },
+          { day: 'SUN', name: '[Format Name™]', type: 'Community',desc: '[1-line description]' },
+        ] : [
+          { day: 'SEG', name: '[Nome do Formato™]', type: 'Post',         desc: '[1 linha sobre o que acontece]' },
+          { day: 'QUA', name: '[Nome do Formato™]', type: 'Live 30min',   desc: '[1 linha]' },
+          { day: 'SÁB', name: '[Nome do Formato™]', type: 'Vídeo',        desc: '[1 linha]' },
+          { day: 'DOM', name: '[Nome do Formato™]', type: 'Comunidade',   desc: '[1 linha]' },
+        ];
+      })(),
+      library: (() => {
+        if (c.library && c.library.length > 0) return c.library;
+        const derived = deriveLibraryFromModules(cfo.modules, lang);
+        if (derived.length > 0) return derived;
+        return lang === 'en' ? [
+          { name: '[Module Name™]', format: 'Masterclass',    desc: '[Theme drawn from top post]' },
+          { name: '[Module Name™]', format: 'Mini-course',    desc: '[Theme]' },
+          { name: '[Module Name™]', format: 'PDF',            desc: '[Theme]' },
+          { name: '[Module Name™]', format: 'Calculator',     desc: '[Theme]' },
+          { name: '[Module Name™]', format: 'Template Pack',  desc: '[Theme]' },
+          { name: '[Module Name™]', format: 'Audio Program',  desc: '[Theme]' },
+        ] : [
+          { name: '[Nome do Módulo™]', format: 'Masterclass',     desc: '[Tema vindo de um post de topo]' },
+          { name: '[Nome do Módulo™]', format: 'Mini-curso',      desc: '[Tema]' },
+          { name: '[Nome do Módulo™]', format: 'PDF',             desc: '[Tema]' },
+          { name: '[Nome do Módulo™]', format: 'Calculadora',     desc: '[Tema]' },
+          { name: '[Nome do Módulo™]', format: 'Pack Templates',  desc: '[Tema]' },
+          { name: '[Nome do Módulo™]', format: 'Programa Áudio',  desc: '[Tema]' },
+        ];
+      })(),
       // Legacy fields — preserved so older offers still render if loaded into the new slide.
       letters: um.letters && um.letters.length > 0 ? um.letters : [],
       description: um.description || '',
@@ -2235,13 +2303,17 @@ function buildDefaultSlides(creator) {
       audienceForList:    Array.isArray(cfo.audience_fit?.for) ? cfo.audience_fit.for : [],
       audienceNotForList: Array.isArray(cfo.audience_fit?.not_for) ? cfo.audience_fit.not_for : [],
     },
-    // Auto-populated from parsed.cases (3 real Skool/Whop communities the LLM picked from
-    // the case-studies skill, niche-matched to this creator). Falls back to placeholders.
+    // Source priority for the 3 case-study cards on slide 10:
+    //   1. Legacy parsed.cases (LLM-generated, real Skool/Whop names) — when present.
+    //   2. Curated DB picker (app/lib/casesDb.js) — niche/archetype-keyed,
+    //      always returns 3 real-world communities in creator's language.
+    //   3. Placeholder rows — never reached now that we have (2).
     cases: {
       title: t('Casos similares', 'Similar Cases'),
       subtitle: t('Comunidades reais no Skool/Whop com este perfil. Dados públicos.', 'Real Skool/Whop communities with this profile. Public data.'),
-      items: cases.length > 0
-        ? cases.slice(0, 3).map(cs => ({
+      items: (() => {
+        if (cases.length > 0) {
+          return cases.slice(0, 3).map(cs => ({
             name: cs.name || '[Nome]',
             niche: cs.niche || '[Nicho]',
             members: cs.members || '[X membros]',
@@ -2249,12 +2321,10 @@ function buildDefaultSlides(creator) {
             mrr: cs.mrr || '~€[X]K MRR',
             resume: cs.resume || '[1-line resume]',
             why: cs.why || '[Why this matters for the creator]',
-          }))
-        : [
-            { name: '[Nome]', niche: '[Nicho]', members: '[X membros]', price: '€[X]/mês', mrr: '~€[X]K MRR', resume: '[1-line resume]', why: '[Why this matters for the creator]' },
-            { name: '[Nome]', niche: '[Nicho]', members: '[X membros]', price: '€[X]/mês', mrr: '~€[X]K MRR', resume: '[1-line resume]', why: '[Why this matters for the creator]' },
-            { name: '[Nome]', niche: '[Nicho]', members: '[X membros]', price: '€[X]/mês', mrr: '~€[X]K MRR', resume: '[1-line resume]', why: '[Why this matters for the creator]' },
-          ],
+          }));
+        }
+        return pickCases(creator, lang);
+      })(),
       closer: t(
         'O nosso modelo está a fazer isto acontecer noutros nichos hoje. O teu é o próximo.',
         'Our model is making this happen in other niches today. Yours is next.'
