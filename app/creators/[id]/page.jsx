@@ -1607,6 +1607,7 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
               creator. */}
           <EcosystemAuditPanel
             creator={creator}
+            setCreator={setCreator}
             running={auditRunning}
             error={auditError}
             diag={auditDiag}
@@ -2132,7 +2133,7 @@ export default function CreatorProfilePage(props) {
 // and is NOT rendered anywhere the creator sees.
 // ─────────────────────────────────────────────────────────────────
 
-function EcosystemAuditPanel({ creator, running, error, diag, onRun }) {
+function EcosystemAuditPanel({ creator, setCreator, running, error, diag, onRun }) {
   const audit = creator?.offer?.internal_metadata?.ecosystem_audit || null;
   const runAt = creator?.offer?.internal_metadata?.generation_timestamps?.ecosystem_audit || null;
 
@@ -2151,6 +2152,89 @@ function EcosystemAuditPanel({ creator, running, error, diag, onRun }) {
     premium_upsell: 'Premium upsell · top of low-ticket catalog',
     standalone:    'Standalone · first real offer in the funnel',
   };
+  const TIER_OPTIONS = ['lead_magnet', 'low_ticket', 'mid_ticket', 'high_ticket', 'recurring', 'service', 'physical_product'];
+
+  // ── Local edit state — operator can fix audit mistakes (wrong-creator
+  // products, missing items, bad prices, wrong tiers) without a full
+  // re-run. Saved via PATCH endpoint. Synced from `audit` on prop change
+  // so a fresh re-run replaces local edits.
+  const [localProducts, setLocalProducts] = useState([]);
+  const [localCommunities, setLocalCommunities] = useState([]);
+  const [dirty, setDirty] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [saveErr, setSaveErr] = useState(null);
+
+  useEffect(() => {
+    setLocalProducts(audit?.ecosystem_map?.products_found || []);
+    setLocalCommunities(audit?.ecosystem_map?.existing_communities || []);
+    setDirty(false);
+    setSaveErr(null);
+  }, [audit]);
+
+  const editProduct = (i, key, val) => {
+    setLocalProducts(prev => {
+      const next = [...prev];
+      next[i] = { ...next[i], [key]: val };
+      return next;
+    });
+    setDirty(true);
+  };
+  const addProduct = () => {
+    setLocalProducts(prev => [...prev, { name: '', tier: 'low_ticket', format: 'product', price_eur: null, url: '', transformation_offered: '' }]);
+    setDirty(true);
+  };
+  const deleteProduct = (i) => {
+    setLocalProducts(prev => prev.filter((_, j) => j !== i));
+    setDirty(true);
+  };
+  const editCommunity = (i, key, val) => {
+    setLocalCommunities(prev => {
+      const next = [...prev];
+      next[i] = { ...next[i], [key]: val };
+      return next;
+    });
+    setDirty(true);
+  };
+  const addCommunity = () => {
+    setLocalCommunities(prev => [...prev, { name: '', tier: 'recurring', format: 'Skool community', price_eur: null, url: '' }]);
+    setDirty(true);
+  };
+  const deleteCommunity = (i) => {
+    setLocalCommunities(prev => prev.filter((_, j) => j !== i));
+    setDirty(true);
+  };
+  const saveEdits = async () => {
+    if (!creator?.id || saving) return;
+    setSaving(true);
+    setSaveErr(null);
+    try {
+      const r = await fetch(`/api/creators/${creator.id}/ecosystem-audit/patch`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          products_found: localProducts.filter(p => p.name?.trim()), // drop empty rows
+          existing_communities: localCommunities.filter(c => c.name?.trim()),
+        }),
+      });
+      const data = await r.json();
+      if (!r.ok) throw new Error(data.errors?.join('; ') || data.error || 'Save failed');
+      setCreator(prev => prev ? ({
+        ...prev,
+        offer: {
+          ...(prev.offer || {}),
+          internal_metadata: {
+            ...((prev.offer || {}).internal_metadata || {}),
+            ecosystem_audit: data.ecosystem_audit,
+          },
+        },
+      }) : prev);
+      setDirty(false);
+    } catch (e) {
+      setSaveErr(e.message || 'Save failed');
+    } finally {
+      setSaving(false);
+    }
+  };
 
   return (
     <div style={{ marginBottom: 28, padding: "18px 20px", background: "rgba(255,255,255,0.015)", border: "1px solid rgba(255,255,255,0.05)", borderRadius: 10 }}>
@@ -2162,25 +2246,51 @@ function EcosystemAuditPanel({ creator, running, error, diag, onRun }) {
             Maps existing products + decides the strategic role of the community in the funnel. Operator-only — never shown to the creator.
           </p>
         </div>
-        <button
-          onClick={onRun}
-          disabled={running}
-          style={{
-            padding: "8px 16px",
-            borderRadius: 6,
-            border: "1px solid rgba(122,14,24,0.4)",
-            background: running ? "rgba(255,255,255,0.02)" : "rgba(122,14,24,0.08)",
-            color: running ? "#555" : "#B11E2F",
-            fontSize: 11,
-            fontWeight: 600,
-            cursor: running ? "wait" : "pointer",
-            fontFamily: "inherit",
-            whiteSpace: "nowrap",
-          }}
-        >
-          {running ? "A correr audit..." : audit ? "↻ Re-run audit" : "Run audit"}
-        </button>
+        <div style={{ display: "flex", gap: 8 }}>
+          {/* Save changes — appears only when operator has unsaved edits */}
+          {dirty && (
+            <button
+              onClick={saveEdits}
+              disabled={saving}
+              style={{
+                padding: "8px 14px",
+                borderRadius: 6,
+                border: "1px solid rgba(34,197,94,0.45)",
+                background: saving ? "rgba(255,255,255,0.02)" : "rgba(34,197,94,0.10)",
+                color: saving ? "#555" : "#22c55e",
+                fontSize: 11,
+                fontWeight: 700,
+                cursor: saving ? "wait" : "pointer",
+                fontFamily: "inherit",
+                whiteSpace: "nowrap",
+              }}
+            >
+              {saving ? "A guardar..." : "● Save changes"}
+            </button>
+          )}
+          <button
+            onClick={onRun}
+            disabled={running}
+            style={{
+              padding: "8px 16px",
+              borderRadius: 6,
+              border: "1px solid rgba(122,14,24,0.4)",
+              background: running ? "rgba(255,255,255,0.02)" : "rgba(122,14,24,0.08)",
+              color: running ? "#555" : "#B11E2F",
+              fontSize: 11,
+              fontWeight: 600,
+              cursor: running ? "wait" : "pointer",
+              fontFamily: "inherit",
+              whiteSpace: "nowrap",
+            }}
+          >
+            {running ? "A correr audit..." : audit ? "↻ Re-run audit" : "Run audit"}
+          </button>
+        </div>
       </div>
+      {saveErr && (
+        <div style={{ padding: "8px 12px", borderRadius: 6, background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.25)", color: "#ef4444", fontSize: 11, marginBottom: 12 }}>{saveErr}</div>
+      )}
 
       {error && (
         <div style={{ padding: "10px 14px", borderRadius: 6, background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.25)", color: "#ef4444", fontSize: 11, marginBottom: 12, whiteSpace: "pre-wrap" }}>{error}</div>
@@ -2232,31 +2342,205 @@ function EcosystemAuditPanel({ creator, running, error, diag, onRun }) {
             })}
           </div>
 
-          {/* Products found */}
-          <div style={{ marginBottom: 14 }}>
-            <div style={{ fontSize: 9, fontWeight: 700, color: "#666", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 8 }}>Products found · {audit.ecosystem_map?.products_found?.length || 0}</div>
-            {(audit.ecosystem_map?.products_found || []).length === 0 ? (
-              <div style={{ fontSize: 11, color: "#444", padding: "12px 14px", background: "#0a0a0a", borderRadius: 6, border: "1px dashed rgba(255,255,255,0.04)" }}>No public products found.</div>
-            ) : (
-              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                {audit.ecosystem_map.products_found.map((p, i) => {
-                  const tc = TIER_COLORS[p.tier] || TIER_COLORS.physical_product;
-                  return (
-                    <div key={i} style={{ padding: "12px 14px", background: "#0a0a0a", borderRadius: 6, border: "1px solid rgba(255,255,255,0.04)" }}>
-                      <div style={{ display: "flex", alignItems: "baseline", gap: 10, marginBottom: 4 }}>
-                        <span style={{ fontSize: 13, fontWeight: 600, color: "#f5f5f5" }}>{p.name}</span>
-                        <span style={{ fontSize: 9, fontWeight: 700, padding: "2px 8px", borderRadius: 3, background: tc.bg, color: tc.color, border: `1px solid ${tc.border}`, textTransform: "uppercase", letterSpacing: "0.06em" }}>{p.tier.replace('_', ' ')}</span>
-                        <span style={{ fontSize: 10, color: "#666" }}>· {p.format}</span>
-                        <span style={{ marginLeft: "auto", fontSize: 11, fontWeight: 700, color: p.price_eur != null ? "#f5f5f5" : "#555" }}>{p.price_eur != null ? `€${p.price_eur}` : 'No public price'}</span>
-                      </div>
-                      <p style={{ fontSize: 11, color: "#888", margin: 0, lineHeight: 1.55 }}>{p.transformation_offered}</p>
-                      <a href={p.url} target="_blank" rel="noopener noreferrer" style={{ fontSize: 10, color: "#7A0E18", textDecoration: "none", marginTop: 4, display: "inline-block", wordBreak: "break-all" }}>{p.url}</a>
-                    </div>
-                  );
-                })}
+          {/* Products found — INLINE EDITABLE.
+              Operator can edit name/price/tier/format/URL/transformation
+              directly, add new products manually, and delete wrong ones
+              (e.g. when the audit hallucinates a product from a
+              same-first-name creator). Saved via the "Save changes"
+              button at the top of the panel. */}
+          {(() => {
+            const inputStyle = {
+              background: "rgba(255,255,255,0.02)",
+              border: "1px solid rgba(255,255,255,0.06)",
+              borderRadius: 4,
+              color: "#f5f5f5",
+              fontFamily: "inherit",
+              fontSize: 12,
+              padding: "5px 9px",
+              outline: "none",
+            };
+            return (
+              <div style={{ marginBottom: 14 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 8 }}>
+                  <div style={{ fontSize: 9, fontWeight: 700, color: "#666", letterSpacing: "0.14em", textTransform: "uppercase" }}>
+                    Products found · {localProducts.length}
+                    {dirty && <span style={{ color: "#eab308", marginLeft: 8, fontWeight: 700 }}>● edited</span>}
+                  </div>
+                  <button
+                    onClick={addProduct}
+                    style={{ padding: "4px 10px", borderRadius: 4, border: "1px solid rgba(122,14,24,0.4)", background: "rgba(122,14,24,0.06)", color: "#B11E2F", fontSize: 10, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}
+                  >
+                    + Add product
+                  </button>
+                </div>
+                {localProducts.length === 0 ? (
+                  <div style={{ fontSize: 11, color: "#444", padding: "12px 14px", background: "#0a0a0a", borderRadius: 6, border: "1px dashed rgba(255,255,255,0.04)" }}>No products. Click "+ Add product" to add one manually.</div>
+                ) : (
+                  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                    {localProducts.map((p, i) => {
+                      const tc = TIER_COLORS[p.tier] || TIER_COLORS.physical_product;
+                      return (
+                        <div key={i} style={{ padding: "10px 12px", background: "#0a0a0a", borderRadius: 6, border: `1px solid ${tc.border}` }}>
+                          {/* Row 1: name (flex) · tier · price · delete */}
+                          <div style={{ display: "grid", gridTemplateColumns: "1fr 140px 90px 28px", gap: 8, marginBottom: 6, alignItems: "center" }}>
+                            <input
+                              type="text"
+                              value={p.name || ''}
+                              placeholder="Product name"
+                              onChange={e => editProduct(i, 'name', e.target.value)}
+                              style={{ ...inputStyle, fontWeight: 600 }}
+                            />
+                            <select
+                              value={p.tier || 'low_ticket'}
+                              onChange={e => editProduct(i, 'tier', e.target.value)}
+                              style={{ ...inputStyle, color: tc.color, fontWeight: 700, fontSize: 10, letterSpacing: "0.06em", textTransform: "uppercase", cursor: "pointer", appearance: "none", WebkitAppearance: "none" }}
+                            >
+                              {TIER_OPTIONS.map(t => (
+                                <option key={t} value={t} style={{ background: "#0a0a0a", color: "#f5f5f5" }}>{t.replace('_', ' ')}</option>
+                              ))}
+                            </select>
+                            <input
+                              type="number"
+                              value={p.price_eur ?? ''}
+                              placeholder="€ price"
+                              onChange={e => editProduct(i, 'price_eur', e.target.value === '' ? null : Number(e.target.value))}
+                              style={{ ...inputStyle, textAlign: "right" }}
+                            />
+                            <button
+                              onClick={() => deleteProduct(i)}
+                              title="Delete this product"
+                              style={{ padding: "5px 0", borderRadius: 4, border: "1px solid rgba(239,68,68,0.25)", background: "transparent", color: "#ef4444", fontSize: 13, cursor: "pointer", fontFamily: "inherit" }}
+                            >
+                              ✕
+                            </button>
+                          </div>
+                          {/* Row 2: format · URL */}
+                          <div style={{ display: "grid", gridTemplateColumns: "160px 1fr", gap: 8, marginBottom: 6 }}>
+                            <input
+                              type="text"
+                              value={p.format || ''}
+                              placeholder="format (course, ebook…)"
+                              onChange={e => editProduct(i, 'format', e.target.value)}
+                              style={{ ...inputStyle, fontSize: 11 }}
+                            />
+                            <input
+                              type="text"
+                              value={p.url || ''}
+                              placeholder="https://…"
+                              onChange={e => editProduct(i, 'url', e.target.value)}
+                              style={{ ...inputStyle, fontSize: 11, color: "#7A0E18" }}
+                            />
+                          </div>
+                          {/* Row 3: transformation */}
+                          <textarea
+                            value={p.transformation_offered || ''}
+                            placeholder="What transformation does it offer? (1 sentence)"
+                            onChange={e => editProduct(i, 'transformation_offered', e.target.value)}
+                            rows={2}
+                            style={{ ...inputStyle, width: "100%", boxSizing: "border-box", resize: "vertical", fontSize: 11, color: "#aaa", fontFamily: "inherit" }}
+                          />
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
-            )}
-          </div>
+            );
+          })()}
+
+          {/* Existing communities — INLINE EDITABLE.
+              Separate from products because this is the cannibalization-risk
+              signal. Operator can add a community the audit missed
+              (theaiincomelabs.com style) or delete a wrong-creator
+              false-positive (Mariah Coz vs Mariah Brunner). */}
+          {(() => {
+            const inputStyle = {
+              background: "rgba(255,255,255,0.02)",
+              border: "1px solid rgba(255,255,255,0.06)",
+              borderRadius: 4,
+              color: "#f5f5f5",
+              fontFamily: "inherit",
+              fontSize: 12,
+              padding: "5px 9px",
+              outline: "none",
+            };
+            return (
+              <div style={{ marginBottom: 14 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 8 }}>
+                  <div style={{ fontSize: 9, fontWeight: 700, color: "#eab308", letterSpacing: "0.14em", textTransform: "uppercase" }}>
+                    Existing communities · {localCommunities.length}
+                    {localCommunities.length > 0 && <span style={{ marginLeft: 8, color: "#888", fontWeight: 500, letterSpacing: 0, textTransform: "none" }}>cannibalization risk feeder</span>}
+                  </div>
+                  <button
+                    onClick={addCommunity}
+                    style={{ padding: "4px 10px", borderRadius: 4, border: "1px solid rgba(234,179,8,0.4)", background: "rgba(234,179,8,0.06)", color: "#eab308", fontSize: 10, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}
+                  >
+                    + Add community
+                  </button>
+                </div>
+                {localCommunities.length === 0 ? (
+                  <div style={{ fontSize: 11, color: "#444", padding: "12px 14px", background: "#0a0a0a", borderRadius: 6, border: "1px dashed rgba(255,255,255,0.04)" }}>
+                    None detected. If the creator already runs a community (Skool / Whop / paid Discord / custom domain), click "+ Add community" — the wizard uses this to avoid pricing-tier overlap.
+                  </div>
+                ) : (
+                  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                    {localCommunities.map((c, i) => (
+                      <div key={i} style={{ padding: "10px 12px", background: "rgba(234,179,8,0.04)", borderRadius: 6, border: "1px solid rgba(234,179,8,0.25)" }}>
+                        <div style={{ display: "grid", gridTemplateColumns: "1fr 140px 90px 28px", gap: 8, marginBottom: 6, alignItems: "center" }}>
+                          <input
+                            type="text"
+                            value={c.name || ''}
+                            placeholder="Community name"
+                            onChange={e => editCommunity(i, 'name', e.target.value)}
+                            style={{ ...inputStyle, fontWeight: 600 }}
+                          />
+                          <select
+                            value={c.tier || 'recurring'}
+                            onChange={e => editCommunity(i, 'tier', e.target.value)}
+                            style={{ ...inputStyle, color: "#eab308", fontWeight: 700, fontSize: 10, letterSpacing: "0.06em", textTransform: "uppercase", cursor: "pointer", appearance: "none", WebkitAppearance: "none" }}
+                          >
+                            {TIER_OPTIONS.map(t => (
+                              <option key={t} value={t} style={{ background: "#0a0a0a", color: "#f5f5f5" }}>{t.replace('_', ' ')}</option>
+                            ))}
+                          </select>
+                          <input
+                            type="number"
+                            value={c.price_eur ?? ''}
+                            placeholder="€/mo"
+                            onChange={e => editCommunity(i, 'price_eur', e.target.value === '' ? null : Number(e.target.value))}
+                            style={{ ...inputStyle, textAlign: "right" }}
+                          />
+                          <button
+                            onClick={() => deleteCommunity(i)}
+                            title="Delete this community"
+                            style={{ padding: "5px 0", borderRadius: 4, border: "1px solid rgba(239,68,68,0.25)", background: "transparent", color: "#ef4444", fontSize: 13, cursor: "pointer", fontFamily: "inherit" }}
+                          >
+                            ✕
+                          </button>
+                        </div>
+                        <div style={{ display: "grid", gridTemplateColumns: "160px 1fr", gap: 8 }}>
+                          <input
+                            type="text"
+                            value={c.format || ''}
+                            placeholder="format (Skool, Whop…)"
+                            onChange={e => editCommunity(i, 'format', e.target.value)}
+                            style={{ ...inputStyle, fontSize: 11 }}
+                          />
+                          <input
+                            type="text"
+                            value={c.url || ''}
+                            placeholder="https://…"
+                            onChange={e => editCommunity(i, 'url', e.target.value)}
+                            style={{ ...inputStyle, fontSize: 11, color: "#7A0E18" }}
+                          />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })()}
 
           {/* Cannibalization */}
           {(audit.cannibalization_constraints || []).length > 0 && (

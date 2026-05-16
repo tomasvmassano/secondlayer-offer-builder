@@ -145,6 +145,22 @@ Anything you find via these searches MUST be added to products_found and (if it'
 
 DO NOT skip these searches even if the URL list seems comprehensive. Bio links are routinely incomplete.
 
+## CRITICAL — IDENTITY VERIFICATION (avoid same-first-name false positives)
+
+Common failure mode: web_search returns a different creator with the same first name and you include their products as if they belonged to OUR creator. Example: pitching "Mariah Brunner" — web_search for "Mariah community" returns Mariah Coz's "Profit Architecture" Skool, and the audit mistakenly attributes it to Mariah Brunner.
+
+Before adding ANY product or community to the output, VERIFY ownership by at least one of:
+
+  1. The URL belongs to a domain or platform handle owned by THIS creator (e.g. for Mariah Brunner: stan.store/mariahbrunner, theaiincomelabs.com, instagram.com/itsmariahbrunner). NOT skool.com/some-other-mariah.
+
+  2. The product page or community description explicitly references THIS creator's FULL name (first + last). A page that says "by Mariah Coz" is NOT proof of ownership when pitching "Mariah Brunner".
+
+  3. The page links back to one of the creator's verified social profiles (their Instagram, TikTok, YouTube as listed in the input).
+
+If you find a candidate but cannot verify via at least one of the three rules above, OMIT IT. A missing product is recoverable (operator can add it manually). A wrong product is corrupting — it derails the wizard's tier logic and produces a pitch deck citing assets that don't belong to the creator.
+
+Names alone are NEVER sufficient. "First name + niche match" is NEVER sufficient. Verify the URL/page reference.
+
 ## TIER CLASSIFICATION
 
 Classify each product into EXACTLY ONE of these tiers:

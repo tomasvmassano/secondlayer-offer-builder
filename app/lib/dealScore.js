@@ -204,18 +204,39 @@ export function calculateDealScore(creator) {
     : 'No monetization signals found (0pts)';
 
   // 6. Multi-platform presence (0-10 points)
+  // Full credit when we have follower counts (signal that scrape worked +
+  // creator has actual audience). Half credit when we only have the URL
+  // (the platform exists but the scraper didn't return data — common with
+  // YouTube channels that are shorts-only / region-locked / API failures).
+  // Without this, Mariah-style creators show as "2 platforms" when they
+  // actually have 3 — purely a scrape-failure artifact, not a real signal.
   let multiPlatform = 0;
-  if (ig?.followers > 0) multiPlatform += 3;
-  if (tk?.followers > 0) multiPlatform += 3;
-  if (yt?.subscribers > 0) multiPlatform += 4;
+  const platParts = [];
+  if (ig?.followers > 0) {
+    multiPlatform += 3;
+    platParts.push(`Instagram: ${ig.followers.toLocaleString()} (+3)`);
+  } else if (ig?.url || creator.instagramUrl) {
+    multiPlatform += 1;
+    platParts.push(`Instagram: URL present, no follower data (+1)`);
+  }
+  if (tk?.followers > 0) {
+    multiPlatform += 3;
+    platParts.push(`TikTok: ${tk.followers.toLocaleString()} (+3)`);
+  } else if (tk?.url || creator.tiktokUrl) {
+    multiPlatform += 1;
+    platParts.push(`TikTok: URL present, no follower data (+1)`);
+  }
+  if (yt?.subscribers > 0) {
+    multiPlatform += 4;
+    platParts.push(`YouTube: ${yt.subscribers.toLocaleString()} (+4)`);
+  } else if (yt?.url || creator.youtubeUrl) {
+    multiPlatform += 2;
+    platParts.push(`YouTube: URL present, no subscriber data (+2 — likely shorts-only or scrape miss)`);
+  }
   breakdown.multiPlatform = Math.min(multiPlatform, 10);
   total += breakdown.multiPlatform;
-  const platParts = [];
-  if (ig?.followers > 0) platParts.push(`Instagram: ${ig.followers.toLocaleString()} (+3)`);
-  if (tk?.followers > 0) platParts.push(`TikTok: ${tk.followers.toLocaleString()} (+3)`);
-  if (yt?.subscribers > 0) platParts.push(`YouTube: ${yt.subscribers.toLocaleString()} (+4)`);
   tooltips.multiPlatform = platParts.length > 0
-    ? platParts.join('\n') + '\nYouTube weighs more — longer content = deeper trust'
+    ? platParts.join('\n') + '\nYouTube weighs more — longer content = deeper trust. URL-only credit is partial.'
     : 'No platform data found';
 
   // Grade
