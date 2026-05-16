@@ -3810,6 +3810,78 @@ function CoreOfferPanel({ creator, setCreator, running, setRunning, error, setEr
             )}
           </div>
 
+          {/* High-tier structural panel — only renders for tier=high AND when at
+              least one hardening field is present. Each block is an operator
+              verification gate: cannibalisation check → does this offer not
+              compete with existing low/recurring; qualification filter → who
+              should NOT buy; mechanism → proprietary not borrowed; quantified
+              transformation → outcome not deliverable; format justification →
+              why the price is justified by delivery; ladder coherence → why
+              this rung is distinct from the existing ladder. */}
+          {client.pricing_tier === 'high' && (
+            client.cannibalisation_check ||
+            client.qualification_filter ||
+            client.mechanism_name ||
+            client.mechanism_logic ||
+            client.quantified_transformation ||
+            client.format_justification ||
+            client.ladder_coherence
+          ) && (
+            <div style={{ padding: "14px 16px", background: "rgba(122,14,24,0.04)", borderRadius: 8, border: "1px solid rgba(122,14,24,0.18)", marginBottom: runAt ? 14 : 0 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
+                <span style={{ fontSize: 9, fontWeight: 700, color: "#B11E2F", letterSpacing: "0.14em", textTransform: "uppercase" }}>High-tier structural checks</span>
+                <span style={{ fontSize: 9, color: "#7A0E18", padding: "1px 6px", borderRadius: 2, border: "1px solid rgba(122,14,24,0.3)", letterSpacing: "0.06em", textTransform: "uppercase" }}>operator-only</span>
+              </div>
+
+              {client.quantified_transformation && (
+                <div style={{ marginBottom: 12 }}>
+                  <div style={{ fontSize: 9, fontWeight: 700, color: "#666", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 4 }}>Quantified outcome</div>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: "#f5f5f5", lineHeight: 1.5 }}>{client.quantified_transformation}</div>
+                </div>
+              )}
+
+              {(client.mechanism_name || client.mechanism_logic) && (
+                <div style={{ marginBottom: 12, padding: "10px 12px", background: "rgba(0,0,0,0.3)", borderRadius: 6 }}>
+                  <div style={{ fontSize: 9, fontWeight: 700, color: "#666", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 4 }}>Proprietary mechanism</div>
+                  {client.mechanism_name && (
+                    <div style={{ fontSize: 14, fontWeight: 700, color: "#f5f5f5", fontFamily: "'Instrument Serif', Georgia, serif", letterSpacing: "-0.01em", marginBottom: 4 }}>{client.mechanism_name}</div>
+                  )}
+                  {client.mechanism_logic && (
+                    <div style={{ fontSize: 11.5, color: "#bbb", lineHeight: 1.55, fontStyle: "italic" }}>{client.mechanism_logic}</div>
+                  )}
+                </div>
+              )}
+
+              {client.cannibalisation_check && (
+                <div style={{ marginBottom: 12 }}>
+                  <div style={{ fontSize: 9, fontWeight: 700, color: "#666", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 4 }}>Cannibalisation check</div>
+                  <div style={{ fontSize: 11.5, color: "#ddd", lineHeight: 1.55 }}>{client.cannibalisation_check}</div>
+                </div>
+              )}
+
+              {client.qualification_filter && (
+                <div style={{ marginBottom: 12 }}>
+                  <div style={{ fontSize: 9, fontWeight: 700, color: "#666", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 4 }}>Qualification filter</div>
+                  <div style={{ fontSize: 11.5, color: "#ddd", lineHeight: 1.55 }}>{client.qualification_filter}</div>
+                </div>
+              )}
+
+              {client.format_justification && (
+                <div style={{ marginBottom: 12 }}>
+                  <div style={{ fontSize: 9, fontWeight: 700, color: "#666", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 4 }}>Format ↔ price justification</div>
+                  <div style={{ fontSize: 11.5, color: "#ddd", lineHeight: 1.55 }}>{client.format_justification}</div>
+                </div>
+              )}
+
+              {client.ladder_coherence && (
+                <div>
+                  <div style={{ fontSize: 9, fontWeight: 700, color: "#666", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 4 }}>Ladder coherence</div>
+                  <div style={{ fontSize: 11.5, color: "#ddd", lineHeight: 1.55 }}>{client.ladder_coherence}</div>
+                </div>
+              )}
+            </div>
+          )}
+
           {runAt && (
             <div style={{ fontSize: 10, color: "#333", paddingTop: 10, borderTop: "1px solid rgba(255,255,255,0.04)" }}>
               Last run: {new Date(runAt).toLocaleString("pt-PT")}

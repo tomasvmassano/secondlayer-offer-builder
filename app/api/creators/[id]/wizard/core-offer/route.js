@@ -92,6 +92,16 @@ export async function POST(request, { params }) {
           platform: result.data.platform,
           core_mechanic: result.data.core_mechanic,
           weekly_rhythm: result.data.weekly_rhythm,
+          // High-tier hardening fields (null at low/mid). Persisted so the
+          // pitch deck / CP3-4 can cite them, and the CP2 review panel can
+          // render them for operator verification.
+          cannibalisation_check:     result.data.cannibalisation_check     ?? null,
+          qualification_filter:      result.data.qualification_filter      ?? null,
+          mechanism_name:            result.data.mechanism_name            ?? null,
+          mechanism_logic:           result.data.mechanism_logic           ?? null,
+          quantified_transformation: result.data.quantified_transformation ?? null,
+          format_justification:      result.data.format_justification      ?? null,
+          ladder_coherence:          result.data.ladder_coherence          ?? null,
         },
         internal_metadata: {
           ...existingMeta,
@@ -189,9 +199,73 @@ A JSON object with these fields. EVERY string in creator voice.
 - Reuse Phase 3 vocabulary elements verbatim when they exist (e.g. if Phase 3 has "Stride System Template", USE that phrase, don't invent a parallel one).
 - Reference Phase 3 contrarian angles in central_promise or transformation.from when possible.
 
+## HIGH-TIER HARDENING — applies ONLY when pricing_tier is "high"
+
+High-tier offers (≥ €1,500 / hybrid / one-time premium) are where cannibalisation and generic positioning do the most damage. When generating a high-tier offer you MUST satisfy seven additional constraints, and produce seven additional fields in the JSON output. Low/mid tier may omit them (set to null).
+
+### 1. Cannibalisation rules engine
+
+Read the ECOSYSTEM block. For every existing low-tier product AND every existing community:
+  - The high-tier offer's central_promise CANNOT promise the same primary outcome. If the existing community teaches X, the high tier does NOT "teach X faster" or "teach advanced X". It SHIFTS THE VERB:
+      - community teaches  →  high tier IMPLEMENTS / INSTALLS / BUILDS-WITH-YOU / GUARANTEES
+      - community templates →  high tier 1:1 custom build OR done-with-you deployment
+      - community course   →  high tier outcome-anchored engagement
+  - The high tier MUST add a dimension the community lacks. Pick from: 1:1 access, done-with-you delivery, specific business-outcome guarantee, cohort accountability with cap + scarcity.
+  - Produce a **cannibalisation_check** field. 2-4 sentences. NAME each existing low/recurring product by title and explain how the new offer is structurally different — not just "more advanced" but a different KIND of offer. Example: "AI Income Lab (€49/mo) teaches members how to use Claude. The Agent Stack Build (€3,497) installs 5 production agents in their business in 4 weeks with weekly 1:1 troubleshooting and a guarantee they save ≥10 hours/week or full refund. Different verb (build vs teach), different format (1:1 + DWY vs group), different proof (outcome guarantee vs content access)."
+
+### 2. Avatar sharpening
+
+The audience_fit.for bullets must:
+  - Anchor an EXISTING BUSINESS — name a revenue floor ("€10K/mo+"), team size ("3+ team members"), or recurring customer count.
+  - Include a QUANTIFIED PAIN — hours lost per week, revenue capped at €X, can't scale without hiring N people.
+
+The audience_fit.not_for MUST explicitly EXCLUDE the community's typical avatar — by name or by description. Example: "Not for AI Income Lab members still figuring out their first prompt — this is for operators who already use AI and need it to actually run their business." This prevents upgrade/downgrade confusion.
+
+Produce a **qualification_filter** field. 2-4 sentences. Who is filtered OUT and why. Distinguish from negative_qualifiers — this is the structural reason someone should NOT buy, not a sales tactic.
+
+### 3. Proprietary mechanism, not borrowed authority
+
+"Templates I use in my 8-figure businesses" is borrowed authority — it pitches the creator's resume, not a method. At high tier you MUST surface a PROPRIETARY MECHANISM:
+  - Give it a NAME. Examples: "The Agent Stack Method", "The 5-Layer System", "The 4-Week Install Protocol". Use creator's Phase 3 vocabulary if a strong term exists; otherwise coin something specific.
+  - State the LOGIC — why THIS sequence, in ONE sentence. Example: "Marketing agent first because that's where most operators bleed cash; Co-Founder agent last because it needs context from the other four to synthesise."
+
+Produce **mechanism_name** (≤60 chars) and **mechanism_logic** (one sentence, max ~200 chars). The 8-figure credential becomes SUPPORTING evidence, not the core differentiator. Bury the credential mention in core_mechanic; lead with the mechanism.
+
+### 4. Quantified transformation
+
+Replace deliverable-based transformations ("get 5 AI agents") with OUTCOME-based ones:
+  - Hours saved per week (e.g. "12+ hours/week back")
+  - Revenue / output multiplier (e.g. "3x lead-flow without hiring")
+  - Headcount / cost avoided (e.g. "replaces a €4K/mo marketing manager")
+
+Pick the metric that maps to the avatar's stated pain (use Phase 1 + CP1 audience signals to decide which one matters most).
+
+Produce a **quantified_transformation** field. Single sentence with a number. This is what the operator can cite when pitching the offer.
+
+### 5. Format-to-price tension
+
+At €2,000+ the format MUST justify the price. Audit your own core_mechanic + weekly_rhythm:
+  - If target_price ≥ €2,000: include at least ONE of [cohort cap with scarcity, 1:1 sessions, done-with-you build sessions, outcome guarantee]
+  - If target_price ≥ €3,000: include at least TWO of the above
+  - Pure group + templates is NOT enough above €1,500. Reject that combo.
+
+Produce a **format_justification** field. 2-3 sentences. Reference the actual format elements (e.g. "Weekly 60-min 1:1 build call + cohort capped at 12 + 30-day outcome guarantee — the format is what €3,497 buys, not just access to templates").
+
+### 6. Tier-ladder coherence
+
+Verify that this offer adds a DISTINCT RUNG to the existing ladder. Each tier should solve a DIFFERENT problem, not the same problem at different speeds. The jump from existing tier to this tier must be justified by a STRUCTURAL DELIVERY CHANGE, not just more content.
+
+Produce a **ladder_coherence** field. 2-4 sentences. Cite the existing products by name and explain the gap this new offer closes. Example: "Existing €35 agent templates teach configuration. AI Income Lab (€49/mo) sustains the practice. Neither installs the system end-to-end. The Agent Stack Build closes the implementation gap — it's the only rung where a buyer gets a working system in their business, not just instruction."
+
+### 7. Self-audit gate
+
+Before returning, RE-READ your cannibalisation_check. If your central_promise verb is the SAME as the existing community's verb (both "learn", both "teach"), STOP and rewrite. If your audience_fit doesn't anchor a revenue/team/customer floor, STOP and rewrite. If your format is pure group + templates and target_price ≥ €2,000, STOP and rewrite. The downstream validator will reject these; fix them before output.
+
 ## OUTPUT
 
 Return ONLY a JSON object. No prose, no markdown.
+
+The seven high-tier fields (cannibalisation_check, qualification_filter, mechanism_name, mechanism_logic, quantified_transformation, format_justification, ladder_coherence) are REQUIRED at pricing_tier="high" and OPTIONAL (set to null) at low/mid.
 
 {
   "central_promise": "string (max 240)",
@@ -204,7 +278,15 @@ Return ONLY a JSON object. No prose, no markdown.
   "name_candidates": ["...", "..."],
   "platform": "Skool" | "Whop" | "Circle" | "Discord",
   "core_mechanic": "string (max 500)",
-  "weekly_rhythm": ["≤100 chars", ...]
+  "weekly_rhythm": ["≤100 chars", ...],
+
+  "cannibalisation_check":     "string | null  (REQUIRED at high tier)",
+  "qualification_filter":      "string | null  (REQUIRED at high tier)",
+  "mechanism_name":            "string | null  (REQUIRED at high tier)",
+  "mechanism_logic":           "string | null  (REQUIRED at high tier)",
+  "quantified_transformation": "string | null  (REQUIRED at high tier)",
+  "format_justification":      "string | null  (REQUIRED at high tier)",
+  "ladder_coherence":          "string | null  (REQUIRED at high tier)"
 }`;
 
 async function runCoreOffer(apiKey, creator, pricingTier, pricingModelOverride = null, retryCount = 0, extraInstruction = null) {
@@ -228,14 +310,29 @@ Positioning tension: ${frame.positioning_tension}`;
   }
 
   // ── Phase 1 — existing price points anchor pricing decisions
+  // For the high-tier hardening (cannibalisation check, ladder coherence), the
+  // model needs MORE than just "name · tier · price" — it needs the outcome
+  // each existing product promises. Surface transformation_offered when the
+  // audit captured it, and split existing_communities into a dedicated block
+  // (the cannibalisation risk is concentrated there).
   let auditBlock = '';
   if (audit) {
-    const products = (audit.ecosystem_map?.products_found || []).map(p =>
-      `  - ${p.name} (${p.tier} · ${p.format}${p.price ? ' · ' + p.price : ''})`
+    const ecoMap = audit.ecosystem_map || {};
+    const products = (ecoMap.products_found || []).map(p =>
+      `  - ${p.name} (${p.tier} · ${p.format}${p.price_eur ? ' · €' + p.price_eur : ''})${p.transformation_offered ? `\n      promises: ${p.transformation_offered}` : ''}`
     ).join('\n');
+    const communities = (ecoMap.existing_communities || []).map(c =>
+      `  - ${c.name} (${c.tier}${c.price_eur ? ' · €' + c.price_eur + '/mo' : ''} · ${c.format})${c.transformation_offered ? `\n      promises: ${c.transformation_offered}` : ''}`
+    ).join('\n');
+    const cannibalRisk = ecoMap.community_cannibalization_risk || 'unknown';
     auditBlock = `## ECOSYSTEM (Phase 1)
-Existing products (use these as price anchors):
-${products || '  (none mapped)'}`;
+Cannibalisation risk vs existing community: ${cannibalRisk.toUpperCase()}
+
+Existing products (price + outcome anchors — the new offer must NOT promise the same outcome):
+${products || '  (none mapped)'}
+
+Existing communities (HIGHEST cannibalisation risk — the new offer's outcome MUST be structurally different):
+${communities || '  (none — creator does not currently sell a paid community)'}`;
   }
 
   // ── Phase 2 — archetype shapes tone, fame anchors confidence
