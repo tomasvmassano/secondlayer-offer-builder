@@ -128,7 +128,7 @@ The letters array MUST have exactly one entry per letter in name. "S.T.R.I.D.E."
 
 ## OUTPUT 2 · VALUE STACK (Hormozi-style items)
 
-4-8 items. Each is ONE component of the offer with its own perceived value. Format:
+4-6 items. Each is ONE component of the offer with its own perceived value. NEVER more than 6 — the pitch slide cuts off above 6 rows. Consolidate weaker items if necessary. Format:
 
 {
   "items": [

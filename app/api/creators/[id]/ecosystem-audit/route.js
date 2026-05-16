@@ -131,6 +131,20 @@ You analyze a content creator's existing product ecosystem and decide the strate
 
 Given a list of URLs (Instagram bio links, Linktree pages, external sites, etc.), investigate each one using web_search. For each product/service you find, extract its name, price, format, and the transformation it promises.
 
+## REQUIRED ADDITIONAL DISCOVERY — DO THIS EVEN IF THE URL LIST IS COMPLETE
+
+The creator's bio links DO NOT necessarily list everything they sell. The hub team has been burned by missing existing communities (e.g. a creator with a Skool community at a custom domain that wasn't in their bio). To prevent this, you MUST perform at minimum these THREE additional web_search queries before producing output, and incorporate anything you find:
+
+  1. '"[creator name]" community'        — finds branded community pages, custom domains, etc.
+  2. '"[creator name]" skool OR whop'    — finds Skool/Whop-hosted communities
+  3. '"[creator name]" membership OR newsletter premium' — finds paid memberships/Substack-style products
+
+Replace [creator name] with the actual creator name from the input. If the creator is well-known by a brand name as well (e.g. "Late Checkout" for Greg Isenberg, "The AI Income Labs" for Mariah Brunner), run the brand-name variant too.
+
+Anything you find via these searches MUST be added to products_found and (if it's a community) to existing_communities. This is non-negotiable — a missed existing community is the most expensive failure mode for the downstream wizard.
+
+DO NOT skip these searches even if the URL list seems comprehensive. Bio links are routinely incomplete.
+
 ## TIER CLASSIFICATION
 
 Classify each product into EXACTLY ONE of these tiers:
@@ -239,7 +253,8 @@ Empty array [] if standalone.
 1. NEVER invent products. Only report what web_search actually confirms exists on each URL.
 2. has_high_ticket / has_mid_ticket / has_recurring MUST be true iff products_found contains at least one product of that tier. Be consistent.
 3. If a URL is a 404 / parked / private / errored, OMIT it from products_found rather than including a placeholder.
-4. Output must be VALID JSON. No surrounding text. No explanation.`;
+4. Run the REQUIRED ADDITIONAL DISCOVERY queries before producing output. Missing an existing community is the worst failure mode.
+5. Output must be VALID JSON. No surrounding text. No explanation.`;
 
 async function runAudit(apiKey, creator, urls, aggregatorsSeen, retryCount = 0) {
   const creatorContext = [

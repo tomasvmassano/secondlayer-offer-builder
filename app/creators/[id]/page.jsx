@@ -3122,12 +3122,24 @@ function CoreOfferPanel({ creator, setCreator, running, setRunning, error, setEr
   })();
   // Default state: if CP2 already ran, show its tier. Otherwise, the suggestion.
   const [pendingTier, setPendingTier] = useState(client.pricing_tier || suggestedTier);
+  // Operator override for pricing_model. 'auto' lets the model decide based
+  // on confirmed_role (legacy behavior). 'monthly' / 'one_time' force the
+  // model. Useful when creator already has a monthly community and the
+  // operator wants to position the new offer as one-time (or vice versa).
+  const [pendingModel, setPendingModel] = useState(client.pricing_model_override || 'auto');
   const [lockBusy, setLockBusy] = useState(false);
 
   const TIER_LABELS = {
     low: 'Low · €30-100/mo',
     mid: 'Mid · €200-500/mo',
     high: 'High · €1K+/mo or €3K+ one-time',
+  };
+  const MODEL_LABELS = {
+    auto:     'Auto (model decides)',
+    monthly:  'Monthly subscription',
+    one_time: 'One-time payment',
+    annual:   'Annual subscription',
+    hybrid:   'Hybrid (initial + recurring)',
   };
 
   const generate = async () => {
@@ -3138,7 +3150,12 @@ function CoreOfferPanel({ creator, setCreator, running, setRunning, error, setEr
       const r = await fetch(`/api/creators/${creator.id}/wizard/core-offer`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ pricing_tier: pendingTier }),
+        body: JSON.stringify({
+          pricing_tier: pendingTier,
+          // Only include pricing_model_override when operator picked something
+          // other than 'auto'. The endpoint reads this and forces the model.
+          ...(pendingModel !== 'auto' ? { pricing_model_override: pendingModel } : {}),
+        }),
       });
       const data = await r.json();
       if (!r.ok) {
@@ -3319,6 +3336,38 @@ function CoreOfferPanel({ creator, setCreator, running, setRunning, error, setEr
               );
             })}
           </div>
+          {/* Pricing model override — Auto lets the model decide based on
+              confirmed_role. The other four force a specific model. Useful
+              when the creator already has a monthly community (force
+              one-time) or vice versa. */}
+          <div style={{ marginTop: 12 }}>
+            <div style={{ fontSize: 9, fontWeight: 700, color: "#666", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 6 }}>
+              Pricing model {pendingModel === 'auto' ? <span style={{ color: "#888", fontWeight: 500, letterSpacing: 0, textTransform: "none" }}>· auto-picked from role</span> : <span style={{ color: "#B11E2F", fontWeight: 700, letterSpacing: 0, textTransform: "none" }}>· locked by operator</span>}
+            </div>
+            <select
+              value={pendingModel}
+              onChange={(e) => setPendingModel(e.target.value)}
+              disabled={running}
+              style={{
+                width: "100%",
+                padding: "8px 10px",
+                borderRadius: 6,
+                border: `1px solid ${pendingModel !== 'auto' ? 'rgba(122,14,24,0.5)' : 'rgba(255,255,255,0.08)'}`,
+                background: pendingModel !== 'auto' ? "rgba(122,14,24,0.06)" : "rgba(255,255,255,0.02)",
+                color: pendingModel !== 'auto' ? "#B11E2F" : "#bbb",
+                fontSize: 11,
+                fontWeight: 600,
+                cursor: running ? "wait" : "pointer",
+                fontFamily: "inherit",
+                appearance: "none",
+                WebkitAppearance: "none",
+              }}
+            >
+              {Object.entries(MODEL_LABELS).map(([key, label]) => (
+                <option key={key} value={key} style={{ background: "#0a0a0a", color: "#f5f5f5" }}>{label}</option>
+              ))}
+            </select>
+          </div>
           <button
             onClick={generate}
             disabled={running}
@@ -3336,7 +3385,7 @@ function CoreOfferPanel({ creator, setCreator, running, setRunning, error, setEr
               fontFamily: "inherit",
             }}
           >
-            {running ? "A gerar..." : hasOutput ? `↻ Re-run @ ${pendingTier}` : `Generate @ ${pendingTier} (~$0.04)`}
+            {running ? "A gerar..." : hasOutput ? `↻ Re-run @ ${pendingTier}` : `Generate @ ${pendingTier}${pendingModel !== 'auto' ? ` · ${pendingModel}` : ''} (~$0.04)`}
           </button>
         </div>
       )}

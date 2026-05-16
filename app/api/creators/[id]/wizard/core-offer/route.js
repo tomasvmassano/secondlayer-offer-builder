@@ -45,6 +45,13 @@ export async function POST(request, { params }) {
     if (!VALID_PRICING_TIERS.includes(pricingTier)) {
       return NextResponse.json({ error: `pricing_tier is required, must be one of: ${VALID_PRICING_TIERS.join('|')}` }, { status: 400 });
     }
+    // Optional override — operator can force the pricing_model (otherwise
+    // the model decides based on confirmed_role). Validated against the
+    // canonical enum so we don't pass garbage to the prompt.
+    const VALID_MODELS = ['one_time', 'monthly', 'annual', 'hybrid'];
+    const pricingModelOverride = body.pricing_model_override && VALID_MODELS.includes(body.pricing_model_override)
+      ? body.pricing_model_override
+      : null;
 
     const creator = await getCreator(id);
     if (!creator) return NextResponse.json({ error: 'Creator not found' }, { status: 404 });
@@ -61,7 +68,7 @@ export async function POST(request, { params }) {
       }, { status: 412 });
     }
 
-    const result = await runCoreOffer(apiKey, creator, pricingTier);
+    const result = await runCoreOffer(apiKey, creator, pricingTier, pricingModelOverride);
     if (result.error) {
       return NextResponse.json({ error: result.error, errors: result.errors, raw: result.raw }, { status: 502 });
     }
@@ -200,7 +207,7 @@ Return ONLY a JSON object. No prose, no markdown.
   "weekly_rhythm": ["≤100 chars", ...]
 }`;
 
-async function runCoreOffer(apiKey, creator, pricingTier, retryCount = 0, extraInstruction = null) {
+async function runCoreOffer(apiKey, creator, pricingTier, pricingModelOverride = null, retryCount = 0, extraInstruction = null) {
   const meta = creator.offer?.internal_metadata || {};
   const frame = meta.strategic_frame || null;
   const audit = meta.ecosystem_audit || null;
@@ -265,9 +272,23 @@ Niche: ${creator.niche || 'Unknown'}
 Bio: ${(creator.bio || '').slice(0, 500) || '(no bio)'}
 Audience: ${audienceLine}`;
 
-  const tierLine = `## PRICING TIER (locked by operator)
+  // Hard override: if the creator has a manually-set revenuePrice (set in
+  // the Workspace or CRM by the operator), the wizard MUST respect it. The
+  // operator's decision wins over the model's tier-band guess.
+  const revenuePriceOverride = Number(creator.revenuePrice) > 0 ? Number(creator.revenuePrice) : null;
+  // Pricing model lock — when the operator chose a specific model in the
+  // UI dropdown (vs leaving it on 'Auto'), force it. Useful e.g. when the
+  // creator already runs a monthly community and the new offer should be
+  // a one-time cohort instead of competing on subscription.
+  const modelLockLine = pricingModelOverride
+    ? `\n\nPRICING MODEL LOCKED: pricing_model MUST be "${pricingModelOverride}". The operator has explicitly chosen this model. Do NOT pick a different one even if the role would normally suggest otherwise.`
+    : '';
+  const tierLine = (revenuePriceOverride
+    ? `## PRICING — OPERATOR-LOCKED PRICE (overrides tier band)
+The operator has set the target price for this offer to €${revenuePriceOverride}. This number is non-negotiable — set target_price to "€${revenuePriceOverride}/mo" (or the equivalent in the chosen pricing_model) and DO NOT round, scale, or override it. The tier band (${pricingTier}) is now just a SIGNAL for the model — pick pricing_model and shape the offer copy to match a €${revenuePriceOverride} price point, regardless of where it falls in the band.`
+    : `## PRICING TIER (locked by operator)
 Tier: ${pricingTier} — target range: ${TIER_PRICE_HINTS[pricingTier]}
-Pick pricing_model and target_price that fit this tier AND the confirmed_role.`;
+Pick pricing_model and target_price that fit this tier AND the confirmed_role.`) + modelLockLine;
 
   // Creator-facing language. Every string in client_facing_output must match
   // the creator's primary language because the pitch deck renders it
@@ -314,7 +335,7 @@ ${extraInstruction ? `## ADDITIONAL INSTRUCTION\n${extraInstruction}\n\n` : ''}R
   const rawText = (data.content || []).filter(b => b.type === 'text').map(b => b.text).join('\n');
   const parsed = tryParseJson(rawText);
   if (!parsed) {
-    if (retryCount < 1) return runCoreOffer(apiKey, creator, pricingTier, retryCount + 1, 'Your previous response was not parseable JSON. Return ONLY a JSON object — no prose, no markdown fences.');
+    if (retryCount < 1) return runCoreOffer(apiKey, creator, pricingTier, pricingModelOverride, retryCount + 1, 'Your previous response was not parseable JSON. Return ONLY a JSON object — no prose, no markdown fences.');
     return { error: 'Model returned non-JSON output after retry', raw: rawText, errors: [], retries: retryCount };
   }
 
@@ -322,6 +343,10 @@ ${extraInstruction ? `## ADDITIONAL INSTRUCTION\n${extraInstruction}\n\n` : ''}R
   // returned to prevent it drifting (e.g. asked for "mid", model picks "high"
   // because target_price felt premium).
   parsed.pricing_tier = pricingTier;
+  // Same defensive overwrite for pricing_model when the operator locked one.
+  if (pricingModelOverride) {
+    parsed.pricing_model = pricingModelOverride;
+  }
 
   const validation = validateCoreOffer(parsed);
   if (!validation.valid) {
@@ -346,6 +371,7 @@ ${extraInstruction ? `## ADDITIONAL INSTRUCTION\n${extraInstruction}\n\n` : ''}R
         const retryParsed = tryParseJson(retryText);
         if (retryParsed) {
           retryParsed.pricing_tier = pricingTier;
+          if (pricingModelOverride) retryParsed.pricing_model = pricingModelOverride;
           const retryValidation = validateCoreOffer(retryParsed);
           if (retryValidation.valid) return enrich(retryParsed, frame, uniqueness, retryCount + 1);
           return { error: 'Schema validation failed twice', errors: retryValidation.errors, raw: retryText, retries: retryCount + 1 };

@@ -834,7 +834,7 @@ function PitchPageContent() {
       `}</style>
 
       {/* SLIDE 1: COVER — logo + centered subtitle + cinematic orb */}
-      <Slide num={1} total={14} hidePageMark decor={
+      <Slide num={1} total={11} hidePageMark decor={
         <>
           <div className="cover-orb" />
           <div className="aurora red"  style={{ left: -200, top: -200, width: 700, height: 700 }} />
@@ -874,7 +874,7 @@ function PitchPageContent() {
       </Slide>
 
       {/* SLIDE 2: CORE PROMISE — waveform + aurora */}
-      <Slide num={2} total={14} decor={
+      <Slide num={2} total={11} decor={
         <>
           <div className="aurora red" style={{ right: -300, top: "30%", width: 900, height: 900 }} />
           <svg className="promise-wave" viewBox="0 0 1920 1080" preserveAspectRatio="none">
@@ -923,139 +923,8 @@ function PitchPageContent() {
           slides.businessContext.products. Prices are <Editable> so the
           operator can correct any misread the audit produced. */}
 
-      {/* SLIDE 3 · Variant A — O Trio (Frontend → Novo → Backend) */}
-      <Slide num={3} total={14} decor={
-        <div className="aurora red" style={{ right: -200, top: "20%", width: 700, height: 700, opacity: 0.28 }} />
-      }>
-        <div style={{ flex: 1, display: "flex", flexDirection: "column", width: "100%" }}>
-          <div style={{ fontSize: 18, fontWeight: 600, color: "#B11E2F", letterSpacing: "0.28em", textTransform: "uppercase" }}>
-            {creator?.primaryLanguage === 'en' ? 'Variant A · The trio' : 'Variante A · O Trio'}
-          </div>
-          <div style={{ height: 18 }} />
-          <h1 style={{ fontSize: 72, fontWeight: 800, margin: 0, lineHeight: 1.0, letterSpacing: "-0.03em", color: "#f5f5f5" }}>
-            <StyledLastWord
-              text={creator?.primaryLanguage === 'en' ? 'How this fits' : 'Onde isto encaixa'}
-              italicStyle={{ ...italicSerif, color: "#B11E2F", fontSize: 76 }}
-            />
-          </h1>
-
-          {(() => {
-            // Frontend = lowest-tier paid product (skip lead_magnet)
-            // Backend = highest-tier product
-            // New = the new community in between
-            const sorted = [...slides.businessContext.products].sort((a, b) =>
-              PITCH_TIER_ORDER.indexOf(a.tier) - PITCH_TIER_ORDER.indexOf(b.tier)
-            );
-            const paid = sorted.filter(p => p.tier !== 'lead_magnet');
-            const frontend = paid[0] || sorted[0] || null;
-            const backend = paid[paid.length - 1] !== frontend ? paid[paid.length - 1] : null;
-            const en = creator?.primaryLanguage === 'en';
-            const cardStyle = {
-              padding: "36px 28px",
-              background: "rgba(15,15,15,0.85)",
-              border: "1px solid rgba(255,255,255,0.06)",
-              borderRadius: 14,
-              display: "flex",
-              flexDirection: "column",
-              gap: 12,
-              minHeight: 260,
-              justifyContent: "center",
-            };
-            const newCardStyle = {
-              ...cardStyle,
-              background: "linear-gradient(180deg, rgba(177,30,47,0.18), rgba(15,15,15,0.85))",
-              border: "1.5px solid #B11E2F",
-            };
-            const tierLabel = (tier) => {
-              const lbl = PITCH_TIER_LABELS[tier] || { pt: tier, en: tier };
-              return en ? lbl.en : lbl.pt;
-            };
-            const editPrice = (idx, newVal) => {
-              const next = [...slides.businessContext.products];
-              next[idx] = { ...next[idx], price: newVal, price_eur: null };
-              updateSlide('businessContext', 'products', next);
-            };
-            return (
-              <div style={{ marginTop: 56, display: "grid", gridTemplateColumns: frontend && backend ? "1fr 1.15fr 1fr" : "1fr 1fr", gap: 18, flex: 1, alignItems: "stretch" }}>
-                {/* Frontend */}
-                {frontend && (
-                  <div style={cardStyle}>
-                    <div style={{ fontSize: 10, fontWeight: 700, color: "#8A8A8A", letterSpacing: "0.22em", textTransform: "uppercase" }}>
-                      {en ? 'Frontend' : 'Frontend'}
-                    </div>
-                    <div style={{ ...italicSerif, fontSize: 30, color: "#f5f5f5", lineHeight: 1.1 }}>
-                      {frontend.name}
-                    </div>
-                    <div style={{ fontSize: 11, color: "#666", fontFamily: "'JetBrains Mono', ui-monospace, monospace", letterSpacing: "0.1em" }}>
-                      {tierLabel(frontend.tier)}
-                    </div>
-                    <div style={{ fontSize: 28, color: "#D9D9D9", fontFamily: "'JetBrains Mono', ui-monospace, monospace", fontWeight: 700, marginTop: 6 }}>
-                      <Editable
-                        value={frontend.price_eur ? '€' + frontend.price_eur : (frontend.price || '—')}
-                        onChange={v => {
-                          const ix = slides.businessContext.products.indexOf(frontend);
-                          if (ix >= 0) editPrice(ix, v);
-                        }}
-                      />
-                    </div>
-                  </div>
-                )}
-                {/* New (center, highlighted) */}
-                <div style={newCardStyle}>
-                  <div style={{ fontSize: 10, fontWeight: 700, color: "#B11E2F", letterSpacing: "0.22em", textTransform: "uppercase" }}>
-                    {en ? '● New offer' : '● A nova oferta'}
-                  </div>
-                  <div style={{ ...italicSerif, fontSize: 36, color: "#f5f5f5", lineHeight: 1.05 }}>
-                    {slides.businessContext.newOfferName}
-                  </div>
-                  <div style={{ fontSize: 11, color: "#888", fontFamily: "'JetBrains Mono', ui-monospace, monospace", letterSpacing: "0.1em" }}>
-                    {tierLabel(slides.businessContext.newOfferTier)}
-                  </div>
-                  <div style={{ fontSize: 32, color: "#B11E2F", fontFamily: "'JetBrains Mono', ui-monospace, monospace", fontWeight: 700, marginTop: 6 }}>
-                    <Editable
-                      value={slides.businessContext.newOfferPrice}
-                      onChange={v => updateSlide('businessContext', 'newOfferPrice', v)}
-                    />
-                  </div>
-                </div>
-                {/* Backend */}
-                {backend && (
-                  <div style={cardStyle}>
-                    <div style={{ fontSize: 10, fontWeight: 700, color: "#8A8A8A", letterSpacing: "0.22em", textTransform: "uppercase" }}>
-                      {en ? 'Backend' : 'Backend'}
-                    </div>
-                    <div style={{ ...italicSerif, fontSize: 30, color: "#f5f5f5", lineHeight: 1.1 }}>
-                      {backend.name}
-                    </div>
-                    <div style={{ fontSize: 11, color: "#666", fontFamily: "'JetBrains Mono', ui-monospace, monospace", letterSpacing: "0.1em" }}>
-                      {tierLabel(backend.tier)}
-                    </div>
-                    <div style={{ fontSize: 28, color: "#D9D9D9", fontFamily: "'JetBrains Mono', ui-monospace, monospace", fontWeight: 700, marginTop: 6 }}>
-                      <Editable
-                        value={backend.price_eur ? '€' + backend.price_eur : (backend.price || '—')}
-                        onChange={v => {
-                          const ix = slides.businessContext.products.indexOf(backend);
-                          if (ix >= 0) editPrice(ix, v);
-                        }}
-                      />
-                    </div>
-                  </div>
-                )}
-              </div>
-            );
-          })()}
-
-          {/* Impact quote — single italic-serif sentence, big, breathing room */}
-          {(slides.businessContext.ecosystemImpact[0] || slides.businessContext.roleExplanation) && (
-            <p style={{ ...italicSerif, fontSize: 26, color: "#D9D9D9", margin: "44px 0 0", lineHeight: 1.4, maxWidth: 1400 }}>
-              {slides.businessContext.ecosystemImpact[0] || slides.businessContext.roleExplanation}
-            </p>
-          )}
-        </div>
-      </Slide>
-
-      {/* SLIDE 3 · Variant B — Lista + Citação (slim tier list + big impact quote) */}
-      <Slide num={4} total={14} decor={
+      {/* SLIDE 3 · MAPA DO ECOSSISTEMA — Lista + Citação (slim tier list + big impact quote) */}
+      <Slide num={3} total={11} decor={
         <div className="aurora red" style={{ left: -200, top: "30%", width: 700, height: 700, opacity: 0.28 }} />
       }>
         <div style={{ flex: 1, display: "flex", flexDirection: "column", width: "100%" }}>
@@ -1148,77 +1017,8 @@ function PitchPageContent() {
             4A · Calendar Hero    — name top + big calendar + 2-col below
             4B · Asymmetric       — name+mechanic left, pricing right, calendar bottom */}
 
-      {/* SLIDE 4 · Variant A — Calendar Hero */}
-      <Slide num={5} total={14} decor={
-        <div className="aurora red" style={{ right: -250, top: "20%", width: 700, height: 700, opacity: 0.28 }} />
-      }>
-        <div style={{ flex: 1, display: "flex", flexDirection: "column", width: "100%" }}>
-          <div style={{ fontSize: 18, fontWeight: 600, color: "#B11E2F", letterSpacing: "0.28em", textTransform: "uppercase" }}>
-            {creator?.primaryLanguage === 'en' ? 'Variant A · Calendar hero' : 'Variante A · Calendário Hero'}
-          </div>
-          <div style={{ height: 14 }} />
-          <h1 style={{ ...italicSerif, fontSize: 84, fontWeight: 400, margin: 0, lineHeight: 1.0, letterSpacing: "-0.02em", color: "#f5f5f5" }}>
-            <Editable value={slides.community.nameCandidate} onChange={v => updateSlide('community', 'nameCandidate', v)} />
-          </h1>
-
-          {/* Calendar — bigger, slightly more height */}
-          {(() => {
-            const en = creator?.primaryLanguage === 'en';
-            const days = en
-              ? ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN']
-              : ['SEG', 'TER', 'QUA', 'QUI', 'SEX', 'SÁB', 'DOM'];
-            const dayBuckets = days.map(d => ({
-              day: d,
-              events: (slides.system.weeklyFormats || []).filter(w => String(w.day || '').toUpperCase().includes(d.replace('Á', 'A').slice(0, 3))),
-            }));
-            return (
-              <div style={{ marginTop: 32, display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 10, height: 240 }}>
-                {dayBuckets.map((bucket, i) => (
-                  <div key={i} style={{ display: "flex", flexDirection: "column", gap: 8, padding: "14px 12px", background: bucket.events.length > 0 ? "rgba(177,30,47,0.06)" : "rgba(15,15,15,0.5)", border: `1px solid ${bucket.events.length > 0 ? "rgba(177,30,47,0.3)" : "rgba(255,255,255,0.04)"}`, borderRadius: 10, overflow: "hidden" }}>
-                    <div style={{ fontSize: 11, fontWeight: 700, color: bucket.events.length > 0 ? "#B11E2F" : "#444", letterSpacing: "0.16em", textTransform: "uppercase", fontFamily: "'JetBrains Mono', ui-monospace, monospace", textAlign: "center", paddingBottom: 6, borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
-                      {bucket.day}
-                    </div>
-                    {bucket.events.length > 0 ? bucket.events.slice(0, 2).map((ev, j) => (
-                      <div key={j}>
-                        <div style={{ fontSize: 8, fontWeight: 700, color: "#888", letterSpacing: "0.1em", textTransform: "uppercase", fontFamily: "'JetBrains Mono', ui-monospace, monospace", marginBottom: 3 }}>{ev.type}</div>
-                        <div style={{ ...italicSerif, fontSize: 14, color: "#f5f5f5", lineHeight: 1.2 }}>{ev.name}</div>
-                      </div>
-                    )) : (
-                      <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", color: "#333", fontSize: 12 }}>—</div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            );
-          })()}
-
-          {/* Below · 2 cols: mechanic (left) + pricing tiers (right, bigger) */}
-          <div style={{ marginTop: 28, display: "grid", gridTemplateColumns: "1.5fr 1fr", gap: 28, flex: 1 }}>
-            <div>
-              <div style={{ fontSize: 11, fontWeight: 700, color: "#8A8A8A", letterSpacing: "0.22em", textTransform: "uppercase", marginBottom: 12 }}>
-                {creator?.primaryLanguage === 'en' ? 'What happens' : 'O que acontece'}
-              </div>
-              <p style={{ ...italicSerif, fontSize: 24, color: "#D9D9D9", lineHeight: 1.45, margin: 0 }}>
-                <Editable value={slides.community.mechanic} onChange={v => updateSlide('community', 'mechanic', v)} multiline />
-              </p>
-            </div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-              {(slides.community.tiers || []).slice(0, 3).map((t, i) => (
-                <div key={i} style={{ padding: "14px 18px", background: i === 0 ? "linear-gradient(90deg, rgba(177,30,47,0.10), rgba(15,15,15,0.85))" : "rgba(15,15,15,0.6)", border: `1px solid ${i === 0 ? "rgba(177,30,47,0.5)" : "rgba(255,255,255,0.06)"}`, borderRadius: 8 }}>
-                  <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 12 }}>
-                    <div style={{ fontSize: 10, fontWeight: 700, color: "#B11E2F", letterSpacing: "0.16em", textTransform: "uppercase" }}>{t.name}</div>
-                    <div style={{ ...italicSerif, fontSize: 26, color: "#f5f5f5" }}>{t.price}</div>
-                  </div>
-                  {t.note && <div style={{ fontSize: 11, color: "#888", marginTop: 4 }}>{t.note}</div>}
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      </Slide>
-
-      {/* SLIDE 4 · Variant B — Asymmetric (name+mechanic left, pricing right, calendar bottom) */}
-      <Slide num={6} total={14} decor={
+      {/* SLIDE 4 · A TUA COMUNIDADE — Asymmetric (name+mechanic left, pricing right, calendar bottom) */}
+      <Slide num={4} total={11} decor={
         <div className="aurora red" style={{ right: -250, top: "20%", width: 700, height: 700, opacity: 0.28 }} />
       }>
         <div style={{ flex: 1, display: "flex", flexDirection: "column", width: "100%" }}>
@@ -1284,8 +1084,8 @@ function PitchPageContent() {
             5A · Mechanism Hero   — huge acronym center, letter cards below
             5B · Library Hero     — mechanism small as eyebrow, library cards big */}
 
-      {/* SLIDE 5 · Variant A — Mechanism Hero */}
-      <Slide num={7} total={14} decor={
+      {/* SLIDE 5 · O SISTEMA — Mechanism Hero */}
+      <Slide num={5} total={11} decor={
         <div className="aurora deep" style={{ left: "50%", top: "50%", transform: "translate(-50%,-50%)", width: 900, height: 900, opacity: 0.35 }} />
       }>
         <div style={{ flex: 1, display: "flex", flexDirection: "column", width: "100%" }}>
@@ -1324,58 +1124,8 @@ function PitchPageContent() {
         </div>
       </Slide>
 
-      {/* SLIDE 5 · Variant B — Library Hero */}
-      <Slide num={8} total={14} decor={
-        <div className="aurora deep" style={{ right: -200, top: "30%", width: 700, height: 700, opacity: 0.4 }} />
-      }>
-        <div style={{ flex: 1, display: "flex", flexDirection: "column", width: "100%" }}>
-          <div style={{ fontSize: 18, fontWeight: 600, color: "#B11E2F", letterSpacing: "0.28em", textTransform: "uppercase" }}>
-            {creator?.primaryLanguage === 'en' ? 'Variant B · Library hero' : 'Variante B · Biblioteca Hero'}
-          </div>
-          <div style={{ height: 14 }} />
-          <h1 style={{ ...italicSerif, fontSize: 72, fontWeight: 400, margin: 0, lineHeight: 1.0, letterSpacing: "-0.02em", color: "#f5f5f5" }}>
-            <Editable value={slides.system.name} onChange={v => updateSlide('system', 'name', v)} />
-          </h1>
-          {slides.system.description && (
-            <p style={{ fontSize: 18, color: "#9E9E9E", margin: "18px 0 0", lineHeight: 1.55, maxWidth: 1100 }}>
-              {slides.system.description}
-            </p>
-          )}
-
-          {/* Library cards — prominent, 3 columns */}
-          <div style={{ marginTop: 40, display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 16, flex: 1 }}>
-            {(slides.system.library || []).slice(0, 6).map((m, i) => (
-              <div key={i} style={{ padding: "24px 22px", background: "rgba(15,15,15,0.6)", border: "1px solid rgba(255,255,255,0.05)", borderRadius: 10, display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
-                <div>
-                  {m.format && (
-                    <div style={{ fontSize: 10, fontWeight: 700, color: "#B11E2F", letterSpacing: "0.18em", textTransform: "uppercase", fontFamily: "'JetBrains Mono', ui-monospace, monospace", marginBottom: 12 }}>
-                      <Editable value={m.format} onChange={v => {
-                        const next = [...slides.system.library]; next[i] = { ...m, format: v };
-                        updateSlide('system', 'library', next);
-                      }} />
-                    </div>
-                  )}
-                  <div style={{ ...italicSerif, fontSize: 26, color: "#f5f5f5", lineHeight: 1.15, marginBottom: 10 }}>
-                    <Editable value={m.name} onChange={v => {
-                      const next = [...slides.system.library]; next[i] = { ...m, name: v };
-                      updateSlide('system', 'library', next);
-                    }} />
-                  </div>
-                </div>
-                <p style={{ margin: 0, fontSize: 13, color: "#9E9E9E", lineHeight: 1.5 }}>
-                  <Editable value={m.desc} onChange={v => {
-                    const next = [...slides.system.library]; next[i] = { ...m, desc: v };
-                    updateSlide('system', 'library', next);
-                  }} multiline />
-                </p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </Slide>
-
-      {/* SLIDE 9: O VALOR — Hormozi value stack */}
-      <Slide num={9} total={14} decor={
+      {/* SLIDE 6: O VALOR — Hormozi value stack */}
+      <Slide num={6} total={11} decor={
         <div className="aurora red" style={{ left: -200, top: -100, width: 700, height: 700, opacity: 0.35 }} />
       }>
         <div style={{ flex: 1, display: "flex", flexDirection: "column", width: "100%" }}>
@@ -1390,49 +1140,67 @@ function PitchPageContent() {
             <Editable value={slides.valueStack.subtitle} onChange={v => updateSlide('valueStack', 'subtitle', v)} />
           </p>
 
-          {/* The stack table */}
-          <div style={{ marginTop: 40, background: "rgba(15,15,15,0.85)", border: "1px solid #1F1F1F", borderRadius: 14, overflow: "hidden", flex: 1 }}>
-            <table style={{ width: "100%", borderCollapse: "collapse" }}>
-              <thead>
-                <tr style={{ background: "rgba(177,30,47,0.08)" }}>
-                  <th style={{ padding: "16px 20px", textAlign: "left", fontSize: 11, fontWeight: 700, color: "#B11E2F", letterSpacing: "0.18em", textTransform: "uppercase", borderBottom: "1px solid #1F1F1F" }}>{creator?.primaryLanguage === 'en' ? 'Problem' : 'Problema'}</th>
-                  <th style={{ padding: "16px 20px", textAlign: "left", fontSize: 11, fontWeight: 700, color: "#B11E2F", letterSpacing: "0.18em", textTransform: "uppercase", borderBottom: "1px solid #1F1F1F" }}>{creator?.primaryLanguage === 'en' ? 'Solution' : 'Solução'}</th>
-                  <th style={{ padding: "16px 20px", textAlign: "left", fontSize: 11, fontWeight: 700, color: "#B11E2F", letterSpacing: "0.18em", textTransform: "uppercase", borderBottom: "1px solid #1F1F1F" }}>{creator?.primaryLanguage === 'en' ? 'Delivery' : 'Entrega'}</th>
-                  <th style={{ padding: "16px 20px", textAlign: "right", fontSize: 11, fontWeight: 700, color: "#B11E2F", letterSpacing: "0.18em", textTransform: "uppercase", borderBottom: "1px solid #1F1F1F", fontFamily: "'JetBrains Mono', ui-monospace, monospace" }}>{creator?.primaryLanguage === 'en' ? 'Value' : 'Valor'}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {slides.valueStack.items.map((it, i) => (
-                  <tr key={i} style={{ borderBottom: i < slides.valueStack.items.length - 1 ? "1px solid #1F1F1F" : "none" }}>
-                    <td style={{ padding: "18px 20px", fontSize: 18, color: "#aaa", verticalAlign: "top" }}>
-                      <Editable value={it.problem} onChange={v => {
-                        const next = [...slides.valueStack.items]; next[i] = { ...it, problem: v };
-                        updateSlide('valueStack', 'items', next);
-                      }} />
-                    </td>
-                    <td style={{ padding: "18px 20px", fontSize: 18, fontWeight: 600, color: "#f5f5f5", verticalAlign: "top" }}>
-                      <Editable value={it.solution} onChange={v => {
-                        const next = [...slides.valueStack.items]; next[i] = { ...it, solution: v };
-                        updateSlide('valueStack', 'items', next);
-                      }} />
-                    </td>
-                    <td style={{ padding: "18px 20px", fontSize: 16, color: "#888", verticalAlign: "top", fontStyle: "italic" }}>
-                      <Editable value={it.delivery} onChange={v => {
-                        const next = [...slides.valueStack.items]; next[i] = { ...it, delivery: v };
-                        updateSlide('valueStack', 'items', next);
-                      }} />
-                    </td>
-                    <td style={{ padding: "18px 20px", fontSize: 24, fontWeight: 700, color: "#1F8A4C", textAlign: "right", verticalAlign: "top", fontFamily: "'JetBrains Mono', ui-monospace, monospace", letterSpacing: "-0.02em" }}>
-                      <Editable value={it.dollarValue} onChange={v => {
-                        const next = [...slides.valueStack.items]; next[i] = { ...it, dollarValue: v };
-                        updateSlide('valueStack', 'items', next);
-                      }} />
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          {/* The stack table — row padding + font sizes scale down when the
+              stack has more than 5 items so the actualPrice block below
+              stays visible. Schema caps at 6 items via valueStack validator
+              + CP4 prompt, but render is defensive in case legacy data has
+              more. */}
+          {(() => {
+            const items = slides.valueStack.items || [];
+            const dense = items.length >= 6;
+            const tdBase = {
+              padding: dense ? "10px 18px" : "18px 20px",
+              verticalAlign: "top",
+            };
+            const fsProblem  = dense ? 14 : 18;
+            const fsSolution = dense ? 14 : 18;
+            const fsDelivery = dense ? 13 : 16;
+            const fsValue    = dense ? 19 : 24;
+            return (
+              <div style={{ marginTop: 32, background: "rgba(15,15,15,0.85)", border: "1px solid #1F1F1F", borderRadius: 14, overflow: "hidden", flex: 1 }}>
+                <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                  <thead>
+                    <tr style={{ background: "rgba(177,30,47,0.08)" }}>
+                      <th style={{ padding: "14px 18px", textAlign: "left", fontSize: 11, fontWeight: 700, color: "#B11E2F", letterSpacing: "0.18em", textTransform: "uppercase", borderBottom: "1px solid #1F1F1F" }}>{creator?.primaryLanguage === 'en' ? 'Problem' : 'Problema'}</th>
+                      <th style={{ padding: "14px 18px", textAlign: "left", fontSize: 11, fontWeight: 700, color: "#B11E2F", letterSpacing: "0.18em", textTransform: "uppercase", borderBottom: "1px solid #1F1F1F" }}>{creator?.primaryLanguage === 'en' ? 'Solution' : 'Solução'}</th>
+                      <th style={{ padding: "14px 18px", textAlign: "left", fontSize: 11, fontWeight: 700, color: "#B11E2F", letterSpacing: "0.18em", textTransform: "uppercase", borderBottom: "1px solid #1F1F1F" }}>{creator?.primaryLanguage === 'en' ? 'Delivery' : 'Entrega'}</th>
+                      <th style={{ padding: "14px 18px", textAlign: "right", fontSize: 11, fontWeight: 700, color: "#B11E2F", letterSpacing: "0.18em", textTransform: "uppercase", borderBottom: "1px solid #1F1F1F", fontFamily: "'JetBrains Mono', ui-monospace, monospace" }}>{creator?.primaryLanguage === 'en' ? 'Value' : 'Valor'}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {items.map((it, i) => (
+                      <tr key={i} style={{ borderBottom: i < items.length - 1 ? "1px solid #1F1F1F" : "none" }}>
+                        <td style={{ ...tdBase, fontSize: fsProblem, color: "#aaa" }}>
+                          <Editable value={it.problem} onChange={v => {
+                            const next = [...slides.valueStack.items]; next[i] = { ...it, problem: v };
+                            updateSlide('valueStack', 'items', next);
+                          }} />
+                        </td>
+                        <td style={{ ...tdBase, fontSize: fsSolution, fontWeight: 600, color: "#f5f5f5" }}>
+                          <Editable value={it.solution} onChange={v => {
+                            const next = [...slides.valueStack.items]; next[i] = { ...it, solution: v };
+                            updateSlide('valueStack', 'items', next);
+                          }} />
+                        </td>
+                        <td style={{ ...tdBase, fontSize: fsDelivery, color: "#888", fontStyle: "italic" }}>
+                          <Editable value={it.delivery} onChange={v => {
+                            const next = [...slides.valueStack.items]; next[i] = { ...it, delivery: v };
+                            updateSlide('valueStack', 'items', next);
+                          }} />
+                        </td>
+                        <td style={{ ...tdBase, fontSize: fsValue, fontWeight: 700, color: "#1F8A4C", textAlign: "right", fontFamily: "'JetBrains Mono', ui-monospace, monospace", letterSpacing: "-0.02em" }}>
+                          <Editable value={it.dollarValue} onChange={v => {
+                            const next = [...slides.valueStack.items]; next[i] = { ...it, dollarValue: v };
+                            updateSlide('valueStack', 'items', next);
+                          }} />
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            );
+          })()}
 
           {/* Total + actual price comparison */}
           <div style={{ marginTop: 28, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24 }}>
@@ -1456,8 +1224,8 @@ function PitchPageContent() {
         </div>
       </Slide>
 
-      {/* SLIDE 10: AUDIENCE — aurora + dot grid */}
-      <Slide num={10} total={14} decor={
+      {/* SLIDE 7: AUDIENCE — aurora + dot grid */}
+      <Slide num={7} total={11} decor={
         <div className="aurora red" style={{ left: -200, top: -100, width: 600, height: 600, opacity: 0.3 }} />
       }>
         <div style={{ flex: 1, display: "flex", flexDirection: "column", width: "100%" }}>
@@ -1591,8 +1359,8 @@ function PitchPageContent() {
         </div>
       </Slide>
 
-      {/* SLIDE 11: LAUNCH — phases with assets, aurora */}
-      <Slide num={11} total={14} decor={
+      {/* SLIDE 8: LAUNCH — phases with assets, aurora */}
+      <Slide num={8} total={11} decor={
         <div className="aurora red" style={{ left: "30%", top: -200, width: 700, height: 700, opacity: 0.3 }} />
       }>
         <div style={{ flex: 1, display: "flex", flexDirection: "column", width: "100%" }}>
@@ -1682,8 +1450,8 @@ function PitchPageContent() {
         </div>
       </Slide>
 
-      {/* SLIDE 12: NUMBERS — dual aurora */}
-      <Slide num={12} total={14} decor={
+      {/* SLIDE 9: NUMBERS — dual aurora */}
+      <Slide num={9} total={11} decor={
         <>
           <div className="aurora red"  style={{ right: 0, top: -200, width: 800, height: 800, opacity: 0.4 }} />
           <div className="aurora deep" style={{ left: -100, bottom: -200, width: 700, height: 700 }} />
@@ -1771,8 +1539,8 @@ function PitchPageContent() {
         </div>
       </Slide>
 
-      {/* SLIDE 13: CASOS SIMILARES — proof slide */}
-      <Slide num={13} total={14} decor={
+      {/* SLIDE 10: CASOS SIMILARES — proof slide */}
+      <Slide num={10} total={11} decor={
         <div className="aurora red" style={{ left: "50%", top: -150, width: 700, height: 700, opacity: 0.3, transform: "translateX(-50%)" }} />
       }>
         <div style={{ flex: 1, display: "flex", flexDirection: "column", width: "100%" }}>
@@ -1873,9 +1641,9 @@ function PitchPageContent() {
         </div>
       </Slide>
 
-      {/* SLIDE 14 (OPTIONAL): INVESTIMENTO — aurora + receipt */}
+      {/* SLIDE 11 (OPTIONAL): INVESTIMENTO — aurora + receipt */}
       {showInvestimento && (
-        <Slide num={14} total={14} decor={
+        <Slide num={11} total={11} decor={
           <>
             <div className="aurora red"  style={{ right: -200, top: -100, width: 700, height: 700, opacity: 0.35 }} />
             <div className="aurora deep" style={{ left: -200, bottom: -100, width: 700, height: 700 }} />

@@ -89,10 +89,12 @@ export function validateValueStack(obj) {
     push('value_stack', 'required object { items: [...], total, actualPrice }');
   } else {
     const vs = obj.value_stack;
+    // Cap at 6 items — 7+ causes the pitch slide's actualPrice block to
+    // overflow off-screen. Floor stays at 4 (anything less feels thin).
     if (!Array.isArray(vs.items)) {
-      push('value_stack.items', 'must be an array of 4-8 stack items');
-    } else if (vs.items.length < 4 || vs.items.length > 8) {
-      push('value_stack.items', `must contain 4-8 items (got ${vs.items.length})`);
+      push('value_stack.items', 'must be an array of 4-6 stack items');
+    } else if (vs.items.length < 4 || vs.items.length > 6) {
+      push('value_stack.items', `must contain 4-6 items (got ${vs.items.length}) — pitch slide cuts off above 6`);
     } else {
       vs.items.forEach((it, i) => {
         const px = `value_stack.items[${i}]`;
