@@ -834,7 +834,7 @@ function PitchPageContent() {
       `}</style>
 
       {/* SLIDE 1: COVER — logo + centered subtitle + cinematic orb */}
-      <Slide num={1} total={11} hidePageMark decor={
+      <Slide num={1} total={14} hidePageMark decor={
         <>
           <div className="cover-orb" />
           <div className="aurora red"  style={{ left: -200, top: -200, width: 700, height: 700 }} />
@@ -874,7 +874,7 @@ function PitchPageContent() {
       </Slide>
 
       {/* SLIDE 2: CORE PROMISE — waveform + aurora */}
-      <Slide num={2} total={11} decor={
+      <Slide num={2} total={14} decor={
         <>
           <div className="aurora red" style={{ right: -300, top: "30%", width: 900, height: 900 }} />
           <svg className="promise-wave" viewBox="0 0 1920 1080" preserveAspectRatio="none">
@@ -913,144 +913,258 @@ function PitchPageContent() {
         </div>
       </Slide>
 
-      {/* SLIDE 3 · MAPA DO ECOSSISTEMA — vertical river + visceral impact column.
-          Single-column "Fluxo Atual" on the left orders existing products + the
-          NEW community card by tier with vertical arrows between. Right column
-          lands the CP1 ecosystem_impact bullets — money-anchored, visceral
-          framing of what this offer DOES to the creator's existing business.
-          When CP1's differentiation_from_existing is present (cannibalization
-          risk was high/medium), it renders as a "Diferenciação" block below
-          the impact bullets. */}
-      <Slide num={3} total={11} decor={
-        <div className="aurora red" style={{ right: -200, top: "20%", width: 700, height: 700, opacity: 0.32 }} />
+      {/* ════════════ SLIDE 3 · MAPA DO ECOSSISTEMA — two variants ════════════
+          User asked for 2 fresh designs matching the slide 1/2 aesthetic
+          (sparse, big serif, breathing room). Pick a winner, delete the
+          other in a follow-up commit.
+            3A · O Trio          — Frontend / Novo / Backend triptych
+            3B · Lista + Citação — Slim tier list left + big impact quote right
+          Both pull from CP1.ecosystem_impact (first bullet → quote) and
+          slides.businessContext.products. Prices are <Editable> so the
+          operator can correct any misread the audit produced. */}
+
+      {/* SLIDE 3 · Variant A — O Trio (Frontend → Novo → Backend) */}
+      <Slide num={3} total={14} decor={
+        <div className="aurora red" style={{ right: -200, top: "20%", width: 700, height: 700, opacity: 0.28 }} />
       }>
         <div style={{ flex: 1, display: "flex", flexDirection: "column", width: "100%" }}>
           <div style={{ fontSize: 18, fontWeight: 600, color: "#B11E2F", letterSpacing: "0.28em", textTransform: "uppercase" }}>
-            {slides.businessContext.eyebrow}
+            {creator?.primaryLanguage === 'en' ? 'Variant A · The trio' : 'Variante A · O Trio'}
           </div>
-          <div style={{ height: 14 }} />
-          <h1 style={{ fontSize: 64, fontWeight: 800, margin: 0, lineHeight: 1.0, letterSpacing: "-0.03em", color: "#f5f5f5" }}>
+          <div style={{ height: 18 }} />
+          <h1 style={{ fontSize: 72, fontWeight: 800, margin: 0, lineHeight: 1.0, letterSpacing: "-0.03em", color: "#f5f5f5" }}>
             <StyledLastWord
-              text={slides.businessContext.title}
-              italicStyle={{ ...italicSerif, color: "#B11E2F", fontSize: 68 }}
+              text={creator?.primaryLanguage === 'en' ? 'How this fits' : 'Onde isto encaixa'}
+              italicStyle={{ ...italicSerif, color: "#B11E2F", fontSize: 76 }}
             />
           </h1>
 
-          <div style={{ marginTop: 32, display: "grid", gridTemplateColumns: "1fr 1.5fr", gap: 28, flex: 1, alignItems: "stretch" }}>
-            {/* LEFT · Vertical river — existing products + NEW community card ordered by tier */}
-            <div style={{ padding: "26px 28px", background: "rgba(15,15,15,0.85)", border: "1px solid #1F1F1F", borderRadius: 14, display: "flex", flexDirection: "column" }}>
-              <div style={{ fontSize: 13, fontWeight: 700, color: "#8A8A8A", letterSpacing: "0.22em", textTransform: "uppercase", marginBottom: 18 }}>
-                {creator?.primaryLanguage === 'en' ? 'Your funnel today' : 'O teu funil hoje'}
+          {(() => {
+            // Frontend = lowest-tier paid product (skip lead_magnet)
+            // Backend = highest-tier product
+            // New = the new community in between
+            const sorted = [...slides.businessContext.products].sort((a, b) =>
+              PITCH_TIER_ORDER.indexOf(a.tier) - PITCH_TIER_ORDER.indexOf(b.tier)
+            );
+            const paid = sorted.filter(p => p.tier !== 'lead_magnet');
+            const frontend = paid[0] || sorted[0] || null;
+            const backend = paid[paid.length - 1] !== frontend ? paid[paid.length - 1] : null;
+            const en = creator?.primaryLanguage === 'en';
+            const cardStyle = {
+              padding: "36px 28px",
+              background: "rgba(15,15,15,0.85)",
+              border: "1px solid rgba(255,255,255,0.06)",
+              borderRadius: 14,
+              display: "flex",
+              flexDirection: "column",
+              gap: 12,
+              minHeight: 260,
+              justifyContent: "center",
+            };
+            const newCardStyle = {
+              ...cardStyle,
+              background: "linear-gradient(180deg, rgba(177,30,47,0.18), rgba(15,15,15,0.85))",
+              border: "1.5px solid #B11E2F",
+            };
+            const tierLabel = (tier) => {
+              const lbl = PITCH_TIER_LABELS[tier] || { pt: tier, en: tier };
+              return en ? lbl.en : lbl.pt;
+            };
+            const editPrice = (idx, newVal) => {
+              const next = [...slides.businessContext.products];
+              next[idx] = { ...next[idx], price: newVal, price_eur: null };
+              updateSlide('businessContext', 'products', next);
+            };
+            return (
+              <div style={{ marginTop: 56, display: "grid", gridTemplateColumns: frontend && backend ? "1fr 1.15fr 1fr" : "1fr 1fr", gap: 18, flex: 1, alignItems: "stretch" }}>
+                {/* Frontend */}
+                {frontend && (
+                  <div style={cardStyle}>
+                    <div style={{ fontSize: 10, fontWeight: 700, color: "#8A8A8A", letterSpacing: "0.22em", textTransform: "uppercase" }}>
+                      {en ? 'Frontend' : 'Frontend'}
+                    </div>
+                    <div style={{ ...italicSerif, fontSize: 30, color: "#f5f5f5", lineHeight: 1.1 }}>
+                      {frontend.name}
+                    </div>
+                    <div style={{ fontSize: 11, color: "#666", fontFamily: "'JetBrains Mono', ui-monospace, monospace", letterSpacing: "0.1em" }}>
+                      {tierLabel(frontend.tier)}
+                    </div>
+                    <div style={{ fontSize: 28, color: "#D9D9D9", fontFamily: "'JetBrains Mono', ui-monospace, monospace", fontWeight: 700, marginTop: 6 }}>
+                      <Editable
+                        value={frontend.price_eur ? '€' + frontend.price_eur : (frontend.price || '—')}
+                        onChange={v => {
+                          const ix = slides.businessContext.products.indexOf(frontend);
+                          if (ix >= 0) editPrice(ix, v);
+                        }}
+                      />
+                    </div>
+                  </div>
+                )}
+                {/* New (center, highlighted) */}
+                <div style={newCardStyle}>
+                  <div style={{ fontSize: 10, fontWeight: 700, color: "#B11E2F", letterSpacing: "0.22em", textTransform: "uppercase" }}>
+                    {en ? '● New offer' : '● A nova oferta'}
+                  </div>
+                  <div style={{ ...italicSerif, fontSize: 36, color: "#f5f5f5", lineHeight: 1.05 }}>
+                    {slides.businessContext.newOfferName}
+                  </div>
+                  <div style={{ fontSize: 11, color: "#888", fontFamily: "'JetBrains Mono', ui-monospace, monospace", letterSpacing: "0.1em" }}>
+                    {tierLabel(slides.businessContext.newOfferTier)}
+                  </div>
+                  <div style={{ fontSize: 32, color: "#B11E2F", fontFamily: "'JetBrains Mono', ui-monospace, monospace", fontWeight: 700, marginTop: 6 }}>
+                    <Editable
+                      value={slides.businessContext.newOfferPrice}
+                      onChange={v => updateSlide('businessContext', 'newOfferPrice', v)}
+                    />
+                  </div>
+                </div>
+                {/* Backend */}
+                {backend && (
+                  <div style={cardStyle}>
+                    <div style={{ fontSize: 10, fontWeight: 700, color: "#8A8A8A", letterSpacing: "0.22em", textTransform: "uppercase" }}>
+                      {en ? 'Backend' : 'Backend'}
+                    </div>
+                    <div style={{ ...italicSerif, fontSize: 30, color: "#f5f5f5", lineHeight: 1.1 }}>
+                      {backend.name}
+                    </div>
+                    <div style={{ fontSize: 11, color: "#666", fontFamily: "'JetBrains Mono', ui-monospace, monospace", letterSpacing: "0.1em" }}>
+                      {tierLabel(backend.tier)}
+                    </div>
+                    <div style={{ fontSize: 28, color: "#D9D9D9", fontFamily: "'JetBrains Mono', ui-monospace, monospace", fontWeight: 700, marginTop: 6 }}>
+                      <Editable
+                        value={backend.price_eur ? '€' + backend.price_eur : (backend.price || '—')}
+                        onChange={v => {
+                          const ix = slides.businessContext.products.indexOf(backend);
+                          if (ix >= 0) editPrice(ix, v);
+                        }}
+                      />
+                    </div>
+                  </div>
+                )}
               </div>
+            );
+          })()}
+
+          {/* Impact quote — single italic-serif sentence, big, breathing room */}
+          {(slides.businessContext.ecosystemImpact[0] || slides.businessContext.roleExplanation) && (
+            <p style={{ ...italicSerif, fontSize: 26, color: "#D9D9D9", margin: "44px 0 0", lineHeight: 1.4, maxWidth: 1400 }}>
+              {slides.businessContext.ecosystemImpact[0] || slides.businessContext.roleExplanation}
+            </p>
+          )}
+        </div>
+      </Slide>
+
+      {/* SLIDE 3 · Variant B — Lista + Citação (slim tier list + big impact quote) */}
+      <Slide num={4} total={14} decor={
+        <div className="aurora red" style={{ left: -200, top: "30%", width: 700, height: 700, opacity: 0.28 }} />
+      }>
+        <div style={{ flex: 1, display: "flex", flexDirection: "column", width: "100%" }}>
+          <div style={{ fontSize: 18, fontWeight: 600, color: "#B11E2F", letterSpacing: "0.28em", textTransform: "uppercase" }}>
+            {creator?.primaryLanguage === 'en' ? 'Variant B · List + quote' : 'Variante B · Lista + Citação'}
+          </div>
+          <div style={{ height: 18 }} />
+          <h1 style={{ fontSize: 72, fontWeight: 800, margin: 0, lineHeight: 1.0, letterSpacing: "-0.03em", color: "#f5f5f5" }}>
+            <StyledLastWord
+              text={creator?.primaryLanguage === 'en' ? 'How this fits' : 'Onde isto encaixa'}
+              italicStyle={{ ...italicSerif, color: "#B11E2F", fontSize: 76 }}
+            />
+          </h1>
+
+          <div style={{ marginTop: 48, display: "grid", gridTemplateColumns: "0.55fr 1.45fr", gap: 56, flex: 1, alignItems: "center" }}>
+            {/* LEFT · slim tier list, prices editable, NEW community highlighted */}
+            <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
               {(() => {
-                // Build an ordered rung list: existing products in tier order +
-                // NEW community card inserted at its tier. Vertical arrows
-                // between rungs.
-                const rungs = [];
+                const en = creator?.primaryLanguage === 'en';
+                // Insert NEW community into the products array at its tier position
+                const allRungs = [];
                 PITCH_TIER_ORDER.forEach(tier => {
                   slides.businessContext.products
                     .filter(p => p.tier === tier)
-                    .forEach(p => rungs.push({ kind: 'existing', name: p.name, tier, price: p.price_eur ? '€' + p.price_eur : (p.price || ''), label: (PITCH_TIER_LABELS[tier] || {})[creator?.primaryLanguage === 'en' ? 'en' : 'pt'] || tier }));
+                    .forEach((p, ix) => allRungs.push({ kind: 'existing', product: p, ix: slides.businessContext.products.indexOf(p) }));
                   if (tier === slides.businessContext.newOfferTier) {
-                    rungs.push({ kind: 'new', name: slides.businessContext.newOfferName, tier, price: slides.businessContext.newOfferPrice, label: (PITCH_TIER_LABELS[tier] || {})[creator?.primaryLanguage === 'en' ? 'en' : 'pt'] || tier });
+                    allRungs.push({ kind: 'new' });
                   }
                 });
-                if (rungs.length === 0) {
+                return allRungs.map((r, i) => {
+                  if (r.kind === 'new') {
+                    return (
+                      <div key={`new-${i}`}>
+                        <div style={{ fontSize: 10, fontWeight: 700, color: "#B11E2F", letterSpacing: "0.18em", textTransform: "uppercase", marginBottom: 4 }}>
+                          {en ? '● New' : '● Novo'}
+                        </div>
+                        <div style={{ ...italicSerif, fontSize: 24, color: "#f5f5f5", lineHeight: 1.1, marginBottom: 4 }}>{slides.businessContext.newOfferName}</div>
+                        <div style={{ fontSize: 18, color: "#B11E2F", fontFamily: "'JetBrains Mono', ui-monospace, monospace", fontWeight: 700 }}>
+                          <Editable
+                            value={slides.businessContext.newOfferPrice}
+                            onChange={v => updateSlide('businessContext', 'newOfferPrice', v)}
+                          />
+                        </div>
+                      </div>
+                    );
+                  }
+                  const p = r.product;
+                  const tierLbl = (PITCH_TIER_LABELS[p.tier] || { pt: p.tier, en: p.tier });
+                  const tierTxt = en ? tierLbl.en : tierLbl.pt;
                   return (
-                    <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", color: "#444", fontSize: 14, textAlign: "center", padding: 20 }}>
-                      {creator?.primaryLanguage === 'en' ? 'No existing products — the new community is the start.' : 'Sem produtos existentes — a nova comunidade é o início.'}
+                    <div key={`p-${i}`} style={{ opacity: 0.55 }}>
+                      <div style={{ fontSize: 9, fontWeight: 700, color: "#8A8A8A", letterSpacing: "0.18em", textTransform: "uppercase", marginBottom: 4, fontFamily: "'JetBrains Mono', ui-monospace, monospace" }}>
+                        {tierTxt}
+                      </div>
+                      <div style={{ ...italicSerif, fontSize: 22, color: "#D9D9D9", lineHeight: 1.1, marginBottom: 4 }}>{p.name}</div>
+                      <div style={{ fontSize: 14, color: "#888", fontFamily: "'JetBrains Mono', ui-monospace, monospace" }}>
+                        <Editable
+                          value={p.price_eur ? '€' + p.price_eur : (p.price || '—')}
+                          onChange={v => {
+                            const next = [...slides.businessContext.products];
+                            next[r.ix] = { ...next[r.ix], price: v, price_eur: null };
+                            updateSlide('businessContext', 'products', next);
+                          }}
+                        />
+                      </div>
                     </div>
                   );
-                }
-                return rungs.map((r, i) => (
-                  <div key={i} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 0 }}>
-                    <div
-                      style={{
-                        width: "100%",
-                        padding: "14px 16px",
-                        background: r.kind === 'new'
-                          ? "linear-gradient(90deg, rgba(177,30,47,0.22), rgba(177,30,47,0.08))"
-                          : "rgba(255,255,255,0.025)",
-                        border: r.kind === 'new' ? "1.5px solid #B11E2F" : "1px solid rgba(255,255,255,0.06)",
-                        borderRadius: 8,
-                      }}
-                    >
-                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 8, marginBottom: 4, flexWrap: "wrap" }}>
-                        <div style={{ fontSize: 9, fontWeight: 700, color: r.kind === 'new' ? "#B11E2F" : "#666", letterSpacing: "0.14em", textTransform: "uppercase", fontFamily: "'JetBrains Mono', ui-monospace, monospace" }}>
-                          {r.kind === 'new' ? (creator?.primaryLanguage === 'en' ? '● NEW · ' : '● NOVO · ') : ''}{r.label}
-                        </div>
-                        {r.price && <div style={{ fontSize: 12, color: r.kind === 'new' ? "#B11E2F" : "#888", fontFamily: "'JetBrains Mono', ui-monospace, monospace", fontWeight: r.kind === 'new' ? 700 : 500 }}>{r.price}</div>}
-                      </div>
-                      <div style={{ fontSize: 16, color: r.kind === 'new' ? "#f5f5f5" : "#D9D9D9", fontWeight: r.kind === 'new' ? 700 : 600 }}>{r.name}</div>
-                    </div>
-                    {i !== rungs.length - 1 && (
-                      <div style={{ height: 18, display: "flex", alignItems: "center", justifyContent: "center", color: "#444", fontSize: 14, lineHeight: 1 }}>▼</div>
-                    )}
-                  </div>
-                ));
+                });
               })()}
             </div>
-
-            {/* RIGHT · Visceral money-anchored impact bullets + optional differentiation block */}
-            <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-              <div style={{ padding: "26px 30px", background: "linear-gradient(180deg, rgba(177,30,47,0.10), rgba(15,15,15,0.85))", border: "1px solid rgba(177,30,47,0.55)", borderRadius: 14, flex: 1, display: "flex", flexDirection: "column" }}>
-                <div style={{ fontSize: 13, fontWeight: 700, color: "#B11E2F", letterSpacing: "0.22em", textTransform: "uppercase", marginBottom: 18 }}>
-                  {creator?.primaryLanguage === 'en' ? 'Impact on your funnel' : 'Impacto no Teu Funil'}
-                </div>
-                {slides.businessContext.ecosystemImpact.length > 0 ? (
-                  <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 16 }}>
-                    {slides.businessContext.ecosystemImpact.map((imp, i) => (
-                      <li key={i} style={{ display: "flex", gap: 14, fontSize: 18, color: "#f5f5f5", lineHeight: 1.45 }}>
-                        <span style={{ color: "#B11E2F", fontSize: 22, fontWeight: 700, lineHeight: 1.2, flexShrink: 0 }}>→</span>
-                        <span>{imp}</span>
-                      </li>
-                    ))}
-                  </ul>
-                ) : (
-                  // Fallback when CP1 hasn't filled ecosystem_impact (pre-cannibalization-fix CP1 runs)
-                  <p style={{ fontSize: 19, color: "#D9D9D9", lineHeight: 1.55, margin: 0 }}>
-                    {slides.businessContext.roleExplanation}
-                  </p>
-                )}
-              </div>
-              {/* Diferenciação — fires only when CP1 detected cannibalization risk */}
-              {slides.businessContext.differentiationFromExisting && (
-                <div style={{ padding: "16px 22px", background: "rgba(234,179,8,0.06)", border: "1px solid rgba(234,179,8,0.35)", borderRadius: 10 }}>
-                  <div style={{ fontSize: 11, fontWeight: 700, color: "#eab308", letterSpacing: "0.22em", textTransform: "uppercase", marginBottom: 8 }}>
-                    {creator?.primaryLanguage === 'en' ? 'Differentiation' : 'Diferenciação'}
-                  </div>
-                  <p style={{ fontSize: 14, color: "#D9D9D9", lineHeight: 1.5, margin: 0 }}>
-                    {slides.businessContext.differentiationFromExisting}
-                  </p>
-                </div>
+            {/* RIGHT · big italic-serif quote — visceral impact */}
+            <div>
+              <p style={{ ...italicSerif, fontSize: 36, color: "#f5f5f5", lineHeight: 1.35, margin: 0 }}>
+                "{slides.businessContext.ecosystemImpact[0] || slides.businessContext.roleExplanation}"
+              </p>
+              {slides.businessContext.ecosystemImpact.length > 1 && (
+                <p style={{ ...italicSerif, fontSize: 18, color: "#888", lineHeight: 1.5, margin: "28px 0 0" }}>
+                  {slides.businessContext.ecosystemImpact[1]}
+                </p>
               )}
             </div>
           </div>
         </div>
       </Slide>
 
-      {/* SLIDE 4 · A TUA COMUNIDADE — full-width 1/3-height calendar at top,
-          plus mechanic + bonuses + pricing tiers + differentiator below. All
-          on one slide so the creator sees the whole offer spec without flip.
-          User direction: "calendar should be the same width, 1/3 the height". */}
-      <Slide num={4} total={11} decor={
-        <div className="aurora red" style={{ right: -250, top: "20%", width: 700, height: 700, opacity: 0.32 }} />
+      {/* ════════════ SLIDE 4 · A TUA COMUNIDADE — two variants ════════════
+          User direction: "calendar on top slightly bigger, pricing all the
+          way right as it was bigger, remove skool badge, community name
+          differently, remove yellow and stars, add more serif".
+            4A · Calendar Hero    — name top + big calendar + 2-col below
+            4B · Asymmetric       — name+mechanic left, pricing right, calendar bottom */}
+
+      {/* SLIDE 4 · Variant A — Calendar Hero */}
+      <Slide num={5} total={14} decor={
+        <div className="aurora red" style={{ right: -250, top: "20%", width: 700, height: 700, opacity: 0.28 }} />
       }>
         <div style={{ flex: 1, display: "flex", flexDirection: "column", width: "100%" }}>
-          <div style={{ display: "flex", alignItems: "baseline", gap: 14, flexWrap: "wrap" }}>
-            <div style={{ fontSize: 18, fontWeight: 600, color: "#B11E2F", letterSpacing: "0.28em", textTransform: "uppercase" }}>
-              {creator?.primaryLanguage === 'en' ? 'Your community' : 'A tua comunidade'}
-            </div>
-            <div style={{ fontSize: 12, color: "#3b82f6", padding: "2px 10px", borderRadius: 3, background: "rgba(59,130,246,0.08)", border: "1px solid rgba(59,130,246,0.3)", letterSpacing: "0.06em", fontWeight: 700 }}>{slides.community.platform || 'Skool'}</div>
+          <div style={{ fontSize: 18, fontWeight: 600, color: "#B11E2F", letterSpacing: "0.28em", textTransform: "uppercase" }}>
+            {creator?.primaryLanguage === 'en' ? 'Variant A · Calendar hero' : 'Variante A · Calendário Hero'}
           </div>
-          <div style={{ height: 12 }} />
-          <h1 style={{ fontSize: 68, fontWeight: 800, margin: 0, lineHeight: 1.0, letterSpacing: "-0.03em", color: "#f5f5f5" }}>
+          <div style={{ height: 14 }} />
+          <h1 style={{ ...italicSerif, fontSize: 84, fontWeight: 400, margin: 0, lineHeight: 1.0, letterSpacing: "-0.02em", color: "#f5f5f5" }}>
             <Editable value={slides.community.nameCandidate} onChange={v => updateSlide('community', 'nameCandidate', v)} />
           </h1>
 
-          {/* Calendar — full width, ~1/3 of available height (capped) */}
+          {/* Calendar — bigger, slightly more height */}
           {(() => {
-            const days = creator?.primaryLanguage === 'en'
+            const en = creator?.primaryLanguage === 'en';
+            const days = en
               ? ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN']
               : ['SEG', 'TER', 'QUA', 'QUI', 'SEX', 'SÁB', 'DOM'];
             const dayBuckets = days.map(d => ({
@@ -1058,19 +1172,19 @@ function PitchPageContent() {
               events: (slides.system.weeklyFormats || []).filter(w => String(w.day || '').toUpperCase().includes(d.replace('Á', 'A').slice(0, 3))),
             }));
             return (
-              <div style={{ marginTop: 26, display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 8, height: 180 }}>
+              <div style={{ marginTop: 32, display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 10, height: 240 }}>
                 {dayBuckets.map((bucket, i) => (
-                  <div key={i} style={{ display: "flex", flexDirection: "column", gap: 6, padding: "10px 10px", background: bucket.events.length > 0 ? "rgba(177,30,47,0.06)" : "rgba(15,15,15,0.6)", border: `1px solid ${bucket.events.length > 0 ? "rgba(177,30,47,0.3)" : "#1F1F1F"}`, borderRadius: 8, overflow: "hidden" }}>
-                    <div style={{ fontSize: 10, fontWeight: 700, color: bucket.events.length > 0 ? "#B11E2F" : "#444", letterSpacing: "0.14em", textTransform: "uppercase", fontFamily: "'JetBrains Mono', ui-monospace, monospace", textAlign: "center", paddingBottom: 4, borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
+                  <div key={i} style={{ display: "flex", flexDirection: "column", gap: 8, padding: "14px 12px", background: bucket.events.length > 0 ? "rgba(177,30,47,0.06)" : "rgba(15,15,15,0.5)", border: `1px solid ${bucket.events.length > 0 ? "rgba(177,30,47,0.3)" : "rgba(255,255,255,0.04)"}`, borderRadius: 10, overflow: "hidden" }}>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: bucket.events.length > 0 ? "#B11E2F" : "#444", letterSpacing: "0.16em", textTransform: "uppercase", fontFamily: "'JetBrains Mono', ui-monospace, monospace", textAlign: "center", paddingBottom: 6, borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
                       {bucket.day}
                     </div>
                     {bucket.events.length > 0 ? bucket.events.slice(0, 2).map((ev, j) => (
-                      <div key={j} style={{ padding: "5px 6px", background: "rgba(177,30,47,0.10)", border: "1px solid rgba(177,30,47,0.3)", borderRadius: 5 }}>
-                        <div style={{ fontSize: 8, fontWeight: 700, color: "#666", letterSpacing: "0.08em", textTransform: "uppercase", fontFamily: "'JetBrains Mono', ui-monospace, monospace", marginBottom: 2 }}>{ev.type}</div>
-                        <div style={{ fontSize: 11, color: "#f5f5f5", fontWeight: 600, lineHeight: 1.2 }}>{ev.name}</div>
+                      <div key={j}>
+                        <div style={{ fontSize: 8, fontWeight: 700, color: "#888", letterSpacing: "0.1em", textTransform: "uppercase", fontFamily: "'JetBrains Mono', ui-monospace, monospace", marginBottom: 3 }}>{ev.type}</div>
+                        <div style={{ ...italicSerif, fontSize: 14, color: "#f5f5f5", lineHeight: 1.2 }}>{ev.name}</div>
                       </div>
                     )) : (
-                      <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", color: "#333", fontSize: 10 }}>—</div>
+                      <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", color: "#333", fontSize: 12 }}>—</div>
                     )}
                   </div>
                 ))}
@@ -1078,142 +1192,24 @@ function PitchPageContent() {
             );
           })()}
 
-          {/* Mid row · 3 columns: O Que Acontece · Bónus · Tiers */}
-          <div style={{ marginTop: 18, display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 14, flex: 1 }}>
-            {/* O Que Acontece (core mechanic) */}
-            <div style={{ padding: "16px 18px", background: "rgba(15,15,15,0.85)", border: "1px solid #1F1F1F", borderRadius: 10, display: "flex", flexDirection: "column" }}>
-              <div style={{ fontSize: 11, fontWeight: 700, color: "#B11E2F", letterSpacing: "0.22em", textTransform: "uppercase", marginBottom: 12 }}>
+          {/* Below · 2 cols: mechanic (left) + pricing tiers (right, bigger) */}
+          <div style={{ marginTop: 28, display: "grid", gridTemplateColumns: "1.5fr 1fr", gap: 28, flex: 1 }}>
+            <div>
+              <div style={{ fontSize: 11, fontWeight: 700, color: "#8A8A8A", letterSpacing: "0.22em", textTransform: "uppercase", marginBottom: 12 }}>
                 {creator?.primaryLanguage === 'en' ? 'What happens' : 'O que acontece'}
               </div>
-              <p style={{ fontSize: 14, color: "#D9D9D9", lineHeight: 1.5, margin: 0 }}>
+              <p style={{ ...italicSerif, fontSize: 24, color: "#D9D9D9", lineHeight: 1.45, margin: 0 }}>
                 <Editable value={slides.community.mechanic} onChange={v => updateSlide('community', 'mechanic', v)} multiline />
               </p>
             </div>
-
-            {/* Bónus Desbloqueados */}
-            <div style={{ padding: "16px 18px", background: "rgba(234,179,8,0.04)", border: "1px solid rgba(234,179,8,0.25)", borderRadius: 10, display: "flex", flexDirection: "column" }}>
-              <div style={{ fontSize: 11, fontWeight: 700, color: "#eab308", letterSpacing: "0.22em", textTransform: "uppercase", marginBottom: 12 }}>
-                {creator?.primaryLanguage === 'en' ? 'Unlocked bonuses' : 'Bónus desbloqueados'}
-              </div>
-              <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 6 }}>
-                {(slides.community.bonuses || []).slice(0, 4).map((b, i) => (
-                  <li key={i} style={{ display: "flex", gap: 8, fontSize: 12, color: "#D9D9D9", lineHeight: 1.4 }}>
-                    <span style={{ color: "#eab308", flexShrink: 0 }}>★</span>
-                    <span>{b}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-
-            {/* Tiers + Preços */}
-            <div style={{ padding: "16px 18px", background: "rgba(15,15,15,0.85)", border: "1px solid rgba(177,30,47,0.4)", borderRadius: 10, display: "flex", flexDirection: "column" }}>
-              <div style={{ fontSize: 11, fontWeight: 700, color: "#B11E2F", letterSpacing: "0.22em", textTransform: "uppercase", marginBottom: 12 }}>
-                {creator?.primaryLanguage === 'en' ? 'Tiers + pricing' : 'Tiers + preços'}
-              </div>
-              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                {(slides.community.tiers || []).slice(0, 3).map((t, i) => (
-                  <div key={i} style={{ padding: "8px 10px", background: i === 0 ? "rgba(177,30,47,0.08)" : "rgba(255,255,255,0.02)", border: `1px solid ${i === 0 ? "rgba(177,30,47,0.35)" : "rgba(255,255,255,0.06)"}`, borderRadius: 6 }}>
-                    <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 8 }}>
-                      <div style={{ fontSize: 9, fontWeight: 700, color: "#B11E2F", letterSpacing: "0.14em", textTransform: "uppercase" }}>{t.name}</div>
-                      <div style={{ fontSize: 15, fontWeight: 700, color: "#f5f5f5", fontFamily: "'Instrument Serif', Georgia, serif" }}>{t.price}</div>
-                    </div>
-                    {t.note && <div style={{ fontSize: 10.5, color: "#888", lineHeight: 1.4, marginTop: 3 }}>{t.note}</div>}
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              {(slides.community.tiers || []).slice(0, 3).map((t, i) => (
+                <div key={i} style={{ padding: "14px 18px", background: i === 0 ? "linear-gradient(90deg, rgba(177,30,47,0.10), rgba(15,15,15,0.85))" : "rgba(15,15,15,0.6)", border: `1px solid ${i === 0 ? "rgba(177,30,47,0.5)" : "rgba(255,255,255,0.06)"}`, borderRadius: 8 }}>
+                  <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 12 }}>
+                    <div style={{ fontSize: 10, fontWeight: 700, color: "#B11E2F", letterSpacing: "0.16em", textTransform: "uppercase" }}>{t.name}</div>
+                    <div style={{ ...italicSerif, fontSize: 26, color: "#f5f5f5" }}>{t.price}</div>
                   </div>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          {/* Diferencial — bottom strip */}
-          {slides.community.differentiator && (
-            <div style={{ marginTop: 14, padding: "14px 22px", background: "rgba(15,15,15,0.85)", border: "1px solid rgba(177,30,47,0.4)", borderRadius: 10 }}>
-              <div style={{ display: "flex", alignItems: "baseline", gap: 12, flexWrap: "wrap" }}>
-                <div style={{ fontSize: 10, fontWeight: 700, color: "#B11E2F", letterSpacing: "0.22em", textTransform: "uppercase", flexShrink: 0 }}>
-                  {creator?.primaryLanguage === 'en' ? 'Differentiator' : 'Diferencial'}
-                </div>
-                <p style={{ ...italicSerif, fontSize: 16, color: "#D9D9D9", margin: 0, lineHeight: 1.4, flex: 1 }}>
-                  {slides.community.differentiator}
-                </p>
-              </div>
-            </div>
-          )}
-        </div>
-      </Slide>
-
-      {/* SLIDE 5: O SISTEMA · MECANISMO + BIBLIOTECA — weekly content moved to community slide (4) */}
-      <Slide num={5} total={11} decor={
-        <div className="aurora deep" style={{ right: -200, top: "30%", width: 700, height: 700, opacity: 0.4 }} />
-      }>
-        <div style={{ flex: 1, display: "flex", flexDirection: "column", width: "100%" }}>
-          <div style={{ fontSize: 18, fontWeight: 600, color: "#B11E2F", letterSpacing: "0.28em", textTransform: "uppercase" }}>
-            {creator?.primaryLanguage === 'en' ? 'The system' : 'O sistema'}
-          </div>
-          <div style={{ height: 14 }} />
-          <h1 style={{ fontSize: 72, fontWeight: 800, margin: 0, lineHeight: 1.0, letterSpacing: "-0.03em", color: "#f5f5f5" }}>
-            <Editable value={slides.system.title} onChange={v => updateSlide('system', 'title', v)} />
-          </h1>
-          <p style={{ ...italicSerif, fontSize: 24, color: "#A8A8A8", margin: "14px 0 0", maxWidth: 1300 }}>
-            <Editable value={slides.system.subtitle} onChange={v => updateSlide('system', 'subtitle', v)} />
-          </p>
-
-          {/* Mechanism brand banner — name + (when CP4 ran) the per-letter breakdown */}
-          <div style={{ marginTop: 24, padding: "22px 36px", background: "rgba(15,15,15,0.85)", border: "1px solid rgba(177,30,47,0.5)", borderRadius: 12, textAlign: "center" }}>
-            <div style={{ ...italicSerif, fontSize: 56, color: "#f5f5f5", lineHeight: 1.0, letterSpacing: "-0.02em" }}>
-              <Editable value={slides.system.name} onChange={v => updateSlide('system', 'name', v)} />
-            </div>
-            {Array.isArray(slides.system.letters) && slides.system.letters.length > 0 && (
-              <>
-                {slides.system.description && (
-                  <p style={{ fontSize: 14, color: "#9E9E9E", margin: "12px 0 0", lineHeight: 1.5, fontStyle: "italic", maxWidth: 760, marginLeft: "auto", marginRight: "auto" }}>
-                    {slides.system.description}
-                  </p>
-                )}
-                <div style={{ marginTop: 20, display: "grid", gridTemplateColumns: `repeat(${slides.system.letters.length}, 1fr)`, gap: 12, textAlign: "left" }}>
-                  {slides.system.letters.map((l, i) => (
-                    <div key={i} style={{ padding: "12px 14px", background: "rgba(177,30,47,0.06)", border: "1px solid rgba(177,30,47,0.25)", borderRadius: 8 }}>
-                      <div style={{ fontSize: 28, fontWeight: 700, color: "#B11E2F", fontFamily: "'JetBrains Mono', ui-monospace, monospace", lineHeight: 1, marginBottom: 6, textAlign: "center" }}>{l.letter}</div>
-                      <div style={{ fontSize: 14, fontWeight: 700, color: "#f5f5f5", marginBottom: 4, textAlign: "center" }}>{l.word}</div>
-                      <div style={{ fontSize: 11, color: "#9E9E9E", lineHeight: 1.45, textAlign: "center" }}>{l.explanation}</div>
-                    </div>
-                  ))}
-                </div>
-              </>
-            )}
-          </div>
-
-          {/* Pre-recorded library — full-width 2-column grid.
-              Weekly_formats was moved to slide 4 (A Tua Comunidade) so the
-              system slide owns ONLY mechanism + library now. Dedup per
-              user's request: "We need to choose, strategically, what to put
-              on each page." Sistema = methodology + on-demand vault.
-              Comunidade = name + weekly cadence + pricing + diff. */}
-          <div style={{ marginTop: 24, padding: 28, background: "rgba(15,15,15,0.78)", border: "1px solid rgba(31,138,76,0.35)", borderRadius: 12, flex: 1, display: "flex", flexDirection: "column" }}>
-            <div style={{ fontSize: 12, fontWeight: 700, color: "#1F8A4C", letterSpacing: "0.22em", textTransform: "uppercase", marginBottom: 14 }}>
-              {creator?.primaryLanguage === 'en' ? 'Pre-recorded library' : 'Biblioteca pré-gravada'}
-            </div>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 18, flex: 1 }}>
-              {slides.system.library.map((m, i) => (
-                <div key={i} style={{ padding: "18px 20px", background: "rgba(31,138,76,0.04)", border: "1px solid rgba(31,138,76,0.2)", borderRadius: 10, display: "flex", flexDirection: "column" }}>
-                  {m.format && (
-                    <div style={{ fontFamily: "'JetBrains Mono', ui-monospace, monospace", fontSize: 11, color: "#1F8A4C", letterSpacing: "0.16em", textTransform: "uppercase", marginBottom: 10 }}>
-                      <Editable value={m.format} onChange={v => {
-                        const next = [...slides.system.library]; next[i] = { ...m, format: v };
-                        updateSlide('system', 'library', next);
-                      }} />
-                    </div>
-                  )}
-                  <div style={{ ...italicSerif, fontSize: 22, color: "#f5f5f5", lineHeight: 1.15, marginBottom: 8 }}>
-                    <Editable value={m.name} onChange={v => {
-                      const next = [...slides.system.library]; next[i] = { ...m, name: v };
-                      updateSlide('system', 'library', next);
-                    }} />
-                  </div>
-                  <p style={{ margin: 0, fontSize: 13, color: "#B8B8B8", lineHeight: 1.45 }}>
-                    <Editable value={m.desc} onChange={v => {
-                      const next = [...slides.system.library]; next[i] = { ...m, desc: v };
-                      updateSlide('system', 'library', next);
-                    }} multiline />
-                  </p>
+                  {t.note && <div style={{ fontSize: 11, color: "#888", marginTop: 4 }}>{t.note}</div>}
                 </div>
               ))}
             </div>
@@ -1221,8 +1217,165 @@ function PitchPageContent() {
         </div>
       </Slide>
 
-      {/* SLIDE 6: O VALOR — Hormozi value stack */}
-      <Slide num={6} total={11} decor={
+      {/* SLIDE 4 · Variant B — Asymmetric (name+mechanic left, pricing right, calendar bottom) */}
+      <Slide num={6} total={14} decor={
+        <div className="aurora red" style={{ right: -250, top: "20%", width: 700, height: 700, opacity: 0.28 }} />
+      }>
+        <div style={{ flex: 1, display: "flex", flexDirection: "column", width: "100%" }}>
+          <div style={{ fontSize: 18, fontWeight: 600, color: "#B11E2F", letterSpacing: "0.28em", textTransform: "uppercase" }}>
+            {creator?.primaryLanguage === 'en' ? 'Variant B · Asymmetric' : 'Variante B · Assimétrica'}
+          </div>
+
+          <div style={{ marginTop: 22, display: "grid", gridTemplateColumns: "1.4fr 1fr", gap: 36, alignItems: "start" }}>
+            <div>
+              <h1 style={{ ...italicSerif, fontSize: 72, fontWeight: 400, margin: 0, lineHeight: 1.0, letterSpacing: "-0.02em", color: "#f5f5f5" }}>
+                <Editable value={slides.community.nameCandidate} onChange={v => updateSlide('community', 'nameCandidate', v)} />
+              </h1>
+              <p style={{ fontSize: 18, color: "#9E9E9E", lineHeight: 1.55, margin: "18px 0 0", maxWidth: 660 }}>
+                <Editable value={slides.community.mechanic} onChange={v => updateSlide('community', 'mechanic', v)} multiline />
+              </p>
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              {(slides.community.tiers || []).slice(0, 3).map((t, i) => (
+                <div key={i} style={{ padding: "18px 22px", background: i === 0 ? "linear-gradient(90deg, rgba(177,30,47,0.12), rgba(15,15,15,0.85))" : "rgba(15,15,15,0.6)", border: `1px solid ${i === 0 ? "rgba(177,30,47,0.55)" : "rgba(255,255,255,0.06)"}`, borderRadius: 10 }}>
+                  <div style={{ fontSize: 10, fontWeight: 700, color: "#B11E2F", letterSpacing: "0.18em", textTransform: "uppercase", marginBottom: 6 }}>{t.name}</div>
+                  <div style={{ ...italicSerif, fontSize: 32, color: "#f5f5f5", lineHeight: 1, marginBottom: 6 }}>{t.price}</div>
+                  {t.note && <div style={{ fontSize: 11.5, color: "#888", lineHeight: 1.4 }}>{t.note}</div>}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Calendar — full-width bottom, slightly smaller */}
+          {(() => {
+            const en = creator?.primaryLanguage === 'en';
+            const days = en
+              ? ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN']
+              : ['SEG', 'TER', 'QUA', 'QUI', 'SEX', 'SÁB', 'DOM'];
+            const dayBuckets = days.map(d => ({
+              day: d,
+              events: (slides.system.weeklyFormats || []).filter(w => String(w.day || '').toUpperCase().includes(d.replace('Á', 'A').slice(0, 3))),
+            }));
+            return (
+              <div style={{ marginTop: 38, display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 10, height: 200, flex: 1 }}>
+                {dayBuckets.map((bucket, i) => (
+                  <div key={i} style={{ display: "flex", flexDirection: "column", gap: 8, padding: "14px 12px", background: bucket.events.length > 0 ? "rgba(177,30,47,0.06)" : "rgba(15,15,15,0.5)", border: `1px solid ${bucket.events.length > 0 ? "rgba(177,30,47,0.3)" : "rgba(255,255,255,0.04)"}`, borderRadius: 10, overflow: "hidden" }}>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: bucket.events.length > 0 ? "#B11E2F" : "#444", letterSpacing: "0.16em", textTransform: "uppercase", fontFamily: "'JetBrains Mono', ui-monospace, monospace", textAlign: "center", paddingBottom: 6, borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
+                      {bucket.day}
+                    </div>
+                    {bucket.events.length > 0 ? bucket.events.slice(0, 2).map((ev, j) => (
+                      <div key={j}>
+                        <div style={{ fontSize: 8, fontWeight: 700, color: "#888", letterSpacing: "0.1em", textTransform: "uppercase", fontFamily: "'JetBrains Mono', ui-monospace, monospace", marginBottom: 3 }}>{ev.type}</div>
+                        <div style={{ ...italicSerif, fontSize: 14, color: "#f5f5f5", lineHeight: 1.2 }}>{ev.name}</div>
+                      </div>
+                    )) : (
+                      <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", color: "#333", fontSize: 12 }}>—</div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            );
+          })()}
+        </div>
+      </Slide>
+
+      {/* ════════════ SLIDE 5 · O SISTEMA — two variants ════════════
+          User: "lacks contrast". Two redesigns trying different heroes.
+            5A · Mechanism Hero   — huge acronym center, letter cards below
+            5B · Library Hero     — mechanism small as eyebrow, library cards big */}
+
+      {/* SLIDE 5 · Variant A — Mechanism Hero */}
+      <Slide num={7} total={14} decor={
+        <div className="aurora deep" style={{ left: "50%", top: "50%", transform: "translate(-50%,-50%)", width: 900, height: 900, opacity: 0.35 }} />
+      }>
+        <div style={{ flex: 1, display: "flex", flexDirection: "column", width: "100%" }}>
+          <div style={{ fontSize: 18, fontWeight: 600, color: "#B11E2F", letterSpacing: "0.28em", textTransform: "uppercase" }}>
+            {creator?.primaryLanguage === 'en' ? 'Variant A · Mechanism hero' : 'Variante A · Mecanismo Hero'}
+          </div>
+          <div style={{ height: 14 }} />
+          <h2 style={{ fontSize: 24, fontWeight: 500, color: "#9E9E9E", margin: 0, letterSpacing: "0.02em" }}>
+            {creator?.primaryLanguage === 'en' ? 'The method we built for you' : 'O método que construímos para ti'}
+          </h2>
+
+          {/* Huge mechanism acronym — center hero */}
+          <div style={{ marginTop: 36, textAlign: "center", padding: "20px 0" }}>
+            <div style={{ ...italicSerif, fontSize: 140, color: "#f5f5f5", lineHeight: 1, letterSpacing: "-0.01em" }}>
+              <Editable value={slides.system.name} onChange={v => updateSlide('system', 'name', v)} />
+            </div>
+            {slides.system.description && (
+              <p style={{ ...italicSerif, fontSize: 22, color: "#888", margin: "20px auto 0", lineHeight: 1.45, maxWidth: 900 }}>
+                {slides.system.description}
+              </p>
+            )}
+          </div>
+
+          {/* Per-letter breakdown — clean grid, minimal */}
+          {Array.isArray(slides.system.letters) && slides.system.letters.length > 0 && (
+            <div style={{ marginTop: 36, display: "grid", gridTemplateColumns: `repeat(${slides.system.letters.length}, 1fr)`, gap: 16, flex: 1, alignItems: "start" }}>
+              {slides.system.letters.map((l, i) => (
+                <div key={i} style={{ textAlign: "center", padding: "18px 12px", borderTop: "1px solid rgba(177,30,47,0.25)" }}>
+                  <div style={{ ...italicSerif, fontSize: 48, color: "#B11E2F", lineHeight: 1, marginBottom: 12 }}>{l.letter}</div>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: "#f5f5f5", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 8 }}>{l.word}</div>
+                  <div style={{ fontSize: 11, color: "#9E9E9E", lineHeight: 1.5 }}>{l.explanation}</div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </Slide>
+
+      {/* SLIDE 5 · Variant B — Library Hero */}
+      <Slide num={8} total={14} decor={
+        <div className="aurora deep" style={{ right: -200, top: "30%", width: 700, height: 700, opacity: 0.4 }} />
+      }>
+        <div style={{ flex: 1, display: "flex", flexDirection: "column", width: "100%" }}>
+          <div style={{ fontSize: 18, fontWeight: 600, color: "#B11E2F", letterSpacing: "0.28em", textTransform: "uppercase" }}>
+            {creator?.primaryLanguage === 'en' ? 'Variant B · Library hero' : 'Variante B · Biblioteca Hero'}
+          </div>
+          <div style={{ height: 14 }} />
+          <h1 style={{ ...italicSerif, fontSize: 72, fontWeight: 400, margin: 0, lineHeight: 1.0, letterSpacing: "-0.02em", color: "#f5f5f5" }}>
+            <Editable value={slides.system.name} onChange={v => updateSlide('system', 'name', v)} />
+          </h1>
+          {slides.system.description && (
+            <p style={{ fontSize: 18, color: "#9E9E9E", margin: "18px 0 0", lineHeight: 1.55, maxWidth: 1100 }}>
+              {slides.system.description}
+            </p>
+          )}
+
+          {/* Library cards — prominent, 3 columns */}
+          <div style={{ marginTop: 40, display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 16, flex: 1 }}>
+            {(slides.system.library || []).slice(0, 6).map((m, i) => (
+              <div key={i} style={{ padding: "24px 22px", background: "rgba(15,15,15,0.6)", border: "1px solid rgba(255,255,255,0.05)", borderRadius: 10, display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
+                <div>
+                  {m.format && (
+                    <div style={{ fontSize: 10, fontWeight: 700, color: "#B11E2F", letterSpacing: "0.18em", textTransform: "uppercase", fontFamily: "'JetBrains Mono', ui-monospace, monospace", marginBottom: 12 }}>
+                      <Editable value={m.format} onChange={v => {
+                        const next = [...slides.system.library]; next[i] = { ...m, format: v };
+                        updateSlide('system', 'library', next);
+                      }} />
+                    </div>
+                  )}
+                  <div style={{ ...italicSerif, fontSize: 26, color: "#f5f5f5", lineHeight: 1.15, marginBottom: 10 }}>
+                    <Editable value={m.name} onChange={v => {
+                      const next = [...slides.system.library]; next[i] = { ...m, name: v };
+                      updateSlide('system', 'library', next);
+                    }} />
+                  </div>
+                </div>
+                <p style={{ margin: 0, fontSize: 13, color: "#9E9E9E", lineHeight: 1.5 }}>
+                  <Editable value={m.desc} onChange={v => {
+                    const next = [...slides.system.library]; next[i] = { ...m, desc: v };
+                    updateSlide('system', 'library', next);
+                  }} multiline />
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </Slide>
+
+      {/* SLIDE 9: O VALOR — Hormozi value stack */}
+      <Slide num={9} total={14} decor={
         <div className="aurora red" style={{ left: -200, top: -100, width: 700, height: 700, opacity: 0.35 }} />
       }>
         <div style={{ flex: 1, display: "flex", flexDirection: "column", width: "100%" }}>
@@ -1303,8 +1456,8 @@ function PitchPageContent() {
         </div>
       </Slide>
 
-      {/* SLIDE 7: AUDIENCE — aurora + dot grid */}
-      <Slide num={7} total={11} decor={
+      {/* SLIDE 10: AUDIENCE — aurora + dot grid */}
+      <Slide num={10} total={14} decor={
         <div className="aurora red" style={{ left: -200, top: -100, width: 600, height: 600, opacity: 0.3 }} />
       }>
         <div style={{ flex: 1, display: "flex", flexDirection: "column", width: "100%" }}>
@@ -1438,8 +1591,8 @@ function PitchPageContent() {
         </div>
       </Slide>
 
-      {/* SLIDE 8: LAUNCH — phases with assets, aurora */}
-      <Slide num={8} total={11} decor={
+      {/* SLIDE 11: LAUNCH — phases with assets, aurora */}
+      <Slide num={11} total={14} decor={
         <div className="aurora red" style={{ left: "30%", top: -200, width: 700, height: 700, opacity: 0.3 }} />
       }>
         <div style={{ flex: 1, display: "flex", flexDirection: "column", width: "100%" }}>
@@ -1529,8 +1682,8 @@ function PitchPageContent() {
         </div>
       </Slide>
 
-      {/* SLIDE 9: NUMBERS — dual aurora */}
-      <Slide num={9} total={11} decor={
+      {/* SLIDE 12: NUMBERS — dual aurora */}
+      <Slide num={12} total={14} decor={
         <>
           <div className="aurora red"  style={{ right: 0, top: -200, width: 800, height: 800, opacity: 0.4 }} />
           <div className="aurora deep" style={{ left: -100, bottom: -200, width: 700, height: 700 }} />
@@ -1618,8 +1771,8 @@ function PitchPageContent() {
         </div>
       </Slide>
 
-      {/* SLIDE 10: CASOS SIMILARES — proof slide */}
-      <Slide num={10} total={11} decor={
+      {/* SLIDE 13: CASOS SIMILARES — proof slide */}
+      <Slide num={13} total={14} decor={
         <div className="aurora red" style={{ left: "50%", top: -150, width: 700, height: 700, opacity: 0.3, transform: "translateX(-50%)" }} />
       }>
         <div style={{ flex: 1, display: "flex", flexDirection: "column", width: "100%" }}>
@@ -1684,11 +1837,16 @@ function PitchPageContent() {
                     </div>
                   </div>
                 </div>
+                {/* Revenue block — label adapts to revenue_type so we don't
+                    show "MRR" for one-time offers. Falls back to "MRR" if
+                    revenue_label is missing (legacy slide state). */}
                 <div style={{ marginTop: 14, padding: "10px 14px", background: "rgba(177,30,47,0.08)", border: "1px solid rgba(177,30,47,0.25)", borderRadius: 8 }}>
-                  <div style={{ fontSize: 10, color: "#B11E2F", letterSpacing: "0.16em", textTransform: "uppercase", fontWeight: 600 }}>MRR</div>
+                  <div style={{ fontSize: 10, color: "#B11E2F", letterSpacing: "0.16em", textTransform: "uppercase", fontWeight: 600 }}>
+                    {c.revenue_label || 'MRR'}
+                  </div>
                   <div style={{ fontSize: 22, color: "#f5f5f5", fontWeight: 700, letterSpacing: "-0.02em" }}>
-                    <Editable value={c.mrr} onChange={v => {
-                      const next = [...slides.cases.items]; next[i] = { ...c, mrr: v };
+                    <Editable value={c.revenue_value || c.mrr || '—'} onChange={v => {
+                      const next = [...slides.cases.items]; next[i] = { ...c, revenue_value: v };
                       updateSlide('cases', 'items', next);
                     }} />
                   </div>
@@ -1715,9 +1873,9 @@ function PitchPageContent() {
         </div>
       </Slide>
 
-      {/* SLIDE 11 (OPTIONAL): INVESTIMENTO — aurora + receipt */}
+      {/* SLIDE 14 (OPTIONAL): INVESTIMENTO — aurora + receipt */}
       {showInvestimento && (
-        <Slide num={11} total={11} decor={
+        <Slide num={14} total={14} decor={
           <>
             <div className="aurora red"  style={{ right: -200, top: -100, width: 700, height: 700, opacity: 0.35 }} />
             <div className="aurora deep" style={{ left: -200, bottom: -100, width: 700, height: 700 }} />
@@ -2263,14 +2421,20 @@ function buildDefaultSlides(creator) {
       subtitle: t('Comunidades reais no Skool/Whop com este perfil. Dados públicos.', 'Real Skool/Whop communities with this profile. Public data.'),
       items: (() => {
         if (cases.length > 0) {
+          // Legacy cases (LLM-generated, no revenue_type field) — assume MRR
+          // for back-compat. The slide rendering falls back to "MRR" label
+          // when revenue_label is empty.
           return cases.slice(0, 3).map(cs => ({
             name: cs.name || '[Nome]',
             niche: cs.niche || '[Nicho]',
             members: cs.members || '[X membros]',
             price: cs.price || '€[X]/mês',
-            mrr: cs.mrr || '~€[X]K MRR',
+            revenue_type: cs.revenue_type || 'mrr',
+            revenue_value: cs.revenue_value || cs.mrr || '—',
+            revenue_label: lang === 'en' ? 'MRR' : 'MRR',
             resume: cs.resume || '[1-line resume]',
             why: cs.why || '[Why this matters for the creator]',
+            url: cs.url || '',
           }));
         }
         return pickCases(creator, lang);
