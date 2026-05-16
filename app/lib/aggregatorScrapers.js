@@ -23,6 +23,8 @@
  *  should fall through to the LLM-based audit on failure.
  */
 
+import vm from 'node:vm';
+
 // ─────────────────────────────────────────────────────────────────
 // Dispatcher
 // ─────────────────────────────────────────────────────────────────
@@ -95,23 +97,31 @@ export async function scrapeKnownAggregators(urls) {
 // Stan.store scraper
 // ─────────────────────────────────────────────────────────────────
 //
-// Stan.store is a Next.js app that ships full page state as a
-// __NEXT_DATA__ JSON blob embedded in the HTML. That blob contains the
-// creator's store + every product as structured data, so we don't need
-// to render JS. We just fetch the HTML, parse out the script tag, and
-// walk the JSON for products.
+// Stan.store is a Nuxt.js app (Vue SSR). The full page state ships as a
+// `window.__NUXT__=(function(a,b,c,...){...}(<args>))` IIFE in the HTML.
+// The function body builds the data object using letter-aliased
+// references (e.g. title:B, price:{amount:b}) and the actual values are
+// passed in as the IIFE's arguments at the end.
 //
-// If the schema shifts or the page no longer ships __NEXT_DATA__, we
-// fall back to a regex-based product-card heuristic.
+// We can't just regex this out — the aliases require mapping. So we
+// evaluate the IIFE in an isolated Node `vm` context with a 2s timeout
+// and read back the structured result. The IIFE only constructs and
+// returns a plain object — no DOM, no fetch, no globals beyond a
+// passed-in empty `W` object that it decorates.
+//
+// Fallback chain:
+//   1. Nuxt __NUXT__ IIFE (current stan.store frontend)
+//   2. Legacy Next __NEXT_DATA__ JSON blob (older stan.store stores)
+//   3. Regex over product-card HTML (last resort)
 //
 // Tier inference — stan.store doesn't tag products with our tier enum,
-// so we infer from price:
-//   free / no price → lead_magnet
-//   < €30           → lead_magnet (small upsells)
-//   €30-100         → low_ticket
-//   €100-500        → mid_ticket
-//   €500+           → high_ticket
-//   contains "/mo" or "monthly" / "membership" / "community" → recurring
+// so we infer from price + membership flag:
+//   membership_duration_available → recurring
+//   free / no price                → lead_magnet
+//   < €30                          → lead_magnet (small upsells)
+//   €30-100                        → low_ticket
+//   €100-500                       → mid_ticket
+//   €500+                          → high_ticket
 // The audit's LLM step can override these if it has more context.
 
 async function scrapeStanStore(url) {
@@ -129,31 +139,155 @@ async function scrapeStanStore(url) {
   }
   const html = await res.text();
 
-  // Pull __NEXT_DATA__ blob. Format:
-  //   <script id="__NEXT_DATA__" type="application/json">{...}</script>
+  // ── Path 1: Nuxt window.__NUXT__ IIFE (current stan.store) ──
+  const nuxtData = parseNuxtData(html);
+  if (nuxtData) {
+    const baseUrl = url.replace(/\?.*$/, '').replace(/\/$/, '');
+    const products = extractNuxtProducts(nuxtData, baseUrl);
+    if (products.length > 0) {
+      return { ok: true, products, source: 'stan.store (nuxt)' };
+    }
+  }
+
+  // ── Path 2: Legacy Next __NEXT_DATA__ blob ──
   const match = html.match(/<script id="__NEXT_DATA__" type="application\/json">([\s\S]*?)<\/script>/);
-  if (!match) {
-    // Fallback: regex over product cards in the HTML
-    return scrapeStanStoreHtmlFallback(html, url);
+  if (match) {
+    try {
+      const data = JSON.parse(match[1]);
+      const found = findProductLikeArrays(data?.props?.pageProps || data);
+      if (found.length > 0) {
+        const baseUrl = url.replace(/\?.*$/, '').replace(/\/$/, '');
+        const products = found.map(p => stanProductToStandard(p, baseUrl));
+        return { ok: true, products, source: 'stan.store (next)' };
+      }
+    } catch {
+      // fall through to regex fallback
+    }
   }
-  let data;
+
+  // ── Path 3: HTML regex fallback ──
+  return scrapeStanStoreHtmlFallback(html, url);
+}
+
+// Evaluate the `window.__NUXT__=(function(...){...}(...))` IIFE in an
+// isolated vm context and return the resulting data structure. Returns
+// null if the page doesn't ship a Nuxt blob or eval fails.
+//
+// We balance parens forward from the first `(` after `window.__NUXT__=`
+// to find the IIFE's end, being careful to skip over string literals
+// (which can contain unbalanced parens in product descriptions).
+function parseNuxtData(html) {
+  const marker = 'window.__NUXT__=';
+  const startIdx = html.indexOf(marker);
+  if (startIdx === -1) return null;
+
+  let i = startIdx + marker.length;
+  while (i < html.length && /\s/.test(html[i])) i++;
+  if (html[i] !== '(') return null;
+
+  // Balanced-paren walk, with string-literal awareness so a `)` inside
+  // a description string doesn't close the IIFE prematurely.
+  let depth = 0;
+  let inString = false;
+  let stringChar = '';
+  let escaped = false;
+  let endIdx = -1;
+  for (let j = i; j < html.length; j++) {
+    const ch = html[j];
+    if (escaped) { escaped = false; continue; }
+    if (ch === '\\') { escaped = true; continue; }
+    if (inString) {
+      if (ch === stringChar) inString = false;
+      continue;
+    }
+    if (ch === '"' || ch === "'") { inString = true; stringChar = ch; continue; }
+    if (ch === '(') depth++;
+    else if (ch === ')') {
+      depth--;
+      if (depth === 0) { endIdx = j + 1; break; }
+    }
+  }
+  if (endIdx === -1) return null;
+
+  const expr = html.slice(i, endIdx);
   try {
-    data = JSON.parse(match[1]);
-  } catch (err) {
-    return { ok: false, products: [], error: `stan.store __NEXT_DATA__ parse failed: ${err.message}`, source: 'stan.store' };
+    const ctx = { window: {}, Date, Math, JSON };
+    vm.createContext(ctx);
+    vm.runInContext(`window.__NUXT__=${expr}`, ctx, { timeout: 2000 });
+    return ctx.window.__NUXT__ || null;
+  } catch {
+    return null;
+  }
+}
+
+// Walk a parsed Nuxt data tree and pull product entries out of
+// `data[0].store.pages`. Each page may or may not be a product — we
+// only emit entries where `data.product.title` exists.
+function extractNuxtProducts(nuxtData, baseUrl) {
+  // The top-level shape is { layout, data: [{ user, store: { pages: [...] } }] }
+  const dataArr = Array.isArray(nuxtData?.data) ? nuxtData.data : [];
+  const pages = dataArr[0]?.store?.pages;
+  if (!Array.isArray(pages) || pages.length === 0) return [];
+
+  const products = [];
+  for (const page of pages) {
+    const product = nuxtPageToProduct(page, baseUrl);
+    if (product) products.push(product);
+  }
+  return products;
+}
+
+// Normalise a single Nuxt page into our standard product shape. Returns
+// null if the page doesn't represent a product (e.g. a pure external
+// link button with no priced item attached).
+function nuxtPageToProduct(page, baseUrl) {
+  const product = page?.data?.product;
+  if (!product || typeof product.title !== 'string' || !product.title.trim()) return null;
+
+  const price = product.price || {};
+  // Prefer sale_amount when on sale; otherwise amount. Both are USD whole
+  // numbers (e.g. 78 = $78, 190 = $190) based on observed stan.store data.
+  let priceUsd = null;
+  const saleAvailable = price.sale_amount_available === true && typeof price.sale_amount === 'number' && price.sale_amount > 0;
+  if (saleAvailable) {
+    priceUsd = price.sale_amount;
+  } else if (typeof price.amount === 'number') {
+    priceUsd = price.amount;
   }
 
-  // The exact path varies between stan.store versions. Walk the entire
-  // pageProps object looking for arrays of objects that look like products
-  // (have a name + price field). This is defensive against schema drift.
-  const found = findProductLikeArrays(data?.props?.pageProps || data);
-  if (found.length === 0) {
-    return scrapeStanStoreHtmlFallback(html, url);
-  }
+  const isMembership = price.membership_duration_available === true ||
+    (typeof price.membership_duration === 'number' && price.membership_duration > 0);
+  const isFree = priceUsd === 0 || priceUsd == null;
+  const price_eur = isFree ? null : Math.round(priceUsd * 0.92);
 
-  const baseUrl = url.replace(/\?.*$/, '').replace(/\/$/, '');
-  const products = found.map(p => stanProductToStandard(p, baseUrl));
-  return { ok: true, products, source: 'stan.store' };
+  const slug = (page.slug || '').replace(/^\//, '');
+  const productUrl = slug ? `${baseUrl}/${slug}` : baseUrl;
+
+  const lowerName = product.title.toLowerCase();
+  let tier;
+  if (isMembership) tier = 'recurring';
+  else if (isFree) tier = 'lead_magnet';
+  else if (price_eur < 30) tier = 'lead_magnet';
+  else if (price_eur < 100) tier = 'low_ticket';
+  else if (price_eur < 500) tier = 'mid_ticket';
+  else tier = 'high_ticket';
+
+  let format = 'digital product';
+  if (isMembership) format = 'community';
+  else if (lowerName.includes('bootcamp') || lowerName.includes('cohort') || lowerName.includes('course')) format = 'course';
+  else if (lowerName.includes('guide') || lowerName.includes('ebook') || lowerName.includes('pdf')) format = 'ebook';
+  else if (lowerName.includes('template') || lowerName.includes('agent') || lowerName.includes('bundle')) format = 'template';
+  else if (lowerName.includes('coaching') || lowerName.includes('1-on-1') || lowerName.includes('consultation')) format = 'coaching';
+  else if (isFree) format = 'lead magnet';
+
+  return {
+    name: product.title.trim(),
+    price_eur,
+    url: productUrl,
+    format,
+    tier,
+    transformation_offered: '',
+  };
 }
 
 // Regex-only fallback when __NEXT_DATA__ isn't available. Less reliable —
