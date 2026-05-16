@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getCreator, updateCreator } from '../../../../lib/creators';
 import { scrapeBioLinks } from '../../../../lib/apify';
+import { scrapeKnownAggregators } from '../../../../lib/aggregatorScrapers';
 import { validateEcosystemAudit, VALID_TIERS, VALID_ROLES } from '../../../../lib/schemas/ecosystemAudit';
 
 // Web_search adds 5-10 tool-use rounds — this can run up to ~90s.
@@ -81,8 +82,21 @@ export async function POST(request, { params }) {
       dedupedUrls.push(item);
     }
 
+    // ── Step 2.5: deterministic aggregator scrape ──
+    // For known aggregators with predictable structure (stan.store first;
+    // linktr.ee / beacons.ai later) we extract products directly from the
+    // page's __NEXT_DATA__ / HTML instead of asking the LLM to enumerate.
+    // The LLM is unreliable at exhaustive enumeration of 8+ product cards
+    // on a single page — it summarises and skips. Deterministic scrape
+    // fixes that. Result: products feed into the LLM as a "preDiscovered"
+    // list with names+prices already known; LLM's job becomes tier
+    // classification + transformation copy, not discovery.
+    const seedUrlsList = [...seedUrls];
+    const aggregatorScrape = await scrapeKnownAggregators(seedUrlsList);
+    const preDiscoveredProducts = aggregatorScrape.products;
+
     // ── Step 3: ask Claude ──
-    const audit = await runAudit(apiKey, creator, dedupedUrls, aggregatorsSeen);
+    const audit = await runAudit(apiKey, creator, dedupedUrls, aggregatorsSeen, preDiscoveredProducts);
     if (audit.error) {
       return NextResponse.json({ error: audit.error, errors: audit.errors, raw: audit.raw }, { status: 502 });
     }
@@ -111,6 +125,8 @@ export async function POST(request, { params }) {
         seed_urls: seedUrls.size,
         aggregators_resolved: aggregatorsSeen.length,
         final_urls_inspected: dedupedUrls.length,
+        deterministic_scrape: aggregatorScrape.diagnostics,
+        pre_discovered_count: preDiscoveredProducts.length,
         retries: audit.retries,
       },
     });
@@ -130,6 +146,26 @@ You analyze a content creator's existing product ecosystem and decide the strate
 ## TASK
 
 Given a list of URLs (Instagram bio links, Linktree pages, external sites, etc.), investigate each one using web_search. For each product/service you find, extract its name, price, format, and the transformation it promises.
+
+## AGGREGATOR PAGE EXHAUSTIVENESS — DO NOT SKIP CARDS
+
+Some URLs in the input are link-in-bio aggregator pages: linktr.ee/<handle>, beacons.ai/<handle>, stan.store/<handle>, koji.com/<handle>, taplink.cc/<handle>, allmylinks.com/<handle>, bio.link/<handle>, carrd.co.
+
+These pages contain MANY product/link cards (typically 5-15). Failure mode you must avoid: scanning the page, listing the 2-3 most prominent cards, and moving on. That is wrong. You MUST enumerate EVERY card.
+
+Required behavior for any aggregator URL:
+  1. Do a web_search on the aggregator URL itself.
+  2. Count the product cards visible on that page.
+  3. For EACH card, do an additional web_search on the individual product URL (the click-through destination) to get exact name + price + transformation. Do not infer — fetch.
+  4. Report EVERY card as a separate entry in products_found. Skipping a card because it "looks like a duplicate" or "is just a freebie" or "is the same as another product" is wrong. List them all.
+
+If the aggregator page renders product names that match items in the PRE-DISCOVERED PRODUCTS block (when present), do NOT duplicate them — the deterministic scraper already captured those. Only add cards the scraper missed (rare, but possible if the scraper had a partial failure).
+
+How many products should you typically find on each aggregator?
+  - stan.store storefront: 5-12 products
+  - linktr.ee: 5-20 links (many are social, not products — filter to commerce-only)
+  - beacons.ai: 5-15
+If your final products_found list contains fewer items than the page visibly shows, you've failed.
 
 ## REQUIRED ADDITIONAL DISCOVERY — DO THIS EVEN IF THE URL LIST IS COMPLETE
 
@@ -272,7 +308,7 @@ Empty array [] if standalone.
 4. Run the REQUIRED ADDITIONAL DISCOVERY queries before producing output. Missing an existing community is the worst failure mode.
 5. Output must be VALID JSON. No surrounding text. No explanation.`;
 
-async function runAudit(apiKey, creator, urls, aggregatorsSeen, retryCount = 0) {
+async function runAudit(apiKey, creator, urls, aggregatorsSeen, preDiscoveredProducts = [], retryCount = 0) {
   const creatorContext = [
     `Creator: ${creator.name || 'Unknown'}`,
     `Niche: ${creator.niche || 'Unknown'}`,
@@ -288,12 +324,34 @@ async function runAudit(apiKey, creator, urls, aggregatorsSeen, retryCount = 0) 
     ? urls.map((u, i) => `${i + 1}. ${u.url}${u.title ? `  — labelled "${u.title}"` : ''}${u.source !== 'direct' ? `  (from aggregator ${u.source})` : ''}`).join('\n')
     : '(no public links discovered)';
 
+  // Inject deterministically-scraped products into the prompt as "already
+  // verified" entries the model should include unchanged. The model's job
+  // for these is enrichment (tier classification + transformation copy),
+  // not discovery — that's already done.
+  const preDiscoveredBlock = preDiscoveredProducts.length > 0
+    ? `## PRE-DISCOVERED PRODUCTS (already verified by deterministic scraper — INCLUDE ALL OF THESE)
+
+These products were extracted directly from the aggregator HTML (stan.store __NEXT_DATA__, etc.) and have been verified to belong to THIS creator. Include EVERY ONE in products_found. The scraper gave you name + price + URL + a tentative tier — your job for these is to:
+  - Keep name + price_eur + url + format AS-IS unless you have stronger evidence
+  - Add a transformation_offered field (1 sentence describing the outcome)
+  - Verify the tier matches our enum and adjust ONLY if obviously wrong
+You may add ADDITIONAL products beyond this list (from URLs not covered by the scraper, from web_search), but you may NOT drop any of these.
+
+${preDiscoveredProducts.map((p, i) => `${i + 1}. name: ${p.name}
+   price_eur: ${p.price_eur}
+   url: ${p.url}
+   format: ${p.format}
+   tier (tentative): ${p.tier}`).join('\n\n')}
+
+`
+    : '';
+
   const userMessage = `Investigate this creator's existing product ecosystem and return the JSON per the schema in your system prompt.
 
 ## CREATOR
 ${creatorContext}
 
-## URLS TO INSPECT (use web_search on each)
+${preDiscoveredBlock}## URLS TO INSPECT (use web_search on each)
 ${urlList}
 
 ${aggregatorsSeen.length > 0 ? `## AGGREGATORS RESOLVED\nThe following aggregator URLs were already resolved and their destinations appear in the URLS list above (so you don't need to re-scrape them):\n${aggregatorsSeen.map(a => `- ${a}`).join('\n')}\n\n` : ''}Return ONLY the JSON object. No code fences, no preamble.`;
@@ -324,7 +382,7 @@ ${aggregatorsSeen.length > 0 ? `## AGGREGATORS RESOLVED\nThe following aggregato
   const parsed = tryParseJson(rawText);
   if (!parsed) {
     if (retryCount < 1) {
-      return runAudit(apiKey, creator, urls, aggregatorsSeen, retryCount + 1);
+      return runAudit(apiKey, creator, urls, aggregatorsSeen, preDiscoveredProducts, retryCount + 1);
     }
     return { error: 'Model returned non-JSON output after retry', raw: rawText, errors: [], retries: retryCount };
   }
