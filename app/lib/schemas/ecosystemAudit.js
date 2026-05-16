@@ -27,6 +27,8 @@ export const VALID_ROLES = [
   'standalone',
 ];
 
+export const VALID_CANNIBALIZATION_RISK = ['high', 'medium', 'low', 'none'];
+
 // Shape (for reference — JS, not a runtime type system):
 //
 // {
@@ -34,6 +36,15 @@ export const VALID_ROLES = [
 //     products_found: [
 //       { name, price_eur, format, tier, url, transformation_offered }
 //     ],
+//     // NEW: Existing communities are called out separately from products,
+//     // because they're the highest cannibalization risk for our offer.
+//     // The wizard's CP1 strategic_frame uses this to FORBID picking the
+//     // same tier — if Tomás already has Blueprint Academy at €36/mo
+//     // (low_ticket), we cannot ship another low-ticket community.
+//     existing_communities: [
+//       { name, price_eur, tier, format, url }
+//     ],
+//     community_cannibalization_risk: 'high' | 'medium' | 'low' | 'none',
 //     has_high_ticket: boolean,
 //     has_mid_ticket: boolean,
 //     has_recurring: boolean,
@@ -78,6 +89,27 @@ export function validateEcosystemAudit(obj) {
         if (!isStr(p.url)) push(`${px}.url`, 'required non-empty string');
         if (!isStr(p.transformation_offered)) push(`${px}.transformation_offered`, 'required non-empty string');
       });
+    }
+    // existing_communities — explicit list of competing community offers.
+    // Required (use [] if none). Each entry mirrors products_found shape but
+    // is JUST for communities (not courses, not 1-on-1 services).
+    if (!Array.isArray(em.existing_communities)) {
+      push('ecosystem_map.existing_communities', 'must be an array (use [] if creator has no existing community offer)');
+    } else {
+      em.existing_communities.forEach((ec, i) => {
+        const px = `ecosystem_map.existing_communities[${i}]`;
+        if (!ec || typeof ec !== 'object' || Array.isArray(ec)) { push(px, 'must be an object'); return; }
+        if (!isStr(ec.name)) push(`${px}.name`, 'required non-empty string');
+        if (ec.price_eur != null && !isNum(ec.price_eur)) push(`${px}.price_eur`, 'must be number or null');
+        if (!VALID_TIERS.includes(ec.tier)) push(`${px}.tier`, `must be one of ${VALID_TIERS.join('|')}`);
+        if (!isStr(ec.format)) push(`${px}.format`, 'required non-empty string');
+        // url optional — sometimes the community URL isn't crawlable
+      });
+    }
+    // community_cannibalization_risk — strict enum. The CP1 prompt uses
+    // this to decide whether to FORBID matching tiers.
+    if (!VALID_CANNIBALIZATION_RISK.includes(em.community_cannibalization_risk)) {
+      push('ecosystem_map.community_cannibalization_risk', `must be one of ${VALID_CANNIBALIZATION_RISK.join('|')}`);
     }
     if (!isBool(em.has_high_ticket)) push('ecosystem_map.has_high_ticket', 'required boolean');
     if (!isBool(em.has_mid_ticket))  push('ecosystem_map.has_mid_ticket',  'required boolean');

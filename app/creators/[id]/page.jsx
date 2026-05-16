@@ -3091,12 +3091,31 @@ function CoreOfferPanel({ creator, setCreator, running, setRunning, error, setEr
   // sentinel — if it exists, CP2 has run at least once.
   const hasOutput = !!client.central_promise;
 
-  // Operator picks pricing_tier BEFORE generation. Default suggestion:
-  //   - If frame.confirmed_role is premium_upsell → high
-  //   - If continuity + fame_tier >= niche_recognized → mid
-  //   - else low
+  // Operator picks pricing_tier BEFORE generation. Default suggestion logic:
+  //   1. CANNIBALIZATION-AWARE: if the ecosystem audit reports an existing
+  //      community + community_cannibalization_risk ∈ {high, medium}, the
+  //      default tier MUST land in a DIFFERENT band than the existing
+  //      community's tier (otherwise we ship a competing offer).
+  //      - existing low_ticket  → suggest 'mid' or 'high'  (premium upsell)
+  //      - existing mid_ticket  → suggest 'low' or 'high'  (different segment)
+  //      - existing high_ticket → suggest 'low'             (entry-point feeder)
+  //   2. Otherwise, role-based defaults:
+  //      - premium_upsell → high
+  //      - continuity + fame ≥ niche_recognized → mid
+  //      - else → low
   const archetype = meta.archetype_classification || {};
+  const ecosystemMap = meta.ecosystem_audit?.ecosystem_map || {};
+  const existingCommunities = Array.isArray(ecosystemMap.existing_communities) ? ecosystemMap.existing_communities : [];
+  const cannibalRisk = ecosystemMap.community_cannibalization_risk || 'none';
   const suggestedTier = (() => {
+    // (1) Cannibalization-aware default. Look at the highest-tier existing
+    // community and pick the band that doesn't overlap.
+    if (existingCommunities.length > 0 && (cannibalRisk === 'high' || cannibalRisk === 'medium')) {
+      const tiers = existingCommunities.map(c => c.tier);
+      if (tiers.includes('high_ticket') || tiers.includes('mid_ticket')) return 'low';
+      if (tiers.includes('low_ticket') || tiers.includes('recurring')) return 'high';
+    }
+    // (2) Role-based default (unchanged).
     if (frame?.confirmed_role === 'premium_upsell') return 'high';
     if (frame?.confirmed_role === 'continuity' && ['niche_recognized', 'cross_niche_recognized', 'celebrity'].includes(archetype.fame_tier)) return 'mid';
     return 'low';

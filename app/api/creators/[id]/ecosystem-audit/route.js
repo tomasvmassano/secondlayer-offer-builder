@@ -169,6 +169,16 @@ Return ONLY this JSON. No markdown code fences. No commentary. No prefix or suff
         "transformation_offered": "string (1 specific outcome sentence)"
       }
     ],
+    "existing_communities": [
+      {
+        "name": "string",
+        "price_eur": number_or_null,
+        "tier": "lead_magnet|low_ticket|mid_ticket|high_ticket|recurring|service|physical_product",
+        "format": "string (e.g. 'Skool community', 'Whop monthly', 'private Discord')",
+        "url": "string (optional, '' if not crawlable)"
+      }
+    ],
+    "community_cannibalization_risk": "high|medium|low|none",
     "has_high_ticket": boolean,
     "has_mid_ticket": boolean,
     "has_recurring": boolean,
@@ -186,6 +196,27 @@ Return ONLY this JSON. No markdown code fences. No commentary. No prefix or suff
 - 26-50: 1-2 low-ticket products, no funnel
 - 51-75: low + mid OR low + high (gap somewhere)
 - 76-100: lead magnet + low + mid + high + recurring (complete ladder)
+
+## existing_communities + community_cannibalization_risk — READ CAREFULLY
+
+A community offer (Skool, Whop, paid Discord, paid Circle, paid Patreon at >€5/mo, etc.) that the creator ALREADY sells is the #1 cannibalization risk for the offer we are about to build for them. The wizard's CP1 strategic_frame uses these two fields to decide whether to FORBID matching tiers.
+
+**existing_communities**: every CURRENTLY-SELLING community the creator runs. Pull from web_search results — look for Skool URLs, Whop URLs, "join the community", "exclusive group", paid Patreon tiers, etc. Each entry needs name + price_eur + tier + format. Use [] if none.
+
+DO NOT confuse one-time courses or 1-on-1 services for communities — only count offers with ongoing access + recurring or paid-membership pricing.
+
+**community_cannibalization_risk**:
+- "high"   — creator already runs a community at the SAME tier the new offer would target (e.g. their existing community is low_ticket and the obvious play is also low_ticket)
+- "medium" — creator runs a community at an ADJACENT tier (e.g. existing mid_ticket; new offer might land low or high)
+- "low"    — creator has a community but in a clearly different tier band or different audience
+- "none"   — creator has no community offer at all
+
+When risk is "high", the strategic_role field MUST be set to a role that puts the new offer at a DIFFERENT tier than the existing community. Specifically:
+- Existing low_ticket community  →  strategic_role: premium_upsell  (new offer at mid or high tier — advanced track for graduates)
+- Existing mid_ticket community  →  strategic_role: standalone OR entry_point (different audience / lower tier as feeder)
+- Existing high_ticket community →  strategic_role: entry_point (lower-tier funnel-feeder)
+
+If risk is "high" and you still pick strategic_role: continuity at the same tier, you have FAILED the task.
 
 ## cannibalization_constraints
 

@@ -75,6 +75,35 @@ export function validateStrategicFrame(obj) {
     push('positioning_tension', `should be at most ~400 chars (got ${obj.positioning_tension.length})`);
   }
 
+  // differentiation_from_existing — REQUIRED when the ecosystem audit
+  // reported community_cannibalization_risk ∈ {high, medium}. We can't
+  // enforce that conditionally here without passing audit context, so the
+  // field is OPTIONAL at the schema level but the prompt makes it
+  // mandatory when cannibalization risk is present.
+  if (obj.differentiation_from_existing != null) {
+    if (!isStr(obj.differentiation_from_existing)) {
+      push('differentiation_from_existing', 'if present, must be a non-empty string');
+    } else if (obj.differentiation_from_existing.length > 500) {
+      push('differentiation_from_existing', `should be at most ~500 chars (got ${obj.differentiation_from_existing.length})`);
+    }
+  }
+
+  // ecosystem_impact — 3-5 bullets describing how the new offer changes
+  // the economics of the creator's existing ecosystem. Required.
+  // Drives the right column of pitch slide 3 (Mapa do Ecossistema).
+  // Should be specific and money-anchored ("Blueprint Academy graduates
+  // upgrading to The Six Database System would add €X/mo per member").
+  if (!Array.isArray(obj.ecosystem_impact)) {
+    push('ecosystem_impact', 'must be an array of 3-5 bullets (impact on existing ecosystem — specific, money-anchored)');
+  } else if (obj.ecosystem_impact.length < 3 || obj.ecosystem_impact.length > 5) {
+    push('ecosystem_impact', `must contain 3-5 bullets (got ${obj.ecosystem_impact.length})`);
+  } else {
+    obj.ecosystem_impact.forEach((s, i) => {
+      if (!isStr(s)) push(`ecosystem_impact[${i}]`, 'must be a non-empty string');
+      else if (s.length > 320) push(`ecosystem_impact[${i}]`, `should be ≤320 chars (got ${s.length}) — punchy, scannable`);
+    });
+  }
+
   // rationale — 3-5 bullets justifying every choice above. Operator scans
   // these at review time. Anything outside the range fails — long lists are
   // just CYA noise, short lists hide unjustified leaps.

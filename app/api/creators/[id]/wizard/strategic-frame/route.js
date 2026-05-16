@@ -92,6 +92,22 @@ You are synthesising three internal analyses (ecosystem audit, archetype classif
 
 This output is INTERNAL. It is not the sales copy. It is not even close to sales copy. It is the operator's commit to a positioning. Use direct, operator-language phrasing — no marketing fluff.
 
+## CANNIBALIZATION CHECK — DO THIS FIRST
+
+Before deciding anything else, read Phase 1's ecosystem_audit.ecosystem_map.existing_communities and community_cannibalization_risk.
+
+If community_cannibalization_risk is "high" or "medium":
+  - The creator ALREADY runs a paid community. The new offer CANNOT compete with it head-on.
+  - You MUST set confirmed_role to a value that puts the new offer at a DIFFERENT tier than the existing community:
+      Existing low_ticket community  → confirmed_role = premium_upsell  (new offer at mid or high tier)
+      Existing mid_ticket community  → confirmed_role = standalone OR entry_point (different audience or lower tier)
+      Existing high_ticket community → confirmed_role = entry_point (lower-tier funnel-feeder)
+  - You MUST fill the differentiation_from_existing field with 2-4 sentences making the distinction explicit. Reference the existing community by name. Example: "Blueprint Academy serves beginners learning the foundations at €36/mo. The Six Database System serves Blueprint Academy graduates and advanced operators ready to systematise — different audience, different price band, complementary not competing."
+
+If community_cannibalization_risk is "low" or "none":
+  - differentiation_from_existing may be left empty / null.
+  - confirmed_role can match Phase 1's strategic_role suggestion.
+
 ## WHAT YOU MUST DECIDE
 
 1. **confirmed_role** — One of: entry_point | continuity | premium_upsell | standalone
@@ -100,6 +116,7 @@ This output is INTERNAL. It is not the sales copy. It is not even close to sales
    - continuity: monthly subscription that retains existing buyers
    - premium_upsell: highest-ticket offer (graduates of cheaper tiers)
    - standalone: doesn't fit into the existing funnel — sits beside it
+   - **If cannibalization risk is high/medium, the rules in the CANNIBALIZATION CHECK section override these.**
 
 2. **dominant_transformation** — A short, operator-language description of the change the offer delivers. NOT sales copy.
    - Bad: "Unlock your AI superpower today"
@@ -117,6 +134,15 @@ This output is INTERNAL. It is not the sales copy. It is not even close to sales
 
 6. **rationale** — 3-5 bullets. Each bullet justifies one of the choices above using EVIDENCE from the inputs (cite which Phase the signal came from).
    - Example: "Confirmed entry_point because Phase 1 shows the existing high-ticket consultancy at €5K means the community at €100-300/mo functions as a lead magnet"
+
+7. **differentiation_from_existing** — 2-4 sentences. ONLY required when cannibalization risk is high/medium. Must reference existing communities by name. Explains why the new offer serves a different audience, tier, or stage than what the creator already sells. See CANNIBALIZATION CHECK section above.
+
+8. **ecosystem_impact** — 3-5 bullets, ≤320 chars each. The VISCERAL impact of adding this new offer on the creator's existing business, in pocketbook terms. Each bullet should be specific, money-anchored, and felt — not abstract.
+   - GOOD: "Blueprint Academy graduates upgrading to The Six Database System at €297/mo add ~€7,000/mo if 5% of the 4,500 members make the jump in 6 months."
+   - GOOD: "Strategic consultancy clients (€5K each) get nudged into the recurring tier post-engagement — recovers retainer revenue lost when projects end."
+   - BAD: "Increases customer lifetime value" (vague, no number, no entity)
+   - BAD: "Synergy with existing offers" (meaningless)
+   This block lands on the pitch deck slide 3 (Mapa do Ecossistema · right column). The creator needs to FEEL the financial impact, not just understand it intellectually.
 
 ## STYLE
 
@@ -138,7 +164,9 @@ Return ONLY a JSON object matching this schema. No prose, no markdown, no commen
   },
   "negative_qualifiers": ["string", "string", ...],   // 2-5 items
   "positioning_tension": "string (max ~400 chars)",
-  "rationale": ["string", ...]                         // 3-5 bullets
+  "rationale": ["string", ...],                        // 3-5 bullets
+  "differentiation_from_existing": "string or null",   // required when cannibalization_risk ∈ {high, medium}; null otherwise
+  "ecosystem_impact": ["string", ...]                  // 3-5 bullets, ≤320 chars each, money-anchored
 }`;
 
 async function runStrategicFrame(apiKey, creator, retryCount = 0, extraInstruction = null) {
@@ -151,15 +179,24 @@ async function runStrategicFrame(apiKey, creator, retryCount = 0, extraInstructi
   let auditBlock = '';
   if (audit) {
     const products = (audit.ecosystem_map?.products_found || []).map(p =>
-      `${p.name} (${p.tier} · ${p.format}${p.price ? ' · ' + p.price : ''})`
+      `${p.name} (${p.tier} · ${p.format}${p.price_eur ? ' · €' + p.price_eur : ''})`
     ).join('\n  - ');
     const gaps = (audit.ecosystem_map?.gaps_identified || []).join('\n  - ');
-    const cannibalization = (audit.ecosystem_map?.cannibalization_constraints || []).join('\n  - ');
+    const cannibalization = (audit.cannibalization_constraints || []).join('\n  - ');
+    const synergy = (audit.synergy_opportunities || []).join('\n  - ');
+    // NEW: surface existing_communities + community_cannibalization_risk
+    // prominently — the prompt's CANNIBALIZATION CHECK section reads these.
+    const existingComms = (audit.ecosystem_map?.existing_communities || []).map(c =>
+      `${c.name} (${c.tier}${c.price_eur ? ' · €' + c.price_eur + '/mo' : ''} · ${c.format})`
+    ).join('\n  - ');
+    const cannibalRisk = audit.ecosystem_map?.community_cannibalization_risk || 'unknown';
     auditBlock = `## PHASE 1 · ECOSYSTEM AUDIT
 Suggested strategic_role: ${audit.strategic_role}
 Has high-ticket: ${audit.ecosystem_map?.has_high_ticket ?? '?'}
-Has community: ${audit.ecosystem_map?.has_community ?? '?'}
-Completeness: ${audit.ecosystem_map?.completeness_score ?? '?'}%
+Completeness: ${audit.ecosystem_map?.ecosystem_completeness_score ?? '?'}%
+
+### EXISTING COMMUNITIES (cannibalization risk: ${cannibalRisk.toUpperCase()})
+${existingComms ? '  - ' + existingComms : '  (none — creator does not currently sell any paid community)'}
 
 Products found:
   - ${products || '(none mapped)'}
@@ -168,7 +205,10 @@ Gaps identified:
   - ${gaps || '(none)'}
 
 Cannibalization constraints:
-  - ${cannibalization || '(none)'}`;
+  - ${cannibalization || '(none)'}
+
+Synergy opportunities:
+  - ${synergy || '(none)'}`;
   } else {
     auditBlock = '## PHASE 1 · ECOSYSTEM AUDIT\n(not yet run — note this in rationale)';
   }

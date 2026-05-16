@@ -1,71 +1,49 @@
 /**
  * Curated Case-Studies Database (pitch slide 10 — "Casos Similares").
  *
- * Niche-keyed real-world Skool/Whop/Circle communities used as social proof
- * on the pitch deck. The slide promises "Comunidades reais no Skool/Whop com
- * este perfil. Dados públicos." — that promise is honored by curating real
- * data here rather than asking the LLM to hallucinate.
+ * Niche-keyed real-world communities used as social proof on the pitch deck.
+ * The slide promises "Comunidades reais no Skool/Whop com este perfil.
+ * Dados públicos." — that promise is honored by curating real data here
+ * rather than asking the LLM to hallucinate.
+ *
+ * ⚠ URL VERIFICATION NOTE ⚠
+ *   The URLs below are the creator's MAIN brand domain. Skool/Whop
+ *   community URLs change frequently as creators migrate platforms. Before
+ *   using this DB in a high-stakes live pitch:
+ *     1. Click each URL to confirm it resolves to the right brand.
+ *     2. Verify the price + member-count still match (numbers are
+ *        estimates from public Skool/Whop leaderboards + creator
+ *        interviews, accurate as of ~Q1 2025).
+ *     3. Update any community-specific URL if it differs from the brand
+ *        homepage (e.g. if Greg Isenberg's Skool moved from /late-checkout
+ *        to a new slug).
+ *
+ *   The pitch slide renders the URL as a small ↗ icon next to the case
+ *   name. Empty URL → no icon (case still renders).
  *
  * Schema per case:
  *   {
- *     name:    string  - community + creator (e.g. "Late Checkout · Greg Isenberg")
+ *     name:    string  - community + creator (e.g. "Indie Hackers · Courtland Allen")
  *     niche:   string  - short tag rendered on the card
  *     members: string  - "X+ membros" / "X+ members"
- *     price:   string  - monthly price (e.g. "€97/mês")
+ *     price:   string  - monthly price (e.g. "€97/mês"; "—" for free)
  *     mrr:     string  - estimated MRR ("~€140K MRR")
- *     resume:  string  - 1-line community summary
- *     why:     string  - why this is relevant to the creator we're pitching
+ *     resume:  { pt, en }  - 1-line community summary
+ *     why:     { pt, en }  - why this is relevant to the creator we're pitching
+ *     url:     string  - HTTPS link to the brand/community (verify before use)
  *   }
  *
  * Maintenance:
  *   - Numbers are estimates based on public Skool/Whop leaderboards + creator
  *     interviews. Verify before shipping a high-stakes deck.
  *   - Add new niches as we encounter them. Keys are lowercase, match the
- *     ecosystem audit's `archetype.primary_archetype` or creator `niche`.
+ *     archetype.primary_archetype or creator niche.
  *   - The selector helper `pickCases(creator)` does best-effort matching:
  *     primary_archetype → niche → fallback bucket. Returns 3 cases.
  */
 
-// ─── Bilingual case bank ──────────────────────────────────────────────────
-// Each entry has { pt, en } strings for fields that benefit from translation.
-// `name`, `price`, `mrr`, and `members` are kept as-is (the numbers and
-// community names don't translate). `resume` and `why` are translated.
-
 const CASES = {
   builder_operator: [
-    {
-      name: 'Late Checkout · Greg Isenberg',
-      niche: 'AI + Operator',
-      members: '4,500+ members',
-      members_pt: '4.500+ membros',
-      price: '€97/mês',
-      price_en: '$97/mo',
-      mrr: '~€435K MRR',
-      resume: { pt: 'Comunidade Skool focada em construir negócios com IA. Drops semanais de prompts, casos reais.', en: 'Skool community focused on building businesses with AI. Weekly prompt drops, real case studies.' },
-      why: { pt: 'Mesma audiência solo-operator. Mesmo preço sweet spot. Provam que €97/mês sustenta 4K+ membros num nicho técnico.', en: 'Same solo-operator audience. Same sweet-spot pricing. Proves €97/mo sustains 4K+ members in a technical niche.' },
-    },
-    {
-      name: 'The Solopreneur · Justin Welsh',
-      niche: 'Solopreneur',
-      members: '8,000+ members',
-      members_pt: '8.000+ membros',
-      price: '€149/mês',
-      price_en: '$149/mo',
-      mrr: '~€1.2M MRR',
-      resume: { pt: 'Curso + comunidade mensal sobre construir um one-person business até €1M/ano.', en: 'Monthly course + community on building a one-person business to $1M/yr.' },
-      why: { pt: 'Modelo continuity puro. Founder-led, drop semanal, sem 1-on-1. Justin é a prova de que solo + AI escala.', en: 'Pure continuity model. Founder-led, weekly drops, no 1-on-1. Justin is proof that solo + AI scales.' },
-    },
-    {
-      name: 'Starter Story Premium · Pat Walls',
-      niche: 'Indie Founder',
-      members: '5,200+ members',
-      members_pt: '5.200+ membros',
-      price: '€87/mês',
-      price_en: '$87/mo',
-      mrr: '~€450K MRR',
-      resume: { pt: 'Estudos de caso de indie founders + ferramentas + comunidade Skool. Foco em business operation.', en: 'Indie-founder case studies + tools + Skool community. Focused on business operation.' },
-      why: { pt: 'Comunidade construída em torno de "como operar" — não "o que vender". Mesmo posicionamento operacional.', en: 'Community built around "how to operate" — not "what to sell". Same operational positioning.' },
-    },
     {
       name: 'Indie Hackers · Courtland Allen',
       niche: 'Indie Maker',
@@ -74,13 +52,36 @@ const CASES = {
       price: '—',
       price_en: '—',
       mrr: '—',
-      resume: { pt: 'Comunidade open de indie hackers, financiada por Stripe. Forum + interviews semanais.', en: 'Open indie-hacker community, Stripe-funded. Forum + weekly interviews.' },
+      resume: { pt: 'Comunidade aberta de indie hackers, financiada pela Stripe. Forum + entrevistas semanais com founders.', en: 'Open indie-hacker community, Stripe-funded. Forum + weekly founder interviews.' },
       why: { pt: 'Referência cultural para o teu nicho. Audiência sobreposta. Mostra que o modelo "público + premium fechado" funciona.', en: 'Cultural reference for your niche. Overlapping audience. Shows the "public + premium-private" model works.' },
+      url: 'https://www.indiehackers.com',
     },
-  ],
-  expert_educator: [
     {
-      name: 'Lenny\'s Premium · Lenny Rachitsky',
+      name: 'The Solopreneur · Justin Welsh',
+      niche: 'Solopreneur',
+      members: '14,000+ paid',
+      members_pt: '14.000+ pagos',
+      price: '€149 one-time',
+      price_en: '$149 one-time',
+      mrr: '—',
+      resume: { pt: 'Curso "The Solopreneur" + comunidade privada sobre construir um one-person business até $1M/ano.', en: 'The Solopreneur course + private community on building a one-person business to $1M/yr.' },
+      why: { pt: 'Modelo founder-led puro. Justin é a prova de que solo + sistemas + audiência escala sem equipa.', en: 'Pure founder-led model. Justin is proof that solo + systems + audience scales without a team.' },
+      url: 'https://www.justinwelsh.me',
+    },
+    {
+      name: 'Starter Story Premium · Pat Walls',
+      niche: 'Indie Founder',
+      members: '5,000+ premium',
+      members_pt: '5.000+ premium',
+      price: '€20/mês',
+      price_en: '$20/mo',
+      mrr: '~€100K MRR',
+      resume: { pt: 'Estudos de caso de indie founders + ferramentas + análise de mercado. Foco em business operation.', en: 'Indie-founder case studies + tools + market analysis. Focused on business operation.' },
+      why: { pt: 'Comunidade construída em torno de "como operar" — não "o que vender". Mesmo posicionamento operacional.', en: 'Community built around "how to operate" — not "what to sell". Same operational positioning.' },
+      url: 'https://www.starterstory.com/premium',
+    },
+    {
+      name: 'Lenny\'s Newsletter · Lenny Rachitsky',
       niche: 'Product / SaaS',
       members: '40,000+ paid',
       members_pt: '40.000+ pagos',
@@ -89,81 +90,88 @@ const CASES = {
       mrr: '~€760K MRR',
       resume: { pt: 'Newsletter Substack premium + comunidade Discord. Frameworks de product management.', en: 'Premium Substack newsletter + Discord community. Product-management frameworks.' },
       why: { pt: 'Modelo "expert + arquivo profundo" que escala sem live calls. Mostra como continuity baixa-tier funciona em scale.', en: '"Expert + deep archive" model that scales without live calls. Shows how low-tier continuity scales.' },
+      url: 'https://www.lennysnewsletter.com',
+    },
+  ],
+  expert_educator: [
+    {
+      name: 'Lenny\'s Newsletter · Lenny Rachitsky',
+      niche: 'Product / SaaS',
+      members: '40,000+ paid',
+      members_pt: '40.000+ pagos',
+      price: '€19/mês',
+      price_en: '$19/mo',
+      mrr: '~€760K MRR',
+      resume: { pt: 'Newsletter Substack premium + comunidade Discord. Frameworks de product management.', en: 'Premium Substack newsletter + Discord community. Product-management frameworks.' },
+      why: { pt: 'Modelo "expert + arquivo profundo" que escala sem live calls. Mostra como continuity baixa-tier funciona em scale.', en: '"Expert + deep archive" model that scales without live calls. Shows how low-tier continuity scales.' },
+      url: 'https://www.lennysnewsletter.com',
     },
     {
-      name: 'Ali Abdaal Productivity Lab',
-      niche: 'Productivity / Knowledge',
-      members: '15,000+ members',
-      members_pt: '15.000+ membros',
-      price: '€97/mês',
-      price_en: '$97/mo',
-      mrr: '~€1.4M MRR',
-      resume: { pt: 'Skool community + curso. Foco em productivity systems com sistemas Notion + workflow.', en: 'Skool community + course. Focus on productivity systems with Notion + workflow.' },
-      why: { pt: 'Audiência similar (knowledge workers). Founder-led mas com equipa. Mostra a evolução natural do creator-led.', en: 'Similar audience (knowledge workers). Founder-led but with team. Shows natural creator-led evolution.' },
+      name: 'Ness Labs Premium · Anne-Laure Le Cunff',
+      niche: 'Productivity / Neuroscience',
+      members: '3,500+ paid',
+      members_pt: '3.500+ pagos',
+      price: '€10/mês',
+      price_en: '$10/mo',
+      mrr: '~€35K MRR',
+      resume: { pt: 'Newsletter + comunidade focada em ciência aplicada à produtividade pessoal. Founder solo, sem equipa.', en: 'Newsletter + community focused on applied neuroscience for personal productivity. Solo founder, no team.' },
+      why: { pt: 'Founder solo educada que monetiza expertise científica. Audiência: knowledge workers que valorizam rigor.', en: 'Solo educated founder monetizing scientific expertise. Audience: knowledge workers who value rigor.' },
+      url: 'https://nesslabs.com',
     },
     {
-      name: 'Income Stream Surfers · Justin Brooke',
-      niche: 'SEO / Content',
-      members: '3,800+ members',
-      members_pt: '3.800+ membros',
-      price: '€67/mês',
-      price_en: '$67/mo',
-      mrr: '~€255K MRR',
-      resume: { pt: 'Comunidade Skool focada em SEO/AI tools. Drops de sistemas e tutoriais semanais.', en: 'Skool community focused on SEO/AI tools. Weekly system drops and tutorials.' },
-      why: { pt: 'Operador técnico que monetiza expertise sem grande nome público. Mesmo perfil de receita-via-sistema.', en: 'Technical operator monetizing expertise without big public name. Same revenue-via-system profile.' },
+      name: 'Starter Story Premium · Pat Walls',
+      niche: 'Indie Founder',
+      members: '5,000+ premium',
+      members_pt: '5.000+ premium',
+      price: '€20/mês',
+      price_en: '$20/mo',
+      mrr: '~€100K MRR',
+      resume: { pt: 'Estudos de caso de indie founders + ferramentas + análise de mercado.', en: 'Indie-founder case studies + tools + market analysis.' },
+      why: { pt: 'Operador técnico que monetiza expertise sem grande nome público. Mesmo perfil de receita-via-arquivo.', en: 'Technical operator monetizing expertise without big public name. Same revenue-via-archive profile.' },
+      url: 'https://www.starterstory.com/premium',
     },
   ],
   coach_transformation: [
     {
-      name: 'Hybrid Performance · Eric Helms',
-      niche: 'Fitness / Coaching',
-      members: '2,400+ members',
-      members_pt: '2.400+ membros',
-      price: '€49/mês',
-      price_en: '$49/mo',
-      mrr: '~€118K MRR',
-      resume: { pt: 'Programa de hybrid training mensal + comunidade + check-ins. Coach-led.', en: 'Monthly hybrid-training program + community + check-ins. Coach-led.' },
-      why: { pt: 'Continuity puro num nicho transformacional. Show-up rates altos provam que pricing baixo funciona se a transformação for clara.', en: 'Pure continuity in a transformational niche. High show-up rates prove low pricing works when the transformation is clear.' },
+      name: 'James Clear Newsletter (3-2-1)',
+      niche: 'Habits / Self-improvement',
+      members: '3M+ subscribers',
+      members_pt: '3M+ subscritores',
+      price: '— (free + book sales)',
+      price_en: '— (free + book sales)',
+      mrr: '—',
+      resume: { pt: 'Newsletter semanal "3-2-1" gratuita que vende livros + Atomic Habits Academy. Modelo de funil completo.', en: 'Weekly "3-2-1" free newsletter that sells books + Atomic Habits Academy. Full-funnel model.' },
+      why: { pt: 'Mostra a power do "ritual semanal grátis" como retention driver para o resto do funil. Mesmo arquétipo de coach.', en: 'Shows the power of "weekly free ritual" as retention driver for the rest of the funnel. Same coach archetype.' },
+      url: 'https://jamesclear.com',
     },
     {
-      name: 'Iron Sharpens Iron · Aaron Will',
-      niche: 'Men\'s Coaching',
-      members: '5,000+ members',
-      members_pt: '5.000+ membros',
-      price: '€97/mês',
-      price_en: '$97/mo',
-      mrr: '~€485K MRR',
-      resume: { pt: 'Comunidade Skool para homens em transição de carreira/saúde. Live calls semanais + accountability.', en: 'Skool community for men in career/health transition. Weekly live calls + accountability.' },
-      why: { pt: 'Mostra a power do "live ritual semanal" como retention driver. Demographics target sobreposto.', en: 'Shows the power of a weekly live ritual as retention driver. Overlapping target demographics.' },
+      name: 'Ali Abdaal · YouTuber Academy',
+      niche: 'Creator coaching',
+      members: '2,000+ alumni',
+      members_pt: '2.000+ alumni',
+      price: '€995 cohort',
+      price_en: '$995 cohort',
+      mrr: '—',
+      resume: { pt: 'Coorte privada para construir um canal YouTube de educação. Multiple cohorts/ano, founder-led.', en: 'Private cohort for building a YouTube education channel. Multiple cohorts/yr, founder-led.' },
+      why: { pt: 'Modelo cohort-based (não continuity) — útil como contraste se preço/formato pesarem por outra direção.', en: 'Cohort-based model (not continuity) — useful as contrast if pricing/format pulls another way.' },
+      url: 'https://aliabdaal.com',
     },
   ],
-  // Fallback bucket — used when no niche-specific match. Mixed-bag of
-  // well-known continuity offers across creator economies.
   default: [
     {
-      name: 'The Solopreneur · Justin Welsh',
-      niche: 'Solopreneur',
-      members: '8,000+ members',
-      members_pt: '8.000+ membros',
-      price: '€149/mês',
-      price_en: '$149/mo',
-      mrr: '~€1.2M MRR',
-      resume: { pt: 'Curso + comunidade mensal sobre construir um one-person business até €1M/ano.', en: 'Monthly course + community on building a one-person business to $1M/yr.' },
-      why: { pt: 'Referência universal para continuity offers founder-led. Modelo que funciona em qualquer nicho.', en: 'Universal reference for founder-led continuity offers. Model that works in any niche.' },
+      name: 'Indie Hackers · Courtland Allen',
+      niche: 'Indie Maker',
+      members: '12,000+ active',
+      members_pt: '12.000+ ativos',
+      price: '—',
+      price_en: '—',
+      mrr: '—',
+      resume: { pt: 'Comunidade aberta de indie hackers, financiada pela Stripe. Forum + entrevistas semanais.', en: 'Open indie-hacker community, Stripe-funded. Forum + weekly interviews.' },
+      why: { pt: 'Referência universal de community-as-trust-engine. Mostra o modelo "público + premium" em escala.', en: 'Universal reference for community-as-trust-engine. Shows the "public + premium" model at scale.' },
+      url: 'https://www.indiehackers.com',
     },
     {
-      name: 'Late Checkout · Greg Isenberg',
-      niche: 'AI + Operator',
-      members: '4,500+ members',
-      members_pt: '4.500+ membros',
-      price: '€97/mês',
-      price_en: '$97/mo',
-      mrr: '~€435K MRR',
-      resume: { pt: 'Comunidade Skool focada em construir negócios com IA. Drops semanais.', en: 'Skool community focused on building businesses with AI. Weekly drops.' },
-      why: { pt: 'Modelo Skool premium ($97/mês). Drops semanais sustentam churn baixo. Prova o sweet-spot pricing.', en: 'Premium Skool model ($97/mo). Weekly drops sustain low churn. Proves the sweet-spot pricing.' },
-    },
-    {
-      name: 'Lenny\'s Premium · Lenny Rachitsky',
+      name: 'Lenny\'s Newsletter · Lenny Rachitsky',
       niche: 'Product / SaaS',
       members: '40,000+ paid',
       members_pt: '40.000+ pagos',
@@ -172,6 +180,19 @@ const CASES = {
       mrr: '~€760K MRR',
       resume: { pt: 'Newsletter Substack premium + Discord. Mostra como low-tier escala via volume.', en: 'Premium Substack newsletter + Discord. Shows low-tier scaling via volume.' },
       why: { pt: 'Mostra o outro extremo do espetro — low-tier high-volume. Útil como contraste.', en: 'Shows the other end of the spectrum — low-tier high-volume. Useful as contrast.' },
+      url: 'https://www.lennysnewsletter.com',
+    },
+    {
+      name: 'The Solopreneur · Justin Welsh',
+      niche: 'Solopreneur',
+      members: '14,000+ paid',
+      members_pt: '14.000+ pagos',
+      price: '€149 one-time',
+      price_en: '$149 one-time',
+      mrr: '—',
+      resume: { pt: 'Curso + comunidade privada sobre construir um one-person business até $1M/ano.', en: 'Course + private community on building a one-person business to $1M/yr.' },
+      why: { pt: 'Referência universal para founder-led offers. Modelo que funciona em qualquer nicho operacional.', en: 'Universal reference for founder-led offers. Model that works in any operational niche.' },
+      url: 'https://www.justinwelsh.me',
     },
   ],
 };
@@ -181,23 +202,20 @@ const CASES = {
 //   2. creator.niche (free-form)
 //   3. default fallback
 // Returns objects in the legacy pitch-slide shape:
-//   { name, niche, members, price, mrr, resume, why }
+//   { name, niche, members, price, mrr, resume, why, url }
 // with strings normalised to the requested language.
 export function pickCases(creator, lang = 'pt') {
   const archetype = creator?.offer?.internal_metadata?.archetype_classification?.primary_archetype;
   const nicheRaw = String(creator?.niche || '').toLowerCase();
 
-  // 1. archetype match
   let bucket = archetype && CASES[archetype] ? CASES[archetype] : null;
 
-  // 2. niche keyword scan
   if (!bucket) {
     if (/(ai|automation|tech|saas|builder|operator|indie)/.test(nicheRaw)) bucket = CASES.builder_operator;
-    else if (/(fitness|nutrition|coach|transform|health|wellness)/.test(nicheRaw)) bucket = CASES.coach_transformation;
+    else if (/(fitness|nutrition|coach|transform|health|wellness|habits)/.test(nicheRaw)) bucket = CASES.coach_transformation;
     else if (/(product|education|teach|knowledge|learn|expert)/.test(nicheRaw)) bucket = CASES.expert_educator;
   }
 
-  // 3. fallback
   if (!bucket) bucket = CASES.default;
 
   return bucket.slice(0, 3).map(c => ({
@@ -208,5 +226,6 @@ export function pickCases(creator, lang = 'pt') {
     mrr:     c.mrr,
     resume:  typeof c.resume === 'object' ? (c.resume[lang] || c.resume.pt) : c.resume,
     why:     typeof c.why === 'object' ? (c.why[lang] || c.why.pt) : c.why,
+    url:     c.url || '',
   }));
 }
