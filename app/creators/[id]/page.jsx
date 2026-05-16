@@ -917,7 +917,19 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
                 );
               })()}
               {dealScore && <span style={{ fontSize: 11, fontWeight: 700, color: dealScore.colors.color, padding: "3px 8px", background: dealScore.colors.bg, border: `1px solid ${dealScore.colors.border}`, borderRadius: 4 }}>Score {dealScore.grade} ({dealScore.score})</span>}
-              {dealScore?.nicheData && <span style={{ fontSize: 11, color: "#555", padding: "3px 8px", background: "rgba(255,255,255,0.02)", borderRadius: 4 }}>€{dealScore.nicheData.mid}/mês</span>}
+              {/* Analysis-derived price only — shows the operator-set revenuePrice
+                  or CP2's target_price when one exists. Used to fall back to the
+                  niche-DB bucket (e.g. "AI / Tech / Business" → €97/mês), which
+                  surfaced a pre-analysis guess that wasn't tied to the creator
+                  at all. Pre-analysis = no badge. */}
+              {(() => {
+                const cfoTarget = creator.offer?.client_facing_output?.target_price;
+                const display = creator.revenuePrice != null
+                  ? `€${creator.revenuePrice}/mês`
+                  : (cfoTarget && String(cfoTarget).trim() ? String(cfoTarget).trim() : null);
+                if (!display) return null;
+                return <span style={{ fontSize: 11, color: "#555", padding: "3px 8px", background: "rgba(255,255,255,0.02)", borderRadius: 4 }}>{display}</span>;
+              })()}
               {/* Scrape-level chip — lean = top-of-funnel (IG only), full = ready to build offer */}
               {(() => {
                 const level = creator.scrapeLevel || (creator.intelligence?.bioLinks?.length || creator.platforms?.tiktok?.followers || creator.platforms?.youtube?.subscribers ? 'full' : 'lean');
@@ -987,12 +999,23 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
                     {dealScore.grade === 'A' ? 'Oportunidade excelente' : dealScore.grade === 'B' ? 'Bom potencial' : dealScore.grade === 'C' ? 'Potencial moderado' : 'Potencial baixo'}
                   </div>
                 </div>
-                {dealScore.nicheData && (
-                  <div style={{ marginLeft: "auto", textAlign: "right" }}>
-                    <div style={{ fontSize: 10, color: "#555", textTransform: "uppercase", letterSpacing: "0.06em" }}>Preço sugerido</div>
-                    <div style={{ fontSize: 16, fontWeight: 700, color: "#f5f5f5" }}>€{dealScore.nicheData.mid}<span style={{ fontSize: 11, color: "#555", fontWeight: 400 }}>/mês</span></div>
-                  </div>
-                )}
+                {/* "Preço sugerido" used to render dealScore.nicheData.mid (a
+                    pre-analysis bucket-price by niche category) — replaced with
+                    an analysis-derived display. Shows only when revenuePrice or
+                    CP2 target_price has been set. */}
+                {(() => {
+                  const cfoTarget = creator.offer?.client_facing_output?.target_price;
+                  const display = creator.revenuePrice != null
+                    ? { amount: `€${creator.revenuePrice}`, suffix: '/mês' }
+                    : (cfoTarget && String(cfoTarget).trim() ? { amount: String(cfoTarget).trim(), suffix: '' } : null);
+                  if (!display) return null;
+                  return (
+                    <div style={{ marginLeft: "auto", textAlign: "right" }}>
+                      <div style={{ fontSize: 10, color: "#555", textTransform: "uppercase", letterSpacing: "0.06em" }}>Preço</div>
+                      <div style={{ fontSize: 16, fontWeight: 700, color: "#f5f5f5" }}>{display.amount}{display.suffix && <span style={{ fontSize: 11, color: "#555", fontWeight: 400 }}>{display.suffix}</span>}</div>
+                    </div>
+                  );
+                })()}
               </div>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 6 }}>
                 {Object.entries(dealScore.breakdown).map(([key, points]) => {
