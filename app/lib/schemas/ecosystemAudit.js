@@ -137,12 +137,23 @@ export function validateEcosystemAudit(obj) {
     push('synergy_opportunities', 'must be an array of strings (use [] if none)');
   }
 
-  // Consistency cross-checks (warn but don't fail — these catch sloppy LLM output)
+  // Consistency cross-checks. has_high_ticket / has_mid_ticket only count
+  // products_found tiers. has_recurring is broader: a creator HAS recurring
+  // revenue if either (a) products_found contains a recurring-tier product
+  // OR (b) existing_communities is non-empty. Paid communities are
+  // subscription-based by definition in our taxonomy — even if the LLM
+  // classifies a particular community as "mid_ticket" (e.g. annual flat
+  // fee), it still counts toward has_recurring for the wizard's purposes.
+  // This matches the PATCH endpoint's recompute logic in
+  //   app/api/creators/[id]/ecosystem-audit/patch/route.js
+  // so a manual edit and a fresh LLM run end up internally consistent.
   if (Array.isArray(em?.products_found)) {
     const tiers = new Set(em.products_found.map(p => p?.tier).filter(Boolean));
+    const hasAnyCommunity = Array.isArray(em.existing_communities) && em.existing_communities.length > 0;
+    const expectedRecurring = tiers.has('recurring') || hasAnyCommunity;
     if (em.has_high_ticket !== tiers.has('high_ticket')) push('ecosystem_map.has_high_ticket', 'inconsistent with products_found tiers');
     if (em.has_mid_ticket !== tiers.has('mid_ticket'))   push('ecosystem_map.has_mid_ticket',   'inconsistent with products_found tiers');
-    if (em.has_recurring !== tiers.has('recurring'))     push('ecosystem_map.has_recurring',    'inconsistent with products_found tiers');
+    if (em.has_recurring !== expectedRecurring)          push('ecosystem_map.has_recurring',    'inconsistent with products_found tiers + existing_communities');
   }
 
   return { valid: errors.length === 0, errors };

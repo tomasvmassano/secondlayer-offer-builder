@@ -320,7 +320,10 @@ Empty array [] if standalone.
 ## HARD RULES
 
 1. NEVER invent products. Only report what web_search actually confirms exists on each URL.
-2. has_high_ticket / has_mid_ticket / has_recurring MUST be true iff products_found contains at least one product of that tier. Be consistent.
+2. Flag consistency:
+   - has_high_ticket MUST be true iff products_found contains at least one product with tier='high_ticket'.
+   - has_mid_ticket MUST be true iff products_found contains at least one product with tier='mid_ticket'.
+   - has_recurring MUST be true iff EITHER (a) products_found contains a product with tier='recurring' OR (b) existing_communities is non-empty. Paid communities are subscription-based by definition — even if you classify a particular community as 'mid_ticket' (e.g. annual flat fee), has_recurring is still true because there's an ongoing-access offer.
 3. If a URL is a 404 / parked / private / errored, OMIT it from products_found rather than including a placeholder.
 4. Run the REQUIRED ADDITIONAL DISCOVERY queries before producing output. Missing an existing community is the worst failure mode.
 5. Output must be VALID JSON. No surrounding text. No explanation.`;
