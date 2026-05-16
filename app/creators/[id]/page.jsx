@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { calculateDealScore } from "../../lib/dealScore";
 import { SCENARIOS as REVENUE_SCENARIOS, calculateSteadyMRR as sharedCalcMRR } from "../../lib/revenue";
 import { renderMd, parseOutput, extractAudience } from "../../lib/offerParser";
-import { legacyParsedToOfferState, CHECKPOINTS, readCheckpointProgress } from "../../lib/offerSchema";
+import { legacyParsedToOfferState, CHECKPOINTS, readCheckpointProgress, readOfferState } from "../../lib/offerSchema";
 import { OFFER_SYSTEM_PROMPT } from "../../lib/systemPrompt";
 import WorkspaceDashboard from "./workspace/WorkspaceDashboard";
 
@@ -1710,72 +1710,38 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
             return <CheckpointStubPanel checkpoint={cp} />;
           })()}
 
-          {!creator.offer && !offerLoading && (() => {
-            const sec = OFFER_STEPS[offerStep] || OFFER_STEPS[0];
-            return (
-            <div>
-              <p style={{ fontSize: 13, color: "#888", marginBottom: 16 }}>Completa os campos para gerar a oferta Grand Slam de {creator.name}.</p>
-
-              <div style={{ display: "flex", gap: 2, marginBottom: 24 }}>
-                {OFFER_STEPS.map((_, i) => <button key={i} onClick={() => setOfferStep(i)} style={{ flex: 1, height: 2, border: "none", cursor: "pointer", background: i <= offerStep ? "#7A0E18" : "#222", borderRadius: 1 }} />)}
-              </div>
-
-              <div style={{ marginBottom: 24 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16 }}>
-                  <span style={{ fontSize: 10, fontWeight: 600, color: "#7A0E18", letterSpacing: "0.06em" }}>{sec.icon}/{String(OFFER_STEPS.length).padStart(2, "0")}</span>
-                  <h2 style={{ fontSize: 15, fontWeight: 500, margin: 0, color: "#f5f5f5" }}>{sec.section}</h2>
-                </div>
-                <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-                  {sec.fields.map(f => (
-                    <div key={f.key}>
-                      <label style={{ display: "block", fontSize: 10, fontWeight: 600, color: "#555", marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.05em" }}>{f.label}</label>
-                      {f.type === "textarea" ? (
-                        <textarea style={{ ...inputStyle, minHeight: 60 }} placeholder={f.placeholder || ""} value={offerForm[f.key] || ""} onChange={e => setOfferForm(p => ({ ...p, [f.key]: e.target.value }))} />
-                      ) : f.type === "select" ? (
-                        <select style={{ ...inputStyle, cursor: "pointer" }} value={offerForm[f.key] || f.options?.[0] || ""} onChange={e => setOfferForm(p => ({ ...p, [f.key]: e.target.value }))}>
-                          {f.options?.map(o => <option key={o} value={o}>{o}</option>)}
-                        </select>
-                      ) : (
-                        <input type="text" style={inputStyle} placeholder={f.placeholder || ""} value={offerForm[f.key] || ""} onChange={e => setOfferForm(p => ({ ...p, [f.key]: e.target.value }))} />
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <div style={{ display: "flex", justifyContent: "space-between" }}>
-                <button onClick={() => setOfferStep(Math.max(0, offerStep - 1))} disabled={offerStep === 0} style={{ padding: "10px 22px", borderRadius: 6, border: "1px solid rgba(255,255,255,0.06)", background: "transparent", color: offerStep === 0 ? "#222" : "#888", fontSize: 12, fontWeight: 500, cursor: offerStep === 0 ? "default" : "pointer", fontFamily: "inherit" }}>Back</button>
-                {offerStep < OFFER_STEPS.length - 1
-                  ? <button onClick={() => setOfferStep(offerStep + 1)} style={{ padding: "10px 28px", borderRadius: 6, border: "1px solid rgba(255,255,255,0.06)", background: "transparent", color: "#f5f5f5", fontSize: 12, fontWeight: 500, cursor: "pointer", fontFamily: "inherit" }}>Continue</button>
-                  : <button onClick={generateOffer} style={{ padding: "10px 32px", borderRadius: 6, border: "none", background: "#7A0E18", color: "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>Gerar Oferta</button>
-                }
-              </div>
-            </div>
-            );
-          })()}
-          {offerLoading && (
-            <div style={{ textAlign: "center", padding: 40 }}>
-              <div style={{ width: 20, height: 20, margin: "0 auto 12px", border: "2px solid #222", borderTopColor: "#7A0E18", borderRadius: "50%", animation: "sl-spin 0.8s linear infinite" }} />
-              <p style={{ fontSize: 12, color: "#555" }}>A construir oferta Grand Slam... (60-90s)</p>
-              <style>{`@keyframes sl-spin{to{transform:rotate(360deg)}}`}</style>
+          {/* The legacy 5-step manual form was removed. The Phase 4 wizard
+              above (Frame · Offer · Modules · Stack) is the canonical offer
+              generator. Empty state below renders only when the wizard
+              hasn't been started yet AND no legacy offer exists. The
+              `generateOffer` handler + OFFER_STEPS + offerForm state are
+              kept in the component for now (cheap to leave); a follow-up
+              cleanup can purge them if no other path uses them. */}
+          {!creator.offer && !offerLoading && (
+            <div style={{ padding: "40px 24px", textAlign: "center", border: "1px dashed rgba(255,255,255,0.06)", borderRadius: 10 }}>
+              <div style={{ width: 44, height: 44, margin: "0 auto 16px", borderRadius: 10, background: "rgba(122,14,24,0.08)", border: "1px solid rgba(122,14,24,0.25)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, color: "#B11E2F", fontWeight: 700 }}>1</div>
+              <p style={{ fontSize: 14, color: "#bbb", margin: "0 0 6px" }}>No offer yet for {creator.name}.</p>
+              <p style={{ fontSize: 11, color: "#666", margin: 0, lineHeight: 1.55, maxWidth: 480, marginLeft: "auto", marginRight: "auto" }}>
+                Run the wizard above — Strategic Frame → Core Offer → Modules → Value Stack.
+                Each checkpoint locks before the next one runs so you can review the operator-language strategic decisions before they turn into creator-facing copy.
+              </p>
             </div>
           )}
-          {offerError && <div style={{ padding: "10px 14px", borderRadius: 6, background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.2)", color: "#ef4444", fontSize: 11, marginBottom: 16 }}>{offerError}</div>}
           {creator.offer && (
             <div>
-              {/* Inner tab strip removed — moved to the top of the Oferta tab.
-                  Action buttons stay here, right-aligned. */}
+              {/* Action buttons row. Re-parse stays for legacy offers
+                  (re-extracts structured fields from creator.offer.raw
+                  without burning a new API call). "Regenerar" removed —
+                  the wizard's unlock-and-cascade flow is the canonical
+                  way to regenerate; nuking the entire offer.offer object
+                  would also wipe locked wizard checkpoints. */}
               <div style={{ display: "flex", justifyContent: "flex-end", alignItems: "center", marginBottom: 16, gap: 6 }}>
-                <button onClick={reparseOffer} title="Re-extract structured fields (Community/Sistema/Valor) from the existing offer text — no new AI call. Use this if the Pitch Deck slides show placeholders." style={{ padding: "6px 14px", borderRadius: 6, border: "1px solid rgba(34,197,94,0.3)", background: "rgba(34,197,94,0.08)", color: "#22c55e", fontSize: 10, cursor: "pointer", fontFamily: "inherit" }}>↻ Re-parse</button>
-                <button onClick={() => { setOfferForm({ _filled: false }); setOfferStep(0); patchCreator({ offer: null }); }} style={{ padding: "6px 14px", borderRadius: 6, border: "1px solid rgba(255,255,255,0.08)", background: "transparent", color: "#888", fontSize: 10, cursor: "pointer", fontFamily: "inherit" }}>Regenerar</button>
+                <button onClick={reparseOffer} title="Re-extract structured fields from creator.offer.raw — no new AI call. Useful for legacy offers when pitch placeholders show up. Wizard-generated offers don't need this." style={{ padding: "6px 14px", borderRadius: 6, border: "1px solid rgba(34,197,94,0.3)", background: "rgba(34,197,94,0.08)", color: "#22c55e", fontSize: 10, cursor: "pointer", fontFamily: "inherit" }}>↻ Re-parse</button>
               </div>
-              <div style={{ padding: 20, background: "#141414", border: "1px solid rgba(255,255,255,0.04)", borderRadius: 10, minHeight: 200 }}>
-                {/* The Revenue Projector content moved out to the top-level
-                    `offerTab === "revenue"` block. This view always renders
-                    the parsed Grand Slam Offer markdown now. */}
-                {renderMd(creator.offer.parsed?.offer || '')}
-                {/* — Revenue Projector IIFE relocated; see top-level "revenue" block — */}
-              </div>
+              {/* The structured offer summary — sourced from
+                  client_facing_output (wizard) with legacy-parsed fallback
+                  via readOfferState. Replaces the old markdown render. */}
+              <OfferSummaryCard creator={creator} />
               <div style={{ marginTop: 8, fontSize: 10, color: "#444" }}>Gerado: {new Date(creator.offer.generatedAt).toLocaleString("pt-PT")}</div>
             </div>
           )}
@@ -4579,6 +4545,209 @@ function SalesCopyPanel({ creator, setCreator, running, setRunning, error, setEr
           {cp5Locked && progress.locked[5] && (
             <> · Locked: {new Date(progress.locked[5]).toLocaleString("pt-PT")}</>
           )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ──────────────────────────────────────────────────────────────────────────
+// OfferSummaryCard — structured replacement for the old Grand Slam Offer
+// markdown view.
+// ──────────────────────────────────────────────────────────────────────────
+// Reads client_facing_output (via readOfferState which derives a CFO on the
+// fly from legacy parsed for back-compat). Renders a scannable summary so
+// the operator can review the whole offer without scrolling through 4
+// expanded wizard panels.
+//
+// Sections (each renders only when its data is present):
+//   - Header              : community name + platform + price card
+//   - Big Idea            : central_promise
+//   - Transformation      : from → to + timeframe
+//   - Mechanism           : named acronym + 1-line description
+//   - Counts row          : modules / weekly_formats / library counts
+//   - Value stack snapshot : item count + total vs actualPrice (multiple)
+//   - Pricing tiers       : 1-3 tier cards
+//
+// If everything's empty (creator.offer exists but no wizard run yet, e.g.
+// freshly migrated legacy), surfaces a "Run the wizard" hint.
+function OfferSummaryCard({ creator }) {
+  const { client_facing_output: c } = readOfferState(creator);
+
+  const hasAnyContent = !!(
+    c.community_name ||
+    c.central_promise ||
+    (c.modules && c.modules.length > 0) ||
+    c.value_stack ||
+    c.mechanism
+  );
+
+  if (!hasAnyContent) {
+    return (
+      <div style={{ padding: 20, background: "#141414", border: "1px dashed rgba(255,255,255,0.06)", borderRadius: 10, textAlign: "center" }}>
+        <p style={{ fontSize: 12, color: "#666", margin: 0 }}>
+          No structured offer data yet. Run the wizard checkpoints above to populate this view.
+        </p>
+      </div>
+    );
+  }
+
+  // Compute the value-stack multiple if both numbers parse cleanly.
+  const multipleLine = (() => {
+    if (!c.value_stack?.total || !c.value_stack?.actualPrice) return null;
+    const num = (s) => {
+      const m = String(s || '').match(/[\d.,]+/);
+      if (!m) return null;
+      const n = parseFloat(m[0].replace(/,/g, ''));
+      return Number.isFinite(n) ? n : null;
+    };
+    const t = num(c.value_stack.total);
+    const a = num(c.value_stack.actualPrice);
+    if (!t || !a || a <= 0) return null;
+    return (t / a).toFixed(1);
+  })();
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+      {/* Header — community name + platform + price */}
+      <div style={{ padding: "16px 18px", background: "#141414", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 10, display: "grid", gridTemplateColumns: "1fr auto", gap: 16, alignItems: "center" }}>
+        <div>
+          <div style={{ fontSize: 9, fontWeight: 700, color: "#7A0E18", letterSpacing: "0.16em", textTransform: "uppercase", marginBottom: 4 }}>Community</div>
+          <div style={{ fontSize: 22, fontWeight: 700, color: "#f5f5f5", fontFamily: "'Instrument Serif', Georgia, serif", letterSpacing: "-0.01em", marginBottom: 4 }}>
+            {c.community_name || <span style={{ color: "#444", fontStyle: "italic" }}>(no name yet)</span>}
+          </div>
+          {c.platform && (
+            <span style={{ fontSize: 10, fontWeight: 700, color: "#3b82f6", padding: "2px 8px", borderRadius: 3, background: "rgba(59,130,246,0.08)", border: "1px solid rgba(59,130,246,0.25)", letterSpacing: "0.06em" }}>{c.platform}</span>
+          )}
+        </div>
+        {c.target_price && (
+          <div style={{ textAlign: "right" }}>
+            <div style={{ fontSize: 9, fontWeight: 700, color: "#666", letterSpacing: "0.16em", textTransform: "uppercase", marginBottom: 4 }}>Price</div>
+            <div style={{ fontSize: 22, fontWeight: 700, color: "#B11E2F", fontFamily: "'Instrument Serif', Georgia, serif", letterSpacing: "-0.01em" }}>{c.target_price}</div>
+            {(c.pricing_tier || c.pricing_model) && (
+              <div style={{ fontSize: 10, color: "#666", marginTop: 3, letterSpacing: "0.04em" }}>
+                {c.pricing_tier ? c.pricing_tier.toUpperCase() : ''}
+                {c.pricing_tier && c.pricing_model ? ' · ' : ''}
+                {c.pricing_model ? c.pricing_model.replace('_', ' ').toUpperCase() : ''}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Big Idea */}
+      {c.central_promise && (
+        <div style={{ padding: "13px 16px", background: "rgba(122,14,24,0.04)", border: "1px solid rgba(122,14,24,0.18)", borderRadius: 10 }}>
+          <div style={{ fontSize: 9, fontWeight: 700, color: "#7A0E18", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 6 }}>Big Idea</div>
+          <p style={{ fontSize: 13, color: "#ddd", lineHeight: 1.55, margin: 0, fontWeight: 500 }}>{c.central_promise}</p>
+        </div>
+      )}
+
+      {/* Transformation */}
+      {c.transformation && (c.transformation.from || c.transformation.to) && (
+        <div style={{ padding: "13px 16px", background: "#141414", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 10 }}>
+          <div style={{ fontSize: 9, fontWeight: 700, color: "#666", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 8 }}>Transformation</div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr auto 1fr", gap: 12, alignItems: "center" }}>
+            <div>
+              <div style={{ fontSize: 9, fontWeight: 700, color: "#ef4444", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 3 }}>From</div>
+              <div style={{ fontSize: 11.5, color: "#ccc", lineHeight: 1.45 }}>{c.transformation.from || '—'}</div>
+            </div>
+            <div style={{ fontSize: 16, color: "#666", fontWeight: 700 }}>→</div>
+            <div>
+              <div style={{ fontSize: 9, fontWeight: 700, color: "#22c55e", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 3 }}>To</div>
+              <div style={{ fontSize: 11.5, color: "#ccc", lineHeight: 1.45 }}>{c.transformation.to || '—'}</div>
+            </div>
+          </div>
+          {c.transformation.timeframe && (
+            <div style={{ marginTop: 10, paddingTop: 10, borderTop: "1px solid rgba(255,255,255,0.04)", fontSize: 11, color: "#888" }}>
+              <span style={{ color: "#555", fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", fontSize: 9, marginRight: 6 }}>Timeframe:</span>
+              {c.transformation.timeframe}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Mechanism */}
+      {c.mechanism && c.mechanism.name && (
+        <div style={{ padding: "13px 16px", background: "#141414", border: "1px solid rgba(122,14,24,0.18)", borderRadius: 10 }}>
+          <div style={{ display: "flex", alignItems: "baseline", gap: 10, marginBottom: 6, flexWrap: "wrap" }}>
+            <div style={{ fontSize: 9, fontWeight: 700, color: "#7A0E18", letterSpacing: "0.14em", textTransform: "uppercase" }}>Mechanism</div>
+            <div style={{ fontSize: 17, fontWeight: 700, color: "#f5f5f5", fontFamily: "'Instrument Serif', Georgia, serif", letterSpacing: "0.04em" }}>{c.mechanism.name}</div>
+          </div>
+          {c.mechanism.description && (
+            <p style={{ fontSize: 11.5, color: "#aaa", margin: 0, lineHeight: 1.5, fontStyle: "italic" }}>{c.mechanism.description}</p>
+          )}
+        </div>
+      )}
+
+      {/* Counts row — quick stats for modules / weekly_formats / library */}
+      {(Array.isArray(c.modules) && c.modules.length > 0) ||
+        (Array.isArray(c.weekly_formats) && c.weekly_formats.length > 0) ||
+        (Array.isArray(c.library) && c.library.length > 0) ? (
+        <div style={{ padding: "12px 16px", background: "#141414", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 10, display: "flex", gap: 24, flexWrap: "wrap" }}>
+          {Array.isArray(c.modules) && c.modules.length > 0 && (
+            <div>
+              <div style={{ fontSize: 9, fontWeight: 700, color: "#666", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 2 }}>Modules</div>
+              <div style={{ fontSize: 16, fontWeight: 700, color: "#f5f5f5" }}>{c.modules.length}</div>
+            </div>
+          )}
+          {Array.isArray(c.weekly_formats) && c.weekly_formats.length > 0 && (
+            <div>
+              <div style={{ fontSize: 9, fontWeight: 700, color: "#666", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 2 }}>Weekly Formats</div>
+              <div style={{ fontSize: 16, fontWeight: 700, color: "#f5f5f5" }}>{c.weekly_formats.length}</div>
+            </div>
+          )}
+          {Array.isArray(c.library) && c.library.length > 0 && (
+            <div>
+              <div style={{ fontSize: 9, fontWeight: 700, color: "#666", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 2 }}>Library</div>
+              <div style={{ fontSize: 16, fontWeight: 700, color: "#f5f5f5" }}>{c.library.length}</div>
+            </div>
+          )}
+          {Array.isArray(c.unlocked_bonuses) && c.unlocked_bonuses.length > 0 && (
+            <div>
+              <div style={{ fontSize: 9, fontWeight: 700, color: "#666", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 2 }}>Bonuses</div>
+              <div style={{ fontSize: 16, fontWeight: 700, color: "#f5f5f5" }}>{c.unlocked_bonuses.length}</div>
+            </div>
+          )}
+        </div>
+      ) : null}
+
+      {/* Value stack snapshot */}
+      {c.value_stack && c.value_stack.total && (
+        <div style={{ padding: "13px 16px", background: "#141414", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 10, display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
+          <div>
+            <div style={{ fontSize: 9, fontWeight: 700, color: "#666", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 4 }}>Value Stack</div>
+            <div style={{ fontSize: 11.5, color: "#888" }}>
+              {(c.value_stack.items || []).length} items {multipleLine && <span style={{ color: multipleLine >= 5 ? "#22c55e" : "#eab308", fontWeight: 700, marginLeft: 6 }}>· {multipleLine}× value</span>}
+            </div>
+          </div>
+          <div style={{ display: "flex", alignItems: "baseline", gap: 14 }}>
+            <div>
+              <div style={{ fontSize: 9, color: "#666", letterSpacing: "0.1em", textTransform: "uppercase", marginRight: 6 }}>Total value</div>
+              <div style={{ fontSize: 17, fontWeight: 700, color: "#22c55e", fontFamily: "'Instrument Serif', Georgia, serif" }}>{c.value_stack.total}</div>
+            </div>
+            <div style={{ color: "#444", fontSize: 14 }}>vs</div>
+            <div>
+              <div style={{ fontSize: 9, color: "#666", letterSpacing: "0.1em", textTransform: "uppercase", marginRight: 6 }}>Today</div>
+              <div style={{ fontSize: 17, fontWeight: 700, color: "#B11E2F", fontFamily: "'Instrument Serif', Georgia, serif" }}>{c.value_stack.actualPrice}</div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Pricing tiers */}
+      {Array.isArray(c.pricing_tiers) && c.pricing_tiers.length > 0 && (
+        <div style={{ padding: "13px 16px", background: "#141414", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 10 }}>
+          <div style={{ fontSize: 9, fontWeight: 700, color: "#666", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 10 }}>Pricing Tiers · {c.pricing_tiers.length}</div>
+          <div style={{ display: "grid", gridTemplateColumns: `repeat(${Math.min(c.pricing_tiers.length, 3)}, 1fr)`, gap: 8 }}>
+            {c.pricing_tiers.map((t, i) => (
+              <div key={i} style={{ padding: "11px 12px", background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.05)", borderRadius: 6 }}>
+                <div style={{ fontSize: 9, fontWeight: 700, color: "#B11E2F", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 4 }}>{t.name}</div>
+                <div style={{ fontSize: 15, fontWeight: 700, color: "#f5f5f5", fontFamily: "'Instrument Serif', Georgia, serif", marginBottom: 4 }}>{t.price}</div>
+                <div style={{ fontSize: 10.5, color: "#888", lineHeight: 1.45 }}>{t.note}</div>
+              </div>
+            ))}
+          </div>
         </div>
       )}
     </div>
