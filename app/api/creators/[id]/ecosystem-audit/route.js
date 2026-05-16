@@ -58,6 +58,7 @@ export async function POST(request, { params }) {
 
     const finalUrls = [];          // [{ url, source, title? }]
     const aggregatorsSeen = [];
+    const aggregatorResolutionDiag = []; // { url, resolved_count, kept_aggregator }
     for (const u of seedUrls) {
       if (isAggregator(u)) {
         aggregatorsSeen.push(u);
@@ -65,6 +66,15 @@ export async function POST(request, { params }) {
         for (const r of resolved) {
           if (r.url) finalUrls.push({ url: r.url, source: u, title: r.title || '' });
         }
+        // Safety net: when Apify returns 0 destinations (rate limit, timeout,
+        // format change, captcha), keep the aggregator URL itself in the
+        // inspection pool so the LLM still has something to web_search and
+        // the deterministic scraper still has something to fetch. Otherwise
+        // we end up with "0 urls inspected" and an empty audit.
+        if (resolved.length === 0) {
+          finalUrls.push({ url: u, source: 'direct', title: '(aggregator — Apify returned 0)' });
+        }
+        aggregatorResolutionDiag.push({ url: u, resolved_count: resolved.length, kept_aggregator: resolved.length === 0 });
       } else {
         // Find the title from the IG multi-link bio if present
         const known = igLinks.find(l => l.url === u);
@@ -91,8 +101,14 @@ export async function POST(request, { params }) {
     // fixes that. Result: products feed into the LLM as a "preDiscovered"
     // list with names+prices already known; LLM's job becomes tier
     // classification + transformation copy, not discovery.
-    const seedUrlsList = [...seedUrls];
-    const aggregatorScrape = await scrapeKnownAggregators(seedUrlsList);
+    //
+    // Scrape the union of seed URLs + resolved destinations so a
+    // linktr.ee → stan.store chain still triggers the stan.store scraper.
+    const scrapeTargets = Array.from(new Set([
+      ...seedUrls,
+      ...finalUrls.map(f => f.url),
+    ]));
+    const aggregatorScrape = await scrapeKnownAggregators(scrapeTargets);
     const preDiscoveredProducts = aggregatorScrape.products;
 
     // ── Step 3: ask Claude ──
@@ -124,6 +140,7 @@ export async function POST(request, { params }) {
       _diagnostics: {
         seed_urls: seedUrls.size,
         aggregators_resolved: aggregatorsSeen.length,
+        aggregator_resolution: aggregatorResolutionDiag,
         final_urls_inspected: dedupedUrls.length,
         deterministic_scrape: aggregatorScrape.diagnostics,
         pre_discovered_count: preDiscoveredProducts.length,
