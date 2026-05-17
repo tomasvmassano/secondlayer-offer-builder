@@ -1127,6 +1127,39 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
             </div>
           )}
 
+          {/* Phase 2 — TikTok + YouTube (lean creators only) */}
+          {(creator.scrapeLevel || 'lean') !== 'full' && (
+            <div style={{ marginBottom: 24, padding: "16px 20px", background: "#141414", border: `1px solid ${creator.outreach?.repliedAt ? "rgba(34,197,94,0.3)" : "rgba(234,179,8,0.15)"}`, borderRadius: 10 }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+                <span style={{ fontSize: 12, fontWeight: 700, color: creator.outreach?.repliedAt ? "#22c55e" : "#eab308" }}>
+                  {creator.outreach?.repliedAt ? "● Fase 2 — Pronto para scrape completo" : "○ Fase 2 — Após o criador responder"}
+                </span>
+              </div>
+              <p style={{ fontSize: 11, color: "#555", margin: "0 0 14px", lineHeight: 1.5 }}>
+                Adiciona TikTok e YouTube para enriquecer o audit, archetype e unicidade antes de construir a offer.
+              </p>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 12 }}>
+                <div>
+                  <label style={{ display: "block", fontSize: 10, fontWeight: 600, color: "#555", marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.05em" }}>TikTok URL</label>
+                  <input type="text" style={inputStyle} placeholder="https://tiktok.com/@username"
+                    defaultValue={creator.tiktokUrl || creator.platforms?.tiktok?.url || ""}
+                    onBlur={e => { const v = e.target.value.trim(); const cur = creator.tiktokUrl || creator.platforms?.tiktok?.url || ""; if (v !== cur) patchCreator({ tiktokUrl: v || null }); }}
+                  />
+                </div>
+                <div>
+                  <label style={{ display: "block", fontSize: 10, fontWeight: 600, color: "#555", marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.05em" }}>YouTube URL</label>
+                  <input type="text" style={inputStyle} placeholder="https://youtube.com/@channel"
+                    defaultValue={creator.youtubeUrl || creator.platforms?.youtube?.url || ""}
+                    onBlur={e => { const v = e.target.value.trim(); const cur = creator.youtubeUrl || creator.platforms?.youtube?.url || ""; if (v !== cur) patchCreator({ youtubeUrl: v || null }); }}
+                  />
+                </div>
+              </div>
+              <button onClick={runFullScrape} disabled={runningFullScrape} style={{ padding: "10px 24px", borderRadius: 6, border: "none", background: creator.outreach?.repliedAt ? "#22c55e" : "rgba(234,179,8,0.12)", color: creator.outreach?.repliedAt ? "#000" : "#eab308", fontSize: 12, fontWeight: 700, cursor: runningFullScrape ? "wait" : "pointer", fontFamily: "inherit", opacity: runningFullScrape ? 0.6 : 1 }}>
+                {runningFullScrape ? "A scrapear..." : "↻ Full Scrape"}
+              </button>
+            </div>
+          )}
+
           {/* TikTok */}
           {tkData && (
             <div style={{ marginBottom: 24 }}>
@@ -1395,20 +1428,29 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
             diag={auditDiag}
             onRun={runEcosystemAudit}
           />
-          <ArchetypePanel
-            creator={creator}
-            running={archetypeRunning}
-            error={archetypeError}
-            diag={archetypeDiag}
-            onRun={runArchetype}
-          />
-          <UniquenessPanel
-            creator={creator}
-            running={uniquenessRunning}
-            error={uniquenessError}
-            diag={uniquenessDiag}
-            onRun={runUniqueness}
-          />
+          {creator.outreach?.repliedAt ? (
+            <>
+              <ArchetypePanel
+                creator={creator}
+                running={archetypeRunning}
+                error={archetypeError}
+                diag={archetypeDiag}
+                onRun={runArchetype}
+              />
+              <UniquenessPanel
+                creator={creator}
+                running={uniquenessRunning}
+                error={uniquenessError}
+                diag={uniquenessDiag}
+                onRun={runUniqueness}
+              />
+            </>
+          ) : (
+            <div style={{ marginTop: 12, padding: "24px", textAlign: "center", border: "1px dashed rgba(255,255,255,0.06)", borderRadius: 8, background: "rgba(255,255,255,0.01)" }}>
+              <p style={{ color: "#444", fontSize: 12, margin: "0 0 4px", fontWeight: 600 }}>Archetype + Unicidade</p>
+              <p style={{ color: "#333", fontSize: 11, margin: 0 }}>Disponível após o criador responder à DM. Marca "Respondeu" na tab DM.</p>
+            </div>
+          )}
         </>)}
 
         {/* ════════════ DM WRITER TAB ════════════ */}
