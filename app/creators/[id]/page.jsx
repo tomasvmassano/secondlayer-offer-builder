@@ -25,6 +25,7 @@ const MEETING_QUESTIONS = [
 
 const TABS = [
   { key: "perfil", label: "Perfil" },
+  { key: "audit", label: "Audit" },
   { key: "dm", label: "DM Writer" },
   { key: "oferta", label: "Oferta" },
   { key: "launch", label: "Launch" },
@@ -348,6 +349,7 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
             primaryLanguage: creator.primaryLanguage,
             intelligence: creator.intelligence,
             audienceEstimate: creator.audienceEstimate,
+            ecosystemAudit: creator.offer?.internal_metadata?.ecosystem_audit,
           },
         }),
       });
@@ -975,6 +977,7 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
               marginBottom: -1, transition: "all 0.15s",
             }}>
               {t.label}
+              {t.key === "audit" && creator?.offer?.internal_metadata?.ecosystem_audit && <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#22c55e", display: "inline-block", marginLeft: 6 }} />}
               {t.key === "dm" && creator.dmSequence && <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#22c55e", display: "inline-block", marginLeft: 6 }} />}
               {t.key === "oferta" && creator.offer && <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#22c55e", display: "inline-block", marginLeft: 6 }} />}
               {t.key === "launch" && Object.keys(creator.launch || {}).length > 0 && <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#22c55e", display: "inline-block", marginLeft: 6 }} />}
@@ -1375,9 +1378,42 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
           </div>
         </div>)}
 
+        {/* ════════════ AUDIT TAB ════════════ */}
+        {tab === "audit" && (<>
+          <EcosystemAuditPanel
+            creator={creator}
+            setCreator={setCreator}
+            running={auditRunning}
+            error={auditError}
+            diag={auditDiag}
+            onRun={runEcosystemAudit}
+          />
+          <ArchetypePanel
+            creator={creator}
+            running={archetypeRunning}
+            error={archetypeError}
+            diag={archetypeDiag}
+            onRun={runArchetype}
+          />
+          <UniquenessPanel
+            creator={creator}
+            running={uniquenessRunning}
+            error={uniquenessError}
+            diag={uniquenessDiag}
+            onRun={runUniqueness}
+          />
+        </>)}
+
         {/* ════════════ DM WRITER TAB ════════════ */}
         {tab === "dm" && (<>
           {!creator.dmSequence && !dmLoading && (
+            !creator?.offer?.internal_metadata?.ecosystem_audit ? (
+              <div style={{ padding: "48px 24px", textAlign: "center", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 8, marginBottom: 24 }}>
+                <p style={{ color: "#aaa", fontSize: 13, marginBottom: 8 }}>O Ecosystem Audit é necessário para gerar a DM.</p>
+                <p style={{ color: "#666", fontSize: 11, marginBottom: 20 }}>Os dados do audit garantem que a mensagem é específica ao criador e com o ângulo certo.</p>
+                <button onClick={() => setTab("audit")} style={{ padding: "10px 24px", borderRadius: 6, border: "none", background: "#7A0E18", color: "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>Correr Audit →</button>
+              </div>
+            ) : (
             <div>
               <p style={sectionTitleStyle}>Inputs do Criador</p>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 16 }}>
@@ -1418,6 +1454,7 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
               </div>
               <button onClick={() => generateDM('initial')} style={{ padding: "12px 32px", borderRadius: 8, border: "none", background: "#7A0E18", color: "#fff", fontSize: 14, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", width: "100%" }}>Gerar DM</button>
             </div>
+            )
           )}
           {dmLoading && (
             <div style={{ textAlign: "center", padding: 40 }}>
@@ -1623,40 +1660,6 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
           </div>
 
           {offerTab === "offer" && (<>
-          {/* ── Phase 1 · Ecosystem Audit ──
-              Internal-only analysis of the creator's existing product
-              ecosystem. Renders ABOVE the offer flow so the operator can map
-              the funnel before generating the offer. Never visible to the
-              creator. */}
-          <EcosystemAuditPanel
-            creator={creator}
-            setCreator={setCreator}
-            running={auditRunning}
-            error={auditError}
-            diag={auditDiag}
-            onRun={runEcosystemAudit}
-          />
-          {/* Phase 2 · Archetype + Fame Tier. Internal-only. Sits directly under
-              the Ecosystem panel so the operator can scan strategic role +
-              archetype + fame as a triad before deciding offer direction. */}
-          <ArchetypePanel
-            creator={creator}
-            running={archetypeRunning}
-            error={archetypeError}
-            diag={archetypeDiag}
-            onRun={runArchetype}
-          />
-          {/* Phase 3 · Uniqueness Extraction. Internal-only. Sits under Archetype
-              so the operator sees the triad (role + archetype + uniqueness)
-              before generating offer copy. */}
-          <UniquenessPanel
-            creator={creator}
-            running={uniquenessRunning}
-            error={uniquenessError}
-            diag={uniquenessDiag}
-            onRun={runUniqueness}
-          />
-
           {/* Phase 4 · 5-Checkpoint Wizard.
               Stitches Phase 1+2+3 internal_metadata into the actual offer
               (client_facing_output). The stepper shows lock state; the active
