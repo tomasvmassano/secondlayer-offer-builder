@@ -264,26 +264,8 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
   // Auto-fill DM inputs when creator loads
   useEffect(() => {
     if (!creator || dmInputs._filled) return;
-    const ig = creator.platforms?.instagram;
     const firstName = (creator.name || "").split(" ")[0];
-    const handle = ig?.url ? "@" + ig.url.split("/").filter(Boolean).pop() : "";
-    const followers = ig?.followers || 0;
-    let buraco = "";
-    const hasProducts = creator.products?.length > 0;
-    const hasBioLinks = creator.bioLinks?.length > 0;
-    if (!hasProducts && !hasBioLinks && !creator.externalUrl) buraco = "nao tens um sitio teu onde as pessoas te possam seguir fora do Instagram";
-    else if (!hasProducts) buraco = "nao tens nenhum produto proprio";
-    else if (!hasBioLinks && !creator.externalUrl) buraco = "nao tens presenca fora das redes sociais";
-    setDmInputs({
-      _filled: true,
-      primeiro_nome: firstName,
-      handle_instagram: handle,
-      seguidores: followers ? followers.toLocaleString() : "",
-      nicho: creator.niche || "",
-      como_cheguei: "",
-      reacao_pessoal: "",
-      observacao_dor: buraco,
-    });
+    setDmInputs({ _filled: true, primeiro_nome: firstName });
   }, [creator, dmInputs._filled]);
 
   const patchCreator = useCallback(async (updates) => {
@@ -325,12 +307,6 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
           template: dmTemplate,
           inputs: {
             primeiro_nome: dmInputs.primeiro_nome || "",
-            handle_instagram: dmInputs.handle_instagram || "",
-            seguidores: dmInputs.seguidores || "",
-            nicho: dmInputs.nicho || "",
-            como_cheguei: dmInputs.como_cheguei || "",
-            reacao_pessoal: dmInputs.reacao_pessoal || "",
-            observacao_dor: dmInputs.observacao_dor || "",
           },
           notes: dmNotes,
           creatorProfile: {
@@ -1415,39 +1391,19 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
               </div>
             ) : (
             <div>
-              <p style={sectionTitleStyle}>Inputs do Criador</p>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 16 }}>
-                {[
-                  { key: "primeiro_nome", label: "Primeiro Nome", placeholder: "Ex: Mariana" },
-                  { key: "handle_instagram", label: "Handle Instagram", placeholder: "@username" },
-                  { key: "seguidores", label: "Seguidores", placeholder: "Ex: 85,000" },
-                  { key: "nicho", label: "Nicho", placeholder: "Ex: finanças pessoais" },
-                ].map(f => (
-                  <div key={f.key}>
-                    <label style={{ display: "block", fontSize: 10, fontWeight: 600, color: "#555", marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.05em" }}>{f.label}</label>
-                    <input type="text" style={inputStyle} placeholder={f.placeholder} value={dmInputs[f.key] || ""} onChange={e => setDmInputs(p => ({ ...p, [f.key]: e.target.value }))} />
-                  </div>
-                ))}
-              </div>
-              {[
-                { key: "como_cheguei", label: "Como Cheguei Até Ti", placeholder: "Como o Raul descobriu o creator + conteúdo concreto (ex: 'através da receita do pudim de laranja e coco'). Começa com preposição (através, por, porque vi...). Deixa vazio para auto-preencher." },
-                { key: "reacao_pessoal", label: "Reação Pessoal", placeholder: "Reação/ligação genuína (ex: 'é a minha sobremesa favorita 😅' ou 'identifico-me com esse processo'). Max 1 emoji. Deixa vazio para auto-preencher." },
-                { key: "observacao_dor", label: "Observação / Dor", placeholder: "Observação sobre o negócio em PT europeu (ex: 'tens uma audiência gigante que interage bem, mas só vejo parcerias pontuais'). Sem menções a 'receita recorrente' ou 'monetizar' aqui. Deixa vazio para auto-preencher." },
-              ].map(f => (
-                <div key={f.key} style={{ marginBottom: 12 }}>
-                  <label style={{ display: "block", fontSize: 10, fontWeight: 600, color: "#555", marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.05em" }}>{f.label}</label>
-                  <textarea style={{ ...inputStyle, minHeight: 50 }} placeholder={f.placeholder} value={dmInputs[f.key] || ""} onChange={e => setDmInputs(p => ({ ...p, [f.key]: e.target.value }))} />
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12, marginBottom: 16 }}>
+                <div>
+                  <label style={{ display: "block", fontSize: 10, fontWeight: 600, color: "#555", marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.05em" }}>Primeiro Nome</label>
+                  <input type="text" style={inputStyle} placeholder="Ex: Mariana" value={dmInputs.primeiro_nome || ""} onChange={e => setDmInputs(p => ({ ...p, primeiro_nome: e.target.value }))} />
                 </div>
-              ))}
-              <div style={{ display: "flex", gap: 12, marginBottom: 16 }}>
-                <div style={{ flex: 1 }}>
+                <div>
                   <label style={{ display: "block", fontSize: 10, fontWeight: 600, color: "#555", marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.05em" }}>Template</label>
                   <select style={inputStyle} value={dmTemplate} onChange={e => setDmTemplate(e.target.value)}>
-                    <option value="A">Template A — Direto</option>
-                    <option value="B">Template B — Série (Day in the Life)</option>
+                    <option value="A">A — Second Layer</option>
+                    <option value="B">B — Day in the Life</option>
                   </select>
                 </div>
-                <div style={{ flex: 1 }}>
+                <div>
                   <label style={{ display: "block", fontSize: 10, fontWeight: 600, color: "#555", marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.05em" }}>Notas <span style={{ fontWeight: 400, color: "#333" }}>(opcional)</span></label>
                   <input type="text" style={inputStyle} placeholder="Contexto extra..." value={dmNotes} onChange={e => setDmNotes(e.target.value)} />
                 </div>
