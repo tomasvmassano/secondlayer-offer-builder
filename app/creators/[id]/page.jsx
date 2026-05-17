@@ -101,6 +101,37 @@ const metricValueStyle = { fontSize: 16, fontWeight: 700, color: "#f5f5f5" };
 const sectionTitleStyle = { fontSize: 11, fontWeight: 600, color: "#555", textTransform: "uppercase", letterSpacing: "0.08em", margin: "0 0 12px" };
 const inputStyle = { width: "100%", padding: "10px 14px", background: "#1a1a1a", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 8, color: "#f5f5f5", fontSize: 13, fontFamily: "inherit", outline: "none", boxSizing: "border-box", resize: "vertical" };
 
+// Defined at module level so React never sees a new component type on re-render.
+// If defined inside the render function, every keystroke causes remount + cursor reset.
+const MessageCard = ({ label, type, content, accent, children }) => (
+  <div style={{ padding: "16px 18px", borderRadius: 8, background: "#141414", border: `1px solid ${accent ? "rgba(122,14,24,0.2)" : "rgba(255,255,255,0.04)"}`, marginBottom: 10 }}>
+    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: accent ? "#7A0E18" : "#888" }}>{label}</span>
+        <span style={{ fontSize: 8, padding: "1px 6px", borderRadius: 3, background: type === "email" ? "#1a1520" : "rgba(255,255,255,0.03)", color: type === "email" ? "#9a7abf" : "#666", fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase" }}>{type}</span>
+      </div>
+      <button onClick={() => navigator.clipboard.writeText(content)} style={{ padding: "4px 10px", borderRadius: 4, border: "1px solid rgba(255,255,255,0.06)", background: "transparent", color: "#666", fontSize: 9, cursor: "pointer", fontFamily: "inherit" }}>Copy</button>
+    </div>
+    <div style={{ fontSize: 13, color: "#ccc", lineHeight: 1.7, whiteSpace: "pre-wrap" }}>{content}</div>
+    {children}
+  </div>
+);
+
+const PendingEmailCard = ({ label, hint, loading, onClick }) => (
+  <div style={{ padding: "16px 18px", borderRadius: 8, background: "transparent", border: "1px dashed rgba(255,255,255,0.08)", marginBottom: 10 }}>
+    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "#555" }}>{label}</span>
+        <span style={{ fontSize: 8, padding: "1px 6px", borderRadius: 3, background: "rgba(255,255,255,0.03)", color: "#555", fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase" }}>pendente</span>
+      </div>
+      <button onClick={onClick} disabled={loading} style={{ padding: "5px 14px", borderRadius: 6, border: "1px solid rgba(122,14,24,0.35)", background: loading ? "transparent" : "rgba(122,14,24,0.08)", color: loading ? "#555" : "#B11E2F", fontSize: 10, fontWeight: 600, cursor: loading ? "wait" : "pointer", fontFamily: "inherit" }}>
+        {loading ? "A gerar..." : "Gerar"}
+      </button>
+    </div>
+    <div style={{ fontSize: 11, color: "#555", lineHeight: 1.5 }}>{hint}</div>
+  </div>
+);
+
 function CreatorProfilePageImpl({ params: paramsPromise }) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -1425,38 +1456,6 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
             const firstName = seq.inputs?.primeiro_nome || creator.name?.split(" ")[0] || "";
             const followupT7 = `${firstName}, voltei aqui porque acho que faz mesmo sentido partilhar contigo o que vi. Gravo-te o video de 3 min a mesma. Se nao fizer sentido, nao ves e esta resolvido.\n\nParece-te bem?\n\n— Raul`;
             const breakupT14 = `${firstName}, assumo que agora nao e o momento. Fecho o loop do meu lado.\nSe um dia mudar, a porta fica aberta. Um abraco.\n\n— Raul`;
-
-            const MessageCard = ({ label, type, content, accent, children }) => (
-              <div style={{ padding: "16px 18px", borderRadius: 8, background: "#141414", border: `1px solid ${accent ? "rgba(122,14,24,0.2)" : "rgba(255,255,255,0.04)"}`, marginBottom: 10 }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: accent ? "#7A0E18" : "#888" }}>{label}</span>
-                    <span style={{ fontSize: 8, padding: "1px 6px", borderRadius: 3, background: type === "email" ? "#1a1520" : "rgba(255,255,255,0.03)", color: type === "email" ? "#9a7abf" : "#666", fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase" }}>{type}</span>
-                  </div>
-                  <button onClick={() => navigator.clipboard.writeText(content)} style={{ padding: "4px 10px", borderRadius: 4, border: "1px solid rgba(255,255,255,0.06)", background: "transparent", color: "#666", fontSize: 9, cursor: "pointer", fontFamily: "inherit" }}>Copy</button>
-                </div>
-                <div style={{ fontSize: 13, color: "#ccc", lineHeight: 1.7, whiteSpace: "pre-wrap" }}>{content}</div>
-                {children}
-              </div>
-            );
-
-            // Placeholder shown in place of an email that hasn't been generated yet.
-            // Clicking "Gerar" fires one LLM call for ONLY this email — keeps the
-            // happy-path cheap for creators who never reach this stage.
-            const PendingEmailCard = ({ label, hint, loading, onClick }) => (
-              <div style={{ padding: "16px 18px", borderRadius: 8, background: "transparent", border: "1px dashed rgba(255,255,255,0.08)", marginBottom: 10 }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "#555" }}>{label}</span>
-                    <span style={{ fontSize: 8, padding: "1px 6px", borderRadius: 3, background: "rgba(255,255,255,0.03)", color: "#555", fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase" }}>pendente</span>
-                  </div>
-                  <button onClick={onClick} disabled={loading} style={{ padding: "5px 14px", borderRadius: 6, border: "1px solid rgba(122,14,24,0.35)", background: loading ? "transparent" : "rgba(122,14,24,0.08)", color: loading ? "#555" : "#B11E2F", fontSize: 10, fontWeight: 600, cursor: loading ? "wait" : "pointer", fontFamily: "inherit" }}>
-                    {loading ? "A gerar..." : "Gerar"}
-                  </button>
-                </div>
-                <div style={{ fontSize: 11, color: "#555", lineHeight: 1.5 }}>{hint}</div>
-              </div>
-            );
 
             return (
               <div>
