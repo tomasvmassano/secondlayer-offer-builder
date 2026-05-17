@@ -58,6 +58,7 @@ const DM_SYSTEM_PT = `You are Raul's cold DM outreach writer. Write DMs in Europ
 **Block 1 — Hook (2-3 sentences)**
 How Raul found the creator + the specific piece of content + one genuine personal reaction.
 - Always name the exact post, video, reel, or piece. Never "vi o teu perfil" or "acompanho o teu trabalho."
+- Pick the post that is most SPECIFIC and most UNUSUAL. Prefer: self-deprecating humor, honest admission, moment of vulnerability, unconventional opinion, or a post that shows personality. Not the most recent, not the highest likes — the most humanizing.
 - The reaction must be specific and honest. Something Raul connects with, found unusual, or that made him stop.
 - Never: "adorei o teu conteúdo", "continua assim", generic compliments, or sycophancy.
 
@@ -185,6 +186,7 @@ const DM_SYSTEM_EN = `You are Raul's cold DM outreach writer. Write DMs in natur
 **Block 1 — Hook (2-3 sentences)**
 How Raul found the creator + the specific piece of content + one genuine personal reaction.
 - Always name the exact post, video, reel, or piece. Never "I saw your profile" or "I follow your work."
+- Pick the post that is most SPECIFIC and most UNUSUAL. Prefer: self-deprecating humor, honest admission, moment of vulnerability, unconventional opinion, or a post that shows personality. Not the most recent, not the highest likes — the most humanizing.
 - The reaction must be specific and honest. Something Raul connects with, found unusual, or that made him stop.
 - Never: "loved your content", "keep it up", generic compliments, or sycophancy.
 
@@ -375,9 +377,11 @@ Stay inside cold-outreach pacing rules of core-four (Rule of 100, no broadcast s
 
   // Phase 1 audit data — enriches observacao_dor with real product names/prices
   const audit = cp.ecosystemAudit || {};
-  const auditProducts = (audit.products_found || []).slice(0, 6);
-  const auditCommunities = audit.existing_communities || [];
-  const hasRecurring = audit.has_recurring;
+  const auditMap = audit.ecosystem_map || {};
+  const auditProducts = (auditMap.products_found || []).slice(0, 6);
+  const auditCommunities = auditMap.existing_communities || [];
+  const hasRecurring = auditMap.has_recurring;
+  const hasHighTicket = auditMap.has_high_ticket;
 
   const auditProductsBlock = auditProducts.length
     ? auditProducts.map(p =>
@@ -399,6 +403,7 @@ ${tkF ? 'TikTok: ' + tkF.toLocaleString() + ' followers\n' : ''}${ytS ? 'YouTube
 External URL: ${cp.externalUrl || 'None'}
 ${cp.isBusinessAccount ? 'Business account.' : ''}${cp.isVerified ? ' Verified.' : ''}
 ${hasRecurring !== undefined ? `Has recurring revenue: ${hasRecurring ? 'YES' : 'NO'}` : ''}
+${hasHighTicket !== undefined ? `Has high-ticket offer: ${hasHighTicket ? 'YES' : 'NO'}` : ''}
 
 Recent posts:
 ${recentPosts || '  (none)'}
