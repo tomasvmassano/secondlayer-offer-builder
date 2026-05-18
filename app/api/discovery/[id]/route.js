@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getQueueItem, removeFromQueue, addToDismissed } from '../../../lib/discovery';
 import { saveCreator } from '../../../lib/creators';
 import { scrapeBioLinks, scrapeMultiplePlatforms } from '../../../lib/apify';
+import { syncCreatorEmail } from '../../../lib/syncEmailToSheet';
 import { resolvePrimaryLanguage } from '../../../lib/language';
 
 // Stage 4 needs Claude + optional Linktree scrape
@@ -274,6 +275,9 @@ ${postPerformanceData || 'No post data'}`,
 
     // Remove from discovery queue regardless (duplicate or new)
     await removeFromQueue(id);
+
+    // Fire-and-forget Google Sheets email sync.
+    syncCreatorEmail({ id: saved.id, ...profile }).catch(() => {});
 
     return NextResponse.json({
       id: saved.id,

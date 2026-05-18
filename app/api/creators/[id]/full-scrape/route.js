@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getCreator, updateCreator } from '../../../../lib/creators';
 import { scrapeMultiplePlatforms } from '../../../../lib/apify';
 import { resolvePrimaryLanguage } from '../../../../lib/language';
+import { syncCreatorEmail } from '../../../../lib/syncEmailToSheet';
 
 // Full scrape takes up to ~90s when all 3 platforms + bot detector + web-search
 // products discovery run end-to-end.
@@ -266,6 +267,10 @@ ${postPerformanceData || 'No post data available'}`,
     }
 
     const saved = await updateCreator(id, updates);
+    // Full scrape may have found an email that the lean scrape missed
+    // (aggregator-page extraction only runs in the full path). Fire-and-forget
+    // sync — never blocks the response on Sheets API failure.
+    syncCreatorEmail(saved).catch(() => {});
     return NextResponse.json({ ok: true, creator: saved });
   } catch (err) {
     return NextResponse.json({ error: err.message || 'Full scrape failed' }, { status: 500 });

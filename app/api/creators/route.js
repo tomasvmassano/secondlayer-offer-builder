@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { saveCreator, getCreator, listCreators, searchCreators } from '../../lib/creators';
+import { syncCreatorEmail } from '../../lib/syncEmailToSheet';
 import { apifyToCreatorProfile, scrapeMultiplePlatforms, scrapeLean } from '../../lib/apify';
 import { resolvePrimaryLanguage } from '../../lib/language';
 import { calculateDealScore } from '../../lib/dealScore';
@@ -364,6 +365,9 @@ RESEARCH: [2-3 paragraph summary]`,
         message: 'Creator already exists in the CRM',
       });
     }
+    // Fire-and-forget Google Sheets email sync — fails silently when sheets
+    // env isn't configured. Never blocks the scrape response.
+    syncCreatorEmail({ id: result.id, ...profile }).catch(() => {});
     return NextResponse.json({ id: result.id, creator: { id: result.id, ...profile } });
   } catch (err) {
     return NextResponse.json({ error: err.message }, { status: 502 });
