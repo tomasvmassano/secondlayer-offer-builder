@@ -1557,8 +1557,16 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
           {creator.dmSequence && (() => {
             const seq = creator.dmSequence;
             const firstName = seq.inputs?.primeiro_nome || creator.name?.split(" ")[0] || "";
-            const followupT7 = `${firstName}, voltei aqui porque acho que faz mesmo sentido partilhar contigo o que vi. Gravo-te o video de 3 min a mesma. Se nao fizer sentido, nao ves e esta resolvido.\n\nParece-te bem?\n\n— Raul`;
-            const breakupT14 = `${firstName}, assumo que agora nao e o momento. Fecho o loop do meu lado.\nSe um dia mudar, a porta fica aberta. Um abraco.\n\n— Raul`;
+            // Templates — zero API cost, switched on creator language so an
+            // English creator doesn't get PT text. Style mirrors the cold DM:
+            // short, conversational, no em dashes, signed off with "Raul".
+            const isEn = creator?.primaryLanguage === 'en';
+            const followupT7 = isEn
+              ? `Hey ${firstName},\n\nNoticed I haven't heard back. Figured it's worth recording a 3-minute video with a concrete proposal for your case.\n\nIf it doesn't land, you close it and won't hear from me again. Sound fair?\n\nCheers,\nRaul`
+              : `Olá ${firstName},\n\nVi que ainda não vimos um do outro. Achei que valia a pena gravar-te um vídeo de 3 minutos com uma proposta concreta para o teu caso.\n\nSe não fizer sentido, fechas e não voltas a ouvir de mim. Faz sentido?\n\nAbraço,\nRaul`;
+            const breakupT14 = isEn
+              ? `Hey ${firstName},\n\nI'll assume now isn't the moment. Closing the loop on my end.\n\nIf that changes, the door stays open.\n\nCheers,\nRaul`
+              : `Olá ${firstName},\n\nAssumo que agora não é altura. Fecho o loop do meu lado.\n\nSe um dia mudar, a porta fica aberta.\n\nAbraço,\nRaul`;
 
             return (
               <div>
