@@ -3365,6 +3365,11 @@ function StrategicFramePanel({ creator, setCreator, running, setRunning, error, 
   };
 
   const generate = async (instruction = null) => {
+    // When bound directly as onClick={generate}, React passes the synthetic
+    // event as the first arg. Coerce non-string values to null so the body
+    // payload's JSON.stringify doesn't try to serialise a DOM event + its
+    // React fiber (which is a circular structure).
+    if (typeof instruction !== 'string') instruction = null;
     if (!creator?.id || running) return;
     setRunning(true);
     setError(null);
@@ -3704,6 +3709,11 @@ function CoreOfferPanel({ creator, setCreator, running, setRunning, error, setEr
   };
 
   const generate = async (instruction = null) => {
+    // When bound directly as onClick={generate}, React passes the synthetic
+    // event as the first arg. Coerce non-string values to null so the body
+    // payload's JSON.stringify doesn't try to serialise a DOM event + its
+    // React fiber (which is a circular structure).
+    if (typeof instruction !== 'string') instruction = null;
     if (!creator?.id || running) return;
     setRunning(true);
     setError(null);
@@ -4206,6 +4216,11 @@ function ModulesPanel({ creator, setCreator, running, setRunning, error, setErro
   };
 
   const generate = async (instruction = null) => {
+    // When bound directly as onClick={generate}, React passes the synthetic
+    // event as the first arg. Coerce non-string values to null so the body
+    // payload's JSON.stringify doesn't try to serialise a DOM event + its
+    // React fiber (which is a circular structure).
+    if (typeof instruction !== 'string') instruction = null;
     if (!creator?.id || running) return;
     setRunning(true);
     setError(null);
@@ -4665,6 +4680,11 @@ function ValueStackPanel({ creator, setCreator, running, setRunning, error, setE
   const hasOutput = !!(mechanism && stack && tiers.length > 0 && bonuses.length > 0);
 
   const generate = async (instruction = null) => {
+    // When bound directly as onClick={generate}, React passes the synthetic
+    // event as the first arg. Coerce non-string values to null so the body
+    // payload's JSON.stringify doesn't try to serialise a DOM event + its
+    // React fiber (which is a circular structure).
+    if (typeof instruction !== 'string') instruction = null;
     if (!creator?.id || running) return;
     setRunning(true);
     setError(null);
@@ -4993,6 +5013,11 @@ function SalesCopyPanel({ creator, setCreator, running, setRunning, error, setEr
   const hasOutput = !!(diff && hero && objections.length > 0 && faq.length > 0);
 
   const generate = async (instruction = null) => {
+    // When bound directly as onClick={generate}, React passes the synthetic
+    // event as the first arg. Coerce non-string values to null so the body
+    // payload's JSON.stringify doesn't try to serialise a DOM event + its
+    // React fiber (which is a circular structure).
+    if (typeof instruction !== 'string') instruction = null;
     if (!creator?.id || running) return;
     setRunning(true);
     setError(null);
