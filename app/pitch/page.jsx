@@ -79,6 +79,36 @@ function formatEuro(n) {
   return "€" + Math.round(n).toLocaleString("pt-PT");
 }
 
+// Translates common PT money-language tokens to EN. Runs at render time over
+// LLM-generated price strings so cached PT offers don't bleed into the pitch
+// deck when the creator's language is English. Idempotent — calling it on
+// already-EN text is a no-op.
+//
+// Why string-level: the wizard already takes the creator's language as input
+// and SHOULD emit the correct currency + units, but legacy offer data
+// generated before that prompt fix still lives in Redis. Regenerating CP3/CP4
+// for every existing creator is expensive; this hot-fixes the render path.
+function localizePriceString(s, lang) {
+  if (typeof s !== 'string' || lang !== 'en') return s;
+  let out = s;
+  // Currency symbol first — every € becomes $ for an EN creator.
+  out = out.replace(/€/g, '$');
+  // Unit labels.
+  out = out.replace(/\/mês/g, '/mo').replace(/\/m[êe]s/g, '/mo');
+  out = out.replace(/\/ano/g, '/yr');
+  // Common PT tier names.
+  out = out.replace(/\bMensal\b/g, 'Monthly');
+  out = out.replace(/\bAnual\b/g, 'Annual');
+  out = out.replace(/\bRecomendado\b/g, 'Recommended');
+  out = out.replace(/2 meses grátis/gi, '2 months free');
+  out = out.replace(/(\d+)\s*meses?\s*gr[áa]tis/gi, '$1 months free');
+  out = out.replace(/(\d+)\s*membros?\b/gi, '$1 members');
+  // Number formatting: PT uses "." as thousands separator (2.970). Swap to ","
+  // for EN. Only inside currency-adjacent numbers to avoid touching counts.
+  out = out.replace(/\$(\d{1,3}(?:\.\d{3})+)(?!\d)/g, (m, num) => '$' + num.replace(/\./g, ','));
+  return out;
+}
+
 function formatFollowers(n) {
   if (!n && n !== 0) return "0";
   if (n >= 1000000) return (n / 1000000).toFixed(1).replace(/\.0$/, "") + "M";
@@ -928,6 +958,10 @@ function PitchPageContent() {
         <div className="aurora red" style={{ left: -200, top: "30%", width: 700, height: 700, opacity: 0.28 }} />
       }>
         <div style={{ flex: 1, display: "flex", flexDirection: "column", width: "100%" }}>
+          <div style={{ fontSize: 18, fontWeight: 600, color: "#B11E2F", letterSpacing: "0.28em", textTransform: "uppercase" }}>
+            {creator?.primaryLanguage === 'en' ? 'Ecosystem' : 'Ecossistema'}
+          </div>
+          <div style={{ height: 18 }} />
           <h1 style={{ fontSize: 72, fontWeight: 800, margin: 0, lineHeight: 1.0, letterSpacing: "-0.03em", color: "#f5f5f5" }}>
             <StyledLastWord
               text={creator?.primaryLanguage === 'en' ? 'How this fits' : 'Onde isto encaixa'}
@@ -986,7 +1020,7 @@ function PitchPageContent() {
                         <div style={{ ...italicSerif, fontSize: 30, color: "#f5f5f5", lineHeight: 1.05, marginBottom: 6 }}>{slides.businessContext.newOfferName}</div>
                         <div style={{ fontSize: 22, color: "#B11E2F", fontFamily: "'JetBrains Mono', ui-monospace, monospace", fontWeight: 700 }}>
                           <Editable
-                            value={slides.businessContext.newOfferPrice}
+                            value={localizePriceString(slides.businessContext.newOfferPrice, creator?.primaryLanguage)}
                             onChange={v => updateSlide('businessContext', 'newOfferPrice', v)}
                           />
                         </div>
@@ -997,9 +1031,10 @@ function PitchPageContent() {
                   const tierLbl = (PITCH_TIER_LABELS[p.tier] || { pt: p.tier, en: p.tier });
                   const tierTxt = en ? tierLbl.en : tierLbl.pt;
                   const isLeadMagnet = p.tier === 'lead_magnet';
+                  const cur = en ? '$' : '€';
                   const priceDisplay = isLeadMagnet
                     ? (en ? 'Free' : 'Grátis')
-                    : (p.price_eur ? '€' + p.price_eur : (p.price || '—'));
+                    : (p.price_eur ? cur + p.price_eur : localizePriceString(p.price, creator?.primaryLanguage) || '—');
                   return (
                     <div key={`p-${i}`} style={{ opacity: 0.55 }}>
                       <div style={{ fontSize: 9, fontWeight: 700, color: "#8A8A8A", letterSpacing: "0.18em", textTransform: "uppercase", marginBottom: 4, fontFamily: "'JetBrains Mono', ui-monospace, monospace" }}>
@@ -1048,7 +1083,11 @@ function PitchPageContent() {
         <div className="aurora red" style={{ right: -250, top: "20%", width: 700, height: 700, opacity: 0.28 }} />
       }>
         <div style={{ flex: 1, display: "flex", flexDirection: "column", width: "100%" }}>
-          <div style={{ marginTop: 22, display: "grid", gridTemplateColumns: "1.4fr 1fr", gap: 36, alignItems: "start" }}>
+          <div style={{ fontSize: 18, fontWeight: 600, color: "#B11E2F", letterSpacing: "0.28em", textTransform: "uppercase" }}>
+            {creator?.primaryLanguage === 'en' ? 'The community' : 'A comunidade'}
+          </div>
+          <div style={{ height: 22 }} />
+          <div style={{ display: "grid", gridTemplateColumns: "1.4fr 1fr", gap: 36, alignItems: "start" }}>
             <div>
               <h1 style={{ ...italicSerif, fontSize: 72, fontWeight: 400, margin: 0, lineHeight: 1.0, letterSpacing: "-0.02em", color: "#f5f5f5" }}>
                 <Editable value={slides.community.nameCandidate} onChange={v => updateSlide('community', 'nameCandidate', v)} />
@@ -1060,9 +1099,9 @@ function PitchPageContent() {
             <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
               {(slides.community.tiers || []).slice(0, 3).map((t, i) => (
                 <div key={i} style={{ padding: "18px 22px", background: i === 0 ? "linear-gradient(90deg, rgba(177,30,47,0.12), rgba(15,15,15,0.85))" : "rgba(15,15,15,0.6)", border: `1px solid ${i === 0 ? "rgba(177,30,47,0.55)" : "rgba(255,255,255,0.06)"}`, borderRadius: 10 }}>
-                  <div style={{ fontSize: 10, fontWeight: 700, color: "#B11E2F", letterSpacing: "0.18em", textTransform: "uppercase", marginBottom: 6 }}>{t.name}</div>
-                  <div style={{ ...italicSerif, fontSize: 32, color: "#f5f5f5", lineHeight: 1, marginBottom: 6 }}>{t.price}</div>
-                  {t.note && <div style={{ fontSize: 11.5, color: "#888", lineHeight: 1.4 }}>{t.note}</div>}
+                  <div style={{ fontSize: 10, fontWeight: 700, color: "#B11E2F", letterSpacing: "0.18em", textTransform: "uppercase", marginBottom: 6 }}>{localizePriceString(t.name, creator?.primaryLanguage)}</div>
+                  <div style={{ ...italicSerif, fontSize: 32, color: "#f5f5f5", lineHeight: 1, marginBottom: 6 }}>{localizePriceString(t.price, creator?.primaryLanguage)}</div>
+                  {t.note && <div style={{ fontSize: 11.5, color: "#888", lineHeight: 1.4 }}>{localizePriceString(t.note, creator?.primaryLanguage)}</div>}
                 </div>
               ))}
             </div>
@@ -1111,6 +1150,10 @@ function PitchPageContent() {
         <div className="aurora deep" style={{ left: "50%", top: "50%", transform: "translate(-50%,-50%)", width: 900, height: 900, opacity: 0.35 }} />
       }>
         <div style={{ flex: 1, display: "flex", flexDirection: "column", width: "100%" }}>
+          <div style={{ fontSize: 18, fontWeight: 600, color: "#B11E2F", letterSpacing: "0.28em", textTransform: "uppercase" }}>
+            {creator?.primaryLanguage === 'en' ? 'The method' : 'O método'}
+          </div>
+          <div style={{ height: 14 }} />
           <h2 style={{ fontSize: 24, fontWeight: 500, color: "#9E9E9E", margin: 0, letterSpacing: "0.02em" }}>
             {creator?.primaryLanguage === 'en' ? 'The method we built for you' : 'O método que construímos para ti'}
           </h2>
@@ -1207,7 +1250,7 @@ function PitchPageContent() {
                           }} />
                         </td>
                         <td style={{ ...tdBase, fontSize: fsValue, fontWeight: 700, color: "#1F8A4C", textAlign: "right", fontFamily: "'JetBrains Mono', ui-monospace, monospace", letterSpacing: "-0.02em" }}>
-                          <Editable value={it.dollarValue} onChange={v => {
+                          <Editable value={localizePriceString(it.dollarValue, creator?.primaryLanguage)} onChange={v => {
                             const next = [...slides.valueStack.items]; next[i] = { ...it, dollarValue: v };
                             updateSlide('valueStack', 'items', next);
                           }} />
@@ -1227,7 +1270,7 @@ function PitchPageContent() {
                 {creator?.primaryLanguage === 'en' ? 'Total stacked value' : 'Valor total empilhado'}
               </div>
               <div style={{ fontSize: 48, fontWeight: 800, color: "#1F8A4C", letterSpacing: "-0.03em", fontFamily: "'JetBrains Mono', ui-monospace, monospace" }}>
-                <Editable value={slides.valueStack.total} onChange={v => updateSlide('valueStack', 'total', v)} />
+                <Editable value={localizePriceString(slides.valueStack.total, creator?.primaryLanguage)} onChange={v => updateSlide('valueStack', 'total', v)} />
               </div>
             </div>
             <div style={{ padding: "26px 32px", background: "rgba(177,30,47,0.08)", border: "1px solid rgba(177,30,47,0.4)", borderRadius: 12 }}>
@@ -1235,7 +1278,7 @@ function PitchPageContent() {
                 {creator?.primaryLanguage === 'en' ? 'Actual price' : 'Preço real'}
               </div>
               <div style={{ ...italicSerif, fontSize: 64, color: "#f5f5f5", letterSpacing: "-0.02em", lineHeight: 1 }}>
-                <Editable value={slides.valueStack.actualPrice} onChange={v => updateSlide('valueStack', 'actualPrice', v)} />
+                <Editable value={localizePriceString(slides.valueStack.actualPrice, creator?.primaryLanguage)} onChange={v => updateSlide('valueStack', 'actualPrice', v)} />
               </div>
             </div>
           </div>
@@ -1607,7 +1650,7 @@ function PitchPageContent() {
                   <div>
                     <div style={{ fontSize: 10, color: "#666", letterSpacing: "0.16em", textTransform: "uppercase" }}>{creator?.primaryLanguage === 'en' ? 'Members' : 'Membros'}</div>
                     <div style={{ fontSize: 20, color: "#f5f5f5", fontWeight: 600 }}>
-                      <Editable value={c.members} onChange={v => {
+                      <Editable value={localizePriceString(c.members, creator?.primaryLanguage)} onChange={v => {
                         const next = [...slides.cases.items]; next[i] = { ...c, members: v };
                         updateSlide('cases', 'items', next);
                       }} />
@@ -1616,7 +1659,7 @@ function PitchPageContent() {
                   <div>
                     <div style={{ fontSize: 10, color: "#666", letterSpacing: "0.16em", textTransform: "uppercase" }}>{creator?.primaryLanguage === 'en' ? 'Price' : 'Preço'}</div>
                     <div style={{ fontSize: 20, color: "#f5f5f5", fontWeight: 600 }}>
-                      <Editable value={c.price} onChange={v => {
+                      <Editable value={localizePriceString(c.price, creator?.primaryLanguage)} onChange={v => {
                         const next = [...slides.cases.items]; next[i] = { ...c, price: v };
                         updateSlide('cases', 'items', next);
                       }} />
