@@ -26,7 +26,7 @@ export const maxDuration = 120;
 //   - Phase 3 uniqueness         (high-monetization elements anchor perceived value)
 // ─────────────────────────────────────────────────────────────────
 
-export async function POST(_request, { params }) {
+export async function POST(request, { params }) {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) {
     return NextResponse.json({ error: 'ANTHROPIC_API_KEY not configured' }, { status: 500 });
@@ -34,6 +34,10 @@ export async function POST(_request, { params }) {
 
   try {
     const { id } = await params;
+    const body = await request.json().catch(() => ({}));
+    const instruction = typeof body?.instruction === 'string' && body.instruction.trim()
+      ? body.instruction.trim().slice(0, 1000)
+      : null;
     const creator = await getCreator(id);
     if (!creator) return NextResponse.json({ error: 'Creator not found' }, { status: 404 });
 
@@ -51,7 +55,7 @@ export async function POST(_request, { params }) {
       }, { status: 412 });
     }
 
-    const result = await runValueStack(apiKey, creator);
+    const result = await runValueStack(apiKey, creator, 0, instruction);
     if (result.error) {
       return NextResponse.json({ error: result.error, errors: result.errors, raw: result.raw }, { status: 502 });
     }

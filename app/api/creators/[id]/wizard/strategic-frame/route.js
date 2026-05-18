@@ -35,6 +35,16 @@ export async function POST(request, { params }) {
     const creator = await getCreator(id);
     if (!creator) return NextResponse.json({ error: 'Creator not found' }, { status: 404 });
 
+    // Optional operator-supplied instruction for re-runs — gets appended to
+    // the user message under "## ADDITIONAL INSTRUCTION". Lets the operator
+    // steer the regen ("make it more conservative", "emphasise the missing
+    // mid-tier", "shorten bullet 0", etc.) without unlocking + losing the
+    // downstream CPs.
+    const body = await request.json().catch(() => ({}));
+    const instruction = typeof body?.instruction === 'string' && body.instruction.trim()
+      ? body.instruction.trim().slice(0, 1000)
+      : null;
+
     // Block if CP1 already locked — operator must unlock first (cascade) to
     // avoid stale downstream output silently surviving a frame change.
     const meta = creator.offer?.internal_metadata || {};
@@ -46,7 +56,7 @@ export async function POST(request, { params }) {
       }, { status: 412 });
     }
 
-    const result = await runStrategicFrame(apiKey, creator);
+    const result = await runStrategicFrame(apiKey, creator, 0, instruction);
     if (result.error) {
       return NextResponse.json({ error: result.error, errors: result.errors, raw: result.raw }, { status: 502 });
     }

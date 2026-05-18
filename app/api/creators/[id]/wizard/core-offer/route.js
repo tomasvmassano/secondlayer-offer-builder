@@ -52,6 +52,9 @@ export async function POST(request, { params }) {
     const pricingModelOverride = body.pricing_model_override && VALID_MODELS.includes(body.pricing_model_override)
       ? body.pricing_model_override
       : null;
+    const instruction = typeof body?.instruction === 'string' && body.instruction.trim()
+      ? body.instruction.trim().slice(0, 1000)
+      : null;
 
     const creator = await getCreator(id);
     if (!creator) return NextResponse.json({ error: 'Creator not found' }, { status: 404 });
@@ -68,7 +71,7 @@ export async function POST(request, { params }) {
       }, { status: 412 });
     }
 
-    const result = await runCoreOffer(apiKey, creator, pricingTier, pricingModelOverride);
+    const result = await runCoreOffer(apiKey, creator, pricingTier, pricingModelOverride, 0, instruction);
     if (result.error) {
       return NextResponse.json({ error: result.error, errors: result.errors, raw: result.raw }, { status: 502 });
     }

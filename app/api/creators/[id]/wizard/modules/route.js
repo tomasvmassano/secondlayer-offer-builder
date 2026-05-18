@@ -26,7 +26,7 @@ export const maxDuration = 90;
 //   - CP3 must not already be locked (412 — unlock cascades to CP4/5)
 // ─────────────────────────────────────────────────────────────────
 
-export async function POST(_request, { params }) {
+export async function POST(request, { params }) {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) {
     return NextResponse.json({ error: 'ANTHROPIC_API_KEY not configured' }, { status: 500 });
@@ -34,6 +34,10 @@ export async function POST(_request, { params }) {
 
   try {
     const { id } = await params;
+    const body = await request.json().catch(() => ({}));
+    const instruction = typeof body?.instruction === 'string' && body.instruction.trim()
+      ? body.instruction.trim().slice(0, 1000)
+      : null;
     const creator = await getCreator(id);
     if (!creator) return NextResponse.json({ error: 'Creator not found' }, { status: 404 });
 
@@ -52,7 +56,7 @@ export async function POST(_request, { params }) {
       }, { status: 412 });
     }
 
-    const result = await runModules(apiKey, creator);
+    const result = await runModules(apiKey, creator, 0, instruction);
     if (result.error) {
       return NextResponse.json({ error: result.error, errors: result.errors, raw: result.raw }, { status: 502 });
     }

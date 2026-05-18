@@ -132,6 +132,61 @@ const PendingEmailCard = ({ label, hint, loading, onClick }) => (
   </div>
 );
 
+// Inline instruction textarea + re-run button. Shown on every wizard CP panel
+// below the main action row so the operator can steer a re-generation
+// ("emphasise the missing mid-tier", "shorten bullet 0", etc.) without
+// unlocking + cascading. The textarea is uncontrolled-on-mount (uses defaultValue + ref) so typing
+// doesn't re-render the parent panel and reset cursor.
+const RegenWithInstructionBlock = ({ placeholder, busy, onRegen, disabled }) => {
+  const [open, setOpen] = useState(false);
+  const inputRef = useRef(null);
+  if (disabled) return null;
+  return (
+    <div style={{ marginTop: 12 }}>
+      {!open ? (
+        <button
+          onClick={() => setOpen(true)}
+          disabled={busy}
+          style={{ padding: "6px 12px", borderRadius: 4, border: "1px dashed rgba(255,255,255,0.12)", background: "transparent", color: "#888", fontSize: 10, fontWeight: 600, cursor: busy ? "wait" : "pointer", fontFamily: "inherit", letterSpacing: "0.04em" }}
+        >
+          + Regenerar com instrução
+        </button>
+      ) : (
+        <div style={{ display: "flex", gap: 6, alignItems: "stretch" }}>
+          <textarea
+            ref={inputRef}
+            placeholder={placeholder || "Ex: 'mais conservador', 'foca no upgrade path do high-ticket', etc."}
+            defaultValue=""
+            disabled={busy}
+            rows={2}
+            style={{ flex: 1, padding: "8px 12px", background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 4, color: "#ddd", fontSize: 11, fontFamily: "inherit", resize: "vertical", minHeight: 38 }}
+          />
+          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+            <button
+              onClick={() => {
+                const val = (inputRef.current?.value || '').trim();
+                onRegen(val || null);
+                setOpen(false);
+              }}
+              disabled={busy}
+              style={{ padding: "8px 14px", borderRadius: 4, border: "1px solid rgba(122,14,24,0.45)", background: busy ? "rgba(255,255,255,0.02)" : "rgba(122,14,24,0.08)", color: busy ? "#555" : "#B11E2F", fontSize: 10, fontWeight: 700, cursor: busy ? "wait" : "pointer", fontFamily: "inherit", whiteSpace: "nowrap" }}
+            >
+              {busy ? "..." : "↻ Regenerar"}
+            </button>
+            <button
+              onClick={() => setOpen(false)}
+              disabled={busy}
+              style={{ padding: "4px 14px", borderRadius: 4, border: "1px solid rgba(255,255,255,0.06)", background: "transparent", color: "#555", fontSize: 9, fontWeight: 500, cursor: busy ? "wait" : "pointer", fontFamily: "inherit" }}
+            >
+              cancelar
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
 function CreatorProfilePageImpl({ params: paramsPromise }) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -3118,7 +3173,7 @@ function StrategicFramePanel({ creator, setCreator, running, setRunning, error, 
     standalone: '#eab308',
   };
 
-  const generate = async () => {
+  const generate = async (instruction = null) => {
     if (!creator?.id || running) return;
     setRunning(true);
     setError(null);
@@ -3126,7 +3181,7 @@ function StrategicFramePanel({ creator, setCreator, running, setRunning, error, 
       const r = await fetch(`/api/creators/${creator.id}/wizard/strategic-frame`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({}),
+        body: JSON.stringify(instruction ? { instruction } : {}),
       });
       const data = await r.json();
       if (!r.ok) {
@@ -3296,6 +3351,14 @@ function StrategicFramePanel({ creator, setCreator, running, setRunning, error, 
         </div>
       )}
 
+      {!cp1Locked && frame && (
+        <RegenWithInstructionBlock
+          placeholder="Ex: 'torna o ecosystem_impact[0] menos numérico, mais diagnóstico', 'foca no mid-tier missing', etc."
+          busy={running}
+          onRegen={(inst) => generate(inst)}
+        />
+      )}
+
       {!frame && !running && (
         <div style={{ padding: "20px 16px", textAlign: "center", color: "#444", fontSize: 12, border: "1px dashed rgba(255,255,255,0.06)", borderRadius: 6 }}>
           No frame yet. Click <strong style={{ color: "#888" }}>Generate</strong> (~10-20s, Sonnet only, uses Phase 1+2+3 as context).
@@ -3449,7 +3512,7 @@ function CoreOfferPanel({ creator, setCreator, running, setRunning, error, setEr
     hybrid:   'Hybrid (initial + recurring)',
   };
 
-  const generate = async () => {
+  const generate = async (instruction = null) => {
     if (!creator?.id || running) return;
     setRunning(true);
     setError(null);
@@ -3462,6 +3525,7 @@ function CoreOfferPanel({ creator, setCreator, running, setRunning, error, setEr
           // Only include pricing_model_override when operator picked something
           // other than 'auto'. The endpoint reads this and forces the model.
           ...(pendingModel !== 'auto' ? { pricing_model_override: pendingModel } : {}),
+          ...(instruction ? { instruction } : {}),
         }),
       });
       const data = await r.json();
@@ -3709,6 +3773,14 @@ function CoreOfferPanel({ creator, setCreator, running, setRunning, error, setEr
         </div>
       )}
 
+      {!cp2Locked && hasOutput && (
+        <RegenWithInstructionBlock
+          placeholder="Ex: 'community_name mais directo', 'audience_fit.not_for mais agressivo', 'transformation com prazo de 90 dias'..."
+          busy={running}
+          onRegen={(inst) => generate(inst)}
+        />
+      )}
+
       {hasOutput && (
         <div>
           {/* Community name + alternates */}
@@ -3942,7 +4014,7 @@ function ModulesPanel({ creator, setCreator, running, setRunning, error, setErro
     community_ritual: '#eab308',
   };
 
-  const generate = async () => {
+  const generate = async (instruction = null) => {
     if (!creator?.id || running) return;
     setRunning(true);
     setError(null);
@@ -3950,7 +4022,7 @@ function ModulesPanel({ creator, setCreator, running, setRunning, error, setErro
       const r = await fetch(`/api/creators/${creator.id}/wizard/modules`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({}),
+        body: JSON.stringify(instruction ? { instruction } : {}),
       });
       const data = await r.json();
       if (!r.ok) {
@@ -4174,6 +4246,14 @@ function ModulesPanel({ creator, setCreator, running, setRunning, error, setErro
         </div>
       )}
 
+      {!cp3Locked && hasOutput && (
+        <RegenWithInstructionBlock
+          placeholder="Ex: 'mais módulos de implementação ao vivo', 'foca em templates e SOPs', 'menos teoria, mais acção'..."
+          busy={running}
+          onRegen={(inst) => generate(inst)}
+        />
+      )}
+
       {!hasOutput && !running && (
         <div style={{ padding: "20px 16px", textAlign: "center", color: "#444", fontSize: 12, border: "1px dashed rgba(255,255,255,0.06)", borderRadius: 6 }}>
           No modules yet. Click <strong style={{ color: "#888" }}>Generate</strong> (~20-40s, Sonnet only).
@@ -4393,7 +4473,7 @@ function ValueStackPanel({ creator, setCreator, running, setRunning, error, setE
   const bonuses = Array.isArray(client.unlocked_bonuses) ? client.unlocked_bonuses : [];
   const hasOutput = !!(mechanism && stack && tiers.length > 0 && bonuses.length > 0);
 
-  const generate = async () => {
+  const generate = async (instruction = null) => {
     if (!creator?.id || running) return;
     setRunning(true);
     setError(null);
@@ -4401,7 +4481,7 @@ function ValueStackPanel({ creator, setCreator, running, setRunning, error, setE
       const r = await fetch(`/api/creators/${creator.id}/wizard/value-stack`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({}),
+        body: JSON.stringify(instruction ? { instruction } : {}),
       });
       const data = await r.json();
       if (!r.ok) {
@@ -4571,6 +4651,14 @@ function ValueStackPanel({ creator, setCreator, running, setRunning, error, setE
         </div>
       )}
 
+      {!cp4Locked && hasOutput && (
+        <RegenWithInstructionBlock
+          placeholder="Ex: 'value_stack mais conservador (~5× actualPrice)', 'mechanism com acrónimo mais curto', 'mais bonuses tipo template'..."
+          busy={running}
+          onRegen={(inst) => generate(inst)}
+        />
+      )}
+
       {!hasOutput && !running && (
         <div style={{ padding: "20px 16px", textAlign: "center", color: "#444", fontSize: 12, border: "1px dashed rgba(255,255,255,0.06)", borderRadius: 6 }}>
           No value stack yet. Click <strong style={{ color: "#888" }}>Generate</strong> (~30-50s, Sonnet only). Largest checkpoint output.
@@ -4713,7 +4801,7 @@ function SalesCopyPanel({ creator, setCreator, running, setRunning, error, setEr
   const social = client.social_proof_line;
   const hasOutput = !!(diff && hero && objections.length > 0 && faq.length > 0);
 
-  const generate = async () => {
+  const generate = async (instruction = null) => {
     if (!creator?.id || running) return;
     setRunning(true);
     setError(null);
@@ -4721,7 +4809,7 @@ function SalesCopyPanel({ creator, setCreator, running, setRunning, error, setEr
       const r = await fetch(`/api/creators/${creator.id}/wizard/sales-copy`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({}),
+        body: JSON.stringify(instruction ? { instruction } : {}),
       });
       const data = await r.json();
       if (!r.ok) {
@@ -4888,6 +4976,14 @@ function SalesCopyPanel({ creator, setCreator, running, setRunning, error, setEr
             <div style={{ marginTop: 6, color: "#eab308" }}>⚠ {diag.warnings.join(' · ')}</div>
           )}
         </div>
+      )}
+
+      {!cp5Locked && hasOutput && (
+        <RegenWithInstructionBlock
+          placeholder="Ex: 'hero mais directo', 'mais 2 objecções sobre tempo', 'FAQ menos formal', 'differentiator com mais prova'..."
+          busy={running}
+          onRegen={(inst) => generate(inst)}
+        />
       )}
 
       {!hasOutput && !running && (
