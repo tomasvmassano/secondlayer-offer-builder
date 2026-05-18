@@ -69,6 +69,9 @@ export async function saveCreator(data) {
     engagement: data.engagement || '',
     bio: data.bio || '',
     externalUrl: data.externalUrl || '',
+    // contactEmail surfaced from the first scrape — IG public/business email,
+    // aggregator page email, or regex over the bio. Null if none found.
+    contactEmail: data.contactEmail || null,
     profilePicUrl: data.profilePicUrl || '',
     isVerified: data.isVerified || false,
     isBusinessAccount: data.isBusinessAccount || false,

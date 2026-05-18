@@ -120,6 +120,11 @@ export async function scrapeInstagram(username) {
   return {
     name: p.fullName || p.name || p.username || username,
     bio: p.biography || p.bio || p.description || '',
+    // Business / public contact email exposed by IG profile pages. Field
+    // names vary by Apify actor version — check every plausible shape.
+    // Falls back to a regex scan over the bio text below in the merger.
+    publicEmail: p.publicEmail || p.public_email || p.email || null,
+    businessEmail: p.businessEmail || p.business_email || p.businessContactEmail || null,
     followers,
     following,
     postCount: p.postsCount || p.mediaCount || p.postCount || 0,
@@ -182,6 +187,8 @@ export async function scrapeInstagramBasic(username) {
     username,
     name: p.fullName || p.name || p.username || username,
     bio: p.biography || p.bio || p.description || '',
+    publicEmail: p.publicEmail || p.public_email || p.email || null,
+    businessEmail: p.businessEmail || p.business_email || p.businessContactEmail || null,
     followers,
     following,
     postCount: p.postsCount || p.mediaCount || p.postCount || 0,
@@ -206,35 +213,69 @@ export async function scrapeInstagramBasic(username) {
 /**
  * Scrape Linktree / bio link pages for product URLs
  */
+// Generic email extractor. Defensive against obfuscated forms commonly seen
+// in bios ("name [at] domain dot com", "name@domain dot com", spaces in
+// "name @ domain.com"). Returns the FIRST email found, or null. We bias toward
+// the first match because creators usually put the contact-of-record first
+// in their bio.
+export function extractEmail(text) {
+  if (!text || typeof text !== 'string') return null;
+  // Step 1: normalise common obfuscations into plain @ and . characters.
+  let s = text;
+  s = s.replace(/\s*\[\s*at\s*\]\s*|\s+at\s+/gi, '@');
+  s = s.replace(/\s*\[\s*dot\s*\]\s*|\s+dot\s+/gi, '.');
+  s = s.replace(/\s*\(\s*at\s*\)\s*/gi, '@');
+  s = s.replace(/\s+@\s+/g, '@');
+  // Step 2: standard email regex. Allows hyphens and dots in local part.
+  const m = s.match(/[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}/i);
+  if (!m) return null;
+  const email = m[0].toLowerCase();
+  // Step 3: reject obvious non-personal addresses that show up in marketing
+  // boilerplate scraped alongside bios.
+  if (/^(noreply|no-reply|donotreply|do-not-reply|info@instagram|info@meta|press@|support@meta|abuse@)/i.test(email)) {
+    return null;
+  }
+  return email;
+}
+
 export async function scrapeBioLinks(url) {
-  if (!url) return [];
+  if (!url) return { links: [], email: null };
   // Only scrape known link-in-bio services
   const bioServices = ['linktr.ee', 'linktree.com', 'beacons.ai', 'stan.store', 'carrd.co', 'taplink.cc', 'allmylinks.com', 'linkin.bio', 'bio.link', 'linkr.bio'];
   const isBioService = bioServices.some(d => url.toLowerCase().includes(d));
-  if (!isBioService) return [];
+  if (!isBioService) return { links: [], email: null };
 
   try {
     const items = await runApifyActor('ahmed_jasarevic~linktree-beacons-bio-email-scraper-extract-leads', {
       urls: [url],
     });
-    if (!items || items.length === 0) return [];
+    if (!items || items.length === 0) return { links: [], email: null };
 
     const links = [];
+    let email = null;
     for (const item of items) {
-      // Extract social links and other URLs
+      // The actor's name promises it extracts emails — check every plausible
+      // field shape it might return them in, plus a regex fallback over
+      // whatever text content came back.
+      if (!email) {
+        const candidate = item.email || item.contactEmail || item.contact_email
+          || (Array.isArray(item.emails) ? item.emails[0] : null)
+          || extractEmail(item.bio || item.description || item.title || '')
+          || extractEmail(JSON.stringify(item).slice(0, 5000));
+        if (candidate) email = extractEmail(candidate) || (typeof candidate === 'string' ? candidate.toLowerCase() : null);
+      }
       if (item.links) {
         for (const link of item.links) {
           links.push({ title: link.title || link.text || '', url: link.url || link.href || '' });
         }
       }
-      // Some scrapers return flat fields
       if (item.url && item.title) {
         links.push({ title: item.title, url: item.url });
       }
     }
-    return links.filter(l => l.url);
+    return { links: links.filter(l => l.url), email };
   } catch {
-    return [];
+    return { links: [], email: null };
   }
 }
 
@@ -409,12 +450,26 @@ export async function scrapeMultiplePlatforms(instagramUrl, tiktokUrl, youtubeUr
   const bio = igData?.bio || tkData?.bio || '';
   const profilePicUrl = igData?.profilePicUrl || tkData?.profilePicUrl || '';
 
-  // Scrape bio links in parallel if external URL is a link-in-bio service
+  // Scrape bio links in parallel if external URL is a link-in-bio service.
+  // The actor also returns emails — capture them so the operator gets a
+  // contact email surfaced as early as possible (zero extra API cost).
   const externalUrl = igData?.externalUrl || '';
   let bioLinks = [];
+  let bioLinksEmail = null;
   if (externalUrl) {
-    bioLinks = await scrapeBioLinks(externalUrl).catch(() => []);
+    const result = await scrapeBioLinks(externalUrl).catch(() => ({ links: [], email: null }));
+    bioLinks = result.links || [];
+    bioLinksEmail = result.email || null;
   }
+
+  // Email priority: explicit Instagram public business email > aggregator
+  // page email > regex over IG bio text. First hit wins. All sources are
+  // already-fetched data — no new API calls.
+  const contactEmail = igData?.publicEmail
+    || igData?.businessEmail
+    || bioLinksEmail
+    || extractEmail(bio)
+    || null;
 
   const profile = {
     name,
@@ -423,6 +478,7 @@ export async function scrapeMultiplePlatforms(instagramUrl, tiktokUrl, youtubeUr
     engagement: igData?.engagementRate || '',
     bio,
     externalUrl,
+    contactEmail,
     isVerified: igData?.isVerified || tkData?.isVerified || false,
     isBusinessAccount: igData?.isBusinessAccount || false,
     profilePicUrl,
@@ -527,6 +583,14 @@ export async function scrapeLean(instagramUrl, tiktokUrl, youtubeUrl) {
   const profilePicUrl = igData?.profilePicUrl || '';
   const externalUrl = igData?.externalUrl || '';
 
+  // Email extraction on lean path — IG business profile email first, then a
+  // regex scan over the bio text. Aggregator-page email scraping is skipped
+  // here (kept for the full scrape path) to keep the lean call fast.
+  const contactEmail = igData?.publicEmail
+    || igData?.businessEmail
+    || extractEmail(bio)
+    || null;
+
   const profile = {
     name,
     niche: '',
@@ -534,6 +598,7 @@ export async function scrapeLean(instagramUrl, tiktokUrl, youtubeUrl) {
     engagement: igData?.engagementRate || '',
     bio,
     externalUrl,
+    contactEmail,
     isVerified: igData?.isVerified || false,
     isBusinessAccount: igData?.isBusinessAccount || false,
     profilePicUrl,

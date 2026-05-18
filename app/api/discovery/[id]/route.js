@@ -73,11 +73,14 @@ export async function POST(request, { params }) {
       }
     }
 
-    // Try Linktree scrape if external URL looks like one
+    // Try Linktree scrape if external URL looks like one. The scraper also
+    // surfaces a contact email — capture it onto the profile so the operator
+    // sees it as soon as the discovery candidate is accepted.
     if (candidate.externalUrl) {
       try {
-        const bioLinks = await scrapeBioLinks(candidate.externalUrl);
-        if (bioLinks?.length > 0) profile.bioLinks = bioLinks;
+        const result = await scrapeBioLinks(candidate.externalUrl);
+        if (result?.links?.length > 0) profile.bioLinks = result.links;
+        if (result?.email) profile.contactEmail = result.email;
       } catch {
         // silent fail — optional enhancement
       }

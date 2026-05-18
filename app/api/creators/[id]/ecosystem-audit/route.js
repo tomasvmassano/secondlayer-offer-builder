@@ -62,7 +62,8 @@ export async function POST(request, { params }) {
     for (const u of seedUrls) {
       if (isAggregator(u)) {
         aggregatorsSeen.push(u);
-        const resolved = await scrapeBioLinks(u).catch(() => []);
+        const result = await scrapeBioLinks(u).catch(() => ({ links: [], email: null }));
+        const resolved = result?.links || [];
         for (const r of resolved) {
           if (r.url) finalUrls.push({ url: r.url, source: u, title: r.title || '' });
         }

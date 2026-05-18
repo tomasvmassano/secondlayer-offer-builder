@@ -1136,10 +1136,23 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
           {igData && (
             <div style={{ marginBottom: 24 }}>
               <h3 style={sectionTitleStyle}>Instagram {igData.url && <a href={igData.url} target="_blank" rel="noopener noreferrer" style={{ fontSize: 10, color: "#7A0E18", textDecoration: "none", marginLeft: 8, fontWeight: 400, textTransform: "none", letterSpacing: 0 }}>Ver perfil</a>}</h3>
-              {(creator.bio || creator.externalUrl) && (
+              {(creator.bio || creator.externalUrl || creator.contactEmail) && (
                 <div style={{ marginBottom: 12, padding: "12px 14px", background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.04)", borderRadius: 8 }}>
                   {creator.bio && <p style={{ fontSize: 12, color: "#bbb", margin: 0, lineHeight: 1.6, whiteSpace: "pre-wrap" }}>{creator.bio}</p>}
                   {creator.externalUrl && <a href={creator.externalUrl.startsWith("http") ? creator.externalUrl : "https://" + creator.externalUrl} target="_blank" rel="noopener noreferrer" style={{ display: "block", marginTop: 6, fontSize: 11, color: "#7A0E18", textDecoration: "none" }}>{creator.externalUrl}</a>}
+                  {creator.contactEmail && (
+                    <div style={{ marginTop: 8, display: "flex", alignItems: "center", gap: 8, padding: "6px 10px", background: "rgba(34,197,94,0.06)", border: "1px solid rgba(34,197,94,0.20)", borderRadius: 6 }}>
+                      <span style={{ fontSize: 9, fontWeight: 700, color: "#22c55e", letterSpacing: "0.10em", textTransform: "uppercase" }}>Email</span>
+                      <a href={`mailto:${creator.contactEmail}`} style={{ fontSize: 12, color: "#22c55e", textDecoration: "none", fontFamily: "'JetBrains Mono', ui-monospace, monospace" }}>{creator.contactEmail}</a>
+                      <button
+                        onClick={() => navigator.clipboard.writeText(creator.contactEmail)}
+                        title="Copy email"
+                        style={{ marginLeft: "auto", padding: "2px 8px", borderRadius: 4, border: "1px solid rgba(34,197,94,0.25)", background: "transparent", color: "#22c55e", fontSize: 9, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}
+                      >
+                        Copy
+                      </button>
+                    </div>
+                  )}
                 </div>
               )}
               {/* IG multi-link bio — Instagram's native "Links" feature, up to 5
