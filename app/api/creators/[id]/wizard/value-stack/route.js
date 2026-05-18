@@ -126,6 +126,14 @@ Format (one entry in mechanism.letters per letter of mechanism.name):
 
 The letters array MUST have exactly one entry per letter in name. "S.T.R.I.D.E." → 6 letters → 6 entries. The 'letter' field of each entry must match the position in the name.
 
+## CURRENCY RULE (read this before writing ANY price)
+
+The currency symbol MUST match the creator's primary language:
+- **English creator** → ALL prices use \`$\` and US-style notation (e.g. \`$297/mo\`, \`$2,970/yr\`)
+- **Portuguese creator** → ALL prices use \`€\` and EU-style notation (e.g. \`€297/mês\`, \`€2.970/ano\`)
+
+This applies to every dollarValue, every total, every tier price, every actualPrice. Do NOT mix currencies inside the same offer. Do NOT use \`€\` for an English creator just because the examples below show \`€\`.
+
 ## OUTPUT 2 · VALUE STACK (Hormozi-style items)
 
 4-6 items. Each is ONE component of the offer with its own perceived value. NEVER more than 6 — the pitch slide cuts off above 6 rows. Consolidate weaker items if necessary. Format:
@@ -136,12 +144,12 @@ The letters array MUST have exactly one entry per letter in name. "S.T.R.I.D.E."
       "problem": "the specific pain this addresses (in audience's voice)",
       "solution": "how the offer solves it",
       "delivery": "the actual format (e.g. 'Weekly live audit calls')",
-      "dollarValue": "€500"
+      "dollarValue": "€500   ← swap € for $ when creator is English"
     },
     ...
   ],
-  "total": "€2,500",
-  "actualPrice": "matches CP2 target_price exactly"
+  "total": "€2,500   ← swap € for $ when creator is English",
+  "actualPrice": "matches CP2 target_price exactly (same currency)"
 }
 
 PRICING DISCIPLINE — this is non-negotiable:
@@ -172,6 +180,16 @@ Format:
     { "name": "Mensal", "price": "€297/mês", "note": "Sistema completo + comunidade" },
     { "name": "Anual",  "price": "€2.970/ano", "note": "2 meses grátis vs mensal" },
     { "name": "Premium", "price": "€697/mês", "note": "Mensal + 1-on-1 mensal comigo" }
+  ]
+}
+
+For an ENGLISH creator the same shape becomes:
+
+{
+  "pricing_tiers": [
+    { "name": "Monthly", "price": "$297/mo", "note": "Complete system + community" },
+    { "name": "Annual",  "price": "$2,970/yr", "note": "2 months free vs monthly" },
+    { "name": "Premium", "price": "$697/mo", "note": "Monthly + 1-on-1 with me" }
   ]
 }
 

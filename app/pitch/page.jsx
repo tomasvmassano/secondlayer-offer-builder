@@ -855,7 +855,7 @@ function PitchPageContent() {
           {/* Centered cluster: logo, name, rule, subtitle */}
           <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
             <img src={LOGO_B64} alt="Second Layer" style={{ height: 28, opacity: 0.95, marginBottom: 64 }} />
-            <h1 style={{ fontSize: 196, fontWeight: 800, margin: 0, lineHeight: 0.96, letterSpacing: "-0.035em", textAlign: "center", color: "#f5f5f5", textShadow: "0 0 60px rgba(0,0,0,0.5)" }}>
+            <h1 style={{ fontSize: 140, fontWeight: 800, margin: 0, lineHeight: 0.96, letterSpacing: "-0.035em", textAlign: "center", color: "#f5f5f5", textShadow: "0 0 60px rgba(0,0,0,0.5)" }}>
               <Editable value={slides.cover.title} onChange={v => updateSlide('cover', 'title', v)} />
             </h1>
             <div style={{ width: 140, height: 5, background: "#B11E2F", margin: "56px auto" }} />
@@ -868,7 +868,7 @@ function PitchPageContent() {
           <div style={{ flex: 1, display: "flex", alignItems: "flex-end", justifyContent: "space-between", width: "100%", fontFamily: "'JetBrains Mono', ui-monospace, monospace", fontSize: 13, letterSpacing: "0.22em", textTransform: "uppercase", color: "#8A8A8A", fontWeight: 500 }}>
             <div>Lisboa · PT</div>
             <div>—</div>
-            <div>{new Date().toLocaleDateString('pt-PT', { month: 'long', year: 'numeric' })}</div>
+            <div>{new Date().toLocaleDateString(creator?.primaryLanguage === 'en' ? 'en-US' : 'pt-PT', { month: 'long', year: 'numeric' })}</div>
           </div>
         </div>
       </Slide>
@@ -928,10 +928,6 @@ function PitchPageContent() {
         <div className="aurora red" style={{ left: -200, top: "30%", width: 700, height: 700, opacity: 0.28 }} />
       }>
         <div style={{ flex: 1, display: "flex", flexDirection: "column", width: "100%" }}>
-          <div style={{ fontSize: 18, fontWeight: 600, color: "#B11E2F", letterSpacing: "0.28em", textTransform: "uppercase" }}>
-            {creator?.primaryLanguage === 'en' ? 'Variant B · List + quote' : 'Variante B · Lista + Citação'}
-          </div>
-          <div style={{ height: 18 }} />
           <h1 style={{ fontSize: 72, fontWeight: 800, margin: 0, lineHeight: 1.0, letterSpacing: "-0.03em", color: "#f5f5f5" }}>
             <StyledLastWord
               text={creator?.primaryLanguage === 'en' ? 'How this fits' : 'Onde isto encaixa'}
@@ -1052,10 +1048,6 @@ function PitchPageContent() {
         <div className="aurora red" style={{ right: -250, top: "20%", width: 700, height: 700, opacity: 0.28 }} />
       }>
         <div style={{ flex: 1, display: "flex", flexDirection: "column", width: "100%" }}>
-          <div style={{ fontSize: 18, fontWeight: 600, color: "#B11E2F", letterSpacing: "0.28em", textTransform: "uppercase" }}>
-            {creator?.primaryLanguage === 'en' ? 'Variant B · Asymmetric' : 'Variante B · Assimétrica'}
-          </div>
-
           <div style={{ marginTop: 22, display: "grid", gridTemplateColumns: "1.4fr 1fr", gap: 36, alignItems: "start" }}>
             <div>
               <h1 style={{ ...italicSerif, fontSize: 72, fontWeight: 400, margin: 0, lineHeight: 1.0, letterSpacing: "-0.02em", color: "#f5f5f5" }}>
@@ -1119,10 +1111,6 @@ function PitchPageContent() {
         <div className="aurora deep" style={{ left: "50%", top: "50%", transform: "translate(-50%,-50%)", width: 900, height: 900, opacity: 0.35 }} />
       }>
         <div style={{ flex: 1, display: "flex", flexDirection: "column", width: "100%" }}>
-          <div style={{ fontSize: 18, fontWeight: 600, color: "#B11E2F", letterSpacing: "0.28em", textTransform: "uppercase" }}>
-            {creator?.primaryLanguage === 'en' ? 'Variant A · Mechanism hero' : 'Variante A · Mecanismo Hero'}
-          </div>
-          <div style={{ height: 14 }} />
           <h2 style={{ fontSize: 24, fontWeight: 500, color: "#9E9E9E", margin: 0, letterSpacing: "0.02em" }}>
             {creator?.primaryLanguage === 'en' ? 'The method we built for you' : 'O método que construímos para ti'}
           </h2>
@@ -1407,8 +1395,8 @@ function PitchPageContent() {
 
           <div style={{ marginTop: 56, display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 24, flex: 1 }}>
             {slides.launch.phases.map((phase, i) => (
-              <div key={i} style={{ padding: 44, background: "rgba(15,15,15,0.78)", border: "1px solid #1F1F1F", borderRadius: 14, position: "relative", display: "flex", flexDirection: "column" }}>
-                <div style={{ ...italicSerif, fontSize: 220, color: "#B11E2F", opacity: 0.25, position: "absolute", top: -40, right: 24, lineHeight: 1, pointerEvents: "none" }}>{i + 1}</div>
+              <div key={i} style={{ padding: 44, background: "rgba(15,15,15,0.78)", border: "1px solid #1F1F1F", borderRadius: 14, position: "relative", display: "flex", flexDirection: "column", overflow: "hidden" }}>
+                <div style={{ ...italicSerif, fontSize: 180, color: "#B11E2F", opacity: 0.22, position: "absolute", top: 12, right: 28, lineHeight: 1, pointerEvents: "none" }}>{i + 1}</div>
 
                 {/* Top row: phase label LEFT + days pill RIGHT (Lia-style) */}
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14, position: "relative", gap: 12 }}>
@@ -1991,25 +1979,27 @@ function buildDefaultSlides(creator) {
   //   T1 monthly:           €P/mês
   //   T2 annual prepay:     €(P × 10)/ano  (= 2 months free vs 12 × P)
   //   T3 anchor (premium):  €(P × 5)/mês   (1-on-1 + masterclasses)
+  // Currency: EN creators get $ + USD; PT creators get € + EUR.
+  const cur = lang === 'en' ? '$' : '€';
   const recPrice = Number(creator?.revenuePrice) || null;
   const fallbackTiers = recPrice
     ? (lang === 'en' ? [
-        { name: 'Monthly',         price: `€${recPrice}/mo`,         note: 'Recommended' },
-        { name: 'Annual Prepay',   price: `€${recPrice * 10}/yr`,    note: '2 months free' },
-        { name: 'Founders Circle', price: `€${recPrice * 5}/mo`,     note: '1-on-1 + masterclasses' },
+        { name: 'Monthly',         price: `${cur}${recPrice}/mo`,         note: 'Recommended' },
+        { name: 'Annual Prepay',   price: `${cur}${recPrice * 10}/yr`,    note: '2 months free' },
+        { name: 'Founders Circle', price: `${cur}${recPrice * 5}/mo`,     note: '1-on-1 + masterclasses' },
       ] : [
-        { name: 'Mensal',          price: `€${recPrice}/mês`,        note: 'Recomendado' },
-        { name: 'Anual',           price: `€${recPrice * 10}/ano`,   note: '2 meses grátis' },
-        { name: 'Founders Circle', price: `€${recPrice * 5}/mês`,    note: '1-on-1 + masterclasses' },
+        { name: 'Mensal',          price: `${cur}${recPrice}/mês`,        note: 'Recomendado' },
+        { name: 'Anual',           price: `${cur}${recPrice * 10}/ano`,   note: '2 meses grátis' },
+        { name: 'Founders Circle', price: `${cur}${recPrice * 5}/mês`,    note: '1-on-1 + masterclasses' },
       ])
     : (lang === 'en' ? [
-        { name: 'Monthly',         price: '€[X]/mo',  note: 'Recommended' },
-        { name: 'Annual Prepay',   price: '€[X]/yr',  note: '2 months free' },
-        { name: 'Founders Circle', price: '€[X]/mo',  note: '1-on-1 + masterclasses' },
+        { name: 'Monthly',         price: `${cur}[X]/mo`,  note: 'Recommended' },
+        { name: 'Annual Prepay',   price: `${cur}[X]/yr`,  note: '2 months free' },
+        { name: 'Founders Circle', price: `${cur}[X]/mo`,  note: '1-on-1 + masterclasses' },
       ] : [
-        { name: 'Mensal',          price: '€[X]/mês', note: 'Recomendado' },
-        { name: 'Anual',           price: '€[X]/ano', note: '2 meses grátis' },
-        { name: 'Founders Circle', price: '€[X]/mês', note: '1-on-1 + masterclasses' },
+        { name: 'Mensal',          price: `${cur}[X]/mês`, note: 'Recomendado' },
+        { name: 'Anual',           price: `${cur}[X]/ano`, note: '2 meses grátis' },
+        { name: 'Founders Circle', price: `${cur}[X]/mês`, note: '1-on-1 + masterclasses' },
       ]);
 
   return {
@@ -2181,19 +2171,19 @@ function buildDefaultSlides(creator) {
       title: t('O Valor', 'The Value'),
       subtitle: t('Cada coisa que recebes. Cada coisa tem um valor.', 'Every thing you get. Every thing has a value.'),
       items: vs.items && vs.items.length > 0 ? vs.items : [
-        { problem: t('[Problema 1]', '[Problem 1]'), solution: t('[Solução]', '[Solution]'), delivery: t('[Entrega]', '[Delivery]'), dollarValue: '€[X]' },
-        { problem: t('[Problema 2]', '[Problem 2]'), solution: t('[Solução]', '[Solution]'), delivery: t('[Entrega]', '[Delivery]'), dollarValue: '€[X]' },
-        { problem: t('[Problema 3]', '[Problem 3]'), solution: t('[Solução]', '[Solution]'), delivery: t('[Entrega]', '[Delivery]'), dollarValue: '€[X]' },
-        { problem: t('[Problema 4]', '[Problem 4]'), solution: t('[Solução]', '[Solution]'), delivery: t('[Entrega]', '[Delivery]'), dollarValue: '€[X]' },
-        { problem: t('[Problema 5]', '[Problem 5]'), solution: t('[Solução]', '[Solution]'), delivery: t('[Entrega]', '[Delivery]'), dollarValue: '€[X]' },
+        { problem: t('[Problema 1]', '[Problem 1]'), solution: t('[Solução]', '[Solution]'), delivery: t('[Entrega]', '[Delivery]'), dollarValue: `${cur}[X]` },
+        { problem: t('[Problema 2]', '[Problem 2]'), solution: t('[Solução]', '[Solution]'), delivery: t('[Entrega]', '[Delivery]'), dollarValue: `${cur}[X]` },
+        { problem: t('[Problema 3]', '[Problem 3]'), solution: t('[Solução]', '[Solution]'), delivery: t('[Entrega]', '[Delivery]'), dollarValue: `${cur}[X]` },
+        { problem: t('[Problema 4]', '[Problem 4]'), solution: t('[Solução]', '[Solution]'), delivery: t('[Entrega]', '[Delivery]'), dollarValue: `${cur}[X]` },
+        { problem: t('[Problema 5]', '[Problem 5]'), solution: t('[Solução]', '[Solution]'), delivery: t('[Entrega]', '[Delivery]'), dollarValue: `${cur}[X]` },
       ],
-      total: vs.total || '€[X total]',
+      total: vs.total || `${cur}[X ${t('total', 'total')}]`,
       // Preço Real follows the offer page: creator.revenuePrice is the single
       // source of truth set on the offer tab. Falls back to the LLM-parsed value
       // then to a placeholder.
       actualPrice: recPrice
-        ? (lang === 'en' ? `€${recPrice}/mo` : `€${recPrice}/mês`)
-        : (vs.actualPrice || '€[X]/mês'),
+        ? (lang === 'en' ? `${cur}${recPrice}/mo` : `${cur}${recPrice}/mês`)
+        : (vs.actualPrice || (lang === 'en' ? `${cur}[X]/mo` : `${cur}[X]/mês`)),
     },
     // Slide 7 — Audience. The existing rendering kept (stat strip + theme
     // strip), and now augmented with the wizard's audience-fit data when
@@ -2223,15 +2213,15 @@ function buildDefaultSlides(creator) {
           // for back-compat. The slide rendering falls back to "MRR" label
           // when revenue_label is empty.
           return cases.slice(0, 3).map(cs => ({
-            name: cs.name || '[Nome]',
-            niche: cs.niche || '[Nicho]',
-            members: cs.members || '[X membros]',
-            price: cs.price || '€[X]/mês',
+            name: cs.name || t('[Nome]', '[Name]'),
+            niche: cs.niche || t('[Nicho]', '[Niche]'),
+            members: cs.members || t('[X membros]', '[X members]'),
+            price: cs.price || (lang === 'en' ? `${cur}[X]/mo` : `${cur}[X]/mês`),
             revenue_type: cs.revenue_type || 'mrr',
             revenue_value: cs.revenue_value || cs.mrr || '—',
             revenue_label: lang === 'en' ? 'MRR' : 'MRR',
-            resume: cs.resume || '[1-line resume]',
-            why: cs.why || '[Why this matters for the creator]',
+            resume: cs.resume || t('[Resumo de 1 linha]', '[1-line resume]'),
+            why: cs.why || t('[Porque é relevante para o criador]', '[Why this matters for the creator]'),
             url: cs.url || '',
           }));
         }
