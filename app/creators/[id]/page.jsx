@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useRef, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { calculateDealScore } from "../../lib/dealScore";
-import { SCENARIOS as REVENUE_SCENARIOS, calculateSteadyMRR as sharedCalcMRR } from "../../lib/revenue";
+import { SCENARIOS as REVENUE_SCENARIOS, calculateSteadyMRR as sharedCalcMRR, calculateOfferRevenue, projectEcosystemRevenue, classifyTierBucket, estimateCurrentBuyers, TIER_CONVERSION_CAP } from "../../lib/revenue";
 import { renderMd, parseOutput, extractAudience } from "../../lib/offerParser";
 import { legacyParsedToOfferState, CHECKPOINTS, readCheckpointProgress, readOfferState } from "../../lib/offerSchema";
 import { OFFER_SYSTEM_PROMPT } from "../../lib/systemPrompt";
@@ -1869,15 +1869,19 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
               const defaultEng = parseFloat(String(rawEng).replace(/[^0-9.]/g, "")) || 2.0;
               const eng = engagementRate ?? creator.revenueEngagement ?? defaultEng;
 
-              // ─── Shared revenue lib (same scenarios + formula as the pitch deck)
+              // ─── Shared revenue lib (same scenarios + formula as the pitch deck).
+              // Carry scenarioKey so tier-aware caps can be looked up downstream.
               const scenarios = [
-                { ...REVENUE_SCENARIOS.conservador, label: "Conservative", color: "#888", border: "rgba(255,255,255,0.04)" },
-                { ...REVENUE_SCENARIOS.moderado, label: "Moderate", color: "#f5f5f5", border: "rgba(122,14,24,0.2)" },
-                { ...REVENUE_SCENARIOS.agressivo, label: "Aggressive", color: "#7A0E18", border: "rgba(255,255,255,0.04)" },
+                { key: 'conservador', ...REVENUE_SCENARIOS.conservador, label: "Conservative", color: "#888", border: "rgba(255,255,255,0.04)" },
+                { key: 'moderado',    ...REVENUE_SCENARIOS.moderado,    label: "Moderate", color: "#f5f5f5", border: "rgba(122,14,24,0.2)" },
+                { key: 'agressivo',   ...REVENUE_SCENARIOS.agressivo,   label: "Aggressive", color: "#7A0E18", border: "rgba(255,255,255,0.04)" },
               ];
-              const calcSteady = (s) => sharedCalcMRR({ audience: primaryF, price, engagementRate: eng, scenario: s });
+              // Tier bucket from CP2 pricing_tier × the operator's current price slider.
+              // Without this, mid/high recurring offers project as if they were low-ticket.
+              const tierBucket = classifyTierBucket(cfo.pricing_tier, price, cfo.pricing_model);
+              const calcSteady = (s) => sharedCalcMRR({ audience: primaryF, price, engagementRate: eng, scenario: s, scenarioKey: s.key, tierBucket, paymentPlan: !!cfo.payment_plan_available });
               const calcClients = (s) => calcSteady(s).activeMembers;
-              const engMultiplier = sharedCalcMRR({ audience: primaryF, price, engagementRate: eng, scenario: scenarios[1] }).engMultiplier;
+              const engMultiplier = sharedCalcMRR({ audience: primaryF, price, engagementRate: eng, scenario: scenarios[1], scenarioKey: 'moderado', tierBucket }).engMultiplier;
               const modScenario = scenarios[1];
               const modSteady = calcSteady(modScenario);
               const modClients = modSteady.activeMembers;
@@ -2008,8 +2012,106 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
                           {capped && <div style={{ color: "#eab308", marginTop: 4 }}>Capped at {(mod.cap * 100)}% of followers = {maxCap.toLocaleString()} clients</div>}
                         </div>
                         <div style={{ marginTop: 10, fontSize: 10, color: "#555" }}>
-                          Benchmark: 2% (avg Instagram creator). Max cap per scenario: {(mod.cap * 100)}% of followers. Price: {fmt(defaultPrice)}/mês ({priceSource}).
+                          Benchmark: 2% (avg Instagram creator). Tier cap ({tierBucket}): {(((TIER_CONVERSION_CAP[tierBucket]?.[mod.key]) ?? mod.cap) * 100).toFixed(2)}% of followers · Price: {fmt(defaultPrice)}/mês ({priceSource}).
                         </div>
+                      </div>
+                    );
+                  })()}
+
+                  {/* ────────── Ecosystem revenue panel ──────────
+                      v1 of the offer-aware projector. Pulls existing products
+                      from the audit, estimates current buyers conservatively
+                      from audience × tier %, projects the NEW offer revenue
+                      using the right formula per pricing_model (recurring /
+                      one_time / hybrid), and applies upgrade flows when
+                      CP1 confirmed_role is entry_point or premium_upsell.
+                      No cannibalization / refunds / niche tuning in v1 —
+                      see project_revenue_model_deferred memory. */}
+                  {(() => {
+                    const audit = creator.offer?.internal_metadata?.ecosystem_audit;
+                    const frame = creator.offer?.internal_metadata?.strategic_frame;
+                    if (!audit) return null;
+                    const existingProducts = [
+                      ...(audit.ecosystem_map?.products_found || []),
+                      ...(audit.ecosystem_map?.existing_communities || []).map(c => ({ ...c, tier: c.tier || 'recurring' })),
+                    ].filter(p => p && p.tier && p.tier !== 'lead_magnet');
+                    const offerForCalc = {
+                      ...cfo,
+                      target_price: cfo.target_price || `€${price}/mo`,
+                    };
+                    const ecoByScenario = scenarios.map(s => projectEcosystemRevenue({
+                      creator: { ...creator, engagement: String(eng) },
+                      offer: offerForCalc,
+                      existingProducts,
+                      scenarioKey: s.key,
+                      confirmedRole: frame?.confirmed_role,
+                    }));
+                    const fmtBig = (n) => "€" + Math.round(n).toLocaleString();
+                    return (
+                      <div style={{ marginTop: 20, padding: "18px 20px", background: "#141414", border: "1px solid rgba(34,197,94,0.18)", borderRadius: 10 }}>
+                        <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 4 }}>
+                          <div style={{ fontSize: 10, fontWeight: 700, color: "#22c55e", letterSpacing: "0.18em", textTransform: "uppercase" }}>Ecosystem Revenue</div>
+                          <div style={{ fontSize: 9, color: "#555", letterSpacing: "0.06em" }}>preview · v1 (no cannibalization)</div>
+                        </div>
+                        <p style={{ fontSize: 11, color: "#666", margin: "0 0 14px", lineHeight: 1.5 }}>
+                          Total annual revenue across the creator's existing products plus the new offer. Pulls existing buyers from a conservative estimate (% of audience by tier), and applies upgrade flows for {frame?.confirmed_role ? <code style={{ color: "#888" }}>{frame.confirmed_role}</code> : 'standalone'} role.
+                          {offerForCalc.pricing_model && <> Mode: <strong style={{ color: "#888" }}>{offerForCalc.pricing_model}</strong>.</>}
+                        </p>
+
+                        {/* 3 scenario cards: status quo / with new / delta */}
+                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10, marginBottom: 16 }}>
+                          {ecoByScenario.map((eco, i) => {
+                            const s = scenarios[i];
+                            return (
+                              <div key={s.key} style={{ padding: 14, borderRadius: 8, background: "#0a0a0a", border: `1px solid ${s.border}` }}>
+                                <div style={{ fontSize: 9, fontWeight: 700, color: s.color, letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 10 }}>{s.label}</div>
+                                <div style={{ fontSize: 10, color: "#666", marginBottom: 2 }}>Status quo (annual)</div>
+                                <div style={{ fontSize: 15, fontWeight: 700, color: "#888", marginBottom: 8 }}>{fmtBig(eco.headline.statusQuoAnnual)}</div>
+                                <div style={{ fontSize: 10, color: "#666", marginBottom: 2 }}>With new offer</div>
+                                <div style={{ fontSize: 18, fontWeight: 800, color: "#22c55e", marginBottom: 8 }}>{fmtBig(eco.headline.withNewOfferAnnual)}</div>
+                                <div style={{ paddingTop: 8, borderTop: "1px solid rgba(255,255,255,0.04)" }}>
+                                  <div style={{ fontSize: 10, color: "#666", marginBottom: 2 }}>Δ from new offer</div>
+                                  <div style={{ fontSize: 13, fontWeight: 700, color: eco.headline.deltaAnnual >= 0 ? "#22c55e" : "#ef4444" }}>
+                                    {eco.headline.deltaAnnual >= 0 ? '+' : ''}{fmtBig(eco.headline.deltaAnnual)}
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+
+                        {/* Per-product breakdown (moderado view) */}
+                        {(() => {
+                          const eco = ecoByScenario[1];
+                          if (!eco) return null;
+                          return (
+                            <div style={{ padding: "12px 14px", background: "#0a0a0a", borderRadius: 6, border: "1px solid rgba(255,255,255,0.04)" }}>
+                              <div style={{ fontSize: 9, fontWeight: 600, color: "#555", letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 10 }}>Breakdown (Moderate scenario)</div>
+                              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                                {eco.existing.map((r, i) => (
+                                  <div key={i} style={{ display: "grid", gridTemplateColumns: "1.4fr 0.7fr 1fr 1fr", gap: 8, fontSize: 11, color: "#888", padding: "4px 0" }}>
+                                    <span style={{ color: "#ccc" }}>{r.name}</span>
+                                    <span style={{ color: "#666", fontSize: 10 }}>{r.tier}</span>
+                                    <span>{r.buyers.toLocaleString()} buyers · {fmtBig(r.price)}{r.tier === 'recurring' ? '/mo' : ''}</span>
+                                    <span style={{ color: "#f5f5f5", textAlign: "right" }}>
+                                      {fmtBig(r.statusQuoAnnual)} → <strong>{fmtBig(r.withNewOfferAnnual)}</strong>
+                                      {r.upgradeBuyers > 0 && <span style={{ color: "#22c55e", fontSize: 9, marginLeft: 6 }}>+{r.upgradeBuyers}</span>}
+                                    </span>
+                                  </div>
+                                ))}
+                                <div style={{ display: "grid", gridTemplateColumns: "1.4fr 0.7fr 1fr 1fr", gap: 8, fontSize: 11, padding: "8px 0 4px", borderTop: "1px solid rgba(34,197,94,0.15)", marginTop: 4 }}>
+                                  <span style={{ color: "#22c55e", fontWeight: 700 }}>+ NEW · {eco.newOffer.name}</span>
+                                  <span style={{ color: "#22c55e", fontSize: 10 }}>{eco.newOffer.tierBucket}</span>
+                                  <span style={{ color: "#22c55e" }}>{eco.newOffer.baseBuyers}{eco.newOffer.upgradeBuyers > 0 ? `+${eco.newOffer.upgradeBuyers}` : ''} buyers · {fmtBig(eco.newOffer.projection.priceNumeric || 0)}</span>
+                                  <span style={{ color: "#22c55e", textAlign: "right", fontWeight: 700 }}>{fmtBig(eco.newOffer.annualRevenue)}/yr</span>
+                                </div>
+                              </div>
+                              <div style={{ marginTop: 10, fontSize: 10, color: "#444", lineHeight: 1.5 }}>
+                                Buyer counts for existing products are conservative estimates from audience × tier %. Edit them in the audit when you have real numbers. Upgrade rate ({(eco.upgradeRate * 100).toFixed(0)}% moderate) applies only when role is <em>entry_point</em> or <em>premium_upsell</em>.
+                              </div>
+                            </div>
+                          );
+                        })()}
                       </div>
                     );
                   })()}
