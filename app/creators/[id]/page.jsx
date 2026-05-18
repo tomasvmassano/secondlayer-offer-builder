@@ -261,12 +261,16 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
   const [revenuePrice, setRevenuePrice] = useState(null);
   const [revenueCommission, setRevenueCommission] = useState(30);
   const [engagementRate, setEngagementRate] = useState(null);
+  const [revenueLaunches, setRevenueLaunches] = useState(null);   // one-time only
+  const [revenuePaymentPlan, setRevenuePaymentPlan] = useState(false);
   // Hydrate revenue inputs from creator record on load (single source of truth)
   useEffect(() => {
     if (!creator) return;
     if (revenuePrice == null && creator.revenuePrice != null) setRevenuePrice(creator.revenuePrice);
     if (creator.revenueCommission != null) setRevenueCommission(creator.revenueCommission);
     if (engagementRate == null && creator.revenueEngagement != null) setEngagementRate(creator.revenueEngagement);
+    if (revenueLaunches == null && creator.revenueLaunches != null) setRevenueLaunches(creator.revenueLaunches);
+    if (creator.revenuePaymentPlan != null) setRevenuePaymentPlan(!!creator.revenuePaymentPlan);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [creator?.id]);
   // Debounced save-back so the Pitch deck reads the same numbers
@@ -277,6 +281,8 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
       if (revenuePrice != null) payload.revenuePrice = revenuePrice;
       if (engagementRate != null) payload.revenueEngagement = engagementRate;
       payload.revenueCommission = revenueCommission;
+      if (revenueLaunches != null) payload.revenueLaunches = revenueLaunches;
+      payload.revenuePaymentPlan = revenuePaymentPlan;
       fetch(`/api/creators/${params.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
@@ -284,7 +290,7 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
       }).catch(() => {});
     }, 800);
     return () => clearTimeout(handle);
-  }, [revenuePrice, revenueCommission, engagementRate, params?.id, creator?.id]);
+  }, [revenuePrice, revenueCommission, engagementRate, revenueLaunches, revenuePaymentPlan, params?.id, creator?.id]);
   const [findingSimilar, setFindingSimilar] = useState(false);
   const [similarResult, setSimilarResult] = useState("");
 
@@ -1879,7 +1885,7 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
               // Tier bucket from CP2 pricing_tier × the operator's current price slider.
               // Without this, mid/high recurring offers project as if they were low-ticket.
               const tierBucket = classifyTierBucket(cfo.pricing_tier, price, cfo.pricing_model);
-              const calcSteady = (s) => sharedCalcMRR({ audience: primaryF, price, engagementRate: eng, scenario: s, scenarioKey: s.key, tierBucket, paymentPlan: !!cfo.payment_plan_available });
+              const calcSteady = (s) => sharedCalcMRR({ audience: primaryF, price, engagementRate: eng, scenario: s, scenarioKey: s.key, tierBucket, paymentPlan: revenuePaymentPlan });
               const calcClients = (s) => calcSteady(s).activeMembers;
               const engMultiplier = sharedCalcMRR({ audience: primaryF, price, engagementRate: eng, scenario: scenarios[1], scenarioKey: 'moderado', tierBucket }).engMultiplier;
               const modScenario = scenarios[1];
@@ -1935,6 +1941,37 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
                     <input type="range" min={15} max={50} step={1} value={revenueCommission}
                       onChange={e => setRevenueCommission(Number(e.target.value))}
                       style={{ width: "100%", height: 4, appearance: "none", background: "#222", borderRadius: 2, outline: "none", cursor: "pointer", accentColor: "#7A0E18" }} />
+
+                    {/* Projection-only toggles. Stored at creator level so
+                        they survive offer regeneration. Launches/year only
+                        makes sense for one-time / hybrid; hidden otherwise. */}
+                    <div style={{ marginTop: 16, paddingTop: 14, borderTop: "1px solid rgba(255,255,255,0.04)", display: "flex", gap: 16, alignItems: "center", flexWrap: "wrap" }}>
+                      {(cfo.pricing_model === 'one_time' || cfo.pricing_model === 'hybrid') && (
+                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                          <span style={{ fontSize: 10, fontWeight: 600, color: "#555", letterSpacing: "0.05em", textTransform: "uppercase" }}>Launches / year</span>
+                          <input
+                            type="number"
+                            min="1"
+                            max="12"
+                            value={revenueLaunches ?? ''}
+                            placeholder="auto"
+                            onChange={e => setRevenueLaunches(e.target.value === '' ? null : Number(e.target.value))}
+                            style={{ width: 64, padding: "5px 8px", background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 4, color: "#f5f5f5", fontSize: 11, fontFamily: "inherit", textAlign: "right", outline: "none" }}
+                            title="How many launches/year for this one-time offer. Leave blank for the tier-based suggested default (low=6, mid=3, high=2, premium=1)."
+                          />
+                        </div>
+                      )}
+                      <label style={{ display: "flex", gap: 8, alignItems: "center", cursor: "pointer", fontSize: 10, fontWeight: 600, color: revenuePaymentPlan ? "#22c55e" : "#555", letterSpacing: "0.05em", textTransform: "uppercase" }}>
+                        <input
+                          type="checkbox"
+                          checked={revenuePaymentPlan}
+                          onChange={e => setRevenuePaymentPlan(e.target.checked)}
+                          style={{ accentColor: "#22c55e", cursor: "pointer" }}
+                          title="Payment plan availability lifts conversion ~20-30% (source: learningrevolution). Multiplies projected buyers by 1.25× when checked."
+                        />
+                        Payment plan available <span style={{ color: "#444", fontWeight: 400, letterSpacing: 0, textTransform: "none" }}>(+25% CVR)</span>
+                      </label>
+                    </div>
                   </div>
 
                   {/* Scenario cards */}
@@ -2038,6 +2075,8 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
                     const offerForCalc = {
                       ...cfo,
                       target_price: cfo.target_price || `€${price}/mo`,
+                      launches_per_year: revenueLaunches ?? cfo.launches_per_year,
+                      payment_plan_available: revenuePaymentPlan,
                     };
                     const ecoByScenario = scenarios.map(s => projectEcosystemRevenue({
                       creator: { ...creator, engagement: String(eng) },
@@ -2619,6 +2658,31 @@ function EcosystemAuditPanel({ creator, setCreator, running, error, diag, onRun 
                             rows={2}
                             style={{ ...inputStyle, width: "100%", boxSizing: "border-box", resize: "vertical", fontSize: 11, color: "#aaa", fontFamily: "inherit" }}
                           />
+                          {/* Row 4: revenue-projector overrides — buyer count + retire toggle */}
+                          <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: 8, marginTop: 6, alignItems: "center" }}>
+                            <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                              <span style={{ fontSize: 9, fontWeight: 600, color: "#444", letterSpacing: "0.08em", textTransform: "uppercase", whiteSpace: "nowrap" }}>Current buyers</span>
+                              <input
+                                type="number"
+                                min="0"
+                                value={p.estimated_buyers ?? ''}
+                                placeholder="auto-estimate"
+                                onChange={e => editProduct(i, 'estimated_buyers', e.target.value === '' ? null : Number(e.target.value))}
+                                style={{ ...inputStyle, width: 130, fontSize: 11, textAlign: "right" }}
+                                title="Operator estimate of current paying customers. Leave blank for a conservative auto-estimate (audience × tier %)."
+                              />
+                            </div>
+                            <label style={{ display: "flex", gap: 6, alignItems: "center", cursor: "pointer", fontSize: 10, color: p.retire_on_launch ? "#ef4444" : "#666" }}>
+                              <input
+                                type="checkbox"
+                                checked={!!p.retire_on_launch}
+                                onChange={e => editProduct(i, 'retire_on_launch', e.target.checked)}
+                                style={{ accentColor: "#ef4444", cursor: "pointer" }}
+                                title="Mark this product as retired when the new offer launches. Its revenue drops to 0 in the ecosystem projection."
+                              />
+                              Retire on launch
+                            </label>
+                          </div>
                         </div>
                       );
                     })}
@@ -2713,6 +2777,31 @@ function EcosystemAuditPanel({ creator, setCreator, running, error, diag, onRun 
                             onChange={e => editCommunity(i, 'url', e.target.value)}
                             style={{ ...inputStyle, fontSize: 11, color: "#7A0E18" }}
                           />
+                        </div>
+                        {/* Buyer count + retire toggle — same as products row */}
+                        <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: 8, marginTop: 6, alignItems: "center" }}>
+                          <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                            <span style={{ fontSize: 9, fontWeight: 600, color: "#444", letterSpacing: "0.08em", textTransform: "uppercase", whiteSpace: "nowrap" }}>Current members</span>
+                            <input
+                              type="number"
+                              min="0"
+                              value={c.estimated_buyers ?? ''}
+                              placeholder="auto-estimate"
+                              onChange={e => editCommunity(i, 'estimated_buyers', e.target.value === '' ? null : Number(e.target.value))}
+                              style={{ ...inputStyle, width: 130, fontSize: 11, textAlign: "right" }}
+                              title="Operator estimate of current paying members. Leave blank for a conservative auto-estimate."
+                            />
+                          </div>
+                          <label style={{ display: "flex", gap: 6, alignItems: "center", cursor: "pointer", fontSize: 10, color: c.retire_on_launch ? "#ef4444" : "#666" }}>
+                            <input
+                              type="checkbox"
+                              checked={!!c.retire_on_launch}
+                              onChange={e => editCommunity(i, 'retire_on_launch', e.target.checked)}
+                              style={{ accentColor: "#ef4444", cursor: "pointer" }}
+                              title="Mark this community as retired when the new offer launches."
+                            />
+                            Retire on launch
+                          </label>
                         </div>
                       </div>
                     ))}

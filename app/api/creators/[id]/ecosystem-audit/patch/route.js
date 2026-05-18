@@ -63,6 +63,14 @@ export async function POST(request, { params }) {
         tier: p.tier || 'low_ticket',
         url: p.url?.trim() || '',
         transformation_offered: p.transformation_offered?.trim() || '',
+        // Operator-supplied overrides used by the ecosystem revenue
+        // projector. estimated_buyers replaces the conservative default
+        // (audience × tier %). retire_on_launch zeroes out the product's
+        // contribution to status-quo revenue after the new offer launches.
+        estimated_buyers: (typeof p.estimated_buyers === 'number' && p.estimated_buyers >= 0)
+          ? Math.round(p.estimated_buyers)
+          : null,
+        retire_on_launch: !!p.retire_on_launch,
       }));
     }
 
@@ -83,6 +91,11 @@ export async function POST(request, { params }) {
         tier: c.tier || 'recurring',
         format: c.format?.trim() || 'community',
         url: c.url?.trim() || '',
+        // Same operator overrides as products — drives ecosystem projector.
+        estimated_buyers: (typeof c.estimated_buyers === 'number' && c.estimated_buyers >= 0)
+          ? Math.round(c.estimated_buyers)
+          : null,
+        retire_on_launch: !!c.retire_on_launch,
       }));
     }
 
