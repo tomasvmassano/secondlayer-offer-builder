@@ -89,10 +89,26 @@ export default function Hub() {
         </div>
 
 
-        {/* Feedback & Support */}
-        <div style={{ marginTop: 48 }}>
+        {/* Equipa + Feedback row */}
+        <div style={{ marginTop: 48, display: "flex", gap: 10 }}>
+          <a href="/equipa" style={{
+            flex: 1, display: "flex", alignItems: "center", justifyContent: "space-between",
+            padding: "14px 18px", borderRadius: 8,
+            background: "rgba(177,30,47,0.04)", border: "1px solid rgba(177,30,47,0.20)",
+            textDecoration: "none", color: "inherit", transition: "border-color 0.15s",
+          }}
+            onMouseEnter={e => e.currentTarget.style.borderColor = "rgba(177,30,47,0.45)"}
+            onMouseLeave={e => e.currentTarget.style.borderColor = "rgba(177,30,47,0.20)"}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <span style={{ fontSize: 11, color: "#B11E2F" }}>●</span>
+              <span style={{ fontSize: 12, fontWeight: 600, color: "#f5f5f5" }}>Equipa</span>
+              <span style={{ fontSize: 10, color: "#666" }}>scoreboard + €50 daily rule</span>
+            </div>
+            <span style={{ fontSize: 10, color: "#666" }}>&rarr;</span>
+          </a>
           <a href="/support" style={{
-            display: "flex", alignItems: "center", justifyContent: "space-between",
+            flex: 1, display: "flex", alignItems: "center", justifyContent: "space-between",
             padding: "14px 18px", borderRadius: 8,
             background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.04)",
             textDecoration: "none", color: "inherit", transition: "border-color 0.15s",

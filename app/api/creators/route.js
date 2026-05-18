@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { saveCreator, getCreator, listCreators, searchCreators } from '../../lib/creators';
 import { syncCreatorEmail } from '../../lib/syncEmailToSheet';
+import { getCurrentUser } from '../../lib/auth';
 import { apifyToCreatorProfile, scrapeMultiplePlatforms, scrapeLean } from '../../lib/apify';
 import { resolvePrimaryLanguage } from '../../lib/language';
 import { calculateDealScore } from '../../lib/dealScore';
@@ -347,6 +348,19 @@ RESEARCH: [2-3 paragraph summary]`,
       } catch {
         // Score calc failed — save anyway, don't punish the creator for our bug.
       }
+    }
+
+    // Attribution: stamp the team member who added this creator so the
+    // dashboard can show "creators added by Tomás vs Raul" by date range.
+    // Falls back to null when there's no session (cron, scripts).
+    const currentUser = await getCurrentUser(request);
+    if (currentUser) {
+      const firstName = (currentUser.email || '').split('@')[0].split('.')[0];
+      profile.addedBy = {
+        userId: currentUser.userId,
+        firstName: firstName ? firstName.charAt(0).toUpperCase() + firstName.slice(1) : null,
+        at: new Date().toISOString(),
+      };
     }
 
     // saveCreator dedupes by IG handle internally: if the creator already

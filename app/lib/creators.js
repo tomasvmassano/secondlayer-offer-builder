@@ -72,6 +72,10 @@ export async function saveCreator(data) {
     // contactEmail surfaced from the first scrape — IG public/business email,
     // aggregator page email, or regex over the bio. Null if none found.
     contactEmail: data.contactEmail || null,
+    // addedBy — team-member attribution. { userId, firstName, at }. Set by
+    // the API route from the current session. Null when added pre-auth or
+    // via cron / scripts. Backfilled to Tomás for legacy records on read.
+    addedBy: data.addedBy || null,
     profilePicUrl: data.profilePicUrl || '',
     isVerified: data.isVerified || false,
     isBusinessAccount: data.isBusinessAccount || false,
@@ -231,6 +235,15 @@ export async function getCreator(id) {
   // English content instead of silently falling back to PT.
   if (creator.primaryLanguage == null) {
     creator = { ...creator, primaryLanguage: 'en' };
+  }
+  // Backfill addedBy for legacy creators added before team attribution
+  // existed. Tomás was the only operator until 2026-05-18, so all historical
+  // additions land on him. New creators always get a real addedBy stamp.
+  if (!creator.addedBy) {
+    creator = {
+      ...creator,
+      addedBy: { userId: 'tomas-backfill', firstName: 'Tomás', at: creator.createdAt || creator.updatedAt || null },
+    };
   }
   return creator;
 }
