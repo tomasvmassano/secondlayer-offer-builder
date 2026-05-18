@@ -940,29 +940,55 @@ function PitchPageContent() {
           </h1>
 
           <div style={{ marginTop: 48, display: "grid", gridTemplateColumns: "0.55fr 1.45fr", gap: 56, flex: 1, alignItems: "center" }}>
-            {/* LEFT · slim tier list, prices editable, NEW community highlighted */}
+            {/* LEFT · slim tier list, sorted by ascending price, NEW highlighted */}
             <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
               {(() => {
                 const en = creator?.primaryLanguage === 'en';
-                // Insert NEW community into the products array at its tier position
+                // Build all rungs with a numeric price, then sort ascending so
+                // the cascade reads bottom-of-funnel → top-of-ladder. Lead
+                // magnets land at the top (price 0). The NEW slots into its
+                // real price position, not its tier position — €297 sits
+                // between €95 and €4850, not after the high-ticket products.
+                const parsePrice = (s) => {
+                  if (typeof s === 'number') return s;
+                  if (!s) return 0;
+                  const m = String(s).match(/(\d[\d.,]*)/);
+                  if (!m) return 0;
+                  return parseFloat(m[1].replace(/\./g, '').replace(',', '.')) || 0;
+                };
                 const allRungs = [];
-                PITCH_TIER_ORDER.forEach(tier => {
-                  slides.businessContext.products
-                    .filter(p => p.tier === tier)
-                    .forEach((p, ix) => allRungs.push({ kind: 'existing', product: p, ix: slides.businessContext.products.indexOf(p) }));
-                  if (tier === slides.businessContext.newOfferTier) {
-                    allRungs.push({ kind: 'new' });
+                slides.businessContext.products.forEach((p, ix) => {
+                  // Lead magnets always at top (price 0). Non-lead-magnet
+                  // items with no parseable price (e.g. "Custom AI Consulting"
+                  // service with no listed rate) drop to the BOTTOM via
+                  // Infinity — they're not free, the price is just unknown.
+                  let priceNum;
+                  if (p.tier === 'lead_magnet') {
+                    priceNum = 0;
+                  } else {
+                    const raw = p.price_eur || parsePrice(p.price);
+                    priceNum = raw > 0 ? raw : Number.POSITIVE_INFINITY;
                   }
+                  allRungs.push({ kind: 'existing', product: p, ix, priceNum });
                 });
+                const newPriceNum = parsePrice(slides.businessContext.newOfferPrice);
+                allRungs.push({ kind: 'new', priceNum: newPriceNum > 0 ? newPriceNum : Number.POSITIVE_INFINITY });
+                allRungs.sort((a, b) => a.priceNum - b.priceNum);
                 return allRungs.map((r, i) => {
                   if (r.kind === 'new') {
                     return (
-                      <div key={`new-${i}`}>
-                        <div style={{ fontSize: 10, fontWeight: 700, color: "#B11E2F", letterSpacing: "0.18em", textTransform: "uppercase", marginBottom: 4 }}>
+                      <div key={`new-${i}`} style={{
+                        padding: "16px 20px",
+                        background: "linear-gradient(90deg, rgba(177,30,47,0.18), rgba(177,30,47,0.04))",
+                        border: "1px solid rgba(177,30,47,0.55)",
+                        borderRadius: 10,
+                        boxShadow: "0 0 24px rgba(177,30,47,0.15)",
+                      }}>
+                        <div style={{ fontSize: 11, fontWeight: 700, color: "#B11E2F", letterSpacing: "0.22em", textTransform: "uppercase", marginBottom: 6 }}>
                           {en ? '● New' : '● Novo'}
                         </div>
-                        <div style={{ ...italicSerif, fontSize: 24, color: "#f5f5f5", lineHeight: 1.1, marginBottom: 4 }}>{slides.businessContext.newOfferName}</div>
-                        <div style={{ fontSize: 18, color: "#B11E2F", fontFamily: "'JetBrains Mono', ui-monospace, monospace", fontWeight: 700 }}>
+                        <div style={{ ...italicSerif, fontSize: 30, color: "#f5f5f5", lineHeight: 1.05, marginBottom: 6 }}>{slides.businessContext.newOfferName}</div>
+                        <div style={{ fontSize: 22, color: "#B11E2F", fontFamily: "'JetBrains Mono', ui-monospace, monospace", fontWeight: 700 }}>
                           <Editable
                             value={slides.businessContext.newOfferPrice}
                             onChange={v => updateSlide('businessContext', 'newOfferPrice', v)}
@@ -974,6 +1000,10 @@ function PitchPageContent() {
                   const p = r.product;
                   const tierLbl = (PITCH_TIER_LABELS[p.tier] || { pt: p.tier, en: p.tier });
                   const tierTxt = en ? tierLbl.en : tierLbl.pt;
+                  const isLeadMagnet = p.tier === 'lead_magnet';
+                  const priceDisplay = isLeadMagnet
+                    ? (en ? 'Free' : 'Grátis')
+                    : (p.price_eur ? '€' + p.price_eur : (p.price || '—'));
                   return (
                     <div key={`p-${i}`} style={{ opacity: 0.55 }}>
                       <div style={{ fontSize: 9, fontWeight: 700, color: "#8A8A8A", letterSpacing: "0.18em", textTransform: "uppercase", marginBottom: 4, fontFamily: "'JetBrains Mono', ui-monospace, monospace" }}>
@@ -982,7 +1012,7 @@ function PitchPageContent() {
                       <div style={{ ...italicSerif, fontSize: 22, color: "#D9D9D9", lineHeight: 1.1, marginBottom: 4 }}>{p.name}</div>
                       <div style={{ fontSize: 14, color: "#888", fontFamily: "'JetBrains Mono', ui-monospace, monospace" }}>
                         <Editable
-                          value={p.price_eur ? '€' + p.price_eur : (p.price || '—')}
+                          value={priceDisplay}
                           onChange={v => {
                             const next = [...slides.businessContext.products];
                             next[r.ix] = { ...next[r.ix], price: v, price_eur: null };

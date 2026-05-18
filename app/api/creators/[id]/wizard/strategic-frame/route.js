@@ -137,12 +137,23 @@ If community_cannibalization_risk is "low" or "none":
 
 7. **differentiation_from_existing** — 2-4 sentences. ONLY required when cannibalization risk is high/medium. Must reference existing communities by name. Explains why the new offer serves a different audience, tier, or stage than what the creator already sells. See CANNIBALIZATION CHECK section above.
 
-8. **ecosystem_impact** — 3-5 bullets, ≤320 chars each. The VISCERAL impact of adding this new offer on the creator's existing business, in pocketbook terms. Each bullet should be specific, money-anchored, and felt — not abstract.
-   - GOOD: "Blueprint Academy graduates upgrading to The Six Database System at €297/mo add ~€7,000/mo if 5% of the 4,500 members make the jump in 6 months."
+8. **ecosystem_impact** — 3-5 bullets, ≤320 chars each. Lands on pitch deck slide 3 (Mapa do Ecossistema). Bullet[0] is the BIG QUOTE on the right; bullets[1+] render as smaller supporting notes underneath.
+
+   **Bullet[0] — the human WHY (most important bullet).**
+   ONE sentence (≤200 chars) that reads like a senior strategist explaining over coffee why this offer FITS at this exact rung of the ladder. NOT a calculation. NOT a projection. A diagnosis.
+   - Reference the gap by name. Name the existing rungs above and below. Explain the slot.
+   - Use plain language. No "MRR adicional", no "%", no "X membros em Y meses" math. Save that for bullets[1+].
+   - GOOD: "Esta tier encaixa entre o Chase AI+ (€95) e a mentoria 1:1 (€4850) — é o passo natural para quem já paga, vê valor, e quer mais do que a comunidade mas ainda não está pronto para a mentoria."
+   - GOOD: "The €297 rung is the missing middle: today members either pay €95 and stay, or jump €4,755 to the 1:1 — nobody upgrades in the middle because there is no middle."
+   - BAD: "Graduados X que fazem upgrade para Y geram €Z/mês se W% fazem transição em N meses" (this is a calculation, not a why — move it to bullets[1+])
+   - BAD: "Adds recurring revenue stream" (abstract)
+
+   **Bullets[1+] — the money-anchored supporting details.**
+   2-4 bullets that flesh out the financial picture. THESE can be numerical, projective, specific. Each bullet should be specific, money-anchored, and felt — not abstract.
+   - GOOD: "Blueprint Academy graduates upgrading at €297/mo add ~€7,000/mo if 5% of the 4,500 members jump in 6 months."
    - GOOD: "Strategic consultancy clients (€5K each) get nudged into the recurring tier post-engagement — recovers retainer revenue lost when projects end."
    - BAD: "Increases customer lifetime value" (vague, no number, no entity)
    - BAD: "Synergy with existing offers" (meaningless)
-   This block lands on the pitch deck slide 3 (Mapa do Ecossistema · right column). The creator needs to FEEL the financial impact, not just understand it intellectually.
 
 ## STYLE
 
