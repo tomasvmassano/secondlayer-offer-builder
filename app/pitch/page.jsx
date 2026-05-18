@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo, useRef, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
-import { SCENARIOS as SHARED_SCENARIOS, projectGrowth as sharedProjectGrowth, cumulativeRevenue as sharedCumulative, calculateSteadyMRR } from "../lib/revenue";
+import { SCENARIOS as SHARED_SCENARIOS, projectGrowth as sharedProjectGrowth, cumulativeRevenue as sharedCumulative, calculateSteadyMRR, calculateOfferRevenue, projectEcosystemRevenue } from "../lib/revenue";
 import { parseOutput } from "../lib/offerParser";
 import { readClientFacing, legacyParsedToOfferState } from "../lib/offerSchema";
 import { pickCases } from "../lib/casesDb";
@@ -462,6 +462,41 @@ function PitchPageContent() {
   const moderateSteadyMRR = moderateSteady.monthlyRevenue;
   // Cumulative across the actual ramp-up Year 1 (sum of all 12 monthly MRR values from growth)
   const moderateCumulative = projections.moderado ? cumulativeRevenue(projections.moderado.months) : 0;
+
+  // ── Offer-aware projection for slide 9 ──
+  // Detects the offer's pricing_model (monthly / annual / one_time / hybrid)
+  // and dispatches to the right formula. For one-time and hybrid offers the
+  // hero swaps from MRR to annual cohort revenue. For all modes the
+  // ecosystem comparison band below shows status quo vs with-new-offer.
+  const offerForPitch = useMemo(() => {
+    const cfo = creator?.offer?.client_facing_output || {};
+    return {
+      ...cfo,
+      target_price: cfo.target_price || (price ? `€${price}/mo` : ''),
+      launches_per_year: creator?.revenueLaunches ?? cfo.launches_per_year,
+      payment_plan_available: creator?.revenuePaymentPlan ?? cfo.payment_plan_available,
+    };
+  }, [creator, price]);
+  const offerProjection = useMemo(
+    () => calculateOfferRevenue({ offer: offerForPitch, creator, scenarioKey: 'moderado', audienceOverride: audience, priceOverride: price ? `€${price}` : undefined }),
+    [offerForPitch, creator, audience, price]
+  );
+  const ecosystemProjection = useMemo(() => {
+    const audit = creator?.offer?.internal_metadata?.ecosystem_audit;
+    const frame = creator?.offer?.internal_metadata?.strategic_frame;
+    if (!audit) return null;
+    const existingProducts = [
+      ...(audit.ecosystem_map?.products_found || []),
+      ...(audit.ecosystem_map?.existing_communities || []).map(c => ({ ...c, tier: c.tier || 'recurring' })),
+    ].filter(p => p && p.tier && p.tier !== 'lead_magnet');
+    return projectEcosystemRevenue({
+      creator: { ...creator, engagement: String(engagement) },
+      offer: offerForPitch,
+      existingProducts,
+      scenarioKey: 'moderado',
+      confirmedRole: frame?.confirmed_role,
+    });
+  }, [creator, offerForPitch, engagement]);
 
   const updateSlide = (slideKey, field, value) => {
     setSlides(prev => ({ ...prev, [slideKey]: { ...prev[slideKey], [field]: value } }));
@@ -1531,24 +1566,93 @@ function PitchPageContent() {
             />
           </h1>
 
-          {/* Hero MRR — split layout: monthly LEFT, accumulated Year 1 RIGHT */}
-          <div style={{ marginTop: 32, padding: "36px 44px", background: "rgba(122,14,24,0.08)", border: "1px solid rgba(122,14,24,0.55)", borderRadius: 14, display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 40 }}>
-            <div>
-              <div style={{ fontSize: 16, fontWeight: 600, color: "#B11E2F", letterSpacing: "0.22em", textTransform: "uppercase", marginBottom: 14 }}>
-                <Editable value={slides.numbers.heroLabel} onChange={v => updateSlide('numbers', 'heroLabel', v)} />
+          {/* Hero — mode-aware. Monthly/annual offers show MRR + Year-1
+              cumulative. One-time and hybrid offers swap to per-launch
+              cohort + annual cohort revenue, since MRR is a meaningless
+              metric for a launch-cohort business. */}
+          {(() => {
+            const en = creator?.primaryLanguage === 'en';
+            const mode = offerProjection?.mode || 'recurring';
+            if (mode === 'one_time' || mode === 'hybrid') {
+              const perLaunch = (offerProjection.firstLaunchBuyers || 0) * (offerProjection.priceNumeric || 0);
+              const annual = offerProjection.annualRevenue || 0;
+              return (
+                <div style={{ marginTop: 32, padding: "36px 44px", background: "rgba(122,14,24,0.08)", border: "1px solid rgba(122,14,24,0.55)", borderRadius: 14, display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 40 }}>
+                  <div>
+                    <div style={{ fontSize: 16, fontWeight: 600, color: "#B11E2F", letterSpacing: "0.22em", textTransform: "uppercase", marginBottom: 14 }}>
+                      {en ? 'Annual revenue · moderate' : 'Receita anual · cenário moderado'}
+                    </div>
+                    <div style={{ lineHeight: 0.9, letterSpacing: "-0.02em" }}>
+                      <span style={{ ...italicSerif, fontSize: 124, fontWeight: 400, color: "#B11E2F" }}>{formatEuro(annual)}</span>
+                      <span style={{ fontSize: 38, color: "#8A8A8A", fontWeight: 500, marginLeft: 4 }}>/{en ? 'yr' : 'ano'}</span>
+                    </div>
+                  </div>
+                  <div style={{ textAlign: "right" }}>
+                    <div style={{ fontSize: 16, fontWeight: 600, color: "#8A8A8A", letterSpacing: "0.22em", textTransform: "uppercase", marginBottom: 10, whiteSpace: "nowrap" }}>
+                      {en ? `Per launch × ${offerProjection.launchesPerYear}/yr` : `Por lançamento × ${offerProjection.launchesPerYear}/ano`}
+                    </div>
+                    <div style={{ fontSize: 38, fontWeight: 600, letterSpacing: "-0.01em", color: "#f5f5f5" }}>{formatEuro(perLaunch)}</div>
+                    <div style={{ fontSize: 12, color: "#666", marginTop: 4 }}>{offerProjection.firstLaunchBuyers} {en ? 'buyers/launch' : 'compradores/lançamento'}</div>
+                  </div>
+                </div>
+              );
+            }
+            return (
+              <div style={{ marginTop: 32, padding: "36px 44px", background: "rgba(122,14,24,0.08)", border: "1px solid rgba(122,14,24,0.55)", borderRadius: 14, display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 40 }}>
+                <div>
+                  <div style={{ fontSize: 16, fontWeight: 600, color: "#B11E2F", letterSpacing: "0.22em", textTransform: "uppercase", marginBottom: 14 }}>
+                    <Editable value={slides.numbers.heroLabel} onChange={v => updateSlide('numbers', 'heroLabel', v)} />
+                  </div>
+                  <div style={{ lineHeight: 0.9, letterSpacing: "-0.02em" }}>
+                    <span style={{ ...italicSerif, fontSize: 124, fontWeight: 400, color: "#B11E2F" }}>{formatEuro(moderateSteadyMRR)}</span>
+                    <span style={{ fontSize: 38, color: "#8A8A8A", fontWeight: 500, marginLeft: 4 }}>/{en ? 'mo' : 'mês'}</span>
+                  </div>
+                </div>
+                <div style={{ textAlign: "right" }}>
+                  <div style={{ fontSize: 16, fontWeight: 600, color: "#8A8A8A", letterSpacing: "0.22em", textTransform: "uppercase", marginBottom: 10, whiteSpace: "nowrap" }}>
+                    {en ? 'Cumulative · Year 1' : 'Receita acumulada · Ano 1'}
+                  </div>
+                  <div style={{ fontSize: 38, fontWeight: 600, letterSpacing: "-0.01em", color: "#f5f5f5" }}>{formatEuro(moderateCumulative)}</div>
+                </div>
               </div>
-              <div style={{ lineHeight: 0.9, letterSpacing: "-0.02em" }}>
-                <span style={{ ...italicSerif, fontSize: 124, fontWeight: 400, color: "#B11E2F" }}>{formatEuro(moderateSteadyMRR)}</span>
-                <span style={{ fontSize: 38, color: "#8A8A8A", fontWeight: 500, marginLeft: 4 }}>/{creator?.primaryLanguage === 'en' ? 'mo' : 'mês'}</span>
+            );
+          })()}
+
+          {/* Ecosystem comparison band — only renders when audit data exists.
+              Pitches the creator on the FULL ecosystem upside, not just the
+              new offer in isolation. Shows status quo vs with-new-offer at
+              the moderate scenario, both annualised. */}
+          {ecosystemProjection && ecosystemProjection.headline.statusQuoAnnual > 0 && (() => {
+            const en = creator?.primaryLanguage === 'en';
+            const eco = ecosystemProjection;
+            return (
+              <div style={{ marginTop: 14, padding: "20px 28px", background: "rgba(34,197,94,0.05)", border: "1px solid rgba(34,197,94,0.30)", borderRadius: 14, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 28 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 28, flex: 1 }}>
+                  <div>
+                    <div style={{ fontSize: 10, fontWeight: 600, color: "#888", letterSpacing: "0.16em", textTransform: "uppercase", marginBottom: 4 }}>
+                      {en ? 'Ecosystem today (annual)' : 'Ecossistema hoje (anual)'}
+                    </div>
+                    <div style={{ fontSize: 30, fontWeight: 700, color: "#888", letterSpacing: "-0.01em" }}>{formatEuro(eco.headline.statusQuoAnnual)}</div>
+                  </div>
+                  <div style={{ fontSize: 32, color: "#444", fontWeight: 300 }}>→</div>
+                  <div>
+                    <div style={{ fontSize: 10, fontWeight: 600, color: "#22c55e", letterSpacing: "0.16em", textTransform: "uppercase", marginBottom: 4 }}>
+                      {en ? 'With new offer' : 'Com nova oferta'}
+                    </div>
+                    <div style={{ fontSize: 36, fontWeight: 700, color: "#22c55e", letterSpacing: "-0.01em" }}>{formatEuro(eco.headline.withNewOfferAnnual)}</div>
+                  </div>
+                </div>
+                <div style={{ textAlign: "right" }}>
+                  <div style={{ fontSize: 10, fontWeight: 600, color: "#22c55e", letterSpacing: "0.16em", textTransform: "uppercase", marginBottom: 4 }}>
+                    Δ
+                  </div>
+                  <div style={{ fontSize: 30, fontWeight: 800, color: "#22c55e", letterSpacing: "-0.01em" }}>
+                    +{formatEuro(eco.headline.deltaAnnual)}
+                  </div>
+                </div>
               </div>
-            </div>
-            <div style={{ textAlign: "right" }}>
-              <div style={{ fontSize: 16, fontWeight: 600, color: "#8A8A8A", letterSpacing: "0.22em", textTransform: "uppercase", marginBottom: 10, whiteSpace: "nowrap" }}>
-                {creator?.primaryLanguage === 'en' ? 'Cumulative · Year 1' : 'Receita acumulada · Ano 1'}
-              </div>
-              <div style={{ fontSize: 38, fontWeight: 600, letterSpacing: "-0.01em", color: "#f5f5f5" }}>{formatEuro(moderateCumulative)}</div>
-            </div>
-          </div>
+            );
+          })()}
 
           {/* Split: chart left, formula+inputs right */}
           <div style={{ marginTop: 22, display: "grid", gridTemplateColumns: "1.4fr 1fr", gap: 22 }}>
