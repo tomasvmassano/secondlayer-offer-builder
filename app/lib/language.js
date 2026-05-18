@@ -47,10 +47,17 @@ function parseLanguageString(str) {
  *
  * Returns:
  *   "pt" — PT >= threshold, use Portuguese
- *   "en" — EN >= threshold, use English
- *   null — neither reaches threshold (language_not_served)
+ *   "en" — every other case: EN >= threshold, OR neither reaches threshold,
+ *          OR detected language is something else (Spanish/Arabic/etc.).
  *
- * When BOTH meet threshold, the higher % wins.
+ * Decision (2026-05-18): rather than returning null and flagging
+ * "language_not_served", we default to EN for non-PT creators. Second
+ * Layer's product surface only renders in PT or EN, and the operator can
+ * still override per-creator via the language badge. This means a
+ * Spanish-audience creator gets EN assets rather than silently falling
+ * back to PT downstream (which was the old behaviour for null).
+ *
+ * When BOTH PT and EN meet threshold, the higher % wins.
  *
  * @param {string|object} input Language string from intelligence.audience.primaryLanguage
  *                              OR a pre-parsed object like { pt: 70, en: 20 }
@@ -65,7 +72,8 @@ export function resolvePrimaryLanguage(input, threshold = THRESHOLD) {
     return pt >= en ? 'pt' : 'en';
   }
   if (pt >= threshold) return 'pt';
-  if (en >= threshold) return 'en';
-  return null; // language_not_served
+  // Everything else → EN (covers en >= threshold AND non-PT/non-EN audiences
+  // AND audiences too fragmented to commit to one language).
+  return 'en';
 }
 

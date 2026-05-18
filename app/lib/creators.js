@@ -221,6 +221,14 @@ export async function getCreator(id) {
       await getRedis().set(`creator:${id}`, JSON.stringify(creator));
     }
   }
+
+  // Backfill primaryLanguage for legacy creators where the resolver returned
+  // null (pre-2026-05-18 behaviour for non-PT/non-EN audiences). New decision:
+  // default to 'en' so downstream branches that check `=== 'en'` produce
+  // English content instead of silently falling back to PT.
+  if (creator.primaryLanguage == null) {
+    creator = { ...creator, primaryLanguage: 'en' };
+  }
   return creator;
 }
 
