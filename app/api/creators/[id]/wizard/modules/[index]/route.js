@@ -155,7 +155,7 @@ ${instruction ? `## OPERATOR INSTRUCTION FOR THIS REGEN\n${instruction}\n\n` : '
     body: JSON.stringify({
       model: 'claude-sonnet-4-20250514',
       max_tokens: 1500,
-      system: MODULES_SYSTEM_PROMPT,
+      system: [{ type: 'text', text: MODULES_SYSTEM_PROMPT, cache_control: { type: 'ephemeral' } }],
       messages: [{ role: 'user', content: userMessage }],
     }),
   });
@@ -183,7 +183,7 @@ ${instruction ? `## OPERATOR INSTRUCTION FOR THIS REGEN\n${instruction}\n\n` : '
         body: JSON.stringify({
           model: 'claude-sonnet-4-20250514',
           max_tokens: 1500,
-          system: MODULES_SYSTEM_PROMPT,
+          system: [{ type: 'text', text: MODULES_SYSTEM_PROMPT, cache_control: { type: 'ephemeral' } }],
           messages: [
             { role: 'user', content: userMessage },
             { role: 'assistant', content: rawText },

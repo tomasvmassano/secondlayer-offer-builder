@@ -25,13 +25,13 @@ export async function POST(request) {
       body: JSON.stringify({
         model: 'claude-sonnet-4-20250514',
         max_tokens: 1500,
-        system: `You rewrite outreach messages for Second Layer. Rules:
+        system: [{ type: 'text', text: `You rewrite outreach messages for Second Layer. Rules:
 - Write like a real person, peer to peer. Not an agency pitch.
 - NEVER use dashes (—, –, -) as punctuation.
 - NEVER mention pricing, commission, %, business model, "partnership", "collaboration", "proposal", "agency", or "services".
 - Keep the same tone and format as the original.
 - Default to Portuguese unless told otherwise.
-- Output ONLY the rewritten message. No explanation, no preamble.`,
+- Output ONLY the rewritten message. No explanation, no preamble.`, cache_control: { type: 'ephemeral' } }],
         messages: [{
           role: 'user',
           content: `Rewrite this ${touchpointKey} for creator "${creatorName || 'this creator'}".

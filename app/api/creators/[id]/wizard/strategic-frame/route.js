@@ -284,7 +284,7 @@ ${extraInstruction ? `## ADDITIONAL INSTRUCTION\n${extraInstruction}\n\n` : ''}R
     body: JSON.stringify({
       model: 'claude-sonnet-4-20250514',
       max_tokens: 2500,
-      system: SYSTEM_PROMPT,
+      system: [{ type: 'text', text: SYSTEM_PROMPT, cache_control: { type: 'ephemeral' } }],
       messages: [{ role: 'user', content: userMessage }],
     }),
   });
@@ -310,7 +310,7 @@ ${extraInstruction ? `## ADDITIONAL INSTRUCTION\n${extraInstruction}\n\n` : ''}R
         body: JSON.stringify({
           model: 'claude-sonnet-4-20250514',
           max_tokens: 2500,
-          system: SYSTEM_PROMPT,
+          system: [{ type: 'text', text: SYSTEM_PROMPT, cache_control: { type: 'ephemeral' } }],
           messages: [
             { role: 'user', content: userMessage },
             { role: 'assistant', content: rawText },

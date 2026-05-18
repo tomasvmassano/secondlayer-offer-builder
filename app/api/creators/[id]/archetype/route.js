@@ -262,7 +262,7 @@ Return ONLY the JSON object. No code fences, no preamble.`;
       model: 'claude-sonnet-4-20250514',
       max_tokens: 2000,
       tools: [{ type: 'web_search_20250305', name: 'web_search' }],
-      system: SYSTEM_PROMPT,
+      system: [{ type: 'text', text: SYSTEM_PROMPT, cache_control: { type: 'ephemeral' } }],
       messages: [{ role: 'user', content: userMessage }],
     }),
   });
@@ -289,7 +289,7 @@ Return ONLY the JSON object. No code fences, no preamble.`;
           model: 'claude-sonnet-4-20250514',
           max_tokens: 2000,
           tools: [{ type: 'web_search_20250305', name: 'web_search' }],
-          system: SYSTEM_PROMPT,
+          system: [{ type: 'text', text: SYSTEM_PROMPT, cache_control: { type: 'ephemeral' } }],
           messages: [
             { role: 'user', content: userMessage },
             { role: 'assistant', content: rawText },

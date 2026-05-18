@@ -55,7 +55,7 @@ export async function POST(request) {
       body: JSON.stringify({
         model: 'claude-sonnet-4-20250514',
         max_tokens: 16000,
-        system: composedSystem,
+        system: [{ type: 'text', text: composedSystem, cache_control: { type: 'ephemeral' } }],
         messages: [{ role: 'user', content: message }],
       }),
     });

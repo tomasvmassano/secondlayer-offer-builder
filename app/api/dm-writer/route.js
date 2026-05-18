@@ -376,13 +376,13 @@ export async function POST(request) {
   const language = (body.language || cp.primaryLanguage || 'pt').toLowerCase() === 'en' ? 'en' : 'pt';
   const baseSystemPrompt = language === 'en' ? DM_SYSTEM_EN : DM_SYSTEM_PT;
 
-  // Layer Hormozi knowledge above the DM structure so the LLM writes
-  // better hooks, sharper observations, and more credible authority lines.
-  //   - hooks     → Block 1 (Hook) benefits from hooks taxonomy: Narrative or Statement types work best
-  //   - core-four → Cold Outreach channel rules — pacing, list quality, personalization
-  //   - closing   → STAR-style observation for Block 2; validate-then-question for Block 3
-  const { systemPrompt: skillsPrompt, references: skillsRefs } = loadSkills(['hooks', 'core-four', 'closing']);
-  const refsContext = formatReferences(skillsRefs, 20000);
+  // Layer hooks taxonomy only — Block 1 benefits from Narrative/Statement types.
+  // Dropped 'core-four' and 'closing' (2026-05-18): the dm-writer has its own
+  // dedicated 4-block structure + voice rules, so the marketing playbooks were
+  // ~3,500 tokens of dead weight per call. Reference budget trimmed 20k → 5k
+  // since only `hooks` has refs (~3k chars) — the higher cap did nothing.
+  const { systemPrompt: skillsPrompt, references: skillsRefs } = loadSkills(['hooks']);
+  const refsContext = formatReferences(skillsRefs, 5000);
   const layeredKnowledge = `## DEEP KNOWLEDGE LAYER — use to write BETTER blocks, not to override the structure below.
 
 ${skillsPrompt}
@@ -395,11 +395,11 @@ The 3-block DM structure below is fixed. Use Hormozi knowledge to make each bloc
 
 1. **Block 1 (Hook)** — apply hooks taxonomy. Narrative or Statement types work best for cold DM. The specific content piece is the call-out; the personal reaction is the validate-then-transition. Do NOT invent context. Specificity over cleverness.
 
-2. **Block 2 (Observation)** — apply STAR-style observation: show you've mapped their Situation, name the Gap that signals a missing Continuity stage or no Attraction Offer. Use real product names and numbers from the audit.
+2. **Block 2 (Observation)** — map their Situation, name the Gap. Use real product names and numbers from the audit.
 
 3. **Block 3 (Question)** — this IS the close. An open question that surfaces their awareness of the gap. Not a video CTA. Not "Faz sentido?". Just the question.
 
-Stay inside cold-outreach pacing rules of core-four (Rule of 100, no broadcast spam). Never use Hormozi framing to add extra paragraphs or insert an authority block. Three blocks. No more.
+Never use the hooks framing to add extra paragraphs or insert an authority block. Three blocks. No more.
 
 ---
 
