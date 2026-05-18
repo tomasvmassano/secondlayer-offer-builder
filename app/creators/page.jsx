@@ -592,18 +592,22 @@ export default function CreatorsPage() {
         )}
 
         {/* Tabs.
-            "Novos" = no offer yet AND not cold/signed (active prospects).
-            "Em contacto" = offer generated AND not cold/signed.
-            "Frio" = pipelineStatus === 'cold' — set automatically by the
-              dm-reminders cron after 21 days with no reply, OR manually.
-              Previously these creators were invisible (no tab matched them),
-              which meant duplicate detection appeared as silent failures. */}
+            "Novos"       = active prospect, no reply yet (DM may have been sent
+                            but creator hasn't engaged).
+            "Em contacto" = creator replied to outreach — outreach.repliedAt
+                            is set (the operator clicked "Respondeu" on the
+                            DM Writer). This is the engaged-conversation tab.
+            "Frio"        = pipelineStatus === 'cold' — set automatically by
+                            the dm-reminders cron after 21 days with no reply,
+                            or manually.
+            "Discovery"   = candidates from the discovery queue (not yet
+                            added to the CRM). */}
         {(() => {
           const isFrio = (c) => c.pipelineStatus === 'cold';
           const isSigned = (c) => c.pipelineStatus === 'signed';
           const isActive = (c) => !isFrio(c) && !isSigned(c);
-          const warm = creators.filter(c => isActive(c) && c.hasOffer);
-          const cold = creators.filter(c => isActive(c) && !c.hasOffer);
+          const warm = creators.filter(c => isActive(c) && c.repliedAt);
+          const cold = creators.filter(c => isActive(c) && !c.repliedAt);
           const frio = creators.filter(isFrio);
           const activeList = crmTab === "novos" ? cold
             : crmTab === "contacto" ? warm

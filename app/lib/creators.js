@@ -155,6 +155,10 @@ export async function saveCreator(data) {
     pipelineStatus: creator.pipelineStatus,
     hasOffer: !!(creator.offer || creator.offerId),
     hasDm: !!creator.dmSequence,
+    // repliedAt — drives the CRM "Em contacto" tab. Set when the operator
+    // clicks "Respondeu" on the DM Writer (writes outreach.repliedAt). Stored
+    // in the summary so the list page doesn't need to fetch each creator.
+    repliedAt: creator.outreach?.repliedAt || null,
     createdAt: now,
   };
 
@@ -230,14 +234,20 @@ export async function listCreators() {
     summaries = members.map(m => typeof m === 'string' ? JSON.parse(m) : m);
   }
 
-  // Enrich summaries with hasOffer/hasDm if missing (backfill for old records)
-  const needsEnrich = summaries.some(s => s.hasOffer === undefined);
+  // Enrich summaries with hasOffer/hasDm/repliedAt if missing (backfill for
+  // old records that pre-date these fields in the index).
+  const needsEnrich = summaries.some(s => s.hasOffer === undefined || s.repliedAt === undefined);
   if (needsEnrich) {
     const enriched = await Promise.all(summaries.map(async (s) => {
-      if (s.hasOffer !== undefined) return s;
+      if (s.hasOffer !== undefined && s.repliedAt !== undefined) return s;
       const full = await getCreator(s.id);
       if (!full) return s;
-      return { ...s, hasOffer: !!(full.offer || full.offerId), hasDm: !!full.dmSequence };
+      return {
+        ...s,
+        hasOffer: !!(full.offer || full.offerId),
+        hasDm: !!full.dmSequence,
+        repliedAt: full.outreach?.repliedAt || null,
+      };
     }));
     return enriched;
   }
@@ -321,6 +331,7 @@ export async function updateCreator(id, updates) {
     pipelineStatus: updated.pipelineStatus || 'prospect',
     hasOffer: !!(updated.offer || updated.offerId),
     hasDm: !!updated.dmSequence,
+    repliedAt: updated.outreach?.repliedAt || null,
     createdAt: updated.createdAt,
   };
 
