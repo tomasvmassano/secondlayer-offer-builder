@@ -115,6 +115,35 @@ export async function POST(request, { params }) {
     // ── Step 3: ask Claude ──
     const audit = await runAudit(apiKey, creator, dedupedUrls, aggregatorsSeen, preDiscoveredProducts);
     if (audit.error) {
+      // Persist failure diagnostics so the next debug session has the raw
+      // model output + the failure reason. Without this we lose the
+      // evidence the moment the response is sent.
+      try {
+        const existingOffer = creator.offer || {};
+        const existingMeta = existingOffer.internal_metadata || {};
+        await updateCreator(id, {
+          offer: {
+            ...existingOffer,
+            internal_metadata: {
+              ...existingMeta,
+              ecosystem_audit_diagnostics: {
+                error: audit.error,
+                errors: audit.errors || [],
+                // Trim to 8KB — enough to debug, not enough to blow up Redis values.
+                raw_excerpt: (audit.raw || '').slice(0, 8000),
+                seed_urls: seedUrls.size,
+                aggregators_resolved: aggregatorsSeen.length,
+                aggregator_resolution: aggregatorResolutionDiag,
+                final_urls_inspected: dedupedUrls.length,
+                deterministic_scrape: aggregatorScrape.diagnostics,
+                pre_discovered_count: preDiscoveredProducts.length,
+                retries: audit.retries,
+                ran_at: new Date().toISOString(),
+              },
+            },
+          },
+        });
+      } catch { /* persistence is best-effort, don't fail the response */ }
       return NextResponse.json({ error: audit.error, errors: audit.errors, raw: audit.raw }, { status: 502 });
     }
 
@@ -392,20 +421,14 @@ ${creatorContext}
 ## OWNED HANDLES (for identity verification)
 ${ownedHandles}
 
-## URL PROVENANCE — READ BEFORE APPLYING IDENTITY VERIFICATION
-
-The URLs listed under "URLS TO INSPECT" below were scraped directly from THIS creator's own Instagram bio (the externalUrl field and the multi-link bio attached to their IG profile). They are by definition owned by them. **Do NOT apply the identity-verification rule to these URLs** — that rule exists to filter out same-first-name false positives from web_search, not to suppress URLs we already know belong to the creator.
-
-Verification rules apply ONLY to:
-  - Products / communities you DISCOVER via the three required web_search queries (the "[creator name] community / skool OR whop / membership" searches)
-  - Anything else you find while investigating that wasn't in the input URL list
-
-If you cannot find product details for an INPUT URL via web_search, that's a sparsity problem, not an ownership problem — still try to enumerate via web_search of the URL itself. Aggregator pages must be enumerated card by card; if the Apify expander failed for a given aggregator URL (you'll see "(aggregator — Apify returned 0)" in the URLS list), web_search the aggregator URL directly and list every product card visible.
+## URL PROVENANCE
+The URLs under "URLS TO INSPECT" come from THIS creator's own IG bio (externalUrl + multi-link bio). They are owned by definition. The identity-verification rule applies ONLY to extras you find via web_search, NOT to these input URLs. If an aggregator shows "(aggregator — Apify returned 0)", web_search the aggregator URL directly and list every visible product card.
 
 ${preDiscoveredBlock}## URLS TO INSPECT (use web_search on each)
 ${urlList}
 
-${aggregatorsSeen.length > 0 ? `## AGGREGATORS RESOLVED\nThe following aggregator URLs were already resolved and their destinations appear in the URLS list above (so you don't need to re-scrape them):\n${aggregatorsSeen.map(a => `- ${a}`).join('\n')}\n\n` : ''}Return ONLY the JSON object. No code fences, no preamble.`;
+${aggregatorsSeen.length > 0 ? `## AGGREGATORS RESOLVED\nThese aggregator URLs were already resolved; their destinations appear in URLS above:\n${aggregatorsSeen.map(a => `- ${a}`).join('\n')}\n\n` : ''}## OUTPUT
+Return ONLY the JSON object matching the schema in your system prompt. Start your response with { and end with }. No code fences. No commentary before or after. No "Here's the analysis" preamble. JSON only.`;
 
   // Anthropic call wrapped so we can retry on 429 (rate limit). The Hobby
   // plan caps at 30k tokens/min — bulk-import's auto-audit can fire 3+ of
@@ -421,7 +444,11 @@ ${aggregatorsSeen.length > 0 ? `## AGGREGATORS RESOLVED\nThe following aggregato
     },
     body: JSON.stringify({
       model: 'claude-sonnet-4-20250514',
-      max_tokens: 4000,
+      // Bumped 4000 → 8000 (2026-05-19) — web_search workflows can chew
+      // through 4-8 tool rounds before assembling the JSON, and we saw
+      // "Model returned non-JSON output after retry" failures where the
+      // JSON was getting truncated mid-object. Bigger budget = headroom.
+      max_tokens: 8000,
       tools: [{ type: 'web_search_20250305', name: 'web_search' }],
       system: [{ type: 'text', text: SYSTEM_PROMPT, cache_control: { type: 'ephemeral' } }],
       messages: [{ role: 'user', content: userMessage }],
