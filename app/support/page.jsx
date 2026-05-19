@@ -142,7 +142,7 @@ export default function SupportPage() {
         <a href="/" style={{ fontSize: 12, color: "#555", textDecoration: "none" }}>Voltar</a>
       </div>
 
-      <div style={{ maxWidth: 800, margin: "0 auto", padding: "32px 24px 80px" }}>
+      <div className="sl-page" style={{ maxWidth: 800, margin: "0 auto", padding: "32px 24px 80px" }}>
 
         {/* ═══ NEW TICKET FORM ═══ */}
         {view === "new" && (
@@ -166,7 +166,7 @@ export default function SupportPage() {
             </div>
 
             {/* Row: Area + Priority + Submitter */}
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12, marginBottom: 16 }}>
+            <div className="sl-grid-3" style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12, marginBottom: 16 }}>
               <div>
                 <label style={{ display: "block", fontSize: 10, fontWeight: 600, color: "#555", marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.05em" }}>Área</label>
                 <select style={inputStyle} value={form.area} onChange={e => setForm(f => ({ ...f, area: e.target.value }))}>

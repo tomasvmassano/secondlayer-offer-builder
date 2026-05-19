@@ -101,20 +101,21 @@ export default function EquipaPage() {
       `}</style>
 
       {/* Sticky top bar */}
-      <div style={{ position: "sticky", top: 0, zIndex: 10, padding: "16px 32px", display: "flex", alignItems: "center", justifyContent: "space-between", background: "rgba(10,10,10,0.85)", backdropFilter: "blur(10px)", WebkitBackdropFilter: "blur(10px)", borderBottom: `1px solid ${BORDER}` }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 18 }}>
+      <div className="sl-tabs" style={{ position: "sticky", top: 0, zIndex: 10, padding: "16px 32px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, background: "rgba(10,10,10,0.85)", backdropFilter: "blur(10px)", WebkitBackdropFilter: "blur(10px)", borderBottom: `1px solid ${BORDER}` }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
           <a href="/creators" style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.12em", textTransform: "uppercase", color: TEXT_LO, textDecoration: "none" }}>← Voltar</a>
-          <div style={{ width: 1, height: 14, background: BORDER_HI }} />
+          <div className="sl-hide-mobile" style={{ width: 1, height: 14, background: BORDER_HI }} />
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
             <div style={{ width: 8, height: 8, borderRadius: '50%', background: ACCENT, boxShadow: `0 0 12px ${ACCENT}` }} />
             <span style={{ fontSize: 14, fontWeight: 700, letterSpacing: "0.02em" }}>Quadro de equipa</span>
           </div>
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
           {WINDOWS.map(w => (
             <button
               key={w.key}
               onClick={() => setWindowKey(w.key)}
+              data-sl-compact
               style={{
                 padding: "6px 12px",
                 background: windowKey === w.key ? "rgba(177,30,47,0.10)" : "transparent",
@@ -131,7 +132,7 @@ export default function EquipaPage() {
         </div>
       </div>
 
-      <div style={{ maxWidth: 1440, margin: "0 auto", padding: "32px 32px 64px" }}>
+      <div className="sl-page" style={{ maxWidth: 1440, margin: "0 auto", padding: "32px 32px 64px" }}>
 
         {loading && <div style={{ color: TEXT_DIM, fontSize: 13, padding: 40, textAlign: "center" }}>A carregar…</div>}
         {error && <div style={{ color: RED, fontSize: 13 }}>Erro: {error}</div>}
@@ -157,7 +158,7 @@ export default function EquipaPage() {
             )}
 
             {/* HERO STRIP — 3 large cards */}
-            <div className="eq-fade" style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1.4fr", gap: 18, marginBottom: 18 }}>
+            <div className="eq-fade sl-grid-3" style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1.4fr", gap: 18, marginBottom: 18 }}>
               {/* DMs hero with bar chart */}
               <HeroCard
                 label={windowKey === 'today' ? 'DMs hoje' : windowKey === 'week' ? 'DMs esta semana' : windowKey === 'month' ? 'DMs este mês' : 'DMs sempre'}
@@ -186,7 +187,7 @@ export default function EquipaPage() {
 
               {/* Revenue forecast hero */}
               <HeroCard label="Receita projetada" value={fmtEur(heroStats.projectedPipeline)} hint="anual · pipeline ponderado">
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginTop: 12 }}>
+                <div className="sl-grid-2" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginTop: 12 }}>
                   <MicroStat label="Assinados (anual)" value={fmtEur(heroStats.signedAnnual)} accent={GREEN} />
                   <MicroStat label="Criadores adicionados" value={fmtNum(heroStats.sumCreators)} />
                   <MicroStat label="Fechados" value={fmtNum(heroStats.sumSigned)} accent={GREEN} />
@@ -196,7 +197,7 @@ export default function EquipaPage() {
             </div>
 
             {/* PEOPLE ROW — leaderboard cards with rings + sparklines */}
-            <div className="eq-fade" style={{ display: "grid", gridTemplateColumns: `repeat(${Math.max(1, Math.min(data.rows.length, 3))}, 1fr)`, gap: 18, marginBottom: 18 }}>
+            <div className="eq-fade sl-grid" style={{ display: "grid", gridTemplateColumns: `repeat(${Math.max(1, Math.min(data.rows.length, 3))}, 1fr)`, gap: 18, marginBottom: 18 }}>
               {data.rows.length === 0 ? (
                 <div style={{ gridColumn: '1 / -1', padding: "60px 20px", textAlign: "center", border: `1px dashed ${BORDER}`, borderRadius: 24, color: TEXT_DIM }}>
                   Sem atividade nesta janela
@@ -233,9 +234,9 @@ export default function EquipaPage() {
             </div>
 
             {/* SECONDARY ROW — Funnel + Pipeline donut */}
-            <div className="eq-fade" style={{ display: "grid", gridTemplateColumns: "1.4fr 1fr", gap: 18, marginBottom: 18 }}>
+            <div className="eq-fade sl-grid-2" style={{ display: "grid", gridTemplateColumns: "1.4fr 1fr", gap: 18, marginBottom: 18 }}>
               <Card title="Funil de conversão" subtitle="Por pessoa · sempre">
-                <div style={{ display: "grid", gridTemplateColumns: `repeat(${Math.max(1, data.funnels?.length || 1)}, 1fr)`, gap: 14 }}>
+                <div className="sl-grid" style={{ display: "grid", gridTemplateColumns: `repeat(${Math.max(1, data.funnels?.length || 1)}, 1fr)`, gap: 14 }}>
                   {(data.funnels || []).map(f => <FunnelChart key={f.userId} funnel={f} />)}
                 </div>
               </Card>
@@ -250,7 +251,7 @@ export default function EquipaPage() {
             {data.monthlyTally?.length > 0 && (
               <div className="eq-fade" style={{ marginBottom: 18 }}>
                 <Card title="Classificação · Mês" subtitle="€50 acumulado · ritmo a 30/dia">
-                  <div style={{ display: "grid", gridTemplateColumns: `repeat(${Math.max(1, userOrder.length)}, 1fr)`, gap: 14 }}>
+                  <div className="sl-grid" style={{ display: "grid", gridTemplateColumns: `repeat(${Math.max(1, userOrder.length)}, 1fr)`, gap: 14 }}>
                     {(() => {
                       const ranked = [...data.monthlyTally].sort((a, b) => b.netEur - a.netEur).map(r => r.userId);
                       return userOrder.map(({ userId, firstName }) => {
@@ -308,7 +309,7 @@ export default function EquipaPage() {
                 as the other cards. */}
             <div className="eq-fade" style={{ marginBottom: 18 }}>
               <Card title="Receita projetada · por pessoa" subtitle="Assinados + pipeline ponderado por estágio">
-                <div style={{ display: "grid", gridTemplateColumns: `repeat(${Math.max(1, userOrder.length)}, 1fr)`, gap: 14 }}>
+                <div className="sl-grid" style={{ display: "grid", gridTemplateColumns: `repeat(${Math.max(1, userOrder.length)}, 1fr)`, gap: 14 }}>
                   {userOrder.map(({ userId, firstName }) => {
                     const r = data.revenue?.find(x => x.userId === userId) || { userId, firstName, signedAnnualEur: 0, pipelineWeightedAnnualEur: 0 };
                     return (
@@ -331,7 +332,7 @@ export default function EquipaPage() {
             </div>
 
             {/* HEATMAP + RECENT ACTIVITY side by side */}
-            <div className="eq-fade" style={{ display: "grid", gridTemplateColumns: "1.4fr 1fr", gap: 18, marginBottom: 18 }}>
+            <div className="eq-fade sl-grid-2" style={{ display: "grid", gridTemplateColumns: "1.4fr 1fr", gap: 18, marginBottom: 18 }}>
               <Card title="Padrão de atividade" subtitle="Onde a equipa concentra DMs · últimas 4 semanas">
                 <Heatmap data={data.heatmap} />
               </Card>
@@ -344,7 +345,7 @@ export default function EquipaPage() {
             {data.quality?.some(q => q.byTemplate.length + q.byLanguage.length + q.byTier.length > 0) && (
               <div className="eq-fade" style={{ marginBottom: 18 }}>
                 <Card title="Qualidade" subtitle="Taxa de resposta por dimensão">
-                  <div style={{ display: "grid", gridTemplateColumns: `repeat(${Math.max(1, data.quality.length)}, 1fr)`, gap: 18 }}>
+                  <div className="sl-grid" style={{ display: "grid", gridTemplateColumns: `repeat(${Math.max(1, data.quality.length)}, 1fr)`, gap: 18 }}>
                     {data.quality.map(q => (
                       <div key={q.userId}>
                         <div style={{ fontSize: 12, fontWeight: 700, color: TEXT_HI, marginBottom: 12 }}>{q.firstName}</div>
@@ -365,9 +366,9 @@ export default function EquipaPage() {
             </div>
 
             {/* EFFICIENCY ROW — Pipeline coverage + CAC per person */}
-            <div className="eq-fade" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 18, marginBottom: 18 }}>
+            <div className="eq-fade sl-grid-2" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 18, marginBottom: 18 }}>
               <Card title="Pipeline coverage" subtitle={`Quota trimestral · ${fmtEur(data.quotaEurPerQuarter || 50000)} por pessoa`}>
-                <div style={{ display: "grid", gridTemplateColumns: `repeat(${Math.max(1, userOrder.length)}, 1fr)`, gap: 14 }}>
+                <div className="sl-grid" style={{ display: "grid", gridTemplateColumns: `repeat(${Math.max(1, userOrder.length)}, 1fr)`, gap: 14 }}>
                   {userOrder.map(({ userId, firstName }) => {
                     const c = data.coverage?.find(x => x.userId === userId);
                     if (!c) return (
@@ -405,7 +406,7 @@ export default function EquipaPage() {
               </Card>
 
               <Card title="CAC · custo por aquisição" subtitle="Proxy de esforço · €0.50/DM, €1/email, €0.75/follow-up, €15/call">
-                <div style={{ display: "grid", gridTemplateColumns: `repeat(${Math.max(1, userOrder.length)}, 1fr)`, gap: 14 }}>
+                <div className="sl-grid" style={{ display: "grid", gridTemplateColumns: `repeat(${Math.max(1, userOrder.length)}, 1fr)`, gap: 14 }}>
                   {userOrder.map(({ userId, firstName }) => {
                     const c = data.cac?.find(x => x.userId === userId);
                     if (!c) return (
@@ -441,7 +442,7 @@ export default function EquipaPage() {
             </div>
 
             {/* SHOW-UP RATE + TOUCHPOINTS PER CLOSE side by side */}
-            <div className="eq-fade" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 18, marginBottom: 18 }}>
+            <div className="eq-fade sl-grid-2" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 18, marginBottom: 18 }}>
               <Card title="Show-up rate · calls" subtitle="Marcadas vs realizadas · alvo ≥ 70%">
                 <div style={{ marginBottom: 16, paddingBottom: 16, borderBottom: `1px solid ${BORDER}` }}>
                   <div style={{ fontSize: 11, color: TEXT_LO, marginBottom: 4 }}>Equipa</div>
@@ -454,7 +455,7 @@ export default function EquipaPage() {
                     </span>
                   </div>
                 </div>
-                <div style={{ display: "grid", gridTemplateColumns: `repeat(${Math.max(1, userOrder.length)}, 1fr)`, gap: 12 }}>
+                <div className="sl-grid" style={{ display: "grid", gridTemplateColumns: `repeat(${Math.max(1, userOrder.length)}, 1fr)`, gap: 12 }}>
                   {userOrder.map(({ userId, firstName }) => {
                     const s = data.showUp?.rows?.find(x => x.userId === userId);
                     if (!s || s.agreed === 0) return (
@@ -479,7 +480,7 @@ export default function EquipaPage() {
                 {(!data.touchpoints?.rows || data.touchpoints.rows.length === 0) ? (
                   <div style={{ color: TEXT_DIM, fontSize: 12, padding: 20, textAlign: "center" }}>Sem deals fechados ainda.</div>
                 ) : (
-                  <div style={{ display: "grid", gridTemplateColumns: `repeat(${Math.max(1, userOrder.length)}, 1fr)`, gap: 12 }}>
+                  <div className="sl-grid" style={{ display: "grid", gridTemplateColumns: `repeat(${Math.max(1, userOrder.length)}, 1fr)`, gap: 12 }}>
                     {userOrder.map(({ userId, firstName }) => {
                       const t = data.touchpoints?.rows?.find(x => x.userId === userId);
                       if (!t || t.signed === 0) return (
@@ -509,7 +510,7 @@ export default function EquipaPage() {
             {/* PIPELINE VELOCITY — composite € per day */}
             <div className="eq-fade" style={{ marginBottom: 18 }}>
               <Card title="Velocidade do pipeline" subtitle="(deals × winRate × € médio) ÷ ciclo · € a fluir por dia">
-                <div style={{ display: "grid", gridTemplateColumns: `repeat(${Math.max(1, userOrder.length)}, 1fr)`, gap: 14 }}>
+                <div className="sl-grid" style={{ display: "grid", gridTemplateColumns: `repeat(${Math.max(1, userOrder.length)}, 1fr)`, gap: 14 }}>
                   {userOrder.map(({ userId, firstName }) => {
                     const v = data.pipelineVelocity?.find(x => x.userId === userId);
                     if (!v) return (
@@ -525,7 +526,7 @@ export default function EquipaPage() {
                           {v.velocityEurPerDay == null ? '—' : `${fmtEur(v.velocityEurPerDay)}/dia`}
                         </div>
                         <div style={{ fontSize: 11, color: TEXT_LO, marginBottom: 12 }}>velocidade</div>
-                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 8, paddingTop: 10, borderTop: `1px solid ${BORDER}` }}>
+                        <div className="sl-grid-4" style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 8, paddingTop: 10, borderTop: `1px solid ${BORDER}` }}>
                           <MicroStat label="Deals" value={(v.openDeals + v.signed)} />
                           <MicroStat label="Win %" value={`${v.winRatePct}%`} accent={v.winRatePct >= 20 ? GREEN : null} />
                           <MicroStat label="€ médio" value={fmtEur(v.avgDealEur)} />
@@ -539,7 +540,7 @@ export default function EquipaPage() {
             </div>
 
             {/* LOSS REASONS + FOLLOW-UP EFFECTIVENESS side by side */}
-            <div className="eq-fade" style={{ display: "grid", gridTemplateColumns: "1fr 1.2fr", gap: 18, marginBottom: 18 }}>
+            <div className="eq-fade sl-grid-2" style={{ display: "grid", gridTemplateColumns: "1fr 1.2fr", gap: 18, marginBottom: 18 }}>
               <Card title="Razões de perda" subtitle={`${data.lossReasons?.total || 0} deals frios · porque morrem`}>
                 {(!data.lossReasons?.rows || data.lossReasons.rows.length === 0) ? (
                   <div style={{ color: TEXT_DIM, fontSize: 12, padding: 20, textAlign: "center" }}>Nenhum deal marcado como frio ainda.</div>
@@ -572,7 +573,7 @@ export default function EquipaPage() {
                 {(!data.followUpEff || data.followUpEff.every(b => b.sent === 0)) ? (
                   <div style={{ color: TEXT_DIM, fontSize: 12, padding: 20, textAlign: "center" }}>Sem dados de outreach pós-reset.</div>
                 ) : (
-                  <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12 }}>
+                  <div className="sl-grid-2" style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12 }}>
                     {data.followUpEff.map(b => (
                       <div key={b.key} style={{ padding: 16, background: SURFACE_0, border: `1px solid ${BORDER}`, borderRadius: 14 }}>
                         <div style={{ fontSize: 10, fontWeight: 600, color: TEXT_LO, letterSpacing: "0.10em", textTransform: "uppercase", marginBottom: 8 }}>{b.stage}</div>
@@ -605,7 +606,7 @@ export default function EquipaPage() {
 
 function Card({ title, subtitle, children }) {
   return (
-    <div className="eq-card" style={{ padding: 26, background: SURFACE_1, border: `1px solid ${BORDER}`, borderRadius: 24, boxShadow: "0 1px 0 rgba(255,255,255,0.03) inset, 0 8px 32px rgba(0,0,0,0.4)" }}>
+    <div className="eq-card sl-card" style={{ padding: 26, background: SURFACE_1, border: `1px solid ${BORDER}`, borderRadius: 24, boxShadow: "0 1px 0 rgba(255,255,255,0.03) inset, 0 8px 32px rgba(0,0,0,0.4)" }}>
       {title && (
         <div style={{ marginBottom: 20 }}>
           <div style={{ fontSize: 14, fontWeight: 700, color: TEXT_HI }}>{title}</div>

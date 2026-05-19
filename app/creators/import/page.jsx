@@ -307,8 +307,8 @@ export default function BulkImportPage() {
         <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.12em", textTransform: "uppercase", color: "#888" }}>Bulk Import</span>
       </div>
 
-      <div style={{ maxWidth: 1100, margin: "0 auto", padding: "40px 28px" }}>
-        <h1 style={{ fontSize: 28, fontWeight: 700, marginBottom: 8 }}>Importar creators em massa</h1>
+      <div className="sl-page" style={{ maxWidth: 1100, margin: "0 auto", padding: "40px 28px" }}>
+        <h1 className="sl-h1" style={{ fontSize: 28, fontWeight: 700, marginBottom: 8 }}>Importar creators em massa</h1>
         <p style={{ fontSize: 14, color: "#888", marginBottom: 32, maxWidth: 720, lineHeight: 1.6 }}>
           Cola um CSV com colunas <code style={{ background: "rgba(255,255,255,0.06)", padding: "2px 6px", borderRadius: 3, color: "#B11E2F" }}>Name, Instagram, TikTok, YouTube</code> ou faz upload de um ficheiro <code style={{ background: "rgba(255,255,255,0.06)", padding: "2px 6px", borderRadius: 3 }}>.csv</code>.
           Cada linha corre lean scrape (~€0.10 + ~$0.01). Creators com Deal Score &lt; {MIN_DEAL_SCORE} são automaticamente filtrados. Throttle de 7s entre chamadas para respeitar o limite de 30K tokens/minuto.
@@ -341,7 +341,7 @@ export default function BulkImportPage() {
         {parsedRows.length > 0 && (
           <div>
             {/* Stats bar */}
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 14, marginBottom: 24 }}>
+            <div className="sl-grid-2" style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 14, marginBottom: 24 }}>
               <StatCard label="Total" value={total} color="#f5f5f5" />
               <StatCard label="Para scrape" value={scrapable} color="#22c55e" />
               <StatCard label="Skip (dup / inválido)" value={duplicates + invalid} color="#888" />
@@ -350,7 +350,7 @@ export default function BulkImportPage() {
 
             {/* Progress + actions */}
             {running ? (
-              <div style={{ padding: "14px 20px", background: "rgba(177,30,47,0.08)", border: "1px solid rgba(177,30,47,0.3)", borderRadius: 10, marginBottom: 20, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <div style={{ padding: "14px 20px", background: "rgba(177,30,47,0.08)", border: "1px solid rgba(177,30,47,0.3)", borderRadius: 10, marginBottom: 20, display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12 }}>
                 <div>
                   <div style={{ fontSize: 13, fontWeight: 600, color: "#B11E2F" }}>A scrapear {currentIdx + 1} de {total}{currentIdx >= 0 && parsedRows[currentIdx]?.name ? ` · ${parsedRows[currentIdx].name}` : ''}…</div>
                   <div style={{ fontSize: 11, color: "#888", marginTop: 4 }}>{saved} guardados · {rejected} rejeitados · {errors} erros · ETA restante ~{Math.ceil((pending - 0) * THROTTLE_MS / 1000 / 60)}min</div>
@@ -358,7 +358,7 @@ export default function BulkImportPage() {
                 <button onClick={stopImport} style={{ padding: "8px 16px", background: "transparent", border: "1px solid rgba(255,255,255,0.15)", borderRadius: 6, color: "#888", fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>Pausar</button>
               </div>
             ) : pending > 0 ? (
-              <div style={{ padding: "14px 20px", background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 10, marginBottom: 20, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <div style={{ padding: "14px 20px", background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 10, marginBottom: 20, display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12 }}>
                 <div>
                   <div style={{ fontSize: 13, fontWeight: 600 }}>{pending} creator{pending === 1 ? '' : 's'} pronto{pending === 1 ? '' : 's'} para scrape</div>
                   <div style={{ fontSize: 11, color: "#888", marginTop: 4 }}>~{etaStr} · €{estApifyCost} Apify + ${estClaudeCost} Claude · throttle de 7s/call</div>
@@ -369,7 +369,7 @@ export default function BulkImportPage() {
                 </div>
               </div>
             ) : (
-              <div style={{ padding: "14px 20px", background: "rgba(34,197,94,0.06)", border: "1px solid rgba(34,197,94,0.25)", borderRadius: 10, marginBottom: 20, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <div style={{ padding: "14px 20px", background: "rgba(34,197,94,0.06)", border: "1px solid rgba(34,197,94,0.25)", borderRadius: 10, marginBottom: 20, display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12 }}>
                 <div>
                   <div style={{ fontSize: 13, fontWeight: 600, color: "#22c55e" }}>Import concluído</div>
                   <div style={{ fontSize: 11, color: "#888", marginTop: 4 }}>{saved} guardados · {rejected} rejeitados (D-tier) · {duplicates} duplicados · {invalid} inválidos · {errors} erros</div>
@@ -382,8 +382,8 @@ export default function BulkImportPage() {
             )}
 
             {/* Preview table */}
-            <div style={{ border: "1px solid rgba(255,255,255,0.06)", borderRadius: 10, overflow: "hidden" }}>
-              <div style={{ display: "grid", gridTemplateColumns: "50px 1.5fr 2fr 0.6fr 0.6fr 1fr 1.5fr", padding: "12px 16px", background: "#141414", fontSize: 10, fontWeight: 700, color: "#666", letterSpacing: "0.08em", textTransform: "uppercase" }}>
+            <div className="sl-hscroll" style={{ border: "1px solid rgba(255,255,255,0.06)", borderRadius: 10, overflow: "hidden" }}>
+              <div style={{ display: "grid", gridTemplateColumns: "50px 1.5fr 2fr 0.6fr 0.6fr 1fr 1.5fr", padding: "12px 16px", background: "#141414", fontSize: 10, fontWeight: 700, color: "#666", letterSpacing: "0.08em", textTransform: "uppercase", minWidth: 640 }}>
                 <div>#</div><div>Nome</div><div>Instagram</div><div>TT</div><div>YT</div><div>Status</div><div>Detalhe</div>
               </div>
               {parsedRows.map((r, i) => (
@@ -419,7 +419,7 @@ function RowItem({ idx, row, isCurrent }) {
   const s = statusColors[row.status] || statusColors.pending;
   const detail = row.error || row.reason || (row.score ? `${row.score} (${row.grade})` : '');
   return (
-    <div style={{ display: "grid", gridTemplateColumns: "50px 1.5fr 2fr 0.6fr 0.6fr 1fr 1.5fr", padding: "10px 16px", borderTop: "1px solid rgba(255,255,255,0.04)", background: isCurrent ? "rgba(59,130,246,0.05)" : (idx % 2 === 0 ? "transparent" : "rgba(255,255,255,0.01)"), fontSize: 12, alignItems: "center" }}>
+    <div style={{ display: "grid", gridTemplateColumns: "50px 1.5fr 2fr 0.6fr 0.6fr 1fr 1.5fr", padding: "10px 16px", borderTop: "1px solid rgba(255,255,255,0.04)", background: isCurrent ? "rgba(59,130,246,0.05)" : (idx % 2 === 0 ? "transparent" : "rgba(255,255,255,0.01)"), fontSize: 12, alignItems: "center", minWidth: 640 }}>
       <div style={{ color: "#444", fontFamily: "'JetBrains Mono', monospace", fontSize: 11 }}>{idx + 1}</div>
       <div style={{ color: row.creatorId ? "#22c55e" : "#f5f5f5", fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
         {row.creatorId ? <a href={`/creators/${row.creatorId}`} target="_blank" rel="noopener" style={{ color: "inherit", textDecoration: "none" }}>{row.name || '—'}</a> : (row.name || '—')}

@@ -26,11 +26,11 @@ export default function Hub() {
         </div>
       </div>
 
-      <div style={{ maxWidth: 720, margin: "0 auto", padding: "80px 24px 80px" }}>
+      <div className="sl-page" style={{ maxWidth: 720, margin: "0 auto", padding: "80px 24px 80px" }}>
 
         {/* Hero */}
         <div style={{ textAlign: "center", marginBottom: 64 }}>
-          <h1 style={{ fontSize: 36, fontWeight: 300, margin: "0 0 10px", letterSpacing: "-0.03em", lineHeight: 1.2 }}>
+          <h1 className="sl-h1" style={{ fontSize: 36, fontWeight: 300, margin: "0 0 10px", letterSpacing: "-0.03em", lineHeight: 1.2 }}>
             Second <span style={{ color: "#7A0E18", fontWeight: 700 }}>Layer</span>
           </h1>
           <p style={{ fontSize: 14, color: "#555", margin: 0 }}>
@@ -39,7 +39,7 @@ export default function Hub() {
         </div>
 
         {/* Two main doors */}
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 48 }}>
+        <div className="sl-grid-2" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 48 }}>
 
           {/* CRM Card */}
           <a href="/creators" style={{
@@ -90,7 +90,7 @@ export default function Hub() {
 
 
         {/* Equipa + Feedback row */}
-        <div style={{ marginTop: 48, display: "flex", gap: 10 }}>
+        <div className="sl-grid-2" style={{ marginTop: 48, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
           <a href="/equipa" style={{
             flex: 1, display: "flex", alignItems: "center", justifyContent: "space-between",
             padding: "14px 18px", borderRadius: 8,

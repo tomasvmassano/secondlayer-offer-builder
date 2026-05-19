@@ -394,10 +394,10 @@ export default function CreatorsPage() {
         </div>
       </div>
 
-      <div style={{ maxWidth: 960, margin: "0 auto", padding: "40px 24px 80px" }}>
+      <div className="sl-page" style={{ maxWidth: 960, margin: "0 auto", padding: "40px 24px 80px" }}>
         {/* Title */}
         <div style={{ marginBottom: 32 }}>
-          <h1 style={{ fontSize: 28, fontWeight: 600, margin: "0 0 6px", letterSpacing: "-0.02em" }}>
+          <h1 className="sl-h1" style={{ fontSize: 28, fontWeight: 600, margin: "0 0 6px", letterSpacing: "-0.02em" }}>
             Creators
           </h1>
           <p style={{ fontSize: 13, color: "#888", margin: 0 }}>
@@ -406,14 +406,14 @@ export default function CreatorsPage() {
         </div>
 
         {/* Search + Add */}
-        <div style={{ display: "flex", gap: 12, marginBottom: 32 }}>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 12, marginBottom: 32 }}>
           <input
             type="text"
             placeholder="Pesquisar por nome ou nicho..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             style={{
-              flex: 1,
+              flex: "1 1 200px",
               padding: "14px 16px",
               background: "#141414",
               border: "1px solid rgba(255,255,255,0.04)",
@@ -616,7 +616,7 @@ export default function CreatorsPage() {
 
           return (
             <div>
-              <div style={{ display: "flex", gap: 0, marginBottom: 28, borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
+              <div className="sl-tabs sl-hscroll" style={{ display: "flex", gap: 0, marginBottom: 28, borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
                 {[
                   { key: "novos", label: "Novos", count: cold.length },
                   { key: "contacto", label: "Em contacto", count: warm.length },
@@ -657,8 +657,8 @@ export default function CreatorsPage() {
               {/* Discovery Tab */}
               {crmTab === "discovery" ? (
                 <div>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
-                    <div>
+                  <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "space-between", alignItems: "center", gap: 12, marginBottom: 20 }}>
+                    <div style={{ flex: "1 1 200px", minWidth: 0 }}>
                       <p style={{ fontSize: 12, color: "#888", margin: 0 }}>
                         Creators similares descobertos automaticamente a partir dos teus creators existentes. Apenas A/B tier.
                       </p>
@@ -666,7 +666,7 @@ export default function CreatorsPage() {
                         <p style={{ fontSize: 11, color: discoveryStatus.startsWith("Erro") ? "#ef4444" : "#22c55e", margin: "6px 0 0" }}>{discoveryStatus}</p>
                       )}
                     </div>
-                    <div style={{ display: "flex", gap: 8 }}>
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
                       <button
                         onClick={toggleBlacklist}
                         title="Ver handles previamente dispensados"
@@ -1046,7 +1046,7 @@ export default function CreatorsPage() {
                       Queue vazio. Clica em "Correr Discovery" para encontrar creators similares.
                     </div>
                   ) : (
-                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 14 }}>
+                    <div className="sl-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 14 }}>
                       {discoveryQueue.map((c) => {
                         const gradeColor = c.dealScoreGrade === 'A' ? "#22c55e" : "#3b82f6";
                         return (
@@ -1165,7 +1165,7 @@ export default function CreatorsPage() {
                   }
                 </div>
               ) : (
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 14 }}>
+                <div className="sl-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 14 }}>
                   {activeList.map((c) => (
                     <a
                       key={c.id}

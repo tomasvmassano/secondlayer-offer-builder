@@ -927,13 +927,13 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
       `}</style>
 
       {/* Header */}
-      <div style={{ padding: "20px 28px", borderBottom: "1px solid rgba(255,255,255,0.04)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+      <div style={{ padding: "20px 28px", borderBottom: "1px solid rgba(255,255,255,0.04)", display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap", minWidth: 0 }}>
           <a href="/" style={{ display: "flex", alignItems: "center", textDecoration: "none" }}><img src={LOGO_B64} alt="SL" style={{ height: 16, opacity: 0.85 }} /></a>
           <span style={{ color: "#333", fontSize: 14 }}>|</span>
           <a href="/creators" style={{ fontSize: 10, fontWeight: 600, letterSpacing: "0.12em", textTransform: "uppercase", color: "#555", textDecoration: "none" }}>CRM</a>
           <span style={{ color: "#333", fontSize: 14 }}>/</span>
-          <span style={{ fontSize: 10, fontWeight: 600, letterSpacing: "0.12em", textTransform: "uppercase", color: "#888" }}>{creator.name}</span>
+          <span style={{ fontSize: 10, fontWeight: 600, letterSpacing: "0.12em", textTransform: "uppercase", color: "#888", overflow: "hidden", textOverflow: "ellipsis" }}>{creator.name}</span>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           {saving && <span style={{ fontSize: 11, color: saving.includes("Erro") ? "#ef4444" : "#22c55e" }}>{saving}</span>}
@@ -966,7 +966,7 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
           setLaunchEditContent={setLaunchEditContent}
         />
       ) : (
-      <div style={{ maxWidth: 900, margin: "0 auto", padding: "32px 24px 80px" }}>
+      <div className="sl-page" style={{ maxWidth: 900, margin: "0 auto", padding: "32px 24px 80px" }}>
 
         {/* Profile Header */}
         <div style={{ display: "flex", alignItems: "flex-start", gap: 16, marginBottom: 20 }}>
@@ -1066,7 +1066,7 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
         </div>
 
         {/* Tab Bar */}
-        <div style={{ display: "flex", gap: 0, marginBottom: 24, borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
+        <div className="sl-tabs sl-hscroll" style={{ display: "flex", gap: 0, marginBottom: 24, borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
           {TABS.map(t => (
             <button key={t.key} onClick={() => setTab(t.key)} style={{
               padding: "12px 20px", border: "none", background: "transparent",
@@ -1086,8 +1086,8 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
         </div>
 
         {/* ════════════ PERFIL TAB ════════════ */}
-        {tab === "perfil" && (<div style={{ display: "flex", gap: 28 }}>
-          <div style={{ flex: "0 0 60%", maxWidth: "60%" }}>
+        {tab === "perfil" && (<div className="sl-grid-2" style={{ display: "grid", gridTemplateColumns: "60% 1fr", gap: 28 }}>
+          <div style={{ minWidth: 0 }}>
 
           {/* Deal Score Card */}
           {dealScore && (
@@ -1120,7 +1120,7 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
                   );
                 })()}
               </div>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 6 }}>
+              <div className="sl-grid-3" style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 6 }}>
                 {Object.entries(dealScore.breakdown).map(([key, points]) => {
                   const maxPts = { followers: 20, engagement: 25, niche: 20, authenticity: 15, monetization: 10, multiPlatform: 10 }[key] || 10;
                   const pct = Math.round((points / maxPts) * 100);
@@ -1147,7 +1147,7 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
                 <span style={{ ...sectionTitleStyle, margin: 0 }}>Audiência Estimada</span>
                 <span style={{ fontSize: 8, color: "#555", padding: "2px 6px", background: "rgba(255,255,255,0.04)", borderRadius: 4, textTransform: "uppercase" }}>AI</span>
               </div>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+              <div className="sl-grid-2" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
                 {creator.audienceEstimate.gender && <div><div style={{ fontSize: 9, color: "#555", textTransform: "uppercase", marginBottom: 2 }}>Género</div><div style={{ fontSize: 12, color: "#ccc" }}>{creator.audienceEstimate.gender}</div></div>}
                 {creator.audienceEstimate.age && <div><div style={{ fontSize: 9, color: "#555", textTransform: "uppercase", marginBottom: 2 }}>Idade</div><div style={{ fontSize: 12, color: "#ccc" }}>{creator.audienceEstimate.age}</div></div>}
                 {creator.audienceEstimate.location && <div><div style={{ fontSize: 9, color: "#555", textTransform: "uppercase", marginBottom: 2 }}>Localização</div><div style={{ fontSize: 12, color: "#ccc" }}>{creator.audienceEstimate.location}</div></div>}
@@ -1244,7 +1244,7 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
               <p style={{ fontSize: 11, color: "#555", margin: "0 0 14px", lineHeight: 1.5 }}>
                 Adiciona TikTok e YouTube para enriquecer o audit, archetype e unicidade antes de construir a offer.
               </p>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 12 }}>
+              <div className="sl-grid-2" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 12 }}>
                 <div>
                   <label style={{ display: "block", fontSize: 10, fontWeight: 600, color: "#555", marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.05em" }}>TikTok URL</label>
                   <input type="text" style={inputStyle} placeholder="https://tiktok.com/@username"
@@ -1508,7 +1508,7 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
           </div>
 
           {/* Right Column - Meeting Notes */}
-          <div style={{ flex: "0 0 40%", maxWidth: "40%" }}>
+          <div style={{ minWidth: 0 }}>
             <div style={{ padding: 24, background: "#141414", border: "1px solid rgba(255,255,255,0.04)", borderRadius: 12, position: "sticky", top: 24 }}>
               <h2 style={{ fontSize: 16, fontWeight: 700, margin: "0 0 4px" }}>Notas de Reunião</h2>
               <p style={{ fontSize: 11, color: "#555", margin: "0 0 20px" }}>Preencher durante ou após a call com o creator.</p>
@@ -1570,7 +1570,7 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
               </div>
             ) : (
             <div>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12, marginBottom: 16 }}>
+              <div className="sl-grid-3" style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12, marginBottom: 16 }}>
                 <div>
                   <label style={{ display: "block", fontSize: 10, fontWeight: 600, color: "#555", marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.05em" }}>Primeiro Nome</label>
                   <input type="text" style={inputStyle} placeholder="Ex: Mariana" value={dmInputs.primeiro_nome || ""} onChange={e => setDmInputs(p => ({ ...p, primeiro_nome: e.target.value }))} />
@@ -1789,7 +1789,7 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
               revenue projection without scrolling. Blind Spot Audit +
               Objection Playbook were removed in this rev; system prompt
               also trimmed to drop sections N+O. */}
-          <div style={{ display: "flex", gap: 0, borderBottom: "1px solid rgba(255,255,255,0.06)", marginBottom: 24 }}>
+          <div className="sl-tabs sl-hscroll" style={{ display: "flex", gap: 0, borderBottom: "1px solid rgba(255,255,255,0.06)", marginBottom: 24 }}>
             {OFFER_TABS.map(t => (
               <button key={t.key} onClick={() => setOfferTab(t.key)} style={{
                 padding: "10px 18px",
@@ -2189,7 +2189,7 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
                         </p>
 
                         {/* 3 scenario cards: status quo / with new / delta */}
-                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10, marginBottom: 16 }}>
+                        <div className="sl-grid-3" style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10, marginBottom: 16 }}>
                           {ecoByScenario.map((eco, i) => {
                             const s = scenarios[i];
                             return (
@@ -2219,7 +2219,7 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
                               <div style={{ fontSize: 9, fontWeight: 600, color: "#555", letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 10 }}>Breakdown (Moderate scenario)</div>
                               <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                                 {eco.existing.map((r, i) => (
-                                  <div key={i} style={{ display: "grid", gridTemplateColumns: "1.4fr 0.7fr 1fr 1fr", gap: 8, fontSize: 11, color: "#888", padding: "4px 0" }}>
+                                  <div key={i} className="sl-grid-4" style={{ display: "grid", gridTemplateColumns: "1.4fr 0.7fr 1fr 1fr", gap: 8, fontSize: 11, color: "#888", padding: "4px 0" }}>
                                     <span style={{ color: "#ccc" }}>{r.name}</span>
                                     <span style={{ color: "#666", fontSize: 10 }}>{r.tier}</span>
                                     <span>{r.buyers.toLocaleString()} buyers · {fmtBig(r.price)}{r.tier === 'recurring' ? '/mo' : ''}</span>
@@ -2229,7 +2229,7 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
                                     </span>
                                   </div>
                                 ))}
-                                <div style={{ display: "grid", gridTemplateColumns: "1.4fr 0.7fr 1fr 1fr", gap: 8, fontSize: 11, padding: "8px 0 4px", borderTop: "1px solid rgba(34,197,94,0.15)", marginTop: 4 }}>
+                                <div className="sl-grid-4" style={{ display: "grid", gridTemplateColumns: "1.4fr 0.7fr 1fr 1fr", gap: 8, fontSize: 11, padding: "8px 0 4px", borderTop: "1px solid rgba(34,197,94,0.15)", marginTop: 4 }}>
                                   <span style={{ color: "#22c55e", fontWeight: 700 }}>+ NEW · {eco.newOffer.name}</span>
                                   <span style={{ color: "#22c55e", fontSize: 10 }}>{eco.newOffer.tierBucket}</span>
                                   <span style={{ color: "#22c55e" }}>{eco.newOffer.baseBuyers}{eco.newOffer.upgradeBuyers > 0 ? `+${eco.newOffer.upgradeBuyers}` : ''} buyers · {fmtBig(eco.newOffer.projection.priceNumeric || 0)}</span>
@@ -2692,7 +2692,7 @@ function EcosystemAuditPanel({ creator, setCreator, running, error, diag, onRun 
                       return (
                         <div key={i} style={{ padding: "10px 12px", background: "#0a0a0a", borderRadius: 6, border: `1px solid ${tc.border}` }}>
                           {/* Row 1: name (flex) · tier · price · delete */}
-                          <div style={{ display: "grid", gridTemplateColumns: "1fr 140px 90px 28px", gap: 8, marginBottom: 6, alignItems: "center" }}>
+                          <div className="sl-grid-4" style={{ display: "grid", gridTemplateColumns: "1fr 140px 90px 28px", gap: 8, marginBottom: 6, alignItems: "center" }}>
                             <input
                               type="text"
                               value={p.name || ''}
@@ -2821,7 +2821,7 @@ function EcosystemAuditPanel({ creator, setCreator, running, error, diag, onRun 
                   <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                     {localCommunities.map((c, i) => (
                       <div key={i} style={{ padding: "10px 12px", background: "rgba(234,179,8,0.04)", borderRadius: 6, border: "1px solid rgba(234,179,8,0.25)" }}>
-                        <div style={{ display: "grid", gridTemplateColumns: "1fr 140px 90px 28px", gap: 8, marginBottom: 6, alignItems: "center" }}>
+                        <div className="sl-grid-4" style={{ display: "grid", gridTemplateColumns: "1fr 140px 90px 28px", gap: 8, marginBottom: 6, alignItems: "center" }}>
                           <input
                             type="text"
                             value={c.name || ''}
@@ -4100,7 +4100,7 @@ function CoreOfferPanel({ creator, setCreator, running, setRunning, error, setEr
           {client.transformation && (
             <div style={{ padding: "14px 16px", background: "#0a0a0a", borderRadius: 8, border: "1px solid rgba(255,255,255,0.05)", marginBottom: 12 }}>
               <div style={{ fontSize: 9, fontWeight: 700, color: "#666", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 8 }}>Transformation</div>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr auto 1fr", gap: 12, alignItems: "center" }}>
+              <div className="sl-grid-3" style={{ display: "grid", gridTemplateColumns: "1fr auto 1fr", gap: 12, alignItems: "center" }}>
                 <div>
                   <div style={{ fontSize: 9, fontWeight: 700, color: "#ef4444", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 4 }}>From</div>
                   <div style={{ fontSize: 12, color: "#ccc", lineHeight: 1.5 }}>{client.transformation.from}</div>
@@ -4132,7 +4132,7 @@ function CoreOfferPanel({ creator, setCreator, running, setRunning, error, setEr
 
           {/* Audience fit — two columns */}
           {client.audience_fit && (
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 12 }}>
+            <div className="sl-grid-2" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 12 }}>
               <div style={{ padding: "13px 15px", background: "rgba(34,197,94,0.04)", borderRadius: 8, border: "1px solid rgba(34,197,94,0.18)" }}>
                 <div style={{ fontSize: 9, fontWeight: 700, color: "#22c55e", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 8 }}>For ({(client.audience_fit.for || []).length})</div>
                 <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 4 }}>
@@ -4694,7 +4694,7 @@ function ModulesPanel({ creator, setCreator, running, setRunning, error, setErro
           Renders as two-column block under the modules list. These are what
           the pitch deck system slide consumes (slide 5). */}
       {hasOutput && (weeklyFormats.length > 0 || library.length > 0) && (
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginTop: 14 }}>
+        <div className="sl-grid-2" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginTop: 14 }}>
           {weeklyFormats.length > 0 && (
             <div style={{ padding: "14px 16px", background: "#0a0a0a", borderRadius: 8, border: "1px solid rgba(255,255,255,0.05)" }}>
               <div style={{ fontSize: 9, fontWeight: 700, color: "#666", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 10 }}>Weekly Cadence · {weeklyFormats.length}</div>
@@ -5034,7 +5034,7 @@ function ValueStackPanel({ creator, setCreator, running, setRunning, error, setE
           {tiers.length > 0 && (
             <div style={{ padding: "16px 18px", background: "#0a0a0a", borderRadius: 8, border: "1px solid rgba(255,255,255,0.05)" }}>
               <div style={{ fontSize: 9, fontWeight: 700, color: "#666", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 12 }}>Pricing · {tiers.length} {tiers.length === 1 ? 'tier' : 'tiers'}</div>
-              <div style={{ display: "grid", gridTemplateColumns: `repeat(${Math.min(tiers.length, 3)}, 1fr)`, gap: 10 }}>
+              <div className="sl-grid" className="sl-grid" style={{ display: "grid", gridTemplateColumns: `repeat(${Math.min(tiers.length, 3)}, 1fr)`, gap: 10 }}>
                 {tiers.map((t, i) => (
                   <div key={i} style={{ padding: "14px 14px", background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 6 }}>
                     <div style={{ fontSize: 10, fontWeight: 700, color: "#B11E2F", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 6 }}>{t.name}</div>
@@ -5497,7 +5497,7 @@ function OfferSummaryCard({ creator }) {
       {c.transformation && (c.transformation.from || c.transformation.to) && (
         <div style={{ padding: "13px 16px", background: "#141414", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 10 }}>
           <div style={{ fontSize: 9, fontWeight: 700, color: "#666", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 8 }}>Transformation</div>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr auto 1fr", gap: 12, alignItems: "center" }}>
+          <div className="sl-grid-3" style={{ display: "grid", gridTemplateColumns: "1fr auto 1fr", gap: 12, alignItems: "center" }}>
             <div>
               <div style={{ fontSize: 9, fontWeight: 700, color: "#ef4444", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 3 }}>From</div>
               <div style={{ fontSize: 11.5, color: "#ccc", lineHeight: 1.45 }}>{c.transformation.from || '—'}</div>
@@ -5589,7 +5589,7 @@ function OfferSummaryCard({ creator }) {
       {Array.isArray(c.pricing_tiers) && c.pricing_tiers.length > 0 && (
         <div style={{ padding: "13px 16px", background: "#141414", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 10 }}>
           <div style={{ fontSize: 9, fontWeight: 700, color: "#666", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 10 }}>Pricing Tiers · {c.pricing_tiers.length}</div>
-          <div style={{ display: "grid", gridTemplateColumns: `repeat(${Math.min(c.pricing_tiers.length, 3)}, 1fr)`, gap: 8 }}>
+          <div className="sl-grid" className="sl-grid" style={{ display: "grid", gridTemplateColumns: `repeat(${Math.min(c.pricing_tiers.length, 3)}, 1fr)`, gap: 8 }}>
             {c.pricing_tiers.map((t, i) => (
               <div key={i} style={{ padding: "11px 12px", background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.05)", borderRadius: 6 }}>
                 <div style={{ fontSize: 9, fontWeight: 700, color: "#B11E2F", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 4 }}>{t.name}</div>

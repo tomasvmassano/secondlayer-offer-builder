@@ -65,11 +65,11 @@ export default function PipelinePage() {
         </div>
       </div>
 
-      <div style={{ maxWidth: 1000, margin: "0 auto", padding: "32px 24px 80px" }}>
+      <div className="sl-page" style={{ maxWidth: 1000, margin: "0 auto", padding: "32px 24px 80px" }}>
 
         {/* Title + stats */}
         <div style={{ marginBottom: 32 }}>
-          <h1 style={{ fontSize: 24, fontWeight: 700, margin: "0 0 6px", letterSpacing: "-0.02em" }}>Pipeline</h1>
+          <h1 className="sl-h1" style={{ fontSize: 24, fontWeight: 700, margin: "0 0 6px", letterSpacing: "-0.02em" }}>Pipeline</h1>
           <p style={{ fontSize: 13, color: "#666", margin: 0 }}>Creators fechados. Cada um com o seu workspace para gerir assets, estrategia e lançamento.</p>
         </div>
 
@@ -119,7 +119,7 @@ export default function PipelinePage() {
                   onMouseLeave={e => { e.currentTarget.style.borderColor = "rgba(255,255,255,0.06)"; e.currentTarget.style.transform = "translateY(0)"; }}
                 >
                   {/* Top row: photo, name, meta */}
-                  <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 16 }}>
+                  <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 14, marginBottom: 16 }}>
                     {c.profilePicUrl ? (
                       <img src={`/api/proxy-image?url=${encodeURIComponent(c.profilePicUrl)}`} alt="" style={{ width: 40, height: 40, borderRadius: "50%", objectFit: "cover", border: "2px solid rgba(255,255,255,0.06)" }} />
                     ) : (
@@ -148,7 +148,7 @@ export default function PipelinePage() {
                   </div>
 
                   {/* Asset status row */}
-                  <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center" }}>
                     {/* DM */}
                     <div style={{ padding: "6px 12px", borderRadius: 6, background: hasDm ? "rgba(34,197,94,0.08)" : "rgba(255,255,255,0.02)", border: `1px solid ${hasDm ? "rgba(34,197,94,0.15)" : "rgba(255,255,255,0.04)"}`, display: "flex", alignItems: "center", gap: 5 }}>
                       <span style={{ width: 6, height: 6, borderRadius: "50%", background: hasDm ? "#22c55e" : "rgba(255,255,255,0.1)" }} />

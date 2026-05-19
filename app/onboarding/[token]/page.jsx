@@ -234,7 +234,7 @@ export default function OnboardingPage() {
 
       {/* Sticky header */}
       <div style={{ position: 'sticky', top: 0, zIndex: 10, background: 'rgba(10,10,10,0.95)', backdropFilter: 'blur(10px)', borderBottom: '1px solid rgba(255,255,255,0.05)', padding: '16px 24px' }}>
-        <div style={{ maxWidth: 720, margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div style={{ maxWidth: 720, margin: '0 auto', display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
           <div>
             <div style={{ fontSize: 11, fontWeight: 600, color: '#7A0E18', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 2 }}>Second Layer</div>
             <div style={{ fontSize: 13, color: '#aaa' }}>{t('Onboarding', 'Onboarding')} · {creator.creatorName}</div>
@@ -253,8 +253,8 @@ export default function OnboardingPage() {
       </div>
 
       {/* Hero */}
-      <div style={{ maxWidth: 720, margin: '0 auto', padding: '64px 24px 40px', textAlign: 'center' }}>
-        <h1 style={{ fontSize: 56, fontWeight: 700, margin: '0 0 24px', lineHeight: 1.1, letterSpacing: '-0.03em' }}>
+      <div className="sl-page" style={{ maxWidth: 720, margin: '0 auto', padding: '64px 24px 40px', textAlign: 'center' }}>
+        <h1 className="sl-h1" style={{ fontSize: 56, fontWeight: 700, margin: '0 0 24px', lineHeight: 1.1, letterSpacing: '-0.03em' }}>
           {t('Vamos construir isto ', 'Let\'s build this ')}
           <span style={{ fontFamily: "'Instrument Serif', serif", fontStyle: 'italic', color: '#7A0E18' }}>
             {t('juntos', 'together')}.

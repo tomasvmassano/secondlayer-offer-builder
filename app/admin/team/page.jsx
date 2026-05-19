@@ -67,19 +67,19 @@ export default function AdminTeamPage() {
     <div style={{ minHeight: "100vh", background: "#0a0a0a", color: "#f5f5f5", fontFamily: "'Geist', 'Helvetica Neue', Helvetica, Arial, sans-serif", padding: 24 }}>
       <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
 
-      <div style={{ maxWidth: 760, margin: "0 auto" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 32 }}>
+      <div className="sl-page" style={{ maxWidth: 760, margin: "0 auto" }}>
+        <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "space-between", alignItems: "center", gap: 8, marginBottom: 32 }}>
           <a href="/" style={{ fontSize: 11, color: "#666", textDecoration: "none", letterSpacing: "0.12em", textTransform: "uppercase" }}>← Hub</a>
           {me && <span style={{ fontSize: 11, color: "#666" }}>signed in as <strong style={{ color: "#aaa" }}>{me.email}</strong></span>}
         </div>
 
-        <h1 style={{ fontSize: 32, fontWeight: 700, margin: 0, letterSpacing: "-0.02em" }}>Team</h1>
+        <h1 className="sl-h1" style={{ fontSize: 32, fontWeight: 700, margin: 0, letterSpacing: "-0.02em" }}>Team</h1>
         <p style={{ fontSize: 13, color: "#666", margin: "6px 0 32px" }}>Quem pode entrar como team. Adicionar = vai aparecer aqui mas só recebe acesso quando entrar via /signin com o email.</p>
 
         {error && <div style={{ fontSize: 12, color: "#ef4444", marginBottom: 16 }}>{error}</div>}
 
         {/* Add new */}
-        <form onSubmit={add} style={{ display: "flex", gap: 8, marginBottom: 36 }}>
+        <form onSubmit={add} style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 36 }}>
           <input
             type="email"
             value={newEmail}
@@ -101,7 +101,7 @@ export default function AdminTeamPage() {
               const user = users.find(u => u.email === email);
               const isMe = me?.email === email;
               return (
-                <div key={email} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "14px 22px", borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
+                <div key={email} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "14px 22px", borderBottom: "1px solid rgba(255,255,255,0.04)", flexWrap: "wrap", gap: 12 }}>
                   <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
                     <span style={{ fontSize: 13, fontFamily: "'JetBrains Mono', ui-monospace, monospace" }}>{email} {isMe && <span style={{ fontSize: 9, color: "#1F8A4C", letterSpacing: "0.12em", textTransform: "uppercase", marginLeft: 8 }}>tu</span>}</span>
                     {user ? (
@@ -125,7 +125,7 @@ export default function AdminTeamPage() {
           <div style={{ background: "#141414", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 10, overflow: "hidden" }}>
             {users.filter(u => u.role === 'creator').length === 0 && <div style={{ padding: "20px 22px", fontSize: 13, color: "#666" }}>Ainda nenhum creator com acesso ao portal.</div>}
             {users.filter(u => u.role === 'creator').map(u => (
-              <div key={u.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "14px 22px", borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
+              <div key={u.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "14px 22px", borderBottom: "1px solid rgba(255,255,255,0.04)", flexWrap: "wrap", gap: 12 }}>
                 <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
                   <span style={{ fontSize: 13, fontFamily: "'JetBrains Mono', ui-monospace, monospace" }}>{u.email}</span>
                   <span style={{ fontSize: 10, color: "#555" }}>{u.creatorId ? `creatorId: ${u.creatorId}` : 'sem creatorId'} · last seen {u.lastSeenAt ? new Date(u.lastSeenAt).toLocaleString('pt-PT') : '—'}</span>

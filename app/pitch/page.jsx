@@ -621,13 +621,13 @@ function PitchPageContent() {
       <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Geist:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
 
       {/* Toolbar */}
-      <div className="no-print" style={{ position: "sticky", top: 0, zIndex: 10, background: "rgba(10,10,10,0.95)", backdropFilter: "blur(10px)", borderBottom: "1px solid rgba(255,255,255,0.05)", padding: "12px 24px", display: "flex", gap: 12, alignItems: "center", justifyContent: "space-between" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+      <div className="no-print" style={{ position: "sticky", top: 0, zIndex: 10, background: "rgba(10,10,10,0.95)", backdropFilter: "blur(10px)", borderBottom: "1px solid rgba(255,255,255,0.05)", padding: "12px 24px", display: "flex", flexWrap: "wrap", gap: 12, alignItems: "center", justifyContent: "space-between" }}>
+        <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 12, minWidth: 0 }}>
           <a href={creatorId ? `/creators/${creatorId}` : "/creators"} style={{ fontSize: 11, color: "#888", textDecoration: "none" }}>← Voltar</a>
           <span style={{ fontSize: 11, color: "#444" }}>|</span>
-          <span style={{ fontSize: 11, color: "#aaa" }}>Pitch: <strong style={{ color: "#f5f5f5" }}>{creator?.name || 'Creator'}</strong></span>
+          <span style={{ fontSize: 11, color: "#aaa", overflow: "hidden", textOverflow: "ellipsis" }}>Pitch: <strong style={{ color: "#f5f5f5" }}>{creator?.name || 'Creator'}</strong></span>
         </div>
-        <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 10, alignItems: "center" }}>
           <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, color: "#aaa", cursor: "pointer" }}>
             <input type="checkbox" checked={showInvestimento} onChange={(e) => setShowInvestimento(e.target.checked)} />
             Incluir Investimento
