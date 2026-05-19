@@ -258,6 +258,48 @@ export async function getCreator(id) {
       addedBy: { userId: 'tomas-backfill', firstName: 'Tomas', at: creator.createdAt || creator.updatedAt || null },
     };
   }
+
+  // One-time template-label migration (deployed 2026-05-19).
+  // Before this date, the DM Writer template selector was a UI label only —
+  // the system prompt didn't branch on it, so every "B" creator received
+  // A-style content. New B (Second Layer · parceria) is the real partnership
+  // template. Relabel pre-deploy B records to A so the Quality card on the
+  // /equipa dashboard shows accurate reply rates per template instead of
+  // mixing two different cohorts under the same letter.
+  //
+  // Cutoff is set well before real B usage could start (the prompt landed
+  // shortly after the commit at ~15:30 UTC). Anything generated before this
+  // is old and gets relabeled; anything after is real new B and untouched.
+  // Records that have already been migrated are skipped via templateMigratedAt.
+  const TEMPLATE_B_RELABEL_CUTOFF_MS = new Date('2026-05-19T15:30:00.000Z').getTime();
+  if (
+    creator.dmSequence?.template === 'B' &&
+    !creator.dmSequence?.templateMigratedAt
+  ) {
+    const generatedAt = creator.dmSequence?.generatedAt
+      || creator.updatedAt
+      || creator.createdAt
+      || null;
+    const generatedMs = generatedAt ? new Date(generatedAt).getTime() : 0;
+    if (generatedMs > 0 && generatedMs < TEMPLATE_B_RELABEL_CUTOFF_MS) {
+      creator = {
+        ...creator,
+        dmSequence: {
+          ...creator.dmSequence,
+          template: 'A',
+          templateMigratedAt: new Date().toISOString(),
+          templateMigratedFrom: 'B-noop',
+        },
+      };
+      // Persist so the next read doesn't re-evaluate the migration.
+      if (useMemory()) {
+        memStore.set(`creator:${id}`, JSON.stringify(creator));
+      } else {
+        await getRedis().set(`creator:${id}`, JSON.stringify(creator));
+      }
+    }
+  }
+
   return creator;
 }
 
