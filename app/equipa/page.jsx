@@ -54,6 +54,8 @@ export default function EquipaPage() {
   }, [windowKey]);
 
   // Aggregates for the hero cards (sum across users in current window).
+  // Target math: today = target × N people. Week = today × 5 weekdays.
+  // Month = today × ~22 weekdays (real count via pacing). All = no target.
   const heroStats = useMemo(() => {
     if (!data?.rows) return null;
     const sumDms = data.rows.reduce((s, r) => s + (r.dmsSent || 0), 0);
@@ -61,12 +63,20 @@ export default function EquipaPage() {
     const sumCreators = data.rows.reduce((s, r) => s + (r.creatorsAdded || 0), 0);
     const sumSigned = data.rows.reduce((s, r) => s + (r.signed || 0), 0);
     const replyRate = sumDms > 0 ? Math.round((sumReplies / sumDms) * 100) : 0;
-    const totalTarget = (data.target || 30) * (data.rows.length || 2);
+    const people = data.rows.length || 2;
+    const dailyTarget = data.target || 30;
+    let totalTarget = 0;
+    if (windowKey === 'today') totalTarget = dailyTarget * people;
+    else if (windowKey === 'week') totalTarget = dailyTarget * people * 5;
+    else if (windowKey === 'month') {
+      const wd = data.pacing?.[0]?.workingDaysInMonth || 22;
+      totalTarget = dailyTarget * people * wd;
+    }
     const goalPct = totalTarget > 0 ? Math.min(100, Math.round((sumDms / totalTarget) * 100)) : 0;
     const projectedPipeline = (data.revenue || []).reduce((s, r) => s + (r.pipelineWeightedAnnualEur || 0), 0);
     const signedAnnual = (data.revenue || []).reduce((s, r) => s + (r.signedAnnualEur || 0), 0);
     return { sumDms, sumReplies, sumCreators, sumSigned, replyRate, totalTarget, goalPct, projectedPipeline, signedAnnual };
-  }, [data]);
+  }, [data, windowKey]);
 
   return (
     <div style={{ minHeight: "100vh", background: SURFACE_0, color: TEXT_HI, fontFamily: "'Inter', sans-serif" }}>
@@ -125,7 +135,7 @@ export default function EquipaPage() {
                   <span style={{ fontSize: 10, fontWeight: 700, color: AMBER, letterSpacing: "0.14em", textTransform: "uppercase" }}>Precisa de atenção</span>
                 </div>
                 <div style={{ flex: 1, display: "flex", flexWrap: "wrap", gap: 18, fontSize: 12, color: "#ddd" }}>
-                  {data.needsAttention.slice(0, 3).map((item, i) => (
+                  {data.needsAttention.map((item, i) => (
                     <span key={i} style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
                       <span style={{ width: 4, height: 4, borderRadius: '50%', background: item.severity === 'danger' ? RED : item.severity === 'warn' ? AMBER : TEXT_LO }} />
                       {item.text}
@@ -141,9 +151,9 @@ export default function EquipaPage() {
               <HeroCard
                 label={windowKey === 'today' ? 'DMs hoje' : windowKey === 'week' ? 'DMs esta semana' : windowKey === 'month' ? 'DMs este mês' : 'DMs sempre'}
                 value={fmtNum(heroStats.sumDms)}
-                hint={windowKey === 'today' ? `${heroStats.totalTarget} alvo (${heroStats.goalPct}%)` : null}
+                hint={heroStats.totalTarget > 0 ? `${heroStats.totalTarget} alvo (${heroStats.goalPct}%)` : null}
                 accent
-                progress={windowKey === 'today' ? heroStats.goalPct : null}
+                progress={heroStats.totalTarget > 0 ? heroStats.goalPct : null}
               >
                 <ActivityBarChart days={data.activity?.flatMap(u => u.days).reduce((acc, d) => {
                   const i = acc.findIndex(x => x.date === d.date);
@@ -220,6 +230,91 @@ export default function EquipaPage() {
               </Card>
               <Card title="Pipeline · estado atual" subtitle="Todas as conversas em curso">
                 <PipelineDonut pipeline={data.pipeline} />
+              </Card>
+            </div>
+
+            {/* STANDINGS — monthly leaderboard with €50 net + pacing */}
+            {data.monthlyTally?.length > 0 && (
+              <div className="eq-fade" style={{ marginBottom: 18 }}>
+                <Card title="Classificação · Mês" subtitle="€50 acumulado · ritmo a 30/dia">
+                  <div style={{ display: "grid", gridTemplateColumns: `repeat(${Math.max(1, data.monthlyTally.length)}, 1fr)`, gap: 14 }}>
+                    {[...data.monthlyTally].sort((a, b) => b.netEur - a.netEur).map((row, i) => {
+                      const pace = data.pacing?.find(p => p.userId === row.userId);
+                      const isWinner = i === 0 && data.monthlyTally.length > 1 && row.netEur > 0;
+                      const onTrack = pace ? pace.pacePct >= 90 : null;
+                      return (
+                        <div key={row.userId} style={{
+                          padding: 20,
+                          background: isWinner ? `linear-gradient(135deg, rgba(34,197,94,0.08), ${SURFACE_1})` : SURFACE_1,
+                          border: `1px solid ${isWinner ? "rgba(34,197,94,0.30)" : BORDER}`,
+                          borderRadius: 20,
+                        }}>
+                          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                              <span style={{ fontSize: 11, fontWeight: 700, color: TEXT_LO }}>#{i + 1}</span>
+                              <span style={{ fontSize: 15, fontWeight: 700, color: TEXT_HI }}>{row.firstName}</span>
+                            </div>
+                            {isWinner && <span style={{ fontSize: 9, fontWeight: 700, padding: "2px 7px", borderRadius: 999, background: "rgba(34,197,94,0.10)", color: GREEN, border: "1px solid rgba(34,197,94,0.30)", letterSpacing: "0.04em", textTransform: "uppercase" }}>● 1º</span>}
+                          </div>
+                          <div style={{ fontSize: 28, fontWeight: 800, letterSpacing: "-0.025em", color: row.netEur >= 0 ? GREEN : RED, marginBottom: 4 }}>
+                            {row.netEur >= 0 ? '+' : ''}{fmtEur(row.netEur)}
+                          </div>
+                          <div style={{ fontSize: 11, color: TEXT_LO, marginBottom: 14 }}>
+                            <span style={{ color: GREEN }}>{row.daysHit}✓</span> · <span style={{ color: RED }}>{row.daysMissed}✗</span> · saldo do mês
+                          </div>
+                          {pace && (
+                            <div style={{ padding: "10px 12px", background: SURFACE_0, borderRadius: 12, border: `1px solid ${BORDER}` }}>
+                              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 6 }}>
+                                <span style={{ fontSize: 9, fontWeight: 600, color: TEXT_LO, letterSpacing: "0.10em", textTransform: "uppercase" }}>Ritmo</span>
+                                <span style={{ fontSize: 11, fontWeight: 700, color: onTrack ? GREEN : AMBER }}>{pace.pacePct}%</span>
+                              </div>
+                              <div style={{ fontSize: 12, color: TEXT_MID }}>
+                                <strong style={{ color: TEXT_HI }}>{pace.monthSoFar}</strong> / {pace.monthGoal} DMs · projeção <strong style={{ color: TEXT_HI }}>{pace.projectedTotal}</strong>
+                              </div>
+                              <div style={{ marginTop: 8, height: 4, background: "rgba(255,255,255,0.05)", borderRadius: 4, overflow: "hidden" }}>
+                                <div style={{ height: 4, width: `${Math.min(100, pace.pacePct)}%`, background: onTrack ? GREEN : AMBER, borderRadius: 4, transition: "width 600ms" }} />
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </Card>
+              </div>
+            )}
+
+            {/* REVENUE FORECAST PER PERSON — restored from v2 */}
+            {data.revenue?.some(r => r.signedAnnualEur > 0 || r.pipelineWeightedAnnualEur > 0) && (
+              <div className="eq-fade" style={{ marginBottom: 18 }}>
+                <Card title="Receita projetada · por pessoa" subtitle="Assinados + pipeline ponderado por estágio">
+                  <div style={{ display: "grid", gridTemplateColumns: `repeat(${Math.max(1, data.revenue.length)}, 1fr)`, gap: 14 }}>
+                    {data.revenue.map(r => (
+                      <div key={r.userId} style={{ padding: 18, background: SURFACE_0, border: `1px solid ${BORDER}`, borderRadius: 16 }}>
+                        <div style={{ fontSize: 13, fontWeight: 700, color: TEXT_HI, marginBottom: 14 }}>{r.firstName}</div>
+                        <div style={{ marginBottom: 12 }}>
+                          <div style={{ fontSize: 9, fontWeight: 600, color: GREEN, letterSpacing: "0.10em", textTransform: "uppercase", marginBottom: 4 }}>Assinados · anual</div>
+                          <div style={{ fontSize: 22, fontWeight: 800, color: GREEN, letterSpacing: "-0.02em" }}>{fmtEur(r.signedAnnualEur)}</div>
+                        </div>
+                        <div>
+                          <div style={{ fontSize: 9, fontWeight: 600, color: TEXT_LO, letterSpacing: "0.10em", textTransform: "uppercase", marginBottom: 4 }}>Pipeline ponderado</div>
+                          <div style={{ fontSize: 18, fontWeight: 700, color: TEXT_MID }}>{fmtEur(r.pipelineWeightedAnnualEur)}</div>
+                          <div style={{ fontSize: 10, color: TEXT_DIM, marginTop: 4 }}>Soma anual × prob. estágio</div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </Card>
+              </div>
+            )}
+
+            {/* HEATMAP + RECENT ACTIVITY side by side */}
+            <div className="eq-fade" style={{ display: "grid", gridTemplateColumns: "1.4fr 1fr", gap: 18, marginBottom: 18 }}>
+              <Card title="Padrão de atividade" subtitle="Onde a equipa concentra DMs · últimas 4 semanas">
+                <Heatmap data={data.heatmap} />
+              </Card>
+              <Card title="Atividade recente" subtitle={`Últimos ${data.recentActivity?.length || 0} eventos`}>
+                <RecentActivityFeed events={data.recentActivity || []} />
               </Card>
             </div>
 
@@ -361,8 +456,8 @@ function PersonCard({ row, sbRow, streak, pipe, vel, delta, monthly, activity, i
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginBottom: 14 }}>
         <StatTile label="Criadores" value={row.creatorsAdded} />
         <StatTile label="Respostas" value={row.repliesReceived} />
-        <StatTile label="Taxa" value={`${replyRate}%`} accent={replyRate >= 15 ? GREEN : replyRate >= 5 ? AMBER : null} />
-        <StatTile label="Fechados" value={row.signed} accent={row.signed > 0 ? GREEN : null} />
+        <StatTile label="Taxa" value={`${replyRate}%`} accent={replyRate >= 15 ? GREEN : replyRate >= 5 ? AMBER : null} delta={delta?.deltaReplyRate} deltaSuffix="pp" />
+        <StatTile label="Fechados" value={row.signed} accent={row.signed > 0 ? GREEN : null} delta={delta?.deltaSigned} />
         <StatTile label="Follow-ups" value={row.followUpsDone} />
         <StatTile label="Emails" value={row.emailsSent} />
       </div>
@@ -415,11 +510,18 @@ function PersonCard({ row, sbRow, streak, pipe, vel, delta, monthly, activity, i
   );
 }
 
-function StatTile({ label, value, accent }) {
+function StatTile({ label, value, accent, delta, deltaSuffix = '' }) {
   return (
     <div style={{ padding: "10px 12px", background: SURFACE_0, borderRadius: 12, border: `1px solid ${BORDER}` }}>
       <div style={{ fontSize: 9, fontWeight: 600, color: TEXT_LO, letterSpacing: "0.10em", textTransform: "uppercase", marginBottom: 4, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{label}</div>
-      <div style={{ fontSize: 17, fontWeight: 700, color: accent || TEXT_HI, letterSpacing: "-0.01em" }}>{value}</div>
+      <div style={{ display: "flex", alignItems: "baseline", gap: 4 }}>
+        <div style={{ fontSize: 17, fontWeight: 700, color: accent || TEXT_HI, letterSpacing: "-0.01em" }}>{value}</div>
+        {delta != null && delta !== 0 && (
+          <span style={{ fontSize: 9, fontWeight: 700, color: delta > 0 ? GREEN : RED }}>
+            {delta > 0 ? '+' : ''}{delta}{deltaSuffix}
+          </span>
+        )}
+      </div>
     </div>
   );
 }
@@ -637,6 +739,98 @@ function PipelineDonut({ pipeline = [] }) {
           </div>
         ))}
       </div>
+    </div>
+  );
+}
+
+function Heatmap({ data }) {
+  if (!data?.grid) return <div style={{ color: TEXT_DIM, fontSize: 12 }}>Sem dados.</div>;
+  const days = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'];
+  const buckets = ['Manhã', 'Almoço', 'Tarde', 'Noite'];
+  // Find max across non-weekend for scaling — weekends often empty.
+  const allVals = data.grid.flat();
+  const max = Math.max(1, ...allVals);
+  const colorAt = (v) => {
+    if (v === 0) return 'rgba(255,255,255,0.03)';
+    const intensity = Math.min(1, v / max);
+    // Interpolate from deep red base to bright accent.
+    const alpha = 0.10 + intensity * 0.65;
+    return `rgba(177,30,47,${alpha.toFixed(2)})`;
+  };
+  return (
+    <div>
+      <div style={{ display: "grid", gridTemplateColumns: "44px repeat(4, 1fr)", gap: 4, marginBottom: 4 }}>
+        <div />
+        {buckets.map(b => (
+          <div key={b} style={{ fontSize: 9, fontWeight: 600, color: TEXT_LO, letterSpacing: "0.06em", textTransform: "uppercase", textAlign: "center", padding: "4px 0" }}>{b}</div>
+        ))}
+      </div>
+      {days.map((dayLabel, dow) => (
+        <div key={dow} style={{ display: "grid", gridTemplateColumns: "44px repeat(4, 1fr)", gap: 4, marginBottom: 4 }}>
+          <div style={{ fontSize: 11, fontWeight: 600, color: dow >= 5 ? TEXT_DIM : TEXT_MID, padding: "8px 0", textAlign: "right" }}>{dayLabel}</div>
+          {data.grid[dow].map((v, b) => (
+            <div key={b} title={`${dayLabel} · ${buckets[b]}: ${v} DM${v === 1 ? '' : 's'}`}
+              style={{
+                height: 36,
+                background: colorAt(v),
+                borderRadius: 8,
+                border: `1px solid ${v > 0 ? 'rgba(177,30,47,0.18)' : BORDER}`,
+                display: "flex", alignItems: "center", justifyContent: "center",
+                transition: "transform 150ms",
+                cursor: "default",
+              }}
+              onMouseEnter={e => { e.currentTarget.style.transform = 'scale(1.04)'; }}
+              onMouseLeave={e => { e.currentTarget.style.transform = 'scale(1)'; }}
+            >
+              <span style={{ fontSize: 11, fontWeight: 700, color: v === 0 ? TEXT_DIM : TEXT_HI }}>{v}</span>
+            </div>
+          ))}
+        </div>
+      ))}
+      <div style={{ marginTop: 10, display: "flex", alignItems: "center", gap: 8, fontSize: 10, color: TEXT_LO }}>
+        <span>Menos</span>
+        <div style={{ display: "flex", gap: 2 }}>
+          {[0.05, 0.20, 0.40, 0.60, 0.80].map((a, i) => (
+            <div key={i} style={{ width: 14, height: 8, background: a === 0.05 ? 'rgba(255,255,255,0.03)' : `rgba(177,30,47,${a})`, borderRadius: 2 }} />
+          ))}
+        </div>
+        <span>Mais</span>
+      </div>
+    </div>
+  );
+}
+
+function RecentActivityFeed({ events }) {
+  if (!events.length) return <div style={{ color: TEXT_DIM, fontSize: 12 }}>Sem atividade recente.</div>;
+  const typeLabel = {
+    added: { label: 'adicionou', color: TEXT_MID },
+    dm_sent: { label: 'enviou DM a', color: ACCENT },
+    replied: { label: 'recebeu resposta de', color: '#3b82f6' },
+    signed: { label: 'fechou', color: GREEN },
+  };
+  const ago = (iso) => {
+    const sec = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
+    if (sec < 60) return `${sec}s`;
+    if (sec < 3600) return `${Math.floor(sec / 60)}m`;
+    if (sec < 86400) return `${Math.floor(sec / 3600)}h`;
+    return `${Math.floor(sec / 86400)}d`;
+  };
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+      {events.map((e, i) => {
+        const cfg = typeLabel[e.type] || { label: e.type, color: TEXT_MID };
+        return (
+          <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 12px", background: SURFACE_0, border: `1px solid ${BORDER}`, borderRadius: 10 }}>
+            <span style={{ width: 6, height: 6, borderRadius: '50%', background: cfg.color, flexShrink: 0 }} />
+            <div style={{ flex: 1, fontSize: 12, color: TEXT_MID, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+              <strong style={{ color: TEXT_HI }}>{e.firstName || '—'}</strong>
+              <span style={{ color: TEXT_LO, margin: "0 4px" }}>{cfg.label}</span>
+              <a href={`/creators/${e.creatorId}`} style={{ color: TEXT_HI, textDecoration: 'none' }}>{e.creator || 'criador'}</a>
+            </div>
+            <span style={{ fontSize: 10, color: TEXT_LO, flexShrink: 0 }}>{ago(e.at)}</span>
+          </div>
+        );
+      })}
     </div>
   );
 }

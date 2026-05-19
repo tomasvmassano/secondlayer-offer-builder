@@ -4,6 +4,7 @@ import {
   getFunnels, getStreaks, getPipelineHealth, getVelocity,
   getQualityBreakdowns, getMonthlyTally, getNeedsAttention,
   getDeltas, getRevenueForecast, getActivitySeries,
+  getHeatmap, getRecentActivity, getPacing,
 } from '../../lib/teamStats';
 
 // Read-only endpoint that backs the /equipa dashboard. Middleware ensures
@@ -38,6 +39,9 @@ export async function GET(request) {
       deltas,
       revenue,
       activity,
+      heatmap,
+      recentActivity,
+      pacing,
     ] = await Promise.all([
       getTeamStats({ window }),
       window === 'today' ? getDailyScoreboard({ target }) : null,
@@ -51,12 +55,16 @@ export async function GET(request) {
       window !== 'all' ? getDeltas({ window: window === 'today' ? 'week' : window }) : null,
       getRevenueForecast(),
       getActivitySeries({ days: 7 }),
+      getHeatmap({ weeks: 4 }),
+      getRecentActivity({ limit: 8 }),
+      getPacing({ target }),
     ]);
 
     return NextResponse.json({
       window, target,
       rows, scoreboard, funnels, streaks, pipeline, velocity, quality,
       monthlyTally, needsAttention, deltas, revenue, activity,
+      heatmap, recentActivity, pacing,
     });
   } catch (err) {
     return NextResponse.json({ error: err.message }, { status: 500 });

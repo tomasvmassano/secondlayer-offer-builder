@@ -511,6 +511,103 @@ export async function getDeltas({ window = 'week', now = new Date() } = {}) {
   });
 }
 
+// HEATMAP — 7 days × 4 time blocks (morning / midday / afternoon / evening)
+// showing where team activity concentrates. Each cell counts DMs sent
+// across the whole team in that time bucket over the last N weeks.
+// Time buckets (Lisbon local):
+//   morning   05:00–11:59  (early grind)
+//   midday    12:00–14:59  (lunch window)
+//   afternoon 15:00–18:59  (afternoon push)
+//   evening   19:00–04:59  (after-hours / overnight)
+export async function getHeatmap({ weeks = 4, now = new Date() } = {}) {
+  const all = await loadAllCreators();
+  const cutoffMs = now.getTime() - weeks * 7 * DAY_MS;
+  // grid[day0..6][bucket0..3] — day 0 = Monday (matches Lisbon week start).
+  const grid = Array.from({ length: 7 }, () => [0, 0, 0, 0]);
+  const bucketOf = (hour) => {
+    if (hour >= 5 && hour < 12) return 0;
+    if (hour >= 12 && hour < 15) return 1;
+    if (hour >= 15 && hour < 19) return 2;
+    return 3;
+  };
+  for (const c of all) {
+    const ats = [c.outreach?.dmSentAt].filter(Boolean);
+    for (const at of ats) {
+      const t = new Date(at).getTime();
+      if (t < cutoffMs) continue;
+      const fmt = new Intl.DateTimeFormat('en-GB', {
+        timeZone: TIMEZONE,
+        weekday: 'short', hour: '2-digit', hour12: false,
+      });
+      const parts = Object.fromEntries(fmt.formatToParts(new Date(at)).map(p => [p.type, p.value]));
+      const dowMap = { Mon: 0, Tue: 1, Wed: 2, Thu: 3, Fri: 4, Sat: 5, Sun: 6 };
+      const dow = dowMap[parts.weekday];
+      if (dow == null) continue;
+      const hour = Number(parts.hour) || 0;
+      grid[dow][bucketOf(hour)] += 1;
+    }
+  }
+  return { weeks, grid };
+}
+
+// RECENT ACTIVITY — last N events across the team, newest first. Drives
+// the activity feed on the dashboard.
+export async function getRecentActivity({ limit = 8 } = {}) {
+  const all = await loadAllCreators();
+  const events = [];
+  for (const c of all) {
+    const o = c.outreach || {};
+    if (c.addedBy?.at) events.push({ at: c.addedBy.at, type: 'added', firstName: c.addedBy.firstName, creator: c.name, creatorId: c.id });
+    if (o.dmSentAt) events.push({ at: o.dmSentAt, type: 'dm_sent', firstName: (o.dmSentBy || c.addedBy)?.firstName, creator: c.name, creatorId: c.id });
+    if (o.repliedAt) events.push({ at: o.repliedAt, type: 'replied', firstName: (o.repliedMarkedBy || c.addedBy)?.firstName, creator: c.name, creatorId: c.id });
+    if (c.signedAt) events.push({ at: c.signedAt, type: 'signed', firstName: c.addedBy?.firstName, creator: c.name, creatorId: c.id });
+  }
+  events.sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime());
+  return events.slice(0, limit);
+}
+
+// PACING — projects current run rate forward to month-end. For the
+// monthly DM goal (30/day × ~22 working days = 660/month per person).
+// Returns: { firstName, monthSoFar, monthGoal, projectedTotal, pacePct }
+export async function getPacing({ target = 30, now = new Date() } = {}) {
+  const monthRows = await getTeamStats({ window: 'month', now });
+  const startMs = windowStart('month', now);
+  const elapsedMs = now.getTime() - startMs;
+  const elapsedDays = Math.max(1, elapsedMs / DAY_MS);
+  // Count working days (Mon-Fri) elapsed and remaining in the month.
+  const fmt = new Intl.DateTimeFormat('en-CA', {
+    timeZone: TIMEZONE,
+    year: 'numeric', month: '2-digit',
+  });
+  const monthStr = fmt.format(now);
+  const [y, m] = monthStr.split('-').map(Number);
+  const daysInMonth = new Date(y, m, 0).getDate();
+  let workingDaysInMonth = 0;
+  let workingDaysElapsed = 0;
+  for (let d = 1; d <= daysInMonth; d++) {
+    const dow = new Date(Date.UTC(y, m - 1, d)).getUTCDay();
+    if (dow === 0 || dow === 6) continue;
+    workingDaysInMonth += 1;
+    if (d <= now.getUTCDate()) workingDaysElapsed += 1;
+  }
+  const monthGoal = target * workingDaysInMonth;
+  return monthRows.map(r => {
+    const rate = workingDaysElapsed > 0 ? r.dmsSent / workingDaysElapsed : 0;
+    const projectedTotal = Math.round(rate * workingDaysInMonth);
+    const pacePct = monthGoal > 0 ? Math.round((r.dmsSent / (target * workingDaysElapsed || 1)) * 100) : 0;
+    return {
+      userId: r.userId,
+      firstName: r.firstName,
+      monthSoFar: r.dmsSent,
+      monthGoal,
+      projectedTotal,
+      pacePct,
+      workingDaysElapsed,
+      workingDaysInMonth,
+    };
+  });
+}
+
 // ACTIVITY SERIES — last N days of daily DM counts per user. Drives the
 // bar chart + sparklines on the redesigned dashboard. Returns:
 //   [{ userId, firstName, days: [{ date: 'YYYY-MM-DD', dms, replies }, ...] }]
