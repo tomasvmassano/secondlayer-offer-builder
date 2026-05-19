@@ -357,6 +357,243 @@ export default function EquipaPage() {
                 </Card>
               </div>
             )}
+
+            {/* SECTION HEADER — strategic sales metrics start here */}
+            <div className="eq-fade" style={{ marginTop: 28, marginBottom: 14, paddingLeft: 4 }}>
+              <div style={{ fontSize: 10, fontWeight: 700, color: ACCENT, letterSpacing: "0.18em", textTransform: "uppercase", marginBottom: 4 }}>Métricas estratégicas</div>
+              <div style={{ fontSize: 12, color: TEXT_LO }}>Coverage, CAC, ciclo de venda · respondem a "estou em ritmo para bater a meta?"</div>
+            </div>
+
+            {/* EFFICIENCY ROW — Pipeline coverage + CAC per person */}
+            <div className="eq-fade" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 18, marginBottom: 18 }}>
+              <Card title="Pipeline coverage" subtitle={`Quota trimestral · ${fmtEur(data.quotaEurPerQuarter || 50000)} por pessoa`}>
+                <div style={{ display: "grid", gridTemplateColumns: `repeat(${Math.max(1, userOrder.length)}, 1fr)`, gap: 14 }}>
+                  {userOrder.map(({ userId, firstName }) => {
+                    const c = data.coverage?.find(x => x.userId === userId);
+                    if (!c) return (
+                      <div key={userId} style={{ padding: 18, background: SURFACE_0, border: `1px solid ${BORDER}`, borderRadius: 16, color: TEXT_DIM, fontSize: 12 }}>
+                        <div style={{ fontSize: 13, fontWeight: 700, color: TEXT_HI, marginBottom: 8 }}>{firstName}</div>
+                        Sem pipeline
+                      </div>
+                    );
+                    const statusColor = c.status === 'safe' ? GREEN : c.status === 'adequate' ? AMBER : RED;
+                    const statusLabel = c.status === 'safe' ? 'Confortável' : c.status === 'adequate' ? 'Adequado' : c.status === 'thin' ? 'Insuficiente' : '—';
+                    return (
+                      <div key={userId} style={{ padding: 18, background: SURFACE_0, border: `1px solid ${BORDER}`, borderRadius: 16 }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 10 }}>
+                          <span style={{ fontSize: 13, fontWeight: 700, color: TEXT_HI }}>{c.firstName}</span>
+                          <span style={{ fontSize: 9, fontWeight: 700, padding: "2px 8px", borderRadius: 999, background: `${statusColor}1a`, color: statusColor, border: `1px solid ${statusColor}40`, letterSpacing: "0.04em", textTransform: "uppercase" }}>{statusLabel}</span>
+                        </div>
+                        <div style={{ fontSize: 32, fontWeight: 800, color: statusColor, letterSpacing: "-0.025em", marginBottom: 4 }}>
+                          {c.coverageRatio == null ? '—' : `${c.coverageRatio}×`}
+                        </div>
+                        <div style={{ fontSize: 11, color: TEXT_LO, marginBottom: 10 }}>cobertura · pipeline ÷ quota restante</div>
+                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, paddingTop: 10, borderTop: `1px solid ${BORDER}` }}>
+                          <div>
+                            <div style={{ fontSize: 9, fontWeight: 600, color: TEXT_DIM, letterSpacing: "0.10em", textTransform: "uppercase", marginBottom: 3 }}>Assinado</div>
+                            <div style={{ fontSize: 13, fontWeight: 700, color: GREEN }}>{fmtEur(c.signedThisQuarterEur)}</div>
+                          </div>
+                          <div>
+                            <div style={{ fontSize: 9, fontWeight: 600, color: TEXT_DIM, letterSpacing: "0.10em", textTransform: "uppercase", marginBottom: 3 }}>Em falta</div>
+                            <div style={{ fontSize: 13, fontWeight: 700, color: TEXT_MID }}>{fmtEur(c.quotaRemainingEur)}</div>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </Card>
+
+              <Card title="CAC · custo por aquisição" subtitle="Proxy de esforço · €0.50/DM, €1/email, €0.75/follow-up, €15/call">
+                <div style={{ display: "grid", gridTemplateColumns: `repeat(${Math.max(1, userOrder.length)}, 1fr)`, gap: 14 }}>
+                  {userOrder.map(({ userId, firstName }) => {
+                    const c = data.cac?.find(x => x.userId === userId);
+                    if (!c) return (
+                      <div key={userId} style={{ padding: 18, background: SURFACE_0, border: `1px solid ${BORDER}`, borderRadius: 16, color: TEXT_DIM, fontSize: 12 }}>
+                        <div style={{ fontSize: 13, fontWeight: 700, color: TEXT_HI, marginBottom: 8 }}>{firstName}</div>
+                        Sem dados
+                      </div>
+                    );
+                    return (
+                      <div key={userId} style={{ padding: 18, background: SURFACE_0, border: `1px solid ${BORDER}`, borderRadius: 16 }}>
+                        <div style={{ fontSize: 13, fontWeight: 700, color: TEXT_HI, marginBottom: 10 }}>{c.firstName}</div>
+                        <div style={{ fontSize: 32, fontWeight: 800, color: TEXT_HI, letterSpacing: "-0.025em", marginBottom: 4 }}>
+                          {c.cacEur == null ? '—' : fmtEur(c.cacEur)}
+                        </div>
+                        <div style={{ fontSize: 11, color: TEXT_LO, marginBottom: 10 }}>por deal assinado</div>
+                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, paddingTop: 10, borderTop: `1px solid ${BORDER}` }}>
+                          <div>
+                            <div style={{ fontSize: 9, fontWeight: 600, color: TEXT_DIM, letterSpacing: "0.10em", textTransform: "uppercase", marginBottom: 3 }}>Spend</div>
+                            <div style={{ fontSize: 13, fontWeight: 700, color: TEXT_MID }}>{fmtEur(c.spendEur)}</div>
+                          </div>
+                          <div>
+                            <div style={{ fontSize: 9, fontWeight: 600, color: TEXT_DIM, letterSpacing: "0.10em", textTransform: "uppercase", marginBottom: 3 }}>Payback</div>
+                            <div style={{ fontSize: 13, fontWeight: 700, color: c.paybackRatio && c.paybackRatio >= 5 ? GREEN : TEXT_MID }}>
+                              {c.paybackRatio == null ? '—' : `${c.paybackRatio}×`}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </Card>
+            </div>
+
+            {/* SHOW-UP RATE + TOUCHPOINTS PER CLOSE side by side */}
+            <div className="eq-fade" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 18, marginBottom: 18 }}>
+              <Card title="Show-up rate · calls" subtitle="Marcadas vs realizadas · alvo ≥ 70%">
+                <div style={{ marginBottom: 16, paddingBottom: 16, borderBottom: `1px solid ${BORDER}` }}>
+                  <div style={{ fontSize: 11, color: TEXT_LO, marginBottom: 4 }}>Equipa</div>
+                  <div style={{ display: "flex", alignItems: "baseline", gap: 12 }}>
+                    <span style={{ fontSize: 40, fontWeight: 800, color: data.showUp?.teamRate == null ? TEXT_DIM : data.showUp.teamRate >= 70 ? GREEN : data.showUp.teamRate >= 50 ? AMBER : RED, letterSpacing: "-0.025em" }}>
+                      {data.showUp?.teamRate == null ? '—' : `${data.showUp.teamRate}%`}
+                    </span>
+                    <span style={{ fontSize: 12, color: TEXT_LO }}>
+                      {data.showUp?.teamHeld || 0} / {data.showUp?.teamAgreed || 0} calls
+                    </span>
+                  </div>
+                </div>
+                <div style={{ display: "grid", gridTemplateColumns: `repeat(${Math.max(1, userOrder.length)}, 1fr)`, gap: 12 }}>
+                  {userOrder.map(({ userId, firstName }) => {
+                    const s = data.showUp?.rows?.find(x => x.userId === userId);
+                    if (!s || s.agreed === 0) return (
+                      <div key={userId} style={{ padding: 14, background: SURFACE_0, border: `1px solid ${BORDER}`, borderRadius: 14, color: TEXT_DIM, fontSize: 11 }}>
+                        <div style={{ fontSize: 12, fontWeight: 700, color: TEXT_MID, marginBottom: 4 }}>{firstName}</div>
+                        Sem calls
+                      </div>
+                    );
+                    const color = s.rate >= 70 ? GREEN : s.rate >= 50 ? AMBER : RED;
+                    return (
+                      <div key={userId} style={{ padding: 14, background: SURFACE_0, border: `1px solid ${BORDER}`, borderRadius: 14 }}>
+                        <div style={{ fontSize: 12, fontWeight: 700, color: TEXT_HI, marginBottom: 6 }}>{s.firstName}</div>
+                        <div style={{ fontSize: 22, fontWeight: 800, color, letterSpacing: "-0.02em" }}>{s.rate == null ? '—' : `${s.rate}%`}</div>
+                        <div style={{ fontSize: 11, color: TEXT_LO, marginTop: 2 }}>{s.held}/{s.agreed} calls</div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </Card>
+
+              <Card title="Touch points por close" subtitle={`Equipa · ${data.touchpoints?.teamAvg == null ? '—' : `${data.touchpoints.teamAvg} touches/deal`}`}>
+                {(!data.touchpoints?.rows || data.touchpoints.rows.length === 0) ? (
+                  <div style={{ color: TEXT_DIM, fontSize: 12, padding: 20, textAlign: "center" }}>Sem deals fechados ainda.</div>
+                ) : (
+                  <div style={{ display: "grid", gridTemplateColumns: `repeat(${Math.max(1, userOrder.length)}, 1fr)`, gap: 12 }}>
+                    {userOrder.map(({ userId, firstName }) => {
+                      const t = data.touchpoints?.rows?.find(x => x.userId === userId);
+                      if (!t || t.signed === 0) return (
+                        <div key={userId} style={{ padding: 14, background: SURFACE_0, border: `1px solid ${BORDER}`, borderRadius: 14, color: TEXT_DIM, fontSize: 11 }}>
+                          <div style={{ fontSize: 12, fontWeight: 700, color: TEXT_MID, marginBottom: 4 }}>{firstName}</div>
+                          Sem fechos
+                        </div>
+                      );
+                      const teamAvg = data.touchpoints?.teamAvg || 0;
+                      // Below team avg = more efficient = green; above = amber.
+                      const efficient = t.avgPerClose != null && teamAvg > 0 && t.avgPerClose <= teamAvg;
+                      return (
+                        <div key={userId} style={{ padding: 14, background: SURFACE_0, border: `1px solid ${BORDER}`, borderRadius: 14 }}>
+                          <div style={{ fontSize: 12, fontWeight: 700, color: TEXT_HI, marginBottom: 6 }}>{t.firstName}</div>
+                          <div style={{ fontSize: 22, fontWeight: 800, color: efficient ? GREEN : TEXT_HI, letterSpacing: "-0.02em" }}>
+                            {t.avgPerClose == null ? '—' : t.avgPerClose}
+                          </div>
+                          <div style={{ fontSize: 11, color: TEXT_LO, marginTop: 2 }}>touches · {t.signed} fechos</div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </Card>
+            </div>
+
+            {/* PIPELINE VELOCITY — composite € per day */}
+            <div className="eq-fade" style={{ marginBottom: 18 }}>
+              <Card title="Velocidade do pipeline" subtitle="(deals × winRate × € médio) ÷ ciclo · € a fluir por dia">
+                <div style={{ display: "grid", gridTemplateColumns: `repeat(${Math.max(1, userOrder.length)}, 1fr)`, gap: 14 }}>
+                  {userOrder.map(({ userId, firstName }) => {
+                    const v = data.pipelineVelocity?.find(x => x.userId === userId);
+                    if (!v) return (
+                      <div key={userId} style={{ padding: 18, background: SURFACE_0, border: `1px solid ${BORDER}`, borderRadius: 16, color: TEXT_DIM, fontSize: 12 }}>
+                        <div style={{ fontSize: 13, fontWeight: 700, color: TEXT_HI, marginBottom: 8 }}>{firstName}</div>
+                        Sem deals
+                      </div>
+                    );
+                    return (
+                      <div key={userId} style={{ padding: 18, background: SURFACE_0, border: `1px solid ${BORDER}`, borderRadius: 16 }}>
+                        <div style={{ fontSize: 13, fontWeight: 700, color: TEXT_HI, marginBottom: 10 }}>{v.firstName}</div>
+                        <div style={{ fontSize: 28, fontWeight: 800, color: TEXT_HI, letterSpacing: "-0.025em", marginBottom: 4 }}>
+                          {v.velocityEurPerDay == null ? '—' : `${fmtEur(v.velocityEurPerDay)}/dia`}
+                        </div>
+                        <div style={{ fontSize: 11, color: TEXT_LO, marginBottom: 12 }}>velocidade</div>
+                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 8, paddingTop: 10, borderTop: `1px solid ${BORDER}` }}>
+                          <MicroStat label="Deals" value={(v.openDeals + v.signed)} />
+                          <MicroStat label="Win %" value={`${v.winRatePct}%`} accent={v.winRatePct >= 20 ? GREEN : null} />
+                          <MicroStat label="€ médio" value={fmtEur(v.avgDealEur)} />
+                          <MicroStat label="Ciclo" value={v.avgCycleDays == null ? '—' : `${v.avgCycleDays}d`} />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </Card>
+            </div>
+
+            {/* LOSS REASONS + FOLLOW-UP EFFECTIVENESS side by side */}
+            <div className="eq-fade" style={{ display: "grid", gridTemplateColumns: "1fr 1.2fr", gap: 18, marginBottom: 18 }}>
+              <Card title="Razões de perda" subtitle={`${data.lossReasons?.total || 0} deals frios · porque morrem`}>
+                {(!data.lossReasons?.rows || data.lossReasons.rows.length === 0) ? (
+                  <div style={{ color: TEXT_DIM, fontSize: 12, padding: 20, textAlign: "center" }}>Nenhum deal marcado como frio ainda.</div>
+                ) : (
+                  <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                    {data.lossReasons.rows.map(r => (
+                      <div key={r.reason}>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 6 }}>
+                          <span style={{ fontSize: 12, color: TEXT_MID }}>{r.label}</span>
+                          <span style={{ fontSize: 11, color: TEXT_LO }}>
+                            <strong style={{ color: TEXT_HI }}>{r.count}</strong> · {r.pct}%
+                          </span>
+                        </div>
+                        <div style={{ height: 8, background: SURFACE_0, borderRadius: 6, overflow: "hidden", border: `1px solid ${BORDER}` }}>
+                          <div style={{
+                            height: 8,
+                            width: `${r.pct}%`,
+                            background: `linear-gradient(90deg, ${ACCENT_DEEP}, ${ACCENT})`,
+                            borderRadius: 6,
+                            transition: "width 600ms cubic-bezier(.2,.7,.2,1)",
+                          }} />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </Card>
+
+              <Card title="Eficácia dos follow-ups" subtitle="Onde os replies aparecem · taxa por etapa">
+                {(!data.followUpEff || data.followUpEff.every(b => b.sent === 0)) ? (
+                  <div style={{ color: TEXT_DIM, fontSize: 12, padding: 20, textAlign: "center" }}>Sem dados de outreach pós-reset.</div>
+                ) : (
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12 }}>
+                    {data.followUpEff.map(b => (
+                      <div key={b.key} style={{ padding: 16, background: SURFACE_0, border: `1px solid ${BORDER}`, borderRadius: 14 }}>
+                        <div style={{ fontSize: 10, fontWeight: 600, color: TEXT_LO, letterSpacing: "0.10em", textTransform: "uppercase", marginBottom: 8 }}>{b.stage}</div>
+                        <div style={{ fontSize: 24, fontWeight: 800, color: b.rate >= 15 ? GREEN : b.rate >= 8 ? AMBER : TEXT_HI, letterSpacing: "-0.025em" }}>{b.rate}%</div>
+                        <div style={{ fontSize: 11, color: TEXT_LO, marginTop: 4 }}>{b.replied} / {b.sent}</div>
+                        <div style={{ marginTop: 10, height: 4, background: "rgba(255,255,255,0.05)", borderRadius: 4, overflow: "hidden" }}>
+                          <div style={{ height: 4, width: `${Math.min(100, b.rate * 3)}%`, background: ACCENT, borderRadius: 4, transition: "width 600ms" }} />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </Card>
+            </div>
+
+            {/* WIN RATE TRAJECTORY — weekly line */}
+            <div className="eq-fade" style={{ marginBottom: 18 }}>
+              <Card title="Tendência de win rate" subtitle="Últimas 8 semanas · assinados ÷ (assinados + frios)">
+                <WinRateTrajectory data={data.winRateTrajectory || []} />
+              </Card>
+            </div>
           </>
         )}
       </div>
@@ -667,7 +904,9 @@ function FunnelChart({ funnel }) {
     { label: 'Adicionados', value: funnel.added },
     { label: 'DMs', value: funnel.dmd, rate: funnel.addedToDmRate },
     { label: 'Respostas', value: funnel.replied, rate: funnel.dmToReplyRate },
-    { label: 'Fechados', value: funnel.signed, rate: funnel.replyToSignedRate, highlight: true },
+    { label: 'Calls agendadas', value: funnel.callAgreed || 0, rate: funnel.replyToCallRate },
+    { label: 'Calls realizadas', value: funnel.callHeld || 0, rate: funnel.showUpRate },
+    { label: 'Fechados', value: funnel.signed, rate: funnel.callToSignedRate, highlight: true },
   ];
   const max = Math.max(1, funnel.added);
   return (
@@ -877,6 +1116,75 @@ function QualityBars({ title, items }) {
           );
         })}
       </div>
+    </div>
+  );
+}
+
+// Weekly line chart of win rate. Empty buckets (no terminal events that week)
+// render as gaps in the line so a string of zero-volume weeks doesn't pull
+// the trend visually down. Hover-free; data labels render under each point.
+function WinRateTrajectory({ data }) {
+  const validPoints = data.filter(d => d.total > 0);
+  if (validPoints.length === 0) {
+    return <div style={{ color: TEXT_DIM, fontSize: 12, padding: 20, textAlign: "center" }}>Sem deals fechados ou perdidos no horizonte.</div>;
+  }
+  const W = 720, H = 220, pad = { l: 36, r: 16, t: 20, b: 36 };
+  const innerW = W - pad.l - pad.r;
+  const innerH = H - pad.t - pad.b;
+  const n = data.length;
+  const xAt = (i) => pad.l + (n === 1 ? innerW / 2 : (i / (n - 1)) * innerW);
+  const yAt = (pct) => pad.t + innerH - (pct / 100) * innerH;
+
+  // Build path string, breaking on null winRatePct so gaps stay gaps.
+  let pathD = '';
+  let prevValid = false;
+  data.forEach((d, i) => {
+    if (d.winRatePct == null) { prevValid = false; return; }
+    const cmd = prevValid ? 'L' : 'M';
+    pathD += `${cmd}${xAt(i)},${yAt(d.winRatePct)} `;
+    prevValid = true;
+  });
+
+  // Trend marker — first vs last valid points.
+  const firstValid = validPoints[0];
+  const lastValid = validPoints[validPoints.length - 1];
+  const trendDelta = lastValid.winRatePct - firstValid.winRatePct;
+
+  return (
+    <div>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 12 }}>
+        <div style={{ fontSize: 11, color: TEXT_LO }}>Atual <strong style={{ color: TEXT_HI }}>{lastValid.winRatePct}%</strong> · há {validPoints.length} sem. <strong style={{ color: TEXT_HI }}>{firstValid.winRatePct}%</strong></div>
+        <span style={{ fontSize: 11, fontWeight: 700, padding: "3px 10px", borderRadius: 999, background: trendDelta > 0 ? "rgba(34,197,94,0.10)" : trendDelta < 0 ? "rgba(239,68,68,0.10)" : "rgba(255,255,255,0.05)", color: trendDelta > 0 ? GREEN : trendDelta < 0 ? RED : TEXT_MID, border: `1px solid ${trendDelta > 0 ? "rgba(34,197,94,0.25)" : trendDelta < 0 ? "rgba(239,68,68,0.25)" : BORDER_HI}` }}>
+          {trendDelta > 0 ? '↑' : trendDelta < 0 ? '↓' : '→'} {Math.abs(trendDelta)} pp
+        </span>
+      </div>
+      <svg viewBox={`0 0 ${W} ${H}`} style={{ width: "100%", height: 240, display: "block" }}>
+        {/* Gridlines at 0/25/50/75/100% */}
+        {[0, 25, 50, 75, 100].map(pct => (
+          <g key={pct}>
+            <line x1={pad.l} x2={W - pad.r} y1={yAt(pct)} y2={yAt(pct)} stroke="rgba(255,255,255,0.04)" strokeWidth={1} />
+            <text x={pad.l - 8} y={yAt(pct) + 4} fontSize={10} fill={TEXT_DIM} textAnchor="end">{pct}%</text>
+          </g>
+        ))}
+        {/* Line */}
+        <path d={pathD} stroke={ACCENT} strokeWidth={2.5} fill="none" strokeLinecap="round" strokeLinejoin="round" />
+        {/* Points + labels */}
+        {data.map((d, i) => {
+          if (d.winRatePct == null) {
+            return (
+              <text key={i} x={xAt(i)} y={H - pad.b + 18} fontSize={9} fill={TEXT_DIM} textAnchor="middle">{d.label}</text>
+            );
+          }
+          return (
+            <g key={i}>
+              <circle cx={xAt(i)} cy={yAt(d.winRatePct)} r={4} fill={SURFACE_0} stroke={ACCENT} strokeWidth={2} />
+              <text x={xAt(i)} y={yAt(d.winRatePct) - 10} fontSize={10} fill={TEXT_MID} textAnchor="middle" fontWeight={600}>{d.winRatePct}%</text>
+              <text x={xAt(i)} y={H - pad.b + 18} fontSize={9} fill={TEXT_LO} textAnchor="middle">{d.label}</text>
+              <text x={xAt(i)} y={H - pad.b + 30} fontSize={8} fill={TEXT_DIM} textAnchor="middle">{d.signed}✓ {d.lost}✗</text>
+            </g>
+          );
+        })}
+      </svg>
     </div>
   );
 }

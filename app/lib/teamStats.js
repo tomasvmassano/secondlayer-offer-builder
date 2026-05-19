@@ -259,8 +259,9 @@ function lisbonDayBounds(date) {
   return { startMs, endMs: startMs + DAY_MS };
 }
 
-// FUNNEL — added → DMs → replies → signed (all-time, attributable to
-// the original adder). Conversion percentages between each step.
+// FUNNEL — added → DMs → replies → call agreed → call held → signed (all-time,
+// attributable to the original adder). Conversion percentages between each step.
+// Call stages added 2026-05-19 to make show-up rate visible at the funnel level.
 export async function getFunnels(creators) {
   const all = creators || await loadAllCreators();
   const byUser = new Map();
@@ -269,11 +270,13 @@ export async function getFunnels(creators) {
     // Skip creators added before the stats reset — funnel is competition view.
     if (!postReset(c.addedBy.at)) continue;
     const key = canonicalKey(c.addedBy.firstName);
-    if (!byUser.has(key)) byUser.set(key, { firstName: c.addedBy.firstName, added: 0, dmd: 0, replied: 0, signed: 0 });
+    if (!byUser.has(key)) byUser.set(key, { firstName: c.addedBy.firstName, added: 0, dmd: 0, replied: 0, callAgreed: 0, callHeld: 0, signed: 0 });
     const row = byUser.get(key);
     row.added += 1;
     if (postReset(c.outreach?.dmSentAt)) row.dmd += 1;
     if (postReset(c.outreach?.repliedAt)) row.replied += 1;
+    if (postReset(c.outreach?.callAgreedAt)) row.callAgreed += 1;
+    if (postReset(c.outreach?.callHeldAt)) row.callHeld += 1;
     if (c.pipelineStatus === 'signed' && postReset(c.signedAt)) row.signed += 1;
   }
   return Array.from(byUser.entries()).map(([key, r]) => ({
@@ -282,9 +285,14 @@ export async function getFunnels(creators) {
     added: r.added,
     dmd: r.dmd,
     replied: r.replied,
+    callAgreed: r.callAgreed,
+    callHeld: r.callHeld,
     signed: r.signed,
     addedToDmRate: r.added > 0 ? Math.round((r.dmd / r.added) * 100) : 0,
     dmToReplyRate: r.dmd > 0 ? Math.round((r.replied / r.dmd) * 100) : 0,
+    replyToCallRate: r.replied > 0 ? Math.round((r.callAgreed / r.replied) * 100) : 0,
+    showUpRate: r.callAgreed > 0 ? Math.round((r.callHeld / r.callAgreed) * 100) : 0,
+    callToSignedRate: r.callHeld > 0 ? Math.round((r.signed / r.callHeld) * 100) : 0,
     replyToSignedRate: r.replied > 0 ? Math.round((r.signed / r.replied) * 100) : 0,
     overallRate: r.added > 0 ? Math.round((r.signed / r.added) * 100) : 0,
   }));
@@ -728,4 +736,336 @@ export async function getRevenueForecast() {
     signedAnnualEur: Math.round(u.signedAnnual),
     pipelineWeightedAnnualEur: Math.round(u.weightedAnnual),
   }));
+}
+
+// ──────────────────────────────────────────────────────────────────
+// Tier 1–4 sales metrics (added 2026-05-19)
+//
+// Each helper is per-user where the question is "who's improving" and
+// team-wide where the question is "what's working". They all respect
+// the global stats-reset point so the competition view stays clean.
+// ──────────────────────────────────────────────────────────────────
+
+// Resolve a creator's likely annual revenue for forecasting/coverage math.
+// Tries calculateOfferRevenue first (full offer with pricing tier), then
+// falls back to revenuePrice × 12 (monthly subscription assumption).
+async function _resolveAnnualRevenue(c) {
+  const { calculateOfferRevenue } = await import('./revenue');
+  const offer = c.offer?.client_facing_output;
+  if (offer?.target_price) {
+    try {
+      const r = calculateOfferRevenue({ offer, creator: c, scenarioKey: 'moderado' });
+      if (r?.annualRevenue) return r.annualRevenue;
+    } catch { /* fall through */ }
+  }
+  if (Number.isFinite(c.revenuePrice)) return Number(c.revenuePrice) * 12;
+  return 0;
+}
+
+// 1. PIPELINE COVERAGE — for each user: how many € of pipeline (weighted by
+//    stage probability) sit against the quarterly quota. < 3× usually means
+//    not enough deals in flight to safely hit the number.
+//
+//    coverage = pipelineWeighted ÷ (quotaEur × (1 - winRate))   [simplified]
+//    We report it as a ratio of weightedPipeline ÷ quotaRemaining so 1.0
+//    means "exactly enough on average", 3.0 means "comfortable".
+export async function getPipelineCoverage({ quotaEurPerQuarter = 50000 } = {}) {
+  const forecast = await getRevenueForecast();
+  return forecast.map(f => {
+    const quotaRemaining = Math.max(0, quotaEurPerQuarter - (f.signedAnnualEur / 4));
+    const ratio = quotaRemaining > 0 ? f.pipelineWeightedAnnualEur / 4 / quotaRemaining : null;
+    return {
+      userId: f.userId,
+      firstName: f.firstName,
+      quotaEurPerQuarter,
+      signedThisQuarterEur: Math.round(f.signedAnnualEur / 4),
+      pipelineWeightedQuarterEur: Math.round(f.pipelineWeightedAnnualEur / 4),
+      quotaRemainingEur: Math.round(quotaRemaining),
+      coverageRatio: ratio == null ? null : Math.round(ratio * 100) / 100,
+      // Verdict: < 1.5× = thin, 1.5–3× = adequate, > 3× = safe.
+      status: ratio == null ? 'na' : ratio < 1.5 ? 'thin' : ratio < 3 ? 'adequate' : 'safe',
+    };
+  });
+}
+
+// 2. CAC PROXY — Customer Acquisition Cost approximation. We don't track ad
+//    spend so we proxy effort with time-cost-per-touch:
+//      cost = (dms × €0.50) + (emails × €1.00) + (followUps × €0.75) + (callsHeld × €15)
+//    Calls are heavy because they consume actual sales hours. Numbers are
+//    deliberately conservative — directional, not accounting.
+const TOUCH_COST_EUR = { dm: 0.5, email: 1.0, followUp: 0.75, call: 15 };
+export async function getCAC() {
+  const all = await loadAllCreators();
+  const byUser = new Map();
+  for (const c of all) {
+    if (!c.addedBy || !postReset(c.addedBy.at)) continue;
+    const key = canonicalKey(c.addedBy.firstName);
+    if (!byUser.has(key)) byUser.set(key, { firstName: c.addedBy.firstName, spendEur: 0, signed: 0, signedRevenueEur: 0 });
+    const u = byUser.get(key);
+    const o = c.outreach || {};
+    if (postReset(o.dmSentAt)) u.spendEur += TOUCH_COST_EUR.dm;
+    if (postReset(o.emailSentAt)) u.spendEur += TOUCH_COST_EUR.email;
+    if (postReset(o.lastFollowUpAt)) u.spendEur += (o.followUpsDone || 1) * TOUCH_COST_EUR.followUp;
+    if (postReset(o.callHeldAt)) u.spendEur += TOUCH_COST_EUR.call;
+    if (c.pipelineStatus === 'signed' && postReset(c.signedAt)) {
+      u.signed += 1;
+      // eslint-disable-next-line no-await-in-loop
+      u.signedRevenueEur += await _resolveAnnualRevenue(c);
+    }
+  }
+  return Array.from(byUser.entries()).map(([key, u]) => ({
+    userId: key,
+    firstName: u.firstName,
+    spendEur: Math.round(u.spendEur),
+    signed: u.signed,
+    cacEur: u.signed > 0 ? Math.round(u.spendEur / u.signed) : null,
+    paybackRatio: u.signed > 0 && u.spendEur > 0 ? Math.round((u.signedRevenueEur / u.spendEur) * 10) / 10 : null,
+  }));
+}
+
+// 3. TOUCH POINTS PER CLOSE — how much outreach effort lands a signed deal.
+//    Counts DM + email + every follow-up + every call held. Lower = more
+//    efficient. Team-wide average so we can benchmark each person against
+//    the house number.
+export async function getTouchpointsPerClose() {
+  const all = await loadAllCreators();
+  const byUser = new Map();
+  let teamTouches = 0, teamSigned = 0;
+  for (const c of all) {
+    if (c.pipelineStatus !== 'signed' || !postReset(c.signedAt)) continue;
+    const o = c.outreach || {};
+    let touches = 0;
+    if (o.dmSentAt) touches += 1;
+    if (o.emailSentAt) touches += 1;
+    touches += (o.followUpsDone || 0);
+    if (o.callHeldAt) touches += 1;
+    if (o.callAgreedAt && !o.callHeldAt) touches += 1; // no-show still cost a touch
+    const key = canonicalKey(c.addedBy?.firstName);
+    if (!byUser.has(key)) byUser.set(key, { firstName: c.addedBy?.firstName, touches: 0, signed: 0 });
+    const u = byUser.get(key);
+    u.touches += touches;
+    u.signed += 1;
+    teamTouches += touches;
+    teamSigned += 1;
+  }
+  const teamAvg = teamSigned > 0 ? Math.round((teamTouches / teamSigned) * 10) / 10 : null;
+  return {
+    teamAvg,
+    rows: Array.from(byUser.entries()).map(([key, u]) => ({
+      userId: key,
+      firstName: u.firstName,
+      touches: u.touches,
+      signed: u.signed,
+      avgPerClose: u.signed > 0 ? Math.round((u.touches / u.signed) * 10) / 10 : null,
+    })),
+  };
+}
+
+// 4. SHOW-UP RATE — % of agreed calls that actually happen. Per-user +
+//    team-wide. A drop below ~70% usually means scheduling friction or
+//    weak booking confirmation flow.
+export async function getShowUpRate() {
+  const all = await loadAllCreators();
+  const byUser = new Map();
+  let teamAgreed = 0, teamHeld = 0;
+  for (const c of all) {
+    const o = c.outreach || {};
+    if (!postReset(o.callAgreedAt)) continue;
+    const key = canonicalKey(c.addedBy?.firstName);
+    if (!byUser.has(key)) byUser.set(key, { firstName: c.addedBy?.firstName, agreed: 0, held: 0 });
+    const u = byUser.get(key);
+    u.agreed += 1;
+    teamAgreed += 1;
+    if (postReset(o.callHeldAt)) {
+      u.held += 1;
+      teamHeld += 1;
+    }
+  }
+  return {
+    teamAgreed,
+    teamHeld,
+    teamRate: teamAgreed > 0 ? Math.round((teamHeld / teamAgreed) * 100) : null,
+    rows: Array.from(byUser.entries()).map(([key, u]) => ({
+      userId: key,
+      firstName: u.firstName,
+      agreed: u.agreed,
+      held: u.held,
+      rate: u.agreed > 0 ? Math.round((u.held / u.agreed) * 100) : null,
+    })),
+  };
+}
+
+// 5. LOSS REASONS — breakdown of cold creators by lostReason. Pure team-wide
+//    view (no per-user split — the goal is to inform offer iteration, not
+//    competition). Returns sorted by count desc.
+const LOSS_REASON_LABELS = {
+  price:      'Preço',
+  timing:     'Timing',
+  fit:        'Não encaixa',
+  ghost:      'Sem resposta',
+  competitor: 'Concorrente',
+  other:      'Outro',
+};
+export async function getLossReasons() {
+  const all = await loadAllCreators();
+  const counts = new Map();
+  let total = 0;
+  for (const c of all) {
+    if (c.pipelineStatus !== 'cold') continue;
+    // Anchor on lostAt when present, otherwise signedAt-style fallback.
+    const at = c.lostAt || c.outreach?.repliedAt || c.outreach?.dmSentAt;
+    if (!at || !postReset(at)) continue;
+    const reason = c.lostReason || 'unknown';
+    counts.set(reason, (counts.get(reason) || 0) + 1);
+    total += 1;
+  }
+  const rows = Array.from(counts.entries())
+    .map(([reason, count]) => ({
+      reason,
+      label: LOSS_REASON_LABELS[reason] || 'Desconhecido',
+      count,
+      pct: total > 0 ? Math.round((count / total) * 100) : 0,
+    }))
+    .sort((a, b) => b.count - a.count);
+  return { total, rows };
+}
+
+// 6. FOLLOW-UP EFFECTIVENESS — where do replies actually come from? Compares
+//    replies that landed after the cold DM (before any follow-up) vs after
+//    each follow-up touch. Pure team-wide.
+//
+//    Heuristic: bucket by (followUpsDone at the time of the reply). We only
+//    have the latest followUpsDone counter, so this assumes the count grew
+//    monotonically — it's directional, not exact.
+export async function getFollowUpEffectiveness() {
+  const all = await loadAllCreators();
+  const buckets = { cold: { sent: 0, replied: 0 }, fu1: { sent: 0, replied: 0 }, fu2: { sent: 0, replied: 0 }, fu3: { sent: 0, replied: 0 } };
+  for (const c of all) {
+    const o = c.outreach || {};
+    if (!o.dmSentAt || !postReset(o.dmSentAt)) continue;
+    const followUps = o.followUpsDone || 0;
+    // Every conversation that reached follow-up N necessarily also passed
+    // through follow-up N-1 (and the cold DM). So bucket counts the *touch*
+    // population at each stage, not the conversation.
+    buckets.cold.sent += 1;
+    if (followUps >= 1) buckets.fu1.sent += 1;
+    if (followUps >= 2) buckets.fu2.sent += 1;
+    if (followUps >= 3) buckets.fu3.sent += 1;
+    if (o.repliedAt && postReset(o.repliedAt)) {
+      // Attribute the reply to the last follow-up touched. followUpsDone === 0
+      // means the cold DM did the work.
+      if (followUps === 0) buckets.cold.replied += 1;
+      else if (followUps === 1) buckets.fu1.replied += 1;
+      else if (followUps === 2) buckets.fu2.replied += 1;
+      else buckets.fu3.replied += 1;
+    }
+  }
+  const rate = (b) => b.sent > 0 ? Math.round((b.replied / b.sent) * 100) : 0;
+  return [
+    { stage: 'Cold DM',    key: 'cold', sent: buckets.cold.sent, replied: buckets.cold.replied, rate: rate(buckets.cold) },
+    { stage: 'Follow-up 1', key: 'fu1', sent: buckets.fu1.sent,  replied: buckets.fu1.replied,  rate: rate(buckets.fu1) },
+    { stage: 'Follow-up 2', key: 'fu2', sent: buckets.fu2.sent,  replied: buckets.fu2.replied,  rate: rate(buckets.fu2) },
+    { stage: 'Follow-up 3', key: 'fu3', sent: buckets.fu3.sent,  replied: buckets.fu3.replied,  rate: rate(buckets.fu3) },
+  ];
+}
+
+// 7. PIPELINE VELOCITY — classic composite:
+//      velocity = (# deals × winRate × avgDealValue) / avgCycleDays
+//    Result is € of pipeline value flowing per day per user. Useful for
+//    spotting whether someone with high volume is actually moving money or
+//    just stirring activity.
+export async function getPipelineVelocity() {
+  const all = await loadAllCreators();
+  const byUser = new Map();
+  for (const c of all) {
+    if (!c.addedBy || !postReset(c.addedBy.at)) continue;
+    const key = canonicalKey(c.addedBy.firstName);
+    if (!byUser.has(key)) byUser.set(key, { firstName: c.addedBy.firstName, openDeals: 0, signed: 0, signedRevenueEur: 0, cycleDays: [] });
+    const u = byUser.get(key);
+    const o = c.outreach || {};
+    if (c.pipelineStatus !== 'signed' && c.pipelineStatus !== 'cold' && postReset(o.dmSentAt)) u.openDeals += 1;
+    if (c.pipelineStatus === 'signed' && postReset(c.signedAt)) {
+      u.signed += 1;
+      // eslint-disable-next-line no-await-in-loop
+      u.signedRevenueEur += await _resolveAnnualRevenue(c);
+      if (o.dmSentAt) {
+        u.cycleDays.push((new Date(c.signedAt).getTime() - new Date(o.dmSentAt).getTime()) / DAY_MS);
+      }
+    }
+  }
+  return Array.from(byUser.entries()).map(([key, u]) => {
+    const totalDeals = u.openDeals + u.signed;
+    const winRate = totalDeals > 0 ? u.signed / totalDeals : 0;
+    const avgDealEur = u.signed > 0 ? u.signedRevenueEur / u.signed : 0;
+    const avgCycleDays = u.cycleDays.length > 0 ? u.cycleDays.reduce((s, x) => s + x, 0) / u.cycleDays.length : null;
+    const velocityEurPerDay = avgCycleDays && avgCycleDays > 0
+      ? Math.round((totalDeals * winRate * avgDealEur) / avgCycleDays)
+      : null;
+    return {
+      userId: key,
+      firstName: u.firstName,
+      openDeals: u.openDeals,
+      signed: u.signed,
+      winRatePct: Math.round(winRate * 100),
+      avgDealEur: Math.round(avgDealEur),
+      avgCycleDays: avgCycleDays == null ? null : Math.round(avgCycleDays * 10) / 10,
+      velocityEurPerDay,
+    };
+  });
+}
+
+// 8. WIN-RATE TRAJECTORY — close rate over weekly buckets (last N weeks).
+//    "Closed" means signed OR lost (cold w/ reason). winRate = signed / (signed + cold)
+//    bucketed by the week the deal moved into a terminal state. Trend goes
+//    up → offer is improving / better fit selection; trend goes down → leak.
+export async function getWinRateTrajectory({ weeks = 8, now = new Date() } = {}) {
+  const all = await loadAllCreators();
+  // Build week-anchored bucket keys (YYYY-Www, Monday-start, Lisbon-local).
+  const buckets = []; // [{ key, label, signed: 0, lost: 0 }]
+  for (let i = weeks - 1; i >= 0; i--) {
+    const cursor = new Date(now.getTime() - i * 7 * DAY_MS);
+    const dateStr = new Intl.DateTimeFormat('en-CA', { timeZone: TIMEZONE }).format(cursor);
+    const [yy, mm, dd] = dateStr.split('-').map(Number);
+    const tmp = new Date(Date.UTC(yy, mm - 1, dd));
+    const dow = tmp.getUTCDay();
+    const daysSinceMon = (dow + 6) % 7;
+    const mondayMs = Date.UTC(yy, mm - 1, dd - daysSinceMon);
+    const monday = new Intl.DateTimeFormat('en-CA', { timeZone: TIMEZONE }).format(new Date(mondayMs));
+    if (!buckets.find(b => b.key === monday)) buckets.push({ key: monday, label: monday.slice(5), signed: 0, lost: 0 });
+  }
+  const bucketKeys = buckets.map(b => b.key);
+
+  const placeIn = (iso) => {
+    if (!iso || !postReset(iso)) return null;
+    const dateStr = new Intl.DateTimeFormat('en-CA', { timeZone: TIMEZONE }).format(new Date(iso));
+    const [yy, mm, dd] = dateStr.split('-').map(Number);
+    const tmp = new Date(Date.UTC(yy, mm - 1, dd));
+    const dow = tmp.getUTCDay();
+    const daysSinceMon = (dow + 6) % 7;
+    const mondayMs = Date.UTC(yy, mm - 1, dd - daysSinceMon);
+    const key = new Intl.DateTimeFormat('en-CA', { timeZone: TIMEZONE }).format(new Date(mondayMs));
+    return bucketKeys.includes(key) ? key : null;
+  };
+
+  for (const c of all) {
+    if (c.pipelineStatus === 'signed' && c.signedAt) {
+      const k = placeIn(c.signedAt);
+      if (k) buckets.find(b => b.key === k).signed += 1;
+    } else if (c.pipelineStatus === 'cold' && (c.lostAt || c.outreach?.repliedAt)) {
+      const at = c.lostAt || c.outreach?.repliedAt;
+      const k = placeIn(at);
+      if (k) buckets.find(b => b.key === k).lost += 1;
+    }
+  }
+  return buckets.map(b => {
+    const total = b.signed + b.lost;
+    return {
+      week: b.key,
+      label: b.label,
+      signed: b.signed,
+      lost: b.lost,
+      total,
+      winRatePct: total > 0 ? Math.round((b.signed / total) * 100) : null,
+    };
+  });
 }

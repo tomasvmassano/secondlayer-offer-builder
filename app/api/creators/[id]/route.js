@@ -31,10 +31,19 @@ function stampOutreachActor(outreach, user) {
   if (outreach.repliedAt && !outreach.repliedMarkedBy) {
     stamped.repliedMarkedBy = actorFromUser(user, outreach.repliedAt);
   }
+  // New sales-funnel stages: call agreed, call held. Stamped the same way.
+  if (outreach.callAgreedAt && !outreach.callAgreedBy) {
+    stamped.callAgreedBy = actorFromUser(user, outreach.callAgreedAt);
+  }
+  if (outreach.callHeldAt && !outreach.callHeldBy) {
+    stamped.callHeldBy = actorFromUser(user, outreach.callHeldAt);
+  }
   // Unmark cases — clear the *By when *At is null so the field stays consistent.
   if (outreach.dmSentAt === null) stamped.dmSentBy = null;
   if (outreach.emailSentAt === null) stamped.emailSentBy = null;
   if (outreach.repliedAt === null) stamped.repliedMarkedBy = null;
+  if (outreach.callAgreedAt === null) stamped.callAgreedBy = null;
+  if (outreach.callHeldAt === null) stamped.callHeldBy = null;
   return stamped;
 }
 

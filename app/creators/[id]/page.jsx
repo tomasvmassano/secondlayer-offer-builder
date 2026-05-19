@@ -479,8 +479,40 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
     }
     if (field === 'replied') patch.repliedAt = now;
     if (field === 'unreplied') patch.repliedAt = null;
+    if (field === 'callAgreed')   patch.callAgreedAt = now;
+    if (field === 'uncallAgreed') patch.callAgreedAt = null;
+    if (field === 'callHeld')     patch.callHeldAt = now;
+    if (field === 'uncallHeld')   patch.callHeldAt = null;
     await patchCreator({ outreach: patch });
   }, [creator, patchCreator]);
+
+  // Mark creator cold + capture the loss reason so the dashboard can show
+  // why deals die. lostReason is required — the prompt loops until the
+  // operator either picks one or cancels.
+  const markCold = useCallback(async () => {
+    const reasons = [
+      ['price',      'Preço'],
+      ['timing',     'Timing'],
+      ['fit',        'Não encaixa'],
+      ['ghost',      'Não respondeu'],
+      ['competitor', 'Concorrente'],
+      ['other',      'Outro'],
+    ];
+    const msg = 'Razão de perda?\n\n' + reasons.map((r, i) => `${i + 1}. ${r[1]}`).join('\n') + '\n\nEscreve 1-6 (ou cancela):';
+    const raw = window.prompt(msg, '');
+    if (!raw) return;
+    const idx = Number(String(raw).trim()) - 1;
+    if (!Number.isInteger(idx) || idx < 0 || idx >= reasons.length) {
+      window.alert('Opção inválida — cancela.');
+      return;
+    }
+    const [reasonKey] = reasons[idx];
+    await patchCreator({
+      pipelineStatus: 'cold',
+      lostReason: reasonKey,
+      lostAt: new Date().toISOString(),
+    });
+  }, [patchCreator]);
 
   const findSimilar = useCallback(async () => {
     if (!params?.id || findingSimilar) return;
@@ -1638,6 +1670,44 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
                         <button onClick={() => markOutreach('replied')} title="Marca quando o criador responder. Para os reminders." style={{ padding: "4px 10px", borderRadius: 4, fontSize: 10, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", border: "1px solid rgba(255,255,255,0.08)", background: "transparent", color: "#888" }}>
                           ○ Marcar respondeu
                         </button>
+                      )}
+                      <span style={{ fontSize: 9, color: "#444" }}>·</span>
+                      {/* Sales-call stages — feed show-up rate + extended funnel.
+                          callAgreed = creator said yes to a call. callHeld = call
+                          actually happened. Show as separate chips so they can
+                          flip independently (e.g. cancelled calls). */}
+                      {out.callAgreedAt ? (
+                        <button onClick={() => markOutreach('uncallAgreed')} title={`Call agendada ${fmtRelative(out.callAgreedAt)} · Clica para desmarcar`} style={{ padding: "4px 10px", borderRadius: 4, fontSize: 10, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", border: "1px solid rgba(168,85,247,0.3)", background: "rgba(168,85,247,0.08)", color: "#a855f7" }}>
+                          ✓ Call agendada
+                        </button>
+                      ) : (
+                        <button onClick={() => markOutreach('callAgreed')} title="Marca quando o criador aceita uma call." style={{ padding: "4px 10px", borderRadius: 4, fontSize: 10, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", border: "1px solid rgba(255,255,255,0.08)", background: "transparent", color: "#888" }}>
+                          ○ Call agendada
+                        </button>
+                      )}
+                      {out.callHeldAt ? (
+                        <button onClick={() => markOutreach('uncallHeld')} title={`Call realizada ${fmtRelative(out.callHeldAt)} · Clica para desmarcar`} style={{ padding: "4px 10px", borderRadius: 4, fontSize: 10, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", border: "1px solid rgba(168,85,247,0.45)", background: "rgba(168,85,247,0.14)", color: "#c084fc" }}>
+                          ✓ Call realizada
+                        </button>
+                      ) : (
+                        <button onClick={() => markOutreach('callHeld')} title="Marca quando a call efectivamente aconteceu (não só agendada)." disabled={!out.callAgreedAt} style={{ padding: "4px 10px", borderRadius: 4, fontSize: 10, fontWeight: 600, cursor: out.callAgreedAt ? "pointer" : "default", fontFamily: "inherit", border: "1px solid rgba(255,255,255,0.08)", background: "transparent", color: out.callAgreedAt ? "#888" : "#444" }}>
+                          ○ Call realizada
+                        </button>
+                      )}
+                      <span style={{ flex: 1 }} />
+                      {/* Mark cold w/ loss-reason capture. Only surfaced once
+                          the conversation has actually started (DM sent) and
+                          isn't already cold/signed — otherwise there's nothing
+                          to lose. */}
+                      {out.dmSentAt && creator.pipelineStatus !== 'cold' && creator.pipelineStatus !== 'signed' && (
+                        <button onClick={markCold} title="Marca como frio e regista a razão de perda." style={{ padding: "4px 10px", borderRadius: 4, fontSize: 10, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", border: "1px solid rgba(239,68,68,0.25)", background: "transparent", color: "#ef4444" }}>
+                          Marcar frio
+                        </button>
+                      )}
+                      {creator.pipelineStatus === 'cold' && creator.lostReason && (
+                        <span style={{ padding: "4px 10px", borderRadius: 4, fontSize: 10, fontWeight: 600, border: "1px solid rgba(239,68,68,0.3)", background: "rgba(239,68,68,0.08)", color: "#ef4444" }} title={`Perdido por ${creator.lostReason}`}>
+                          Frio · {({ price: 'preço', timing: 'timing', fit: 'fit', ghost: 'sem resposta', competitor: 'concorrente', other: 'outro' }[creator.lostReason]) || creator.lostReason}
+                        </span>
                       )}
                     </div>
                   );

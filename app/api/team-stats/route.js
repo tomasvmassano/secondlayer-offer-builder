@@ -5,6 +5,9 @@ import {
   getQualityBreakdowns, getMonthlyTally, getNeedsAttention,
   getDeltas, getRevenueForecast, getActivitySeries,
   getHeatmap, getRecentActivity, getPacing,
+  getPipelineCoverage, getCAC, getTouchpointsPerClose,
+  getShowUpRate, getLossReasons, getFollowUpEffectiveness,
+  getPipelineVelocity, getWinRateTrajectory,
 } from '../../lib/teamStats';
 
 // Read-only endpoint that backs the /equipa dashboard. Middleware ensures
@@ -19,6 +22,11 @@ export async function GET(request) {
     const { searchParams } = new URL(request.url);
     const window = searchParams.get('window') || 'today';
     const target = Number(searchParams.get('target')) || 30;
+    // Quarterly quota for pipeline-coverage math. Overridable per env so the
+    // dashboard doesn't need a redeploy when targets shift.
+    const quotaEurPerQuarter = Number(searchParams.get('quota'))
+      || Number(process.env.SALES_QUARTERLY_QUOTA_EUR)
+      || 50000;
 
     const valid = ['today', 'week', 'month', 'all'];
     if (!valid.includes(window)) {
@@ -42,6 +50,14 @@ export async function GET(request) {
       heatmap,
       recentActivity,
       pacing,
+      coverage,
+      cac,
+      touchpoints,
+      showUp,
+      lossReasons,
+      followUpEff,
+      pipelineVelocity,
+      winRateTrajectory,
     ] = await Promise.all([
       getTeamStats({ window }),
       window === 'today' ? getDailyScoreboard({ target }) : null,
@@ -58,13 +74,23 @@ export async function GET(request) {
       getHeatmap({ weeks: 4 }),
       getRecentActivity({ limit: 8 }),
       getPacing({ target }),
+      getPipelineCoverage({ quotaEurPerQuarter }),
+      getCAC(),
+      getTouchpointsPerClose(),
+      getShowUpRate(),
+      getLossReasons(),
+      getFollowUpEffectiveness(),
+      getPipelineVelocity(),
+      getWinRateTrajectory({ weeks: 8 }),
     ]);
 
     return NextResponse.json({
-      window, target,
+      window, target, quotaEurPerQuarter,
       rows, scoreboard, funnels, streaks, pipeline, velocity, quality,
       monthlyTally, needsAttention, deltas, revenue, activity,
       heatmap, recentActivity, pacing,
+      coverage, cac, touchpoints, showUp, lossReasons, followUpEff,
+      pipelineVelocity, winRateTrajectory,
     });
   } catch (err) {
     return NextResponse.json({ error: err.message }, { status: 500 });
