@@ -1,6 +1,12 @@
 /**
  * Auth gate. Runs on every request before route handlers.
  *
+ * As of 2026-05-20 the gate is ALWAYS ON in every environment. Without a
+ * valid session cookie, every non-public path redirects to /signin. The
+ * feature-flag escape hatch (`AUTH_ENABLED=true`) that allowed running
+ * with no auth has been removed — there's no path through the hub
+ * without authenticating.
+ *
  * Public paths (no auth needed):
  *   - /signin
  *   - /onboarding/[token]                — token IS the auth (creators may not have an account yet)
@@ -72,10 +78,6 @@ async function verifySession(request) {
 
 export async function middleware(request) {
   const { pathname } = request.nextUrl;
-
-  // Feature flag: until AUTH_ENABLED=true is set on Vercel, the gate is a no-op.
-  // This lets us deploy auth without locking ourselves out before verifying sign-in.
-  if (process.env.AUTH_ENABLED !== 'true') return NextResponse.next();
 
   if (isPublic(pathname)) return NextResponse.next();
 
