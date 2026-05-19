@@ -3,7 +3,7 @@ import {
   getTeamStats, getDailyScoreboard,
   getFunnels, getStreaks, getPipelineHealth, getVelocity,
   getQualityBreakdowns, getMonthlyTally, getNeedsAttention,
-  getDeltas, getRevenueForecast,
+  getDeltas, getRevenueForecast, getActivitySeries,
 } from '../../lib/teamStats';
 
 // Read-only endpoint that backs the /equipa dashboard. Middleware ensures
@@ -37,6 +37,7 @@ export async function GET(request) {
       needsAttention,
       deltas,
       revenue,
+      activity,
     ] = await Promise.all([
       getTeamStats({ window }),
       window === 'today' ? getDailyScoreboard({ target }) : null,
@@ -49,12 +50,13 @@ export async function GET(request) {
       getNeedsAttention({ dailyTarget: target }),
       window !== 'all' ? getDeltas({ window: window === 'today' ? 'week' : window }) : null,
       getRevenueForecast(),
+      getActivitySeries({ days: 7 }),
     ]);
 
     return NextResponse.json({
       window, target,
       rows, scoreboard, funnels, streaks, pipeline, velocity, quality,
-      monthlyTally, needsAttention, deltas, revenue,
+      monthlyTally, needsAttention, deltas, revenue, activity,
     });
   } catch (err) {
     return NextResponse.json({ error: err.message }, { status: 500 });

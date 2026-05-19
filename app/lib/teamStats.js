@@ -511,6 +511,54 @@ export async function getDeltas({ window = 'week', now = new Date() } = {}) {
   });
 }
 
+// ACTIVITY SERIES — last N days of daily DM counts per user. Drives the
+// bar chart + sparklines on the redesigned dashboard. Returns:
+//   [{ userId, firstName, days: [{ date: 'YYYY-MM-DD', dms, replies }, ...] }]
+// with `days` ordered oldest-first, length = N.
+export async function getActivitySeries({ days = 7, now = new Date() } = {}) {
+  const all = await loadAllCreators();
+  // Build a lookup of date keys to walk (oldest-first).
+  const dateKeys = [];
+  for (let i = days - 1; i >= 0; i--) {
+    const d = new Date(now.getTime() - i * DAY_MS);
+    const dateStr = new Intl.DateTimeFormat('en-CA', { timeZone: TIMEZONE }).format(d);
+    dateKeys.push(dateStr);
+  }
+  const byUser = new Map();
+  for (const c of all) {
+    const o = c.outreach || {};
+    if (o.dmSentAt) {
+      const actor = o.dmSentBy || c.addedBy;
+      if (actor) {
+        const k = canonicalKey(actor.firstName);
+        const dateStr = new Intl.DateTimeFormat('en-CA', { timeZone: TIMEZONE }).format(new Date(o.dmSentAt));
+        if (!byUser.has(k)) byUser.set(k, { firstName: actor.firstName, dms: new Map(), replies: new Map() });
+        const u = byUser.get(k);
+        u.dms.set(dateStr, (u.dms.get(dateStr) || 0) + 1);
+      }
+    }
+    if (o.repliedAt) {
+      const actor = o.repliedMarkedBy || c.addedBy;
+      if (actor) {
+        const k = canonicalKey(actor.firstName);
+        const dateStr = new Intl.DateTimeFormat('en-CA', { timeZone: TIMEZONE }).format(new Date(o.repliedAt));
+        if (!byUser.has(k)) byUser.set(k, { firstName: actor.firstName, dms: new Map(), replies: new Map() });
+        const u = byUser.get(k);
+        u.replies.set(dateStr, (u.replies.get(dateStr) || 0) + 1);
+      }
+    }
+  }
+  return Array.from(byUser.entries()).map(([key, u]) => ({
+    userId: key,
+    firstName: u.firstName,
+    days: dateKeys.map(d => ({
+      date: d,
+      dms: u.dms.get(d) || 0,
+      replies: u.replies.get(d) || 0,
+    })),
+  }));
+}
+
 // REVENUE FORECAST — projected annual revenue per user, weighted by
 // stage probability. Signed = 100%, replied = 30%, dm sent = 10%, added = 2%.
 // Uses calculateOfferRevenue if the creator has an offer, else falls back

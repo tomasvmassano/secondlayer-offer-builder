@@ -1,10 +1,28 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 
-// Team competition dashboard — full v2 with funnel, streak, pipeline health,
-// velocity, quality breakdowns, monthly €50 tally, needs-attention,
-// deltas, and revenue forecast.
+// ─────────────────────────────────────────────────────────────────────
+// /equipa — premium operational dashboard. Dark mode, big rounded cards,
+// SVG charts (bars + rings + sparklines), brand red accent only on
+// highlights. No external chart lib, no Tailwind — inline styles match
+// the rest of the codebase. Hover states via CSS transitions only.
+// ─────────────────────────────────────────────────────────────────────
+
+const ACCENT = '#B11E2F';
+const ACCENT_DEEP = '#7A0E18';
+const SURFACE_0 = '#0a0a0a';
+const SURFACE_1 = '#141414';
+const SURFACE_2 = '#1a1a1a';
+const BORDER = 'rgba(255,255,255,0.05)';
+const BORDER_HI = 'rgba(255,255,255,0.10)';
+const TEXT_HI = '#f5f5f5';
+const TEXT_MID = '#aaa';
+const TEXT_LO = '#666';
+const TEXT_DIM = '#444';
+const GREEN = '#22c55e';
+const AMBER = '#eab308';
+const RED = '#ef4444';
 
 const WINDOWS = [
   { key: 'today', label: 'Hoje' },
@@ -15,12 +33,8 @@ const WINDOWS = [
 
 const fmtEur = (n) => '€' + Math.round(n).toLocaleString();
 const fmtHours = (h) => h == null ? '—' : h < 24 ? `${h.toFixed(1)}h` : `${(h / 24).toFixed(1)}d`;
-const fmtDelta = (d, suffix = '') => {
-  if (d == null || d === 0) return null;
-  const sign = d > 0 ? '+' : '';
-  const color = d > 0 ? '#22c55e' : '#ef4444';
-  return <span style={{ color, fontSize: 10, fontWeight: 600, marginLeft: 6 }}>{sign}{d}{suffix}</span>;
-};
+const fmtNum = (n) => (n || 0).toLocaleString();
+const initials = (name) => (name || '?').split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
 
 export default function EquipaPage() {
   const [windowKey, setWindowKey] = useState('today');
@@ -39,233 +53,192 @@ export default function EquipaPage() {
     return () => { cancelled = true; };
   }, [windowKey]);
 
+  // Aggregates for the hero cards (sum across users in current window).
+  const heroStats = useMemo(() => {
+    if (!data?.rows) return null;
+    const sumDms = data.rows.reduce((s, r) => s + (r.dmsSent || 0), 0);
+    const sumReplies = data.rows.reduce((s, r) => s + (r.repliesReceived || 0), 0);
+    const sumCreators = data.rows.reduce((s, r) => s + (r.creatorsAdded || 0), 0);
+    const sumSigned = data.rows.reduce((s, r) => s + (r.signed || 0), 0);
+    const replyRate = sumDms > 0 ? Math.round((sumReplies / sumDms) * 100) : 0;
+    const totalTarget = (data.target || 30) * (data.rows.length || 2);
+    const goalPct = totalTarget > 0 ? Math.min(100, Math.round((sumDms / totalTarget) * 100)) : 0;
+    const projectedPipeline = (data.revenue || []).reduce((s, r) => s + (r.pipelineWeightedAnnualEur || 0), 0);
+    const signedAnnual = (data.revenue || []).reduce((s, r) => s + (r.signedAnnualEur || 0), 0);
+    return { sumDms, sumReplies, sumCreators, sumSigned, replyRate, totalTarget, goalPct, projectedPipeline, signedAnnual };
+  }, [data]);
+
   return (
-    <div style={{ minHeight: "100vh", background: "#0a0a0a", color: "#f5f5f5", fontFamily: "'Inter', sans-serif" }}>
-      <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <div style={{ minHeight: "100vh", background: SURFACE_0, color: TEXT_HI, fontFamily: "'Inter', sans-serif" }}>
+      <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+      <style>{`
+        @keyframes pulseRing { 0%, 100% { opacity: 0.6; transform: scale(1); } 50% { opacity: 1; transform: scale(1.05); } }
+        @keyframes fadeUp { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+        .eq-card { transition: transform 200ms cubic-bezier(.2,.7,.2,1), border-color 200ms; }
+        .eq-card:hover { transform: translateY(-2px); border-color: ${BORDER_HI}; }
+        .eq-fade { animation: fadeUp 320ms cubic-bezier(.2,.7,.2,1) both; }
+      `}</style>
 
-      <div style={{ padding: "20px 28px", borderBottom: "1px solid rgba(255,255,255,0.04)", display: "flex", alignItems: "center", gap: 14 }}>
-        <a href="/creators" style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.12em", textTransform: "uppercase", color: "#555", textDecoration: "none" }}>← Voltar ao CRM</a>
-        <span style={{ color: "#333", fontSize: 14 }}>|</span>
-        <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.12em", textTransform: "uppercase", color: "#888" }}>Equipa</span>
-      </div>
-
-      <div style={{ maxWidth: 1400, margin: "0 auto", padding: "32px 28px" }}>
-        <h1 style={{ fontSize: 32, fontWeight: 700, margin: 0 }}>Quadro de equipa</h1>
-        <p style={{ fontSize: 13, color: "#888", margin: "8px 0 24px" }}>
-          Objetivo diário: <strong style={{ color: "#f5f5f5" }}>30 DMs por pessoa</strong>. Falhar = <strong style={{ color: "#B11E2F" }}>€50</strong> a cada teammate que cumpriu. Reset 23:59.
-        </p>
-
-        {/* Needs attention — top of page, always visible */}
-        {data?.needsAttention?.length > 0 && (
-          <div style={{ marginBottom: 28, padding: "16px 20px", background: "rgba(234,179,8,0.04)", border: "1px solid rgba(234,179,8,0.20)", borderRadius: 10 }}>
-            <div style={{ fontSize: 10, fontWeight: 700, color: "#eab308", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 10 }}>● Precisa de atenção</div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-              {data.needsAttention.map((item, i) => {
-                const color = item.severity === 'danger' ? '#ef4444' : item.severity === 'warn' ? '#eab308' : '#888';
-                return (
-                  <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, color: "#ddd" }}>
-                    <span style={{ width: 6, height: 6, borderRadius: '50%', background: color, flexShrink: 0 }} />
-                    {item.text}
-                  </div>
-                );
-              })}
-            </div>
+      {/* Sticky top bar */}
+      <div style={{ position: "sticky", top: 0, zIndex: 10, padding: "16px 32px", display: "flex", alignItems: "center", justifyContent: "space-between", background: "rgba(10,10,10,0.85)", backdropFilter: "blur(10px)", WebkitBackdropFilter: "blur(10px)", borderBottom: `1px solid ${BORDER}` }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 18 }}>
+          <a href="/creators" style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.12em", textTransform: "uppercase", color: TEXT_LO, textDecoration: "none" }}>← Voltar</a>
+          <div style={{ width: 1, height: 14, background: BORDER_HI }} />
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <div style={{ width: 8, height: 8, borderRadius: '50%', background: ACCENT, boxShadow: `0 0 12px ${ACCENT}` }} />
+            <span style={{ fontSize: 14, fontWeight: 700, letterSpacing: "0.02em" }}>Quadro de equipa</span>
           </div>
-        )}
-
-        {/* Time window tabs */}
-        <div style={{ display: "flex", gap: 0, marginBottom: 28, borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
           {WINDOWS.map(w => (
             <button
               key={w.key}
               onClick={() => setWindowKey(w.key)}
               style={{
-                padding: "10px 18px",
-                background: "transparent",
-                border: "none",
-                borderBottom: windowKey === w.key ? "2px solid #f5f5f5" : "2px solid transparent",
-                color: windowKey === w.key ? "#f5f5f5" : "#666",
-                fontSize: 12, fontWeight: 600, letterSpacing: "0.04em", textTransform: "uppercase",
-                cursor: "pointer", fontFamily: "inherit",
+                padding: "6px 12px",
+                background: windowKey === w.key ? "rgba(177,30,47,0.10)" : "transparent",
+                border: `1px solid ${windowKey === w.key ? "rgba(177,30,47,0.40)" : BORDER}`,
+                borderRadius: 8,
+                color: windowKey === w.key ? ACCENT : TEXT_LO,
+                fontSize: 11, fontWeight: 600, letterSpacing: "0.04em", textTransform: "uppercase",
+                cursor: "pointer", fontFamily: "inherit", transition: "all 150ms",
               }}
             >
               {w.label}
             </button>
           ))}
         </div>
+      </div>
 
-        {loading && <div style={{ color: "#555", fontSize: 13 }}>A carregar...</div>}
-        {error && <div style={{ color: "#ef4444", fontSize: 13 }}>Erro: {error}</div>}
+      <div style={{ maxWidth: 1440, margin: "0 auto", padding: "32px 32px 64px" }}>
 
-        {!loading && !error && data && (
+        {loading && <div style={{ color: TEXT_DIM, fontSize: 13, padding: 40, textAlign: "center" }}>A carregar…</div>}
+        {error && <div style={{ color: RED, fontSize: 13 }}>Erro: {error}</div>}
+
+        {!loading && !error && data && heroStats && (
           <>
-            {/* Per-person cards */}
-            {data.rows.length === 0 ? (
-              <div style={{ padding: "40px 20px", textAlign: "center", border: "1px dashed rgba(255,255,255,0.08)", borderRadius: 10, color: "#555" }}>
-                Sem atividade nesta janela.
-              </div>
-            ) : (
-              <div style={{ display: "grid", gridTemplateColumns: `repeat(${Math.min(data.rows.length, 3)}, 1fr)`, gap: 14, marginBottom: 28 }}>
-                {data.rows.map((row, i) => {
-                  const sbRow = data.scoreboard?.find(s => s.userId === row.userId);
-                  const streak = data.streaks?.find(s => s.userId === row.userId);
-                  const pipe = data.pipeline?.find(p => p.userId === row.userId);
-                  const vel = data.velocity?.find(v => v.userId === row.userId);
-                  const delta = data.deltas?.find(d => d.userId === row.userId);
-                  const monthly = data.monthlyTally?.find(m => m.userId === row.userId);
-                  const isLeader = i === 0 && data.rows.length > 1 && row.dmsSent > 0;
-                  const isLoser = !!sbRow?.missedGoal;
-                  return (
-                    <div key={row.userId} style={{ padding: 22, background: "#141414", border: `1px solid ${isLeader ? "rgba(34,197,94,0.40)" : isLoser ? "rgba(239,68,68,0.30)" : "rgba(255,255,255,0.06)"}`, borderRadius: 12 }}>
-                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 18 }}>
-                        <h2 style={{ fontSize: 22, fontWeight: 700, margin: 0, color: "#f5f5f5" }}>{row.firstName}</h2>
-                        <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-                          {streak?.streak > 0 && (
-                            <span title={`Sequência: ${streak.streak} dia${streak.streak === 1 ? '' : 's'} a cumprir o objetivo`} style={{ fontSize: 10, fontWeight: 700, padding: "3px 8px", borderRadius: 4, background: "rgba(234,179,8,0.10)", color: "#eab308", border: "1px solid rgba(234,179,8,0.30)", letterSpacing: "0.04em" }}>🔥 {streak.streak}d</span>
-                          )}
-                          {isLeader && <span style={{ fontSize: 9, fontWeight: 700, padding: "3px 8px", borderRadius: 4, background: "rgba(34,197,94,0.10)", color: "#22c55e", border: "1px solid rgba(34,197,94,0.30)", letterSpacing: "0.06em", textTransform: "uppercase" }}>● Líder</span>}
-                          {isLoser && <span style={{ fontSize: 9, fontWeight: 700, padding: "3px 8px", borderRadius: 4, background: "rgba(239,68,68,0.08)", color: "#ef4444", border: "1px solid rgba(239,68,68,0.30)", letterSpacing: "0.06em", textTransform: "uppercase" }}>✗ Falhou</span>}
-                        </div>
-                      </div>
-
-                      {/* DMs sent — headline */}
-                      <div style={{ padding: "16px 18px", background: "rgba(177,30,47,0.06)", borderRadius: 8, border: "1px solid rgba(177,30,47,0.20)", marginBottom: 14 }}>
-                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
-                          <div style={{ fontSize: 9, fontWeight: 700, color: "#B11E2F", letterSpacing: "0.14em", textTransform: "uppercase" }}>DMs enviadas</div>
-                          {delta?.deltaDmsSent != null && fmtDelta(delta.deltaDmsSent)}
-                        </div>
-                        <div style={{ fontSize: 38, fontWeight: 700, color: "#f5f5f5", letterSpacing: "-0.02em", lineHeight: 1, marginTop: 4 }}>
-                          {row.dmsSent}
-                          {windowKey === 'today' && <span style={{ fontSize: 14, color: "#666", fontWeight: 500, marginLeft: 4 }}>/ {sbRow?.target || 30}</span>}
-                        </div>
-                        {windowKey === 'today' && (
-                          <div style={{ marginTop: 8, height: 4, background: "rgba(255,255,255,0.05)", borderRadius: 2, overflow: "hidden" }}>
-                            <div style={{ height: 4, width: `${Math.min(100, ((row.dmsSent / (sbRow?.target || 30)) * 100))}%`, background: row.dmsSent >= (sbRow?.target || 30) ? "#22c55e" : "#B11E2F" }} />
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Secondary metrics grid */}
-                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 6, marginBottom: 14 }}>
-                        <MiniMetric label="Criadores" value={row.creatorsAdded} />
-                        <MiniMetric label="Respostas" value={row.repliesReceived} delta={delta?.deltaReplyRate != null && row.dmsSent > 0 ? null : null} />
-                        <MiniMetric label="Taxa resp." value={`${row.replyRate}%`} delta={fmtDelta(delta?.deltaReplyRate, 'pp')} />
-                        <MiniMetric label="Fechados" value={row.signed} delta={fmtDelta(delta?.deltaSigned)} />
-                        <MiniMetric label="Follow-ups" value={row.followUpsDone} />
-                        <MiniMetric label="Emails" value={row.emailsSent} />
-                      </div>
-
-                      {/* Pipeline health */}
-                      {pipe && (
-                        <div style={{ padding: "10px 14px", background: "#0a0a0a", borderRadius: 6, border: "1px solid rgba(255,255,255,0.04)", marginBottom: 10 }}>
-                          <div style={{ fontSize: 9, fontWeight: 700, color: "#888", letterSpacing: "0.10em", textTransform: "uppercase", marginBottom: 8 }}>Pipeline</div>
-                          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 6, fontSize: 11 }}>
-                            <PipeBlock label="Ativas" value={pipe.active} />
-                            <PipeBlock label="A aguardar" value={pipe.awaiting} color="#3b82f6" />
-                            <PipeBlock label="Paradas" value={pipe.stale} color="#eab308" />
-                            <PipeBlock label="Em ofertas" value={pipe.inProgressOffer} color="#a855f7" />
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Velocity */}
-                      {vel && (vel.avgAddedToDmHours != null || vel.avgRepliedToFollowHours != null || vel.avgFirstDmToSignedDays != null) && (
-                        <div style={{ padding: "10px 14px", background: "#0a0a0a", borderRadius: 6, border: "1px solid rgba(255,255,255,0.04)", marginBottom: 10 }}>
-                          <div style={{ fontSize: 9, fontWeight: 700, color: "#888", letterSpacing: "0.10em", textTransform: "uppercase", marginBottom: 8 }}>Velocidade média</div>
-                          <div style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 11, color: "#aaa" }}>
-                            {vel.avgAddedToDmHours != null && <div>Adicionar → DM: <strong style={{ color: "#f5f5f5" }}>{fmtHours(vel.avgAddedToDmHours)}</strong></div>}
-                            {vel.avgRepliedToFollowHours != null && <div>Resposta → Follow-up: <strong style={{ color: "#f5f5f5" }}>{fmtHours(vel.avgRepliedToFollowHours)}</strong></div>}
-                            {vel.avgFirstDmToSignedDays != null && <div>1º DM → Fechado: <strong style={{ color: "#f5f5f5" }}>{vel.avgFirstDmToSignedDays}d</strong></div>}
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Daily debt */}
-                      {windowKey === 'today' && sbRow && (
-                        <div style={{ marginTop: 4, padding: "10px 14px", background: sbRow.totalOwedEur > 0 ? "rgba(239,68,68,0.06)" : sbRow.totalEarnedEur > 0 ? "rgba(34,197,94,0.06)" : "transparent", borderRadius: 6, border: `1px solid ${sbRow.totalOwedEur > 0 ? "rgba(239,68,68,0.20)" : sbRow.totalEarnedEur > 0 ? "rgba(34,197,94,0.20)" : "rgba(255,255,255,0.04)"}` }}>
-                          {sbRow.totalOwedEur > 0 && <div style={{ fontSize: 11, color: "#ef4444", fontWeight: 600 }}>Deve <strong>€{sbRow.totalOwedEur}</strong> à equipa hoje</div>}
-                          {sbRow.totalEarnedEur > 0 && <div style={{ fontSize: 11, color: "#22c55e", fontWeight: 600 }}>Recebe <strong>€{sbRow.totalEarnedEur}</strong> da equipa hoje</div>}
-                          {sbRow.totalOwedEur === 0 && sbRow.totalEarnedEur === 0 && <div style={{ fontSize: 11, color: "#666" }}>Sem débitos hoje</div>}
-                        </div>
-                      )}
-
-                      {/* Monthly tally */}
-                      {monthly && (
-                        <div style={{ marginTop: 10, padding: "10px 14px", background: "#0a0a0a", borderRadius: 6, border: "1px solid rgba(255,255,255,0.04)" }}>
-                          <div style={{ fontSize: 9, fontWeight: 700, color: "#888", letterSpacing: "0.10em", textTransform: "uppercase", marginBottom: 6 }}>Saldo do mês</div>
-                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
-                            <span style={{ fontSize: 18, fontWeight: 700, color: monthly.netEur >= 0 ? '#22c55e' : '#ef4444' }}>
-                              {monthly.netEur >= 0 ? '+' : ''}{fmtEur(monthly.netEur)}
-                            </span>
-                            <span style={{ fontSize: 10, color: "#666" }}>{monthly.daysHit}✓ · {monthly.daysMissed}✗</span>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
+            {/* Needs attention strip */}
+            {data.needsAttention?.length > 0 && (
+              <div className="eq-fade" style={{ marginBottom: 24, padding: "14px 22px", background: "linear-gradient(135deg, rgba(234,179,8,0.06), rgba(234,179,8,0.02))", border: "1px solid rgba(234,179,8,0.20)", borderRadius: 24, display: "flex", alignItems: "center", gap: 18 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <span style={{ width: 6, height: 6, borderRadius: '50%', background: AMBER, animation: 'pulseRing 2s infinite' }} />
+                  <span style={{ fontSize: 10, fontWeight: 700, color: AMBER, letterSpacing: "0.14em", textTransform: "uppercase" }}>Precisa de atenção</span>
+                </div>
+                <div style={{ flex: 1, display: "flex", flexWrap: "wrap", gap: 18, fontSize: 12, color: "#ddd" }}>
+                  {data.needsAttention.slice(0, 3).map((item, i) => (
+                    <span key={i} style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                      <span style={{ width: 4, height: 4, borderRadius: '50%', background: item.severity === 'danger' ? RED : item.severity === 'warn' ? AMBER : TEXT_LO }} />
+                      {item.text}
+                    </span>
+                  ))}
+                </div>
               </div>
             )}
 
-            {/* Funnel section */}
-            {data.funnels?.length > 0 && (
-              <Section title="Funil de conversão (sempre)">
-                <div style={{ display: "grid", gridTemplateColumns: `repeat(${Math.min(data.funnels.length, 3)}, 1fr)`, gap: 14 }}>
-                  {data.funnels.map(f => (
-                    <div key={f.userId} style={{ padding: 18, background: "#141414", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 10 }}>
-                      <div style={{ fontSize: 14, fontWeight: 700, color: "#f5f5f5", marginBottom: 12 }}>{f.firstName}</div>
-                      <FunnelStep label="Adicionados" value={f.added} />
-                      <FunnelArrow rate={f.addedToDmRate} />
-                      <FunnelStep label="DMs enviadas" value={f.dmd} />
-                      <FunnelArrow rate={f.dmToReplyRate} />
-                      <FunnelStep label="Respostas" value={f.replied} />
-                      <FunnelArrow rate={f.replyToSignedRate} />
-                      <FunnelStep label="Fechados" value={f.signed} highlight />
-                      <div style={{ marginTop: 12, paddingTop: 10, borderTop: "1px solid rgba(255,255,255,0.04)", fontSize: 11, color: "#888" }}>
-                        Taxa global: <strong style={{ color: "#f5f5f5" }}>{f.overallRate}%</strong>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </Section>
-            )}
+            {/* HERO STRIP — 3 large cards */}
+            <div className="eq-fade" style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1.4fr", gap: 18, marginBottom: 18 }}>
+              {/* DMs hero with bar chart */}
+              <HeroCard
+                label={windowKey === 'today' ? 'DMs hoje' : windowKey === 'week' ? 'DMs esta semana' : windowKey === 'month' ? 'DMs este mês' : 'DMs sempre'}
+                value={fmtNum(heroStats.sumDms)}
+                hint={windowKey === 'today' ? `${heroStats.totalTarget} alvo (${heroStats.goalPct}%)` : null}
+                accent
+                progress={windowKey === 'today' ? heroStats.goalPct : null}
+              >
+                <ActivityBarChart days={data.activity?.flatMap(u => u.days).reduce((acc, d) => {
+                  const i = acc.findIndex(x => x.date === d.date);
+                  if (i >= 0) acc[i].dms += d.dms; else acc.push({ date: d.date, dms: d.dms });
+                  return acc;
+                }, [])} target={heroStats.totalTarget} />
+              </HeroCard>
 
-            {/* Quality breakdowns */}
-            {data.quality?.length > 0 && (
-              <Section title="Taxa de resposta por dimensão">
-                <div style={{ display: "grid", gridTemplateColumns: `repeat(${Math.min(data.quality.length, 3)}, 1fr)`, gap: 14 }}>
-                  {data.quality.map(q => (
-                    <div key={q.userId} style={{ padding: 18, background: "#141414", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 10 }}>
-                      <div style={{ fontSize: 14, fontWeight: 700, color: "#f5f5f5", marginBottom: 14 }}>{q.firstName}</div>
-                      <QualityGroup title="Template" items={q.byTemplate} />
-                      <QualityGroup title="Idioma" items={q.byLanguage} />
-                      <QualityGroup title="Tier de preço" items={q.byTier} />
-                    </div>
-                  ))}
+              {/* Reply rate hero with ring */}
+              <HeroCard
+                label="Taxa de resposta"
+                value={`${heroStats.replyRate}%`}
+                hint={`${heroStats.sumReplies} de ${heroStats.sumDms} DMs`}
+              >
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "center", marginTop: 10 }}>
+                  <ProgressRing value={heroStats.replyRate} size={88} stroke={8} color={ACCENT} />
                 </div>
-              </Section>
-            )}
+              </HeroCard>
 
-            {/* Revenue forecast */}
-            {data.revenue?.length > 0 && (
-              <Section title="Receita projetada">
-                <div style={{ display: "grid", gridTemplateColumns: `repeat(${Math.min(data.revenue.length, 3)}, 1fr)`, gap: 14 }}>
-                  {data.revenue.map(r => (
-                    <div key={r.userId} style={{ padding: 18, background: "#141414", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 10 }}>
-                      <div style={{ fontSize: 14, fontWeight: 700, color: "#f5f5f5", marginBottom: 14 }}>{r.firstName}</div>
-                      <div style={{ marginBottom: 12 }}>
-                        <div style={{ fontSize: 10, fontWeight: 600, color: "#22c55e", letterSpacing: "0.10em", textTransform: "uppercase", marginBottom: 4 }}>Assinados (anual)</div>
-                        <div style={{ fontSize: 24, fontWeight: 700, color: "#22c55e" }}>{fmtEur(r.signedAnnualEur)}</div>
-                      </div>
-                      <div>
-                        <div style={{ fontSize: 10, fontWeight: 600, color: "#888", letterSpacing: "0.10em", textTransform: "uppercase", marginBottom: 4 }}>Pipeline ponderado</div>
-                        <div style={{ fontSize: 20, fontWeight: 700, color: "#ddd" }}>{fmtEur(r.pipelineWeightedAnnualEur)}</div>
-                        <div style={{ fontSize: 10, color: "#555", marginTop: 4 }}>Soma de receita anual × prob. por estágio</div>
-                      </div>
-                    </div>
-                  ))}
+              {/* Revenue forecast hero */}
+              <HeroCard label="Receita projetada" value={fmtEur(heroStats.projectedPipeline)} hint="anual · pipeline ponderado">
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginTop: 12 }}>
+                  <MicroStat label="Assinados (anual)" value={fmtEur(heroStats.signedAnnual)} accent={GREEN} />
+                  <MicroStat label="Criadores adicionados" value={fmtNum(heroStats.sumCreators)} />
+                  <MicroStat label="Fechados" value={fmtNum(heroStats.sumSigned)} accent={GREEN} />
+                  <MicroStat label="Respostas" value={fmtNum(heroStats.sumReplies)} />
                 </div>
-              </Section>
+              </HeroCard>
+            </div>
+
+            {/* PEOPLE ROW — leaderboard cards with rings + sparklines */}
+            <div className="eq-fade" style={{ display: "grid", gridTemplateColumns: `repeat(${Math.max(1, Math.min(data.rows.length, 3))}, 1fr)`, gap: 18, marginBottom: 18 }}>
+              {data.rows.length === 0 ? (
+                <div style={{ gridColumn: '1 / -1', padding: "60px 20px", textAlign: "center", border: `1px dashed ${BORDER}`, borderRadius: 24, color: TEXT_DIM }}>
+                  Sem atividade nesta janela
+                </div>
+              ) : data.rows.map((row, i) => {
+                const sbRow = data.scoreboard?.find(s => s.userId === row.userId);
+                const streak = data.streaks?.find(s => s.userId === row.userId);
+                const pipe = data.pipeline?.find(p => p.userId === row.userId);
+                const vel = data.velocity?.find(v => v.userId === row.userId);
+                const delta = data.deltas?.find(d => d.userId === row.userId);
+                const monthly = data.monthlyTally?.find(m => m.userId === row.userId);
+                const activity = data.activity?.find(a => a.userId === row.userId);
+                const isLeader = i === 0 && data.rows.length > 1 && row.dmsSent > 0;
+                const isLoser = !!sbRow?.missedGoal;
+                const goalPct = sbRow ? Math.min(100, Math.round((row.dmsSent / sbRow.target) * 100)) : null;
+                return (
+                  <PersonCard
+                    key={row.userId}
+                    row={row}
+                    sbRow={sbRow}
+                    streak={streak}
+                    pipe={pipe}
+                    vel={vel}
+                    delta={delta}
+                    monthly={monthly}
+                    activity={activity}
+                    isLeader={isLeader}
+                    isLoser={isLoser}
+                    goalPct={goalPct}
+                    windowKey={windowKey}
+                  />
+                );
+              })}
+            </div>
+
+            {/* SECONDARY ROW — Funnel + Pipeline donut */}
+            <div className="eq-fade" style={{ display: "grid", gridTemplateColumns: "1.4fr 1fr", gap: 18, marginBottom: 18 }}>
+              <Card title="Funil de conversão" subtitle="Por pessoa · sempre">
+                <div style={{ display: "grid", gridTemplateColumns: `repeat(${Math.max(1, data.funnels?.length || 1)}, 1fr)`, gap: 14 }}>
+                  {(data.funnels || []).map(f => <FunnelChart key={f.userId} funnel={f} />)}
+                </div>
+              </Card>
+              <Card title="Pipeline · estado atual" subtitle="Todas as conversas em curso">
+                <PipelineDonut pipeline={data.pipeline} />
+              </Card>
+            </div>
+
+            {/* QUALITY ROW */}
+            {data.quality?.some(q => q.byTemplate.length + q.byLanguage.length + q.byTier.length > 0) && (
+              <div className="eq-fade" style={{ marginBottom: 18 }}>
+                <Card title="Qualidade" subtitle="Taxa de resposta por dimensão">
+                  <div style={{ display: "grid", gridTemplateColumns: `repeat(${Math.max(1, data.quality.length)}, 1fr)`, gap: 18 }}>
+                    {data.quality.map(q => (
+                      <div key={q.userId}>
+                        <div style={{ fontSize: 12, fontWeight: 700, color: TEXT_HI, marginBottom: 12 }}>{q.firstName}</div>
+                        <QualityBars title="Template" items={q.byTemplate} />
+                        <QualityBars title="Idioma" items={q.byLanguage} />
+                        <QualityBars title="Tier" items={q.byTier} />
+                      </div>
+                    ))}
+                  </div>
+                </Card>
+              </div>
             )}
           </>
         )}
@@ -274,69 +247,419 @@ export default function EquipaPage() {
   );
 }
 
-function Section({ title, children }) {
+// ─────────────────────────── PRIMITIVES ───────────────────────────
+
+function Card({ title, subtitle, children }) {
   return (
-    <div style={{ marginBottom: 28 }}>
-      <h2 style={{ fontSize: 13, fontWeight: 700, color: "#888", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 14 }}>{title}</h2>
+    <div className="eq-card" style={{ padding: 26, background: SURFACE_1, border: `1px solid ${BORDER}`, borderRadius: 24, boxShadow: "0 1px 0 rgba(255,255,255,0.03) inset, 0 8px 32px rgba(0,0,0,0.4)" }}>
+      {title && (
+        <div style={{ marginBottom: 20 }}>
+          <div style={{ fontSize: 14, fontWeight: 700, color: TEXT_HI }}>{title}</div>
+          {subtitle && <div style={{ fontSize: 11, color: TEXT_LO, marginTop: 2 }}>{subtitle}</div>}
+        </div>
+      )}
       {children}
     </div>
   );
 }
 
-function MiniMetric({ label, value, delta }) {
+function HeroCard({ label, value, hint, accent, progress, children }) {
   return (
-    <div style={{ padding: "10px 12px", background: "#0a0a0a", borderRadius: 6, border: "1px solid rgba(255,255,255,0.04)" }}>
-      <div style={{ fontSize: 9, fontWeight: 600, color: "#555", letterSpacing: "0.06em", textTransform: "uppercase", marginBottom: 4, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{label}</div>
-      <div style={{ fontSize: 16, fontWeight: 700, color: "#f5f5f5", display: "flex", alignItems: "baseline" }}>
-        {value}
-        {delta}
+    <div className="eq-card" style={{
+      padding: 26,
+      background: accent
+        ? `radial-gradient(120% 100% at 0% 0%, rgba(177,30,47,0.18) 0%, ${SURFACE_1} 55%)`
+        : `radial-gradient(120% 100% at 100% 0%, rgba(255,255,255,0.03) 0%, ${SURFACE_1} 60%)`,
+      border: `1px solid ${accent ? "rgba(177,30,47,0.28)" : BORDER}`,
+      borderRadius: 24,
+      boxShadow: accent
+        ? "0 1px 0 rgba(255,255,255,0.04) inset, 0 8px 40px rgba(177,30,47,0.12)"
+        : "0 1px 0 rgba(255,255,255,0.04) inset, 0 8px 32px rgba(0,0,0,0.4)",
+      minHeight: 200,
+      display: "flex",
+      flexDirection: "column",
+    }}>
+      <div style={{ fontSize: 11, fontWeight: 600, color: accent ? ACCENT : TEXT_LO, letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 12 }}>{label}</div>
+      <div style={{ fontSize: 44, fontWeight: 800, color: TEXT_HI, letterSpacing: "-0.025em", lineHeight: 1, marginBottom: 6 }}>{value}</div>
+      {hint && <div style={{ fontSize: 12, color: TEXT_MID, marginBottom: 4 }}>{hint}</div>}
+      {progress != null && (
+        <div style={{ marginTop: 8, marginBottom: 4, height: 6, background: "rgba(255,255,255,0.05)", borderRadius: 6, overflow: "hidden" }}>
+          <div style={{ height: 6, width: `${progress}%`, background: `linear-gradient(90deg, ${ACCENT_DEEP}, ${ACCENT})`, borderRadius: 6, transition: "width 600ms cubic-bezier(.2,.7,.2,1)" }} />
+        </div>
+      )}
+      {children && <div style={{ marginTop: "auto", paddingTop: 14 }}>{children}</div>}
+    </div>
+  );
+}
+
+function MicroStat({ label, value, accent }) {
+  return (
+    <div>
+      <div style={{ fontSize: 9, fontWeight: 600, color: TEXT_LO, letterSpacing: "0.10em", textTransform: "uppercase", marginBottom: 4 }}>{label}</div>
+      <div style={{ fontSize: 18, fontWeight: 700, color: accent || TEXT_HI }}>{value}</div>
+    </div>
+  );
+}
+
+function PersonCard({ row, sbRow, streak, pipe, vel, delta, monthly, activity, isLeader, isLoser, goalPct, windowKey }) {
+  const series = activity?.days || [];
+  const replyRate = row.replyRate;
+  return (
+    <div className="eq-card" style={{
+      padding: 26,
+      background: SURFACE_1,
+      border: `1px solid ${isLeader ? "rgba(34,197,94,0.30)" : isLoser ? "rgba(239,68,68,0.25)" : BORDER}`,
+      borderRadius: 24,
+      boxShadow: "0 1px 0 rgba(255,255,255,0.03) inset, 0 8px 32px rgba(0,0,0,0.4)",
+    }}>
+      {/* Top: avatar + name + streak/leader */}
+      <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 22 }}>
+        <div style={{
+          width: 44, height: 44, borderRadius: "50%",
+          background: isLeader ? `linear-gradient(135deg, ${ACCENT_DEEP}, ${ACCENT})` : "rgba(255,255,255,0.06)",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          fontSize: 16, fontWeight: 700, color: isLeader ? "#fff" : TEXT_MID,
+          border: `1px solid ${isLeader ? "rgba(255,255,255,0.15)" : BORDER_HI}`,
+        }}>
+          {initials(row.firstName)}
+        </div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontSize: 17, fontWeight: 700, color: TEXT_HI, letterSpacing: "-0.01em" }}>{row.firstName}</div>
+          <div style={{ display: "flex", gap: 6, marginTop: 4 }}>
+            {streak?.streak > 0 && (
+              <span style={{ fontSize: 9, fontWeight: 700, padding: "2px 7px", borderRadius: 999, background: "rgba(234,179,8,0.10)", color: AMBER, border: "1px solid rgba(234,179,8,0.25)" }}>🔥 {streak.streak}d</span>
+            )}
+            {isLeader && <span style={{ fontSize: 9, fontWeight: 700, padding: "2px 7px", borderRadius: 999, background: "rgba(34,197,94,0.10)", color: GREEN, border: "1px solid rgba(34,197,94,0.30)" }}>Líder</span>}
+            {isLoser && <span style={{ fontSize: 9, fontWeight: 700, padding: "2px 7px", borderRadius: 999, background: "rgba(239,68,68,0.10)", color: RED, border: "1px solid rgba(239,68,68,0.30)" }}>Atrás</span>}
+          </div>
+        </div>
+        {windowKey === 'today' && sbRow && (
+          <ProgressRing value={goalPct} size={60} stroke={6} color={goalPct >= 100 ? GREEN : ACCENT} centerLabel={`${row.dmsSent}/${sbRow.target}`} />
+        )}
+      </div>
+
+      {/* DMs + delta */}
+      <div style={{ marginBottom: 18 }}>
+        <div style={{ fontSize: 10, fontWeight: 600, color: TEXT_LO, letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 6 }}>DMs enviadas</div>
+        <div style={{ display: "flex", alignItems: "baseline", gap: 10 }}>
+          <span style={{ fontSize: 40, fontWeight: 800, color: TEXT_HI, letterSpacing: "-0.025em", lineHeight: 1 }}>{row.dmsSent}</span>
+          {delta?.deltaDmsSent != null && delta.deltaDmsSent !== 0 && (
+            <DeltaBadge value={delta.deltaDmsSent} />
+          )}
+        </div>
+      </div>
+
+      {/* 7-day sparkline */}
+      {series.length > 0 && (
+        <div style={{ marginBottom: 18, padding: "12px 14px", background: SURFACE_0, borderRadius: 14, border: `1px solid ${BORDER}` }}>
+          <div style={{ fontSize: 9, fontWeight: 600, color: TEXT_LO, letterSpacing: "0.10em", textTransform: "uppercase", marginBottom: 8 }}>Últimos 7 dias</div>
+          <Sparkline days={series} />
+        </div>
+      )}
+
+      {/* Stat grid */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginBottom: 14 }}>
+        <StatTile label="Criadores" value={row.creatorsAdded} />
+        <StatTile label="Respostas" value={row.repliesReceived} />
+        <StatTile label="Taxa" value={`${replyRate}%`} accent={replyRate >= 15 ? GREEN : replyRate >= 5 ? AMBER : null} />
+        <StatTile label="Fechados" value={row.signed} accent={row.signed > 0 ? GREEN : null} />
+        <StatTile label="Follow-ups" value={row.followUpsDone} />
+        <StatTile label="Emails" value={row.emailsSent} />
+      </div>
+
+      {/* Pipeline mini */}
+      {pipe && (pipe.active > 0 || pipe.stale > 0 || pipe.inProgressOffer > 0) && (
+        <div style={{ marginBottom: 14, padding: "10px 14px", background: SURFACE_0, borderRadius: 14, border: `1px solid ${BORDER}` }}>
+          <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11 }}>
+            <PipelineTag label="Ativas" value={pipe.active} />
+            <PipelineTag label="A aguardar" value={pipe.awaiting} color="#3b82f6" />
+            <PipelineTag label="Paradas" value={pipe.stale} color={AMBER} />
+            <PipelineTag label="Em ofertas" value={pipe.inProgressOffer} color="#a855f7" />
+          </div>
+        </div>
+      )}
+
+      {/* Velocity */}
+      {vel && (vel.avgAddedToDmHours != null || vel.avgRepliedToFollowHours != null) && (
+        <div style={{ marginBottom: 14, padding: "10px 14px", background: SURFACE_0, borderRadius: 14, border: `1px solid ${BORDER}`, fontSize: 11, color: TEXT_MID }}>
+          <div style={{ fontSize: 9, fontWeight: 600, color: TEXT_LO, letterSpacing: "0.10em", textTransform: "uppercase", marginBottom: 6 }}>Velocidade</div>
+          {vel.avgAddedToDmHours != null && <div>Add → DM <strong style={{ color: TEXT_HI, marginLeft: 6 }}>{fmtHours(vel.avgAddedToDmHours)}</strong></div>}
+          {vel.avgRepliedToFollowHours != null && <div>Resp → Follow <strong style={{ color: TEXT_HI, marginLeft: 6 }}>{fmtHours(vel.avgRepliedToFollowHours)}</strong></div>}
+          {vel.avgFirstDmToSignedDays != null && <div>DM → Fechado <strong style={{ color: TEXT_HI, marginLeft: 6 }}>{vel.avgFirstDmToSignedDays}d</strong></div>}
+        </div>
+      )}
+
+      {/* Today debt + monthly tally combined */}
+      {windowKey === 'today' && sbRow && (
+        <div style={{ display: "flex", gap: 10 }}>
+          <div style={{ flex: 1, padding: "10px 14px", background: sbRow.totalOwedEur > 0 ? "rgba(239,68,68,0.06)" : sbRow.totalEarnedEur > 0 ? "rgba(34,197,94,0.06)" : SURFACE_0, borderRadius: 14, border: `1px solid ${sbRow.totalOwedEur > 0 ? "rgba(239,68,68,0.20)" : sbRow.totalEarnedEur > 0 ? "rgba(34,197,94,0.20)" : BORDER}` }}>
+            <div style={{ fontSize: 9, fontWeight: 600, color: TEXT_LO, letterSpacing: "0.10em", textTransform: "uppercase", marginBottom: 4 }}>Hoje</div>
+            <div style={{ fontSize: 15, fontWeight: 700, color: sbRow.totalOwedEur > 0 ? RED : sbRow.totalEarnedEur > 0 ? GREEN : TEXT_MID }}>
+              {sbRow.totalOwedEur > 0 ? `-€${sbRow.totalOwedEur}` : sbRow.totalEarnedEur > 0 ? `+€${sbRow.totalEarnedEur}` : '—'}
+            </div>
+          </div>
+          {monthly && (
+            <div style={{ flex: 1, padding: "10px 14px", background: SURFACE_0, borderRadius: 14, border: `1px solid ${BORDER}` }}>
+              <div style={{ fontSize: 9, fontWeight: 600, color: TEXT_LO, letterSpacing: "0.10em", textTransform: "uppercase", marginBottom: 4 }}>Mês</div>
+              <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between" }}>
+                <span style={{ fontSize: 15, fontWeight: 700, color: monthly.netEur >= 0 ? GREEN : RED }}>
+                  {monthly.netEur >= 0 ? '+' : ''}{fmtEur(monthly.netEur)}
+                </span>
+                <span style={{ fontSize: 9, color: TEXT_LO }}>{monthly.daysHit}✓ · {monthly.daysMissed}✗</span>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function StatTile({ label, value, accent }) {
+  return (
+    <div style={{ padding: "10px 12px", background: SURFACE_0, borderRadius: 12, border: `1px solid ${BORDER}` }}>
+      <div style={{ fontSize: 9, fontWeight: 600, color: TEXT_LO, letterSpacing: "0.10em", textTransform: "uppercase", marginBottom: 4, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{label}</div>
+      <div style={{ fontSize: 17, fontWeight: 700, color: accent || TEXT_HI, letterSpacing: "-0.01em" }}>{value}</div>
+    </div>
+  );
+}
+
+function PipelineTag({ label, value, color = GREEN }) {
+  return (
+    <div style={{ textAlign: "center", flex: 1 }}>
+      <div style={{ fontSize: 9, color: TEXT_LO, marginBottom: 2 }}>{label}</div>
+      <div style={{ fontSize: 14, fontWeight: 700, color: value > 0 ? color : TEXT_DIM }}>{value}</div>
+    </div>
+  );
+}
+
+function DeltaBadge({ value }) {
+  const positive = value > 0;
+  return (
+    <span style={{
+      display: "inline-flex", alignItems: "center", gap: 3,
+      padding: "2px 8px", borderRadius: 999,
+      background: positive ? "rgba(34,197,94,0.10)" : "rgba(239,68,68,0.10)",
+      border: `1px solid ${positive ? "rgba(34,197,94,0.30)" : "rgba(239,68,68,0.30)"}`,
+      color: positive ? GREEN : RED,
+      fontSize: 10, fontWeight: 700, letterSpacing: "0.02em",
+    }}>
+      {positive ? '↑' : '↓'} {Math.abs(value)}
+    </span>
+  );
+}
+
+// ─────────────────────────── CHARTS ───────────────────────────
+
+function ProgressRing({ value, size = 80, stroke = 8, color = ACCENT, centerLabel }) {
+  const v = Math.max(0, Math.min(100, value || 0));
+  const r = (size - stroke) / 2;
+  const c = 2 * Math.PI * r;
+  const offset = c * (1 - v / 100);
+  return (
+    <div style={{ position: "relative", width: size, height: size }}>
+      <svg width={size} height={size} style={{ transform: "rotate(-90deg)" }}>
+        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth={stroke} />
+        <circle
+          cx={size / 2} cy={size / 2} r={r} fill="none"
+          stroke={color} strokeWidth={stroke} strokeLinecap="round"
+          strokeDasharray={c} strokeDashoffset={offset}
+          style={{ transition: "stroke-dashoffset 600ms cubic-bezier(.2,.7,.2,1)" }}
+        />
+      </svg>
+      <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", pointerEvents: "none" }}>
+        {centerLabel ? (
+          <span style={{ fontSize: 11, fontWeight: 700, color: TEXT_HI, letterSpacing: "-0.01em" }}>{centerLabel}</span>
+        ) : (
+          <span style={{ fontSize: size / 4, fontWeight: 700, color: TEXT_HI, letterSpacing: "-0.02em" }}>{v}%</span>
+        )}
       </div>
     </div>
   );
 }
 
-function PipeBlock({ label, value, color = "#22c55e" }) {
+function ActivityBarChart({ days = [], target = 30 }) {
+  if (!days?.length) return null;
+  const max = Math.max(target * 0.6, ...days.map(d => d.dms), 1);
+  const W = 240, H = 80, gap = 6;
+  const barW = (W - gap * (days.length - 1)) / days.length;
+  const dayLabel = (dateStr) => {
+    const d = new Date(dateStr + 'T12:00:00');
+    return ['D','S','T','Q','Q','S','S'][d.getDay()];
+  };
+  const todayStr = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Lisbon' }).format(new Date());
   return (
-    <div style={{ textAlign: "center" }}>
-      <div style={{ fontSize: 9, color: "#666", marginBottom: 2, whiteSpace: "nowrap" }}>{label}</div>
-      <div style={{ fontSize: 18, fontWeight: 700, color: value > 0 ? color : "#444" }}>{value}</div>
+    <svg viewBox={`0 0 ${W} ${H + 18}`} preserveAspectRatio="none" style={{ width: "100%", height: 90 }}>
+      <defs>
+        <linearGradient id="bargrad" x1="0" x2="0" y1="0" y2="1">
+          <stop offset="0%" stopColor={ACCENT} stopOpacity={0.95} />
+          <stop offset="100%" stopColor={ACCENT_DEEP} stopOpacity={0.85} />
+        </linearGradient>
+      </defs>
+      {days.map((d, i) => {
+        const h = Math.max(2, (d.dms / max) * H);
+        const x = i * (barW + gap);
+        const y = H - h;
+        const isToday = d.date === todayStr;
+        return (
+          <g key={d.date}>
+            <rect x={x} y={0} width={barW} height={H} rx={Math.min(barW / 2, 6)} fill="rgba(255,255,255,0.04)" />
+            <rect x={x} y={y} width={barW} height={h} rx={Math.min(barW / 2, 6)} fill={isToday ? "url(#bargrad)" : "rgba(255,255,255,0.18)"} />
+            <text x={x + barW / 2} y={H + 14} fontSize="9" fill={isToday ? ACCENT : TEXT_LO} textAnchor="middle" fontFamily="Inter">{dayLabel(d.date)}</text>
+          </g>
+        );
+      })}
+    </svg>
+  );
+}
+
+function Sparkline({ days = [] }) {
+  if (!days.length) return null;
+  const max = Math.max(1, ...days.map(d => d.dms));
+  const W = 200, H = 36;
+  const stepX = W / (days.length - 1 || 1);
+  const points = days.map((d, i) => [i * stepX, H - (d.dms / max) * H]);
+  const path = points.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p[0]},${p[1]}`).join(' ');
+  const areaPath = path + ` L ${W},${H} L 0,${H} Z`;
+  return (
+    <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" style={{ width: "100%", height: 40 }}>
+      <defs>
+        <linearGradient id="sparkfill" x1="0" x2="0" y1="0" y2="1">
+          <stop offset="0%" stopColor={ACCENT} stopOpacity={0.30} />
+          <stop offset="100%" stopColor={ACCENT} stopOpacity={0} />
+        </linearGradient>
+      </defs>
+      <path d={areaPath} fill="url(#sparkfill)" />
+      <path d={path} fill="none" stroke={ACCENT} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+      {points.map((p, i) => (
+        <circle key={i} cx={p[0]} cy={p[1]} r={i === points.length - 1 ? 3 : 0} fill={ACCENT} />
+      ))}
+    </svg>
+  );
+}
+
+function FunnelChart({ funnel }) {
+  const steps = [
+    { label: 'Adicionados', value: funnel.added },
+    { label: 'DMs', value: funnel.dmd, rate: funnel.addedToDmRate },
+    { label: 'Respostas', value: funnel.replied, rate: funnel.dmToReplyRate },
+    { label: 'Fechados', value: funnel.signed, rate: funnel.replyToSignedRate, highlight: true },
+  ];
+  const max = Math.max(1, funnel.added);
+  return (
+    <div style={{ padding: "8px 0" }}>
+      <div style={{ fontSize: 12, fontWeight: 700, color: TEXT_HI, marginBottom: 10 }}>{funnel.firstName}</div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+        {steps.map((s, i) => {
+          const w = (s.value / max) * 100;
+          return (
+            <div key={i}>
+              {s.rate != null && (
+                <div style={{ fontSize: 9, color: TEXT_DIM, marginLeft: 6, marginBottom: 2 }}>↓ {s.rate}%</div>
+              )}
+              <div style={{ position: "relative", height: 30, borderRadius: 12, overflow: "hidden", background: SURFACE_0, border: `1px solid ${BORDER}` }}>
+                <div style={{
+                  height: "100%",
+                  width: `${Math.max(8, w)}%`,
+                  background: s.highlight
+                    ? `linear-gradient(90deg, ${ACCENT_DEEP}, ${ACCENT})`
+                    : `linear-gradient(90deg, rgba(177,30,47,0.20), rgba(177,30,47,0.10))`,
+                  borderRadius: 12,
+                  transition: "width 600ms cubic-bezier(.2,.7,.2,1)",
+                }} />
+                <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 12px" }}>
+                  <span style={{ fontSize: 11, color: TEXT_MID }}>{s.label}</span>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: TEXT_HI }}>{s.value}</span>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      <div style={{ marginTop: 10, paddingTop: 10, borderTop: `1px solid ${BORDER}`, fontSize: 11, color: TEXT_LO, display: "flex", justifyContent: "space-between" }}>
+        <span>Taxa global</span>
+        <strong style={{ color: TEXT_HI }}>{funnel.overallRate}%</strong>
+      </div>
     </div>
   );
 }
 
-function FunnelStep({ label, value, highlight }) {
-  return (
-    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", padding: "8px 12px", background: highlight ? "rgba(34,197,94,0.06)" : "#0a0a0a", border: `1px solid ${highlight ? "rgba(34,197,94,0.25)" : "rgba(255,255,255,0.04)"}`, borderRadius: 6 }}>
-      <span style={{ fontSize: 11, color: "#888" }}>{label}</span>
-      <span style={{ fontSize: 18, fontWeight: 700, color: highlight ? "#22c55e" : "#f5f5f5" }}>{value}</span>
-    </div>
-  );
-}
+function PipelineDonut({ pipeline = [] }) {
+  // Sum across all users for the team-wide donut.
+  const total = pipeline.reduce((acc, p) => ({
+    active: acc.active + p.active,
+    awaiting: acc.awaiting + p.awaiting,
+    stale: acc.stale + p.stale,
+    inProgressOffer: acc.inProgressOffer + p.inProgressOffer,
+  }), { active: 0, awaiting: 0, stale: 0, inProgressOffer: 0 });
 
-function FunnelArrow({ rate }) {
-  return (
-    <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "4px 12px", color: "#555", fontSize: 10 }}>
-      <span style={{ color: "#444" }}>↓</span>
-      <span>{rate}%</span>
-    </div>
-  );
-}
+  const segments = [
+    { label: 'Ativas', value: total.active, color: GREEN },
+    { label: 'A aguardar', value: total.awaiting, color: '#3b82f6' },
+    { label: 'Paradas', value: total.stale, color: AMBER },
+    { label: 'Em ofertas', value: total.inProgressOffer, color: '#a855f7' },
+  ];
+  const sum = segments.reduce((s, x) => s + x.value, 0) || 1;
 
-function QualityGroup({ title, items }) {
-  if (!items?.length) return null;
+  // SVG donut.
+  const size = 160, stroke = 22, r = (size - stroke) / 2;
+  const c = 2 * Math.PI * r;
+  let acc = 0;
   return (
-    <div style={{ marginBottom: 12 }}>
-      <div style={{ fontSize: 9, fontWeight: 600, color: "#666", letterSpacing: "0.10em", textTransform: "uppercase", marginBottom: 6 }}>{title}</div>
-      <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-        {items.map((it, i) => (
-          <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 10px", background: "#0a0a0a", borderRadius: 4, border: "1px solid rgba(255,255,255,0.04)", fontSize: 11 }}>
-            <span style={{ color: "#aaa" }}>{it.key}</span>
-            <span>
-              <span style={{ color: "#666", fontSize: 10, marginRight: 8 }}>{it.replied}/{it.sent}</span>
-              <strong style={{ color: it.rate >= 15 ? "#22c55e" : it.rate >= 5 ? "#eab308" : "#888" }}>{it.rate}%</strong>
-            </span>
+    <div style={{ display: "flex", alignItems: "center", gap: 24 }}>
+      <div style={{ position: "relative", width: size, height: size, flexShrink: 0 }}>
+        <svg width={size} height={size} style={{ transform: "rotate(-90deg)" }}>
+          <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="rgba(255,255,255,0.04)" strokeWidth={stroke} />
+          {segments.map((s, i) => {
+            const frac = s.value / sum;
+            const dash = frac * c;
+            const offset = -acc * c;
+            acc += frac;
+            return s.value > 0 ? (
+              <circle key={i} cx={size / 2} cy={size / 2} r={r} fill="none" stroke={s.color} strokeWidth={stroke}
+                strokeDasharray={`${dash} ${c - dash}`} strokeDashoffset={offset} style={{ transition: "stroke-dasharray 600ms" }} />
+            ) : null;
+          })}
+        </svg>
+        <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
+          <span style={{ fontSize: 28, fontWeight: 800, color: TEXT_HI, letterSpacing: "-0.025em" }}>{sum === 1 && segments.every(s => s.value === 0) ? 0 : sum}</span>
+          <span style={{ fontSize: 10, color: TEXT_LO, letterSpacing: "0.12em", textTransform: "uppercase" }}>Total</span>
+        </div>
+      </div>
+      <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 8 }}>
+        {segments.map((s, i) => (
+          <div key={i} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 12px", background: SURFACE_0, borderRadius: 10, border: `1px solid ${BORDER}` }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <span style={{ width: 8, height: 8, borderRadius: '50%', background: s.color }} />
+              <span style={{ fontSize: 12, color: TEXT_MID }}>{s.label}</span>
+            </div>
+            <span style={{ fontSize: 15, fontWeight: 700, color: TEXT_HI }}>{s.value}</span>
           </div>
         ))}
+      </div>
+    </div>
+  );
+}
+
+function QualityBars({ title, items }) {
+  if (!items?.length) return null;
+  return (
+    <div style={{ marginBottom: 14 }}>
+      <div style={{ fontSize: 9, fontWeight: 600, color: TEXT_LO, letterSpacing: "0.10em", textTransform: "uppercase", marginBottom: 8 }}>{title}</div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+        {items.map((it, i) => {
+          const color = it.rate >= 15 ? GREEN : it.rate >= 5 ? AMBER : TEXT_LO;
+          return (
+            <div key={i} style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <span style={{ fontSize: 11, color: TEXT_MID, width: 60 }}>{it.key}</span>
+              <div style={{ flex: 1, height: 6, background: SURFACE_0, borderRadius: 6, overflow: "hidden", border: `1px solid ${BORDER}` }}>
+                <div style={{ height: "100%", width: `${Math.min(100, it.rate * 2)}%`, background: color, borderRadius: 6, transition: "width 600ms" }} />
+              </div>
+              <span style={{ fontSize: 11, color: TEXT_LO, width: 50, textAlign: "right" }}>{it.replied}/{it.sent}</span>
+              <span style={{ fontSize: 12, fontWeight: 700, color: TEXT_HI, width: 36, textAlign: "right" }}>{it.rate}%</span>
+            </div>
+          );
+        })}
       </div>
     </div>
   );
