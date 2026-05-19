@@ -36,6 +36,9 @@ export default function AuditQueuePage() {
   const [running, setRunning] = useState(false);
   const [includeCold, setIncludeCold] = useState(false);
   const [allCreators, setAllCreators] = useState([]); // unfiltered, for toggle
+  // Selection lives outside the row records so toggling the cold filter
+  // doesn't wipe the operator's picks. Set of creator IDs.
+  const [selectedIds, setSelectedIds] = useState(() => new Set());
 
   const queueRef = useRef([]);
   const workerRunningRef = useRef(false);
@@ -131,11 +134,52 @@ export default function AuditQueuePage() {
     })();
   }, []);
 
+  // Selection helpers. All operate on the currently-visible (filtered)
+  // creators list, so selecting "all" while cold is excluded won't sneak
+  // cold creators into the queue.
+  const toggleOne = (id) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+  const visibleIds = creators.map(c => c.id);
+  const allVisibleSelected = visibleIds.length > 0 && visibleIds.every(id => selectedIds.has(id));
+  const someVisibleSelected = visibleIds.some(id => selectedIds.has(id));
+  const toggleAllVisible = () => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (allVisibleSelected) {
+        // All visible already selected → deselect them
+        for (const id of visibleIds) next.delete(id);
+      } else {
+        // Select all visible
+        for (const id of visibleIds) next.add(id);
+      }
+      return next;
+    });
+  };
+  const selectByStatus = (pipelineStatus) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      for (const c of creators) {
+        if (c.pipelineStatus === pipelineStatus) next.add(c.id);
+      }
+      return next;
+    });
+  };
+  const clearSelection = () => setSelectedIds(new Set());
+
   const runAll = () => {
-    const ids = creators.filter(c => !c.status || c.status === 'failed').map(c => c.id);
+    // Only run selected rows that are idle or previously failed. Done rows
+    // get skipped silently so re-running after a partial failure is safe.
+    const ids = creators
+      .filter(c => selectedIds.has(c.id))
+      .filter(c => !c.status || c.status === 'failed')
+      .map(c => c.id);
     if (ids.length === 0) return;
     queueRef.current = ids;
-    // Mark all as pending immediately so the UI doesn't lag the queue.
     setCreators(prev => prev.map(r => ids.includes(r.id) ? { ...r, status: 'pending' } : r));
     setRunning(true);
     startWorker();
@@ -154,10 +198,12 @@ export default function AuditQueuePage() {
   const queued = creators.filter(c => c.status === 'pending' || c.status === 'running').length;
   const done = creators.filter(c => c.status === 'done').length;
   const failed = creators.filter(c => c.status === 'failed').length;
-  const idle = creators.filter(c => !c.status).length;
-  const remainingToRun = creators.filter(c => !c.status || c.status === 'failed').length;
-  const estCost = (remainingToRun * AUDIT_COST_PER_ROW).toFixed(2);
-  const etaSecs = Math.ceil(remainingToRun * AUDIT_PACE_MS / 1000);
+  const selectedCount = creators.filter(c => selectedIds.has(c.id)).length;
+  // "Vou correr" = selected rows that are idle or previously failed. Done
+  // rows are skipped by runAll() so we don't promise to charge for them.
+  const willRun = creators.filter(c => selectedIds.has(c.id) && (!c.status || c.status === 'failed')).length;
+  const estCost = (willRun * AUDIT_COST_PER_ROW).toFixed(2);
+  const etaSecs = Math.ceil(willRun * AUDIT_PACE_MS / 1000);
   const etaStr = etaSecs < 60 ? `${etaSecs}s` : `${Math.floor(etaSecs / 60)}min ${etaSecs % 60}s`;
 
   return (
@@ -196,9 +242,9 @@ export default function AuditQueuePage() {
             {/* Stats */}
             <div className="sl-grid-2" style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 14, marginBottom: 16 }}>
               <StatCard label="Sem audit" value={total} color="#f5f5f5" />
+              <StatCard label="Selecionados" value={selectedCount} color={selectedCount > 0 ? "#22c55e" : "#444"} />
               <StatCard label="Concluídos" value={done} color={done > 0 ? "#22c55e" : "#444"} />
-              <StatCard label="A correr" value={queued} color={queued > 0 ? "#3b82f6" : "#444"} />
-              <StatCard label={`Custo estimado · ETA`} value={`$${estCost} · ${etaStr}`} small color="#B11E2F" />
+              <StatCard label={selectedCount > 0 ? "Custo · ETA" : "Concluídos · A correr"} value={selectedCount > 0 ? `$${estCost} · ${etaStr}` : `${done} · ${queued}`} small color="#B11E2F" />
             </div>
 
             {/* Toggle: include cold */}
@@ -233,21 +279,53 @@ export default function AuditQueuePage() {
             ) : (
               <div style={{ padding: "14px 20px", background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 10, marginBottom: 20, display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12 }}>
                 <div>
-                  <div style={{ fontSize: 13, fontWeight: 600 }}>{remainingToRun} creator{remainingToRun === 1 ? '' : 's'} para auditar</div>
-                  <div style={{ fontSize: 11, color: "#888", marginTop: 4 }}>~{etaStr} · ${estCost} Claude · pacing de 25s/audit</div>
+                  <div style={{ fontSize: 13, fontWeight: 600 }}>
+                    {willRun > 0 ? `${willRun} creator${willRun === 1 ? '' : 's'} selecionado${willRun === 1 ? '' : 's'} para auditar` : 'Seleciona creators para correr o audit'}
+                  </div>
+                  <div style={{ fontSize: 11, color: "#888", marginTop: 4 }}>
+                    {willRun > 0 ? `~${etaStr} · $${estCost} Claude · pacing de 25s/audit` : 'Usa as checkboxes na tabela ou os atalhos abaixo'}
+                  </div>
                 </div>
-                <button onClick={runAll} disabled={remainingToRun === 0} style={{ padding: "10px 20px", background: remainingToRun > 0 ? "#7A0E18" : "#1a1a1a", border: "none", borderRadius: 6, color: remainingToRun > 0 ? "#fff" : "#666", fontSize: 13, fontWeight: 600, cursor: remainingToRun > 0 ? "pointer" : "not-allowed", fontFamily: "inherit" }}>Correr audits</button>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                  {selectedCount > 0 && (
+                    <button onClick={clearSelection} style={{ padding: "10px 16px", background: "transparent", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 6, color: "#888", fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>Limpar seleção</button>
+                  )}
+                  <button onClick={runAll} disabled={willRun === 0} style={{ padding: "10px 20px", background: willRun > 0 ? "#7A0E18" : "#1a1a1a", border: "none", borderRadius: 6, color: willRun > 0 ? "#fff" : "#666", fontSize: 13, fontWeight: 600, cursor: willRun > 0 ? "pointer" : "not-allowed", fontFamily: "inherit" }}>{willRun > 0 ? `Correr ${willRun} audit${willRun === 1 ? '' : 's'}` : 'Correr audits'}</button>
+                </div>
+              </div>
+            )}
+
+            {/* Selection shortcuts — handy when there are many rows. */}
+            {total > 0 && !running && (
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 16, alignItems: "center" }}>
+                <span style={{ fontSize: 10, fontWeight: 700, color: "#555", letterSpacing: "0.08em", textTransform: "uppercase", marginRight: 4 }}>Atalhos</span>
+                <button onClick={() => selectByStatus('prospect')} style={{ padding: "6px 12px", background: "transparent", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 4, color: "#888", fontSize: 11, cursor: "pointer", fontFamily: "inherit" }}>+ Todos os prospects</button>
+                <button onClick={() => selectByStatus('signed')} style={{ padding: "6px 12px", background: "transparent", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 4, color: "#888", fontSize: 11, cursor: "pointer", fontFamily: "inherit" }}>+ Todos os signed</button>
+                <button onClick={toggleAllVisible} style={{ padding: "6px 12px", background: "transparent", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 4, color: "#888", fontSize: 11, cursor: "pointer", fontFamily: "inherit" }}>{allVisibleSelected ? 'Desselecionar todos' : 'Selecionar todos visíveis'}</button>
               </div>
             )}
 
             {/* Table */}
             {total > 0 && (
               <div className="sl-hscroll" style={{ border: "1px solid rgba(255,255,255,0.06)", borderRadius: 10, overflow: "hidden" }}>
-                <div style={{ display: "grid", gridTemplateColumns: "50px 2fr 1.5fr 0.8fr 0.8fr 1.4fr 1.6fr", padding: "12px 16px", background: "#141414", fontSize: 10, fontWeight: 700, color: "#666", letterSpacing: "0.08em", textTransform: "uppercase", minWidth: 720 }}>
+                <div style={{ display: "grid", gridTemplateColumns: "36px 50px 2fr 1.5fr 0.8fr 0.8fr 1.4fr 1.6fr", padding: "12px 16px", background: "#141414", fontSize: 10, fontWeight: 700, color: "#666", letterSpacing: "0.08em", textTransform: "uppercase", minWidth: 760, alignItems: "center" }}>
+                  <div>
+                    {/* Master checkbox — toggles all visible. Indeterminate
+                        styling not used (browser support is uneven); we
+                        just show "checked when all are checked". */}
+                    <input
+                      type="checkbox"
+                      checked={allVisibleSelected}
+                      onChange={toggleAllVisible}
+                      disabled={running}
+                      style={{ width: 14, height: 14, accentColor: "#22c55e", cursor: running ? "not-allowed" : "pointer" }}
+                      title={allVisibleSelected ? "Desselecionar todos" : "Selecionar todos"}
+                    />
+                  </div>
                   <div>#</div><div>Nome</div><div>Nicho</div><div>Followers</div><div>Pipeline</div><div>Status</div><div>Detalhe</div>
                 </div>
                 {creators.map((c, i) => (
-                  <Row key={c.id} idx={i} row={c} />
+                  <Row key={c.id} idx={i} row={c} selected={selectedIds.has(c.id)} onToggle={() => toggleOne(c.id)} disabled={running} />
                 ))}
               </div>
             )}
@@ -267,7 +345,7 @@ function StatCard({ label, value, color, small }) {
   );
 }
 
-function Row({ idx, row }) {
+function Row({ idx, row, selected, onToggle, disabled }) {
   const statusColors = {
     null:    { color: '#888',    bg: 'transparent',                  label: 'À espera' },
     pending: { color: '#888',    bg: 'rgba(255,255,255,0.03)',       label: 'em fila' },
@@ -285,8 +363,22 @@ function Row({ idx, row }) {
     ? `✓ ${row.auditCounts.products} prod${row.auditCounts.communities ? ` · ${row.auditCounts.communities} com` : ''}`
     : (s.label || row.status);
   const detail = row.auditError || (row.status === 'done' && row.auditCounts ? `${row.auditCounts.products} produtos, ${row.auditCounts.communities} comunidades encontradas` : '');
+  // Highlight selected rows so they pop visually — easier to scan a long
+  // list and confirm what's about to run.
+  const rowBg = selected
+    ? "rgba(34,197,94,0.04)"
+    : (idx % 2 === 0 ? "transparent" : "rgba(255,255,255,0.01)");
   return (
-    <div style={{ display: "grid", gridTemplateColumns: "50px 2fr 1.5fr 0.8fr 0.8fr 1.4fr 1.6fr", padding: "10px 16px", borderTop: "1px solid rgba(255,255,255,0.04)", background: idx % 2 === 0 ? "transparent" : "rgba(255,255,255,0.01)", fontSize: 12, alignItems: "center", minWidth: 720 }}>
+    <div style={{ display: "grid", gridTemplateColumns: "36px 50px 2fr 1.5fr 0.8fr 0.8fr 1.4fr 1.6fr", padding: "10px 16px", borderTop: "1px solid rgba(255,255,255,0.04)", background: rowBg, fontSize: 12, alignItems: "center", minWidth: 760 }}>
+      <div>
+        <input
+          type="checkbox"
+          checked={selected}
+          onChange={onToggle}
+          disabled={disabled}
+          style={{ width: 14, height: 14, accentColor: "#22c55e", cursor: disabled ? "not-allowed" : "pointer" }}
+        />
+      </div>
       <div style={{ color: "#444", fontFamily: "'JetBrains Mono', monospace", fontSize: 11 }}>{idx + 1}</div>
       <div style={{ color: "#f5f5f5", fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
         <a href={`/creators/${row.id}`} target="_blank" rel="noopener" style={{ color: "inherit", textDecoration: "none" }}>{row.name || '—'}</a>
