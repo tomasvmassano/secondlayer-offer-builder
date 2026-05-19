@@ -238,11 +238,14 @@ export async function getCreator(id) {
   }
   // Backfill addedBy for legacy creators added before team attribution
   // existed. Tomás was the only operator until 2026-05-18, so all historical
-  // additions land on him. New creators always get a real addedBy stamp.
+  // additions land on him. firstName must match the live session shape
+  // (email-local-part Title-Cased = "Tomas" without accent) otherwise the
+  // dashboard treats backfill rows as a separate person from real session
+  // events.
   if (!creator.addedBy) {
     creator = {
       ...creator,
-      addedBy: { userId: 'tomas-backfill', firstName: 'Tomás', at: creator.createdAt || creator.updatedAt || null },
+      addedBy: { userId: 'tomas-backfill', firstName: 'Tomas', at: creator.createdAt || creator.updatedAt || null },
     };
   }
   return creator;

@@ -1,9 +1,18 @@
 import { NextResponse } from 'next/server';
-import { getTeamStats, getDailyScoreboard } from '../../lib/teamStats';
+import {
+  getTeamStats, getDailyScoreboard,
+  getFunnels, getStreaks, getPipelineHealth, getVelocity,
+  getQualityBreakdowns, getMonthlyTally, getNeedsAttention,
+  getDeltas, getRevenueForecast,
+} from '../../lib/teamStats';
 
 // Read-only endpoint that backs the /equipa dashboard. Middleware ensures
 // the caller has a valid session — every team member sees everyone's stats
 // (it's a competition, transparency is the point).
+//
+// Single endpoint, returns the entire dashboard payload in one call. We
+// fan out N parallel aggregations against the creators index. For a small
+// CRM this is much cheaper than 10 separate round-trips from the client.
 export async function GET(request) {
   try {
     const { searchParams } = new URL(request.url);
@@ -15,12 +24,38 @@ export async function GET(request) {
       return NextResponse.json({ error: `window must be one of ${valid.join('|')}` }, { status: 400 });
     }
 
-    const rows = await getTeamStats({ window });
-    // Today view also returns the scoreboard with the €50 debt math so the
-    // dashboard can show who owes whom without a second call.
-    const scoreboard = window === 'today' ? await getDailyScoreboard({ target }) : null;
+    // Run all aggregations in parallel.
+    const [
+      rows,
+      scoreboard,
+      funnels,
+      streaks,
+      pipeline,
+      velocity,
+      quality,
+      monthlyTally,
+      needsAttention,
+      deltas,
+      revenue,
+    ] = await Promise.all([
+      getTeamStats({ window }),
+      window === 'today' ? getDailyScoreboard({ target }) : null,
+      getFunnels(),
+      getStreaks({ target }),
+      getPipelineHealth(),
+      getVelocity(),
+      getQualityBreakdowns(),
+      getMonthlyTally({ target }),
+      getNeedsAttention({ dailyTarget: target }),
+      window !== 'all' ? getDeltas({ window: window === 'today' ? 'week' : window }) : null,
+      getRevenueForecast(),
+    ]);
 
-    return NextResponse.json({ window, target, rows, scoreboard });
+    return NextResponse.json({
+      window, target,
+      rows, scoreboard, funnels, streaks, pipeline, velocity, quality,
+      monthlyTally, needsAttention, deltas, revenue,
+    });
   } catch (err) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
