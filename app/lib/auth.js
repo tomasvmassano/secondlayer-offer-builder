@@ -92,6 +92,28 @@ const DISPLAY_NAME_OVERRIDES = {
   'raul@informallabs.com':  'Raúl',
 };
 
+// ASCII-name → accented-name mapping, used to clean up legacy creator records
+// where addedBy.firstName / outreach.{dmSentBy,...}.firstName was set from the
+// raw email slug. Idempotent — passing the accented form returns it unchanged.
+const ASCII_NAME_TO_DISPLAY = {
+  tomas: 'Tomás',
+  raul:  'Raúl',
+};
+
+/**
+ * Normalise a stored operator first-name to its accented display form when
+ * we recognise the underlying person. Unknown names are returned unchanged
+ * so we don't accidentally mangle a real third operator that joins later.
+ */
+export function normalizeOperatorName(name) {
+  if (!name) return name;
+  const slug = String(name).toLowerCase()
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .trim();
+  return ASCII_NAME_TO_DISPLAY[slug] || name;
+}
+
 /**
  * Resolve a user's first name for display purposes (DM signatures, dashboards).
  * Order of resolution:

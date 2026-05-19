@@ -1,6 +1,7 @@
 import { Redis } from '@upstash/redis';
 import { nanoid } from 'nanoid';
 import { calculateDealScore } from './dealScore';
+import { normalizeOperatorName } from './auth';
 
 // Build the denormalised summary that goes into the creators:index sorted
 // set. This is what listCreators returns — keep it cheap to deserialise but
@@ -24,8 +25,10 @@ function buildSummary(creator, createdAt) {
     //   Em contacto    = repliedAt
     dmSentAt: creator.outreach?.dmSentAt || null,
     repliedAt: creator.outreach?.repliedAt || null,
-    // Filters
-    addedByFirstName: creator.addedBy?.firstName || null,
+    // Filters — addedByFirstName goes through normalizeOperatorName so
+    // legacy "Tomas"/"Raul" upgrade to "Tomás"/"Raúl". Idempotent on
+    // already-accented data.
+    addedByFirstName: normalizeOperatorName(creator.addedBy?.firstName) || null,
     dealScoreGrade,
     hasAudit: !!creator.offer?.internal_metadata?.ecosystem_audit,
     createdAt: createdAt || creator.createdAt || new Date().toISOString(),
@@ -272,8 +275,47 @@ export async function getCreator(id) {
   if (!creator.addedBy) {
     creator = {
       ...creator,
-      addedBy: { userId: 'tomas-backfill', firstName: 'Tomas', at: creator.createdAt || creator.updatedAt || null },
+      // Legacy backfill: pre-2026-05-18 Tomás was the only operator. Use the
+      // accented display form so this row aggregates with live session data
+      // (which now also writes accented names) under the same dashboard
+      // identity.
+      addedBy: { userId: 'tomas-backfill', firstName: 'Tomás', at: creator.createdAt || creator.updatedAt || null },
     };
+  }
+
+  // Normalise operator names — old writes stored "Tomas"/"Raul" (unaccented
+  // email slug); new writes use "Tomás"/"Raúl" via displayFirstName. Walk
+  // the addedBy + outreach actor fields and upgrade any unaccented value
+  // we recognise. Idempotent for already-accented data. Persist so the
+  // next read pays nothing.
+  const ACTOR_FIELDS = ['dmSentBy', 'emailSentBy', 'lastFollowUpBy', 'repliedMarkedBy', 'callAgreedBy', 'callHeldBy'];
+  let nameMigrated = false;
+  if (creator.addedBy?.firstName) {
+    const normalised = normalizeOperatorName(creator.addedBy.firstName);
+    if (normalised !== creator.addedBy.firstName) {
+      creator = { ...creator, addedBy: { ...creator.addedBy, firstName: normalised } };
+      nameMigrated = true;
+    }
+  }
+  if (creator.outreach) {
+    let outreach = creator.outreach;
+    for (const key of ACTOR_FIELDS) {
+      if (outreach[key]?.firstName) {
+        const normalised = normalizeOperatorName(outreach[key].firstName);
+        if (normalised !== outreach[key].firstName) {
+          outreach = { ...outreach, [key]: { ...outreach[key], firstName: normalised } };
+          nameMigrated = true;
+        }
+      }
+    }
+    if (outreach !== creator.outreach) creator = { ...creator, outreach };
+  }
+  if (nameMigrated) {
+    if (useMemory()) {
+      memStore.set(`creator:${id}`, JSON.stringify(creator));
+    } else {
+      try { await getRedis().set(`creator:${id}`, JSON.stringify(creator)); } catch { /* best-effort */ }
+    }
   }
 
   // One-time template-label migration (deployed 2026-05-19).
@@ -334,6 +376,16 @@ export async function listCreators() {
     rawMembers = await redis.zrange('creators:index', 0, -1, { rev: true });
     summaries = rawMembers.map(m => typeof m === 'string' ? JSON.parse(m) : m);
   }
+
+  // Always normalise addedByFirstName so the CRM filter dropdown shows the
+  // accented form ("Tomás"/"Raúl") even on summaries written before the
+  // displayFirstName rollout — no need to fall through to the heavier
+  // rebuild path just for a label fix.
+  summaries = summaries.map(s => {
+    if (!s?.addedByFirstName) return s;
+    const normalised = normalizeOperatorName(s.addedByFirstName);
+    return normalised === s.addedByFirstName ? s : { ...s, addedByFirstName: normalised };
+  });
 
   // Enrich summaries with the fields that drive the CRM filters/tabs. The
   // sentinel field for "this summary was written by the current schema" is

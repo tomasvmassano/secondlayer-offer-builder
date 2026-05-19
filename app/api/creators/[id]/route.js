@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getCreator, updateCreator, deleteCreator } from '../../../lib/creators';
 import { sendWelcomeEmail } from '../../../lib/welcomeEmail';
-import { getCurrentUser } from '../../../lib/auth';
+import { getCurrentUser, displayFirstName } from '../../../lib/auth';
 
 // Attribution helper — when a PATCH sets an outreach action timestamp
 // (dmSentAt, emailSentAt, lastFollowUpAt, repliedAt) we automatically stamp
@@ -10,10 +10,12 @@ import { getCurrentUser } from '../../../lib/auth';
 //
 // Each *By field is { userId, firstName, at } — at duplicates the action
 // timestamp so a single read can answer "who did this and when".
+// firstName uses displayFirstName so we get the accented form ("Tomás" /
+// "Raúl") instead of the email-derived ASCII slug. Without this, the CRM
+// filter dropdown ends up showing "Tomas" AND "Tomás" as separate values.
 function actorFromUser(u, at) {
   if (!u) return null;
-  const firstName = (u.email || '').split('@')[0].split('.')[0];
-  return { userId: u.userId, firstName: firstName ? firstName.charAt(0).toUpperCase() + firstName.slice(1) : null, at };
+  return { userId: u.userId, firstName: displayFirstName(u), at };
 }
 
 function stampOutreachActor(outreach, user) {
