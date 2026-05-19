@@ -462,6 +462,27 @@ export default function CreatorsPage() {
           >
             ↑ Bulk Import
           </a>
+          <a
+            href="/creators/audit-queue"
+            title="Corre ecosystem audit em creators já no CRM que ainda não foram auditados. Worker paced para respeitar o limite Anthropic."
+            style={{
+              padding: "14px 18px",
+              background: "transparent",
+              border: "1px solid rgba(255,255,255,0.1)",
+              borderRadius: 10,
+              color: "#888",
+              fontSize: 14,
+              fontWeight: 600,
+              cursor: "pointer",
+              fontFamily: "inherit",
+              whiteSpace: "nowrap",
+              textDecoration: "none",
+              display: "inline-flex",
+              alignItems: "center",
+            }}
+          >
+            ⚙ Bulk Audit
+          </a>
         </div>
 
         {/* Add Creator Form */}
