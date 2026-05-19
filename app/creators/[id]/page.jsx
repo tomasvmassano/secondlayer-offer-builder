@@ -478,25 +478,33 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
       const data = await r.json();
       setReplyResult(data);
       // Mark creator as replied — stops reminder digest from pinging them again.
-      await patchCreator({ outreach: { ...(creator.outreach || {}), repliedAt: new Date().toISOString() } });
+      // Defaults channel to 'dm' since this flow runs from the DM Writer's
+      // reply box (operator pastes the IG DM into the textarea). Operator
+      // can flip via the chip if it actually came in by email.
+      await patchCreator({ outreach: { ...(creator.outreach || {}), repliedAt: new Date().toISOString(), repliedChannel: 'dm' } });
     } catch (e) { setReplyError(e.message); } finally { setReplyLoading(false); }
   }, [replyText, creator, patchCreator]);
 
   // Outreach helpers — mark DM / email / follow-up as sent so the reminder cron
-  // knows which milestone is next. Each is one server round-trip.
+  // knows which milestone is next AND the dashboard can compute per-channel
+  // reply rates. Each is one server round-trip. Follow-up + reply now carry
+  // a channel ('dm' | 'email') so we can answer "where do replies actually
+  // come from".
   const markOutreach = useCallback(async (field) => {
     const now = new Date().toISOString();
     const cur = creator?.outreach || {};
     const patch = { ...cur };
     if (field === 'dm')    patch.dmSentAt = now;
     if (field === 'email') patch.emailSentAt = now;
-    if (field === 'followUp') {
-      const next = Math.min(3, (cur.followUpsDone || 0) + 1);
-      patch.followUpsDone = next;
-      patch.lastFollowUpAt = now;
+    if (field === 'followUpDm' || field === 'followUpEmail') {
+      const existingArr = Array.isArray(cur.followUps) ? cur.followUps : [];
+      if (existingArr.length >= 3) return; // cap stays at 3 across channels
+      const channel = field === 'followUpDm' ? 'dm' : 'email';
+      patch.followUps = [...existingArr, { channel, at: now }]; // server stamps `by`
     }
-    if (field === 'replied') patch.repliedAt = now;
-    if (field === 'unreplied') patch.repliedAt = null;
+    if (field === 'repliedDm')    { patch.repliedAt = now; patch.repliedChannel = 'dm'; }
+    if (field === 'repliedEmail') { patch.repliedAt = now; patch.repliedChannel = 'email'; }
+    if (field === 'unreplied')    { patch.repliedAt = null; patch.repliedChannel = null; }
     if (field === 'callAgreed')   patch.callAgreedAt = now;
     if (field === 'uncallAgreed') patch.callAgreedAt = null;
     if (field === 'callHeld')     patch.callHeldAt = now;
@@ -1673,23 +1681,56 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
                       {sentChip(out.dmSentAt, 'DM', () => markOutreach('dm'))}
                       {sentChip(out.emailSentAt, 'Email', () => markOutreach('email'))}
                       <span style={{ fontSize: 9, color: "#444" }}>·</span>
-                      <button
-                        onClick={() => markOutreach('followUp')}
-                        title="Marca quando enviares cada follow-up (DM ou email)"
-                        disabled={(out.followUpsDone || 0) >= 3}
-                        style={{ padding: "4px 10px", borderRadius: 4, fontSize: 10, fontWeight: 600, cursor: (out.followUpsDone || 0) >= 3 ? "default" : "pointer", fontFamily: "inherit", border: "1px solid rgba(255,255,255,0.08)", background: (out.followUpsDone || 0) > 0 ? "rgba(59,130,246,0.08)" : "transparent", color: (out.followUpsDone || 0) > 0 ? "#3b82f6" : "#888" }}
-                      >
-                        Follow-ups: {out.followUpsDone || 0}/3{out.lastFollowUpAt ? ` · ${fmtRelative(out.lastFollowUpAt)}` : ''}
-                      </button>
+                      {/* Follow-ups split by channel so the dashboard can
+                          show DM-followups vs Email-followups effectiveness.
+                          Cap at 3 across channels combined. */}
+                      {(() => {
+                        const followUps = Array.isArray(out.followUps) ? out.followUps : [];
+                        const dmFu = followUps.filter(f => f.channel === 'dm').length;
+                        const emFu = followUps.filter(f => f.channel === 'email').length;
+                        const totalFu = followUps.length;
+                        const capped = totalFu >= 3;
+                        return (
+                          <>
+                            <button
+                              onClick={() => markOutreach('followUpDm')}
+                              title="Marca quando enviares um follow-up por DM"
+                              disabled={capped}
+                              style={{ padding: "4px 10px", borderRadius: 4, fontSize: 10, fontWeight: 600, cursor: capped ? "default" : "pointer", fontFamily: "inherit", border: "1px solid rgba(255,255,255,0.08)", background: dmFu > 0 ? "rgba(59,130,246,0.08)" : "transparent", color: dmFu > 0 ? "#3b82f6" : "#888" }}
+                            >
+                              + Follow-up DM{dmFu > 0 ? ` (${dmFu})` : ''}
+                            </button>
+                            <button
+                              onClick={() => markOutreach('followUpEmail')}
+                              title="Marca quando enviares um follow-up por email"
+                              disabled={capped}
+                              style={{ padding: "4px 10px", borderRadius: 4, fontSize: 10, fontWeight: 600, cursor: capped ? "default" : "pointer", fontFamily: "inherit", border: "1px solid rgba(255,255,255,0.08)", background: emFu > 0 ? "rgba(59,130,246,0.08)" : "transparent", color: emFu > 0 ? "#3b82f6" : "#888" }}
+                            >
+                              + Follow-up Email{emFu > 0 ? ` (${emFu})` : ''}
+                            </button>
+                            {totalFu > 0 && (
+                              <span style={{ fontSize: 10, color: "#666" }}>· {totalFu}/3{out.lastFollowUpAt ? ` · ${fmtRelative(out.lastFollowUpAt)}` : ''}</span>
+                            )}
+                          </>
+                        );
+                      })()}
                       <span style={{ fontSize: 9, color: "#444" }}>·</span>
+                      {/* Reply attribution — split by channel so we know
+                          where the conversion happened. After marking, the
+                          chip shows which channel was used. */}
                       {out.repliedAt ? (
-                        <button onClick={() => markOutreach('unreplied')} title={`Respondeu ${fmtRelative(out.repliedAt)} · Clica para desmarcar`} style={{ padding: "4px 10px", borderRadius: 4, fontSize: 10, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", border: "1px solid rgba(34,197,94,0.3)", background: "rgba(34,197,94,0.08)", color: "#22c55e" }}>
-                          ✓ Respondeu · {fmtRelative(out.repliedAt)}
+                        <button onClick={() => markOutreach('unreplied')} title={`Respondeu via ${out.repliedChannel === 'email' ? 'Email' : 'DM'} ${fmtRelative(out.repliedAt)} · Clica para desmarcar`} style={{ padding: "4px 10px", borderRadius: 4, fontSize: 10, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", border: "1px solid rgba(34,197,94,0.3)", background: "rgba(34,197,94,0.08)", color: "#22c55e" }}>
+                          ✓ Respondeu via {out.repliedChannel === 'email' ? 'Email' : out.repliedChannel === 'dm' ? 'DM' : '?'} · {fmtRelative(out.repliedAt)}
                         </button>
                       ) : (
-                        <button onClick={() => markOutreach('replied')} title="Marca quando o criador responder. Para os reminders." style={{ padding: "4px 10px", borderRadius: 4, fontSize: 10, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", border: "1px solid rgba(255,255,255,0.08)", background: "transparent", color: "#888" }}>
-                          ○ Marcar respondeu
-                        </button>
+                        <>
+                          <button onClick={() => markOutreach('repliedDm')} title="Marca quando o creator responder via DM." style={{ padding: "4px 10px", borderRadius: 4, fontSize: 10, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", border: "1px solid rgba(255,255,255,0.08)", background: "transparent", color: "#888" }}>
+                            ○ Respondeu (DM)
+                          </button>
+                          <button onClick={() => markOutreach('repliedEmail')} title="Marca quando o creator responder via email." style={{ padding: "4px 10px", borderRadius: 4, fontSize: 10, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", border: "1px solid rgba(255,255,255,0.08)", background: "transparent", color: "#888" }}>
+                            ○ Respondeu (Email)
+                          </button>
+                        </>
                       )}
                       <span style={{ fontSize: 9, color: "#444" }}>·</span>
                       {/* Sales-call stages — feed show-up rate + extended funnel.

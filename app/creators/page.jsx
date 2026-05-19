@@ -654,8 +654,10 @@ export default function CreatorsPage() {
           };
           const filtered = creators.filter(matchesFilters);
           const warm = filtered.filter(c => isActive(c) && c.repliedAt);
-          const outreach = filtered.filter(c => isActive(c) && !c.repliedAt && c.dmSentAt);
-          const porContactar = filtered.filter(c => isActive(c) && !c.repliedAt && !c.dmSentAt);
+          // Em outreach = at least one channel sent (DM or Email) and no
+          // reply yet. Email-only outreach now counts the same as DM-only.
+          const outreach = filtered.filter(c => isActive(c) && !c.repliedAt && (c.dmSentAt || c.emailSentAt));
+          const porContactar = filtered.filter(c => isActive(c) && !c.repliedAt && !c.dmSentAt && !c.emailSentAt);
           const frio = filtered.filter(isFrio);
           const activeList = crmTab === "por-contactar" ? porContactar
             : crmTab === "novos" ? porContactar // legacy alias

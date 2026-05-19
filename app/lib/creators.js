@@ -20,11 +20,13 @@ function buildSummary(creator, createdAt) {
     hasOffer: !!(creator.offer || creator.offerId),
     hasDm: !!creator.dmSequence,
     // Outreach state — drives the CRM tabs:
-    //   Por contactar  = !dmSentAt
-    //   Em outreach    = dmSentAt && !repliedAt
+    //   Por contactar  = !dmSentAt && !emailSentAt
+    //   Em outreach    = (dmSentAt || emailSentAt) && !repliedAt
     //   Em contacto    = repliedAt
     dmSentAt: creator.outreach?.dmSentAt || null,
+    emailSentAt: creator.outreach?.emailSentAt || null,
     repliedAt: creator.outreach?.repliedAt || null,
+    repliedChannel: creator.outreach?.repliedChannel || null,
     // Filters — addedByFirstName goes through normalizeOperatorName so
     // legacy "Tomas"/"Raul" upgrade to "Tomás"/"Raúl". Idempotent on
     // already-accented data.
@@ -186,9 +188,19 @@ export async function saveCreator(data) {
     outreach: data.outreach || {
       dmSentAt: null,
       emailSentAt: null,
+      // followUps is the authoritative log — each entry is
+      // { channel: 'dm'|'email', at: ISO, by: { userId, firstName, at } }.
+      // followUpsDone / lastFollowUpAt / lastFollowUpBy stay as DERIVED
+      // fields (computed in getCreator) so existing reads keep working
+      // without an immediate refactor.
+      followUps: [],
       followUpsDone: 0,
       lastFollowUpAt: null,
       repliedAt: null,
+      // repliedChannel — which channel the creator first replied on.
+      // 'dm' | 'email' | null. Critical for measuring per-channel
+      // conversion rate on the team dashboard.
+      repliedChannel: null,
       callAgreedAt: null,
       callHeldAt: null,
       remindersSent: { followUp1: null, followUp2: null, followUp3: null, autoCold: null },
@@ -318,6 +330,64 @@ export async function getCreator(id) {
     }
   }
 
+  // Channel-tracking backfills (2026-05-20).
+  // 1) Infer outreach.repliedChannel for legacy records where we marked
+  //    repliedAt before the channel field existed. Use "last-touch
+  //    attribution": whichever channel was most recently sent before the
+  //    reply timestamp. Falls back to DM if only one was sent, or null if
+  //    neither (manual mark with no preceding outreach).
+  // 2) Hydrate outreach.followUps array from the legacy followUpsDone
+  //    counter so the new array-based code has something to read. Channel
+  //    + actor for those reconstructed entries are 'unknown' / null since
+  //    we never captured them — they don't pollute new analytics because
+  //    we filter by channel='dm'|'email' explicitly downstream.
+  let outreachMigrated = false;
+  if (creator.outreach) {
+    let outreach = creator.outreach;
+    if (outreach.repliedAt && !outreach.repliedChannel) {
+      const repliedMs = new Date(outreach.repliedAt).getTime();
+      const dmMs = outreach.dmSentAt ? new Date(outreach.dmSentAt).getTime() : 0;
+      const emailMs = outreach.emailSentAt ? new Date(outreach.emailSentAt).getTime() : 0;
+      const dmBefore = dmMs > 0 && dmMs <= repliedMs;
+      const emailBefore = emailMs > 0 && emailMs <= repliedMs;
+      let inferred = null;
+      if (dmBefore && !emailBefore) inferred = 'dm';
+      else if (emailBefore && !dmBefore) inferred = 'email';
+      else if (dmBefore && emailBefore) inferred = dmMs >= emailMs ? 'dm' : 'email';
+      if (inferred) {
+        outreach = { ...outreach, repliedChannel: inferred };
+        outreachMigrated = true;
+      }
+    }
+    if (!Array.isArray(outreach.followUps)) {
+      const count = Number(outreach.followUpsDone) || 0;
+      const reconstructed = [];
+      if (count > 0 && outreach.lastFollowUpAt) {
+        // We only know the timestamp of the LAST follow-up. Older follow-ups
+        // get the same timestamp as a best-effort marker. Channel is unknown
+        // for all of these — downstream counts gate on channel === 'dm'|'email'
+        // so these don't double-count.
+        for (let i = 0; i < count; i++) {
+          reconstructed.push({
+            channel: 'unknown',
+            at: outreach.lastFollowUpAt,
+            by: outreach.lastFollowUpBy || null,
+          });
+        }
+      }
+      outreach = { ...outreach, followUps: reconstructed };
+      outreachMigrated = true;
+    }
+    if (outreachMigrated) creator = { ...creator, outreach };
+  }
+  if (outreachMigrated) {
+    if (useMemory()) {
+      memStore.set(`creator:${id}`, JSON.stringify(creator));
+    } else {
+      try { await getRedis().set(`creator:${id}`, JSON.stringify(creator)); } catch { /* best-effort */ }
+    }
+  }
+
   // One-time template-label migration (deployed 2026-05-19).
   // Before this date, the DM Writer template selector was a UI label only —
   // the system prompt didn't branch on it, so every "B" creator received
@@ -396,6 +466,7 @@ export async function listCreators() {
     s.hasOffer === undefined
     || s.repliedAt === undefined
     || s.dmSentAt === undefined
+    || s.emailSentAt === undefined
     || s.dealScoreGrade === undefined
     || s.hasAudit === undefined
     || s.addedByFirstName === undefined
@@ -407,6 +478,7 @@ export async function listCreators() {
     const stale = s.hasOffer === undefined
       || s.repliedAt === undefined
       || s.dmSentAt === undefined
+      || s.emailSentAt === undefined
       || s.dealScoreGrade === undefined
       || s.hasAudit === undefined
       || s.addedByFirstName === undefined;
@@ -492,7 +564,7 @@ export async function updateCreator(id, updates) {
   // doesn't wipe the other fields.
   if (updates.outreach) {
     const existingOut = existing.outreach || {};
-    updates.outreach = {
+    const merged = {
       ...existingOut,
       ...updates.outreach,
       remindersSent: {
@@ -500,6 +572,18 @@ export async function updateCreator(id, updates) {
         ...(updates.outreach.remindersSent || {}),
       },
     };
+    // Keep the legacy counter + last-touch fields in sync with the array.
+    // Lets existing code that reads followUpsDone / lastFollowUpAt continue
+    // to work without an immediate refactor.
+    if (Array.isArray(merged.followUps)) {
+      merged.followUpsDone = merged.followUps.length;
+      const last = merged.followUps[merged.followUps.length - 1];
+      if (last) {
+        merged.lastFollowUpAt = last.at || merged.lastFollowUpAt;
+        if (last.by) merged.lastFollowUpBy = last.by;
+      }
+    }
+    updates.outreach = merged;
   }
 
   const updated = { ...existing, ...updates, id, updatedAt: new Date().toISOString() };

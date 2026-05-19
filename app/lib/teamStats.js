@@ -121,8 +121,20 @@ function emptyRow(key, firstName) {
     creatorsAdded: 0,
     dmsSent: 0,
     emailsSent: 0,
+    // Outreach touches — unique creators where this operator sent at least
+    // one channel (DM or email) within the window. Same creator + same day
+    // touched on both channels still counts as 1. Drives the €50 daily rule.
+    touchesSent: 0,
     followUpsDone: 0,
+    // Follow-ups split by channel so the dashboard can show which channel
+    // gets used more / converts better at the nurture stage.
+    followUpsDm: 0,
+    followUpsEmail: 0,
     repliesReceived: 0,
+    // Replies split by channel — the headline insight for "where do replies
+    // actually come from".
+    repliesViaDm: 0,
+    repliesViaEmail: 0,
     signed: 0,
   };
 }
@@ -167,23 +179,46 @@ export async function getTeamStats({ window = 'today', now = new Date() } = {}) 
       bumpRow(rows, c.addedBy, 'creatorsAdded');
     }
     // DMs sent
-    if (o.dmSentAt && inWindow(o.dmSentAt, startMs)) {
+    const dmInWindow = o.dmSentAt && inWindow(o.dmSentAt, startMs);
+    if (dmInWindow) {
       bumpRow(rows, o.dmSentBy || c.addedBy, 'dmsSent');
     }
     // Emails sent
-    if (o.emailSentAt && inWindow(o.emailSentAt, startMs)) {
+    const emailInWindow = o.emailSentAt && inWindow(o.emailSentAt, startMs);
+    if (emailInWindow) {
       bumpRow(rows, o.emailSentBy || c.addedBy, 'emailsSent');
     }
-    // Follow-ups done — we only have the most-recent timestamp, so this
-    // under-counts when a single operator hits multiple follow-ups in one
-    // window. Acceptable tradeoff for v1 (operators rarely do >1 follow-up
-    // per creator per day).
-    if (o.lastFollowUpAt && inWindow(o.lastFollowUpAt, startMs)) {
+    // Outreach touches — unique-creator count. If both DM and email landed
+    // in this window for the same creator, the creator counts as ONE touch.
+    // Attribute to whichever operator did the earlier send (or just the DM
+    // sender if both happened; falls back to email sender then addedBy).
+    if (dmInWindow || emailInWindow) {
+      const touchActor = (dmInWindow ? (o.dmSentBy || c.addedBy) : null)
+        || (emailInWindow ? (o.emailSentBy || c.addedBy) : null)
+        || c.addedBy;
+      bumpRow(rows, touchActor, 'touchesSent');
+    }
+    // Follow-ups — prefer the new array (channel-tagged) when present.
+    // Falls back to the legacy lastFollowUpAt + counter for old records
+    // that haven't been backfilled yet.
+    if (Array.isArray(o.followUps) && o.followUps.length > 0) {
+      for (const f of o.followUps) {
+        if (!f?.at || !inWindow(f.at, startMs)) continue;
+        const actor = f.by || c.addedBy;
+        bumpRow(rows, actor, 'followUpsDone');
+        if (f.channel === 'dm') bumpRow(rows, actor, 'followUpsDm');
+        else if (f.channel === 'email') bumpRow(rows, actor, 'followUpsEmail');
+        // channel === 'unknown' (legacy backfill) only bumps followUpsDone
+      }
+    } else if (o.lastFollowUpAt && inWindow(o.lastFollowUpAt, startMs)) {
       bumpRow(rows, o.lastFollowUpBy || c.addedBy, 'followUpsDone');
     }
-    // Replies received (operator-marked)
+    // Replies received (operator-marked). Split by channel.
     if (o.repliedAt && inWindow(o.repliedAt, startMs)) {
-      bumpRow(rows, o.repliedMarkedBy || c.addedBy, 'repliesReceived');
+      const actor = o.repliedMarkedBy || c.addedBy;
+      bumpRow(rows, actor, 'repliesReceived');
+      if (o.repliedChannel === 'dm') bumpRow(rows, actor, 'repliesViaDm');
+      else if (o.repliedChannel === 'email') bumpRow(rows, actor, 'repliesViaEmail');
     }
     // Signed — attributed to whoever added the creator (handoffs aren't tracked).
     if (c.pipelineStatus === 'signed' && c.signedAt && inWindow(c.signedAt, startMs)) {
@@ -192,12 +227,18 @@ export async function getTeamStats({ window = 'today', now = new Date() } = {}) 
   }
 
   // Compute derived rates after all aggregation.
+  // replyRate is now the COMBINED rate (any channel reply / unique touches)
+  // so the headline reflects the channel-mix reality. Per-channel rates
+  // surface as dmReplyRate / emailReplyRate.
   const out = Array.from(rows.values()).map(r => ({
     ...r,
-    replyRate: r.dmsSent > 0 ? Math.round((r.repliesReceived / r.dmsSent) * 100) : 0,
+    replyRate: r.touchesSent > 0 ? Math.round((r.repliesReceived / r.touchesSent) * 100) : 0,
+    dmReplyRate: r.dmsSent > 0 ? Math.round((r.repliesViaDm / r.dmsSent) * 100) : 0,
+    emailReplyRate: r.emailsSent > 0 ? Math.round((r.repliesViaEmail / r.emailsSent) * 100) : 0,
     signedRate: r.repliesReceived > 0 ? Math.round((r.signed / r.repliesReceived) * 100) : 0,
   }));
-  out.sort((a, b) => (b.dmsSent || 0) - (a.dmsSent || 0));
+  // Sort by touches (the new headline metric for activity) instead of dms.
+  out.sort((a, b) => (b.touchesSent || 0) - (a.touchesSent || 0));
   return out;
 }
 
@@ -212,17 +253,20 @@ export async function getTeamStats({ window = 'today', now = new Date() } = {}) 
  */
 export async function getDailyScoreboard({ target = 30, now = new Date() } = {}) {
   const rows = await getTeamStats({ window: 'today', now });
-  const winners = rows.filter(r => r.dmsSent >= target);
-  const losers = rows.filter(r => r.dmsSent < target);
+  // Daily target gates on `touchesSent` (unique creators contacted via DM
+  // and/or email) instead of `dmsSent`. Sending DM + email to the same
+  // creator counts as ONE touch — the operator can't game the rule by
+  // double-touching everyone. Same €50 split logic.
+  const winners = rows.filter(r => r.touchesSent >= target);
+  const losers = rows.filter(r => r.touchesSent < target);
   return rows.map(r => ({
     ...r,
     target,
-    missedGoal: r.dmsSent < target,
-    // Each loser owes €50 to each winner. If 0 winners (all missed), no debts.
-    owesEachWinnerEur: r.dmsSent < target && winners.length > 0 ? 50 : 0,
-    earnsFromEachLoserEur: r.dmsSent >= target && losers.length > 0 ? 50 : 0,
-    totalOwedEur: r.dmsSent < target ? winners.length * 50 : 0,
-    totalEarnedEur: r.dmsSent >= target ? losers.length * 50 : 0,
+    missedGoal: r.touchesSent < target,
+    owesEachWinnerEur: r.touchesSent < target && winners.length > 0 ? 50 : 0,
+    earnsFromEachLoserEur: r.touchesSent >= target && losers.length > 0 ? 50 : 0,
+    totalOwedEur: r.touchesSent < target ? winners.length * 50 : 0,
+    totalEarnedEur: r.touchesSent >= target ? losers.length * 50 : 0,
   }));
 }
 
@@ -634,13 +678,16 @@ export async function getPacing({ target = 30, now = new Date() } = {}) {
   }
   const monthGoal = target * workingDaysInMonth;
   return monthRows.map(r => {
-    const rate = workingDaysElapsed > 0 ? r.dmsSent / workingDaysElapsed : 0;
+    // Pace now tracks `touchesSent` (unique-creator outreach touches) since
+    // that's the new 30/day target unit. DMs still surface as a sub-stat
+    // on the dashboard, just not as the gate.
+    const rate = workingDaysElapsed > 0 ? r.touchesSent / workingDaysElapsed : 0;
     const projectedTotal = Math.round(rate * workingDaysInMonth);
-    const pacePct = monthGoal > 0 ? Math.round((r.dmsSent / (target * workingDaysElapsed || 1)) * 100) : 0;
+    const pacePct = monthGoal > 0 ? Math.round((r.touchesSent / (target * workingDaysElapsed || 1)) * 100) : 0;
     return {
       userId: r.userId,
       firstName: r.firstName,
-      monthSoFar: r.dmsSent,
+      monthSoFar: r.touchesSent,
       monthGoal,
       projectedTotal,
       pacePct,
@@ -664,25 +711,48 @@ export async function getActivitySeries({ days = 7, now = new Date() } = {}) {
     dateKeys.push(dateStr);
   }
   const byUser = new Map();
+  const ensureUser = (k, firstName) => {
+    if (!byUser.has(k)) byUser.set(k, {
+      firstName,
+      dms: new Map(),
+      emails: new Map(),
+      touchesByDay: new Map(),     // Map<dateKey, Set<creatorId>> for unique-creator counting
+      replies: new Map(),
+    });
+    return byUser.get(k);
+  };
+  const fmtDate = (iso) => new Intl.DateTimeFormat('en-CA', { timeZone: TIMEZONE }).format(new Date(iso));
+
   for (const c of all) {
     const o = c.outreach || {};
     if (postReset(o.dmSentAt)) {
       const actor = o.dmSentBy || c.addedBy;
       if (actor) {
         const k = canonicalKey(actor.firstName);
-        const dateStr = new Intl.DateTimeFormat('en-CA', { timeZone: TIMEZONE }).format(new Date(o.dmSentAt));
-        if (!byUser.has(k)) byUser.set(k, { firstName: actor.firstName, dms: new Map(), replies: new Map() });
-        const u = byUser.get(k);
+        const dateStr = fmtDate(o.dmSentAt);
+        const u = ensureUser(k, actor.firstName);
         u.dms.set(dateStr, (u.dms.get(dateStr) || 0) + 1);
+        if (!u.touchesByDay.has(dateStr)) u.touchesByDay.set(dateStr, new Set());
+        u.touchesByDay.get(dateStr).add(c.id);
+      }
+    }
+    if (postReset(o.emailSentAt)) {
+      const actor = o.emailSentBy || c.addedBy;
+      if (actor) {
+        const k = canonicalKey(actor.firstName);
+        const dateStr = fmtDate(o.emailSentAt);
+        const u = ensureUser(k, actor.firstName);
+        u.emails.set(dateStr, (u.emails.get(dateStr) || 0) + 1);
+        if (!u.touchesByDay.has(dateStr)) u.touchesByDay.set(dateStr, new Set());
+        u.touchesByDay.get(dateStr).add(c.id);
       }
     }
     if (postReset(o.repliedAt)) {
       const actor = o.repliedMarkedBy || c.addedBy;
       if (actor) {
         const k = canonicalKey(actor.firstName);
-        const dateStr = new Intl.DateTimeFormat('en-CA', { timeZone: TIMEZONE }).format(new Date(o.repliedAt));
-        if (!byUser.has(k)) byUser.set(k, { firstName: actor.firstName, dms: new Map(), replies: new Map() });
-        const u = byUser.get(k);
+        const dateStr = fmtDate(o.repliedAt);
+        const u = ensureUser(k, actor.firstName);
         u.replies.set(dateStr, (u.replies.get(dateStr) || 0) + 1);
       }
     }
@@ -693,6 +763,10 @@ export async function getActivitySeries({ days = 7, now = new Date() } = {}) {
     days: dateKeys.map(d => ({
       date: d,
       dms: u.dms.get(d) || 0,
+      emails: u.emails.get(d) || 0,
+      // `touches` is unique-creator-touches per day — drives the new
+      // "Outreach hoje" headline + the 30/day target chart.
+      touches: u.touchesByDay.get(d)?.size || 0,
       replies: u.replies.get(d) || 0,
     })),
   }));

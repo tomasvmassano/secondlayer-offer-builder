@@ -70,10 +70,18 @@ export default function EquipaPage() {
   const heroStats = useMemo(() => {
     if (!data?.rows) return null;
     const sumDms = data.rows.reduce((s, r) => s + (r.dmsSent || 0), 0);
+    const sumEmails = data.rows.reduce((s, r) => s + (r.emailsSent || 0), 0);
+    const sumTouches = data.rows.reduce((s, r) => s + (r.touchesSent || 0), 0);
     const sumReplies = data.rows.reduce((s, r) => s + (r.repliesReceived || 0), 0);
+    const sumRepliesDm = data.rows.reduce((s, r) => s + (r.repliesViaDm || 0), 0);
+    const sumRepliesEmail = data.rows.reduce((s, r) => s + (r.repliesViaEmail || 0), 0);
     const sumCreators = data.rows.reduce((s, r) => s + (r.creatorsAdded || 0), 0);
     const sumSigned = data.rows.reduce((s, r) => s + (r.signed || 0), 0);
-    const replyRate = sumDms > 0 ? Math.round((sumReplies / sumDms) * 100) : 0;
+    // Combined reply rate now uses touches (the activity unit). DM/email
+    // per-channel rates ship alongside.
+    const replyRate = sumTouches > 0 ? Math.round((sumReplies / sumTouches) * 100) : 0;
+    const dmReplyRate = sumDms > 0 ? Math.round((sumRepliesDm / sumDms) * 100) : 0;
+    const emailReplyRate = sumEmails > 0 ? Math.round((sumRepliesEmail / sumEmails) * 100) : 0;
     const people = data.rows.length || 2;
     const dailyTarget = data.target || 30;
     let totalTarget = 0;
@@ -83,10 +91,11 @@ export default function EquipaPage() {
       const wd = data.pacing?.[0]?.workingDaysInMonth || 22;
       totalTarget = dailyTarget * people * wd;
     }
-    const goalPct = totalTarget > 0 ? Math.min(100, Math.round((sumDms / totalTarget) * 100)) : 0;
+    // Goal % now gates on touches (the new daily-rule unit) instead of DMs.
+    const goalPct = totalTarget > 0 ? Math.min(100, Math.round((sumTouches / totalTarget) * 100)) : 0;
     const projectedPipeline = (data.revenue || []).reduce((s, r) => s + (r.pipelineWeightedAnnualEur || 0), 0);
     const signedAnnual = (data.revenue || []).reduce((s, r) => s + (r.signedAnnualEur || 0), 0);
-    return { sumDms, sumReplies, sumCreators, sumSigned, replyRate, totalTarget, goalPct, projectedPipeline, signedAnnual };
+    return { sumDms, sumEmails, sumTouches, sumReplies, sumRepliesDm, sumRepliesEmail, sumCreators, sumSigned, replyRate, dmReplyRate, emailReplyRate, totalTarget, goalPct, projectedPipeline, signedAnnual };
   }, [data, windowKey]);
 
   return (
@@ -159,29 +168,41 @@ export default function EquipaPage() {
 
             {/* HERO STRIP — 3 large cards */}
             <div className="eq-fade sl-grid-3" style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1.4fr", gap: 18, marginBottom: 18 }}>
-              {/* DMs hero with bar chart */}
+              {/* Outreach touches hero — primary metric. DM+Email same
+                  creator = 1 touch. Sub-stats show the channel split. */}
               <HeroCard
-                label={windowKey === 'today' ? 'DMs hoje' : windowKey === 'week' ? 'DMs esta semana' : windowKey === 'month' ? 'DMs este mês' : 'DMs sempre'}
-                value={fmtNum(heroStats.sumDms)}
-                hint={heroStats.totalTarget > 0 ? `${heroStats.totalTarget} alvo (${heroStats.goalPct}%)` : null}
+                label={windowKey === 'today' ? 'Outreach hoje' : windowKey === 'week' ? 'Outreach esta semana' : windowKey === 'month' ? 'Outreach este mês' : 'Outreach sempre'}
+                value={fmtNum(heroStats.sumTouches)}
+                hint={heroStats.totalTarget > 0 ? `${heroStats.totalTarget} alvo (${heroStats.goalPct}%) · DM+Email = 1 toque` : 'DM+Email mesmo creator = 1 toque'}
                 accent
                 progress={heroStats.totalTarget > 0 ? heroStats.goalPct : null}
               >
                 <ActivityBarChart days={data.activity?.flatMap(u => u.days).reduce((acc, d) => {
                   const i = acc.findIndex(x => x.date === d.date);
-                  if (i >= 0) acc[i].dms += d.dms; else acc.push({ date: d.date, dms: d.dms });
+                  // Bar chart now plots TOUCHES (touches per day across team)
+                  // since that's the metric the 30/day rule gates on.
+                  if (i >= 0) acc[i].dms += (d.touches || d.dms); else acc.push({ date: d.date, dms: (d.touches || d.dms) });
                   return acc;
                 }, [])} target={heroStats.totalTarget} />
+                <div className="sl-grid-2" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginTop: 12 }}>
+                  <MicroStat label="DMs enviadas" value={fmtNum(heroStats.sumDms)} />
+                  <MicroStat label="Emails enviados" value={fmtNum(heroStats.sumEmails)} />
+                </div>
               </HeroCard>
 
-              {/* Reply rate hero with ring */}
+              {/* Reply rate hero with channel split. Headline = combined
+                  rate (replies / touches). Channel breakdown sits below. */}
               <HeroCard
                 label="Taxa de resposta"
                 value={`${heroStats.replyRate}%`}
-                hint={`${heroStats.sumReplies} de ${heroStats.sumDms} DMs`}
+                hint={`${heroStats.sumReplies} respostas · ${heroStats.sumRepliesDm} via DM · ${heroStats.sumRepliesEmail} via Email`}
               >
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "center", marginTop: 10 }}>
                   <ProgressRing value={heroStats.replyRate} size={88} stroke={8} color={ACCENT} />
+                </div>
+                <div className="sl-grid-2" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginTop: 12 }}>
+                  <MicroStat label="DM reply rate" value={heroStats.sumDms > 0 ? `${heroStats.dmReplyRate}%` : '—'} accent={heroStats.dmReplyRate >= heroStats.emailReplyRate ? GREEN : null} />
+                  <MicroStat label="Email reply rate" value={heroStats.sumEmails > 0 ? `${heroStats.emailReplyRate}%` : '—'} accent={heroStats.emailReplyRate > heroStats.dmReplyRate ? GREEN : null} />
                 </div>
               </HeroCard>
 

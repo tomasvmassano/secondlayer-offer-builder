@@ -40,10 +40,25 @@ function stampOutreachActor(outreach, user) {
   if (outreach.callHeldAt && !outreach.callHeldBy) {
     stamped.callHeldBy = actorFromUser(user, outreach.callHeldAt);
   }
+  // Follow-ups: when a new entry comes in without `by`, stamp it with the
+  // signed-in operator. The client sends { channel, at } and we fill in the
+  // actor server-side so the team scoreboard can credit it correctly.
+  if (Array.isArray(outreach.followUps)) {
+    stamped.followUps = outreach.followUps.map(entry => {
+      if (entry && !entry.by && entry.at) {
+        return { ...entry, by: actorFromUser(user, entry.at) };
+      }
+      return entry;
+    });
+  }
   // Unmark cases — clear the *By when *At is null so the field stays consistent.
   if (outreach.dmSentAt === null) stamped.dmSentBy = null;
   if (outreach.emailSentAt === null) stamped.emailSentBy = null;
-  if (outreach.repliedAt === null) stamped.repliedMarkedBy = null;
+  if (outreach.repliedAt === null) {
+    stamped.repliedMarkedBy = null;
+    // Clearing the reply also clears its channel attribution.
+    stamped.repliedChannel = null;
+  }
   if (outreach.callAgreedAt === null) stamped.callAgreedBy = null;
   if (outreach.callHeldAt === null) stamped.callHeldBy = null;
   return stamped;
