@@ -1,5 +1,36 @@
 import { Redis } from '@upstash/redis';
 import { nanoid } from 'nanoid';
+import { calculateDealScore } from './dealScore';
+
+// Build the denormalised summary that goes into the creators:index sorted
+// set. This is what listCreators returns — keep it cheap to deserialise but
+// rich enough to drive the CRM filters/tabs without a full record fetch.
+// Mirrors saveCreator + updateCreator + the lazy backfill in listCreators.
+function buildSummary(creator, createdAt) {
+  let dealScoreGrade = null;
+  try { dealScoreGrade = calculateDealScore(creator)?.grade || null; } catch { /* lean records can lack platform shape */ }
+  return {
+    id: creator.id,
+    name: creator.name,
+    niche: creator.niche,
+    primaryPlatform: creator.primaryPlatform,
+    followers: _getPrimaryFollowers(creator),
+    pipelineStatus: creator.pipelineStatus || 'prospect',
+    hasOffer: !!(creator.offer || creator.offerId),
+    hasDm: !!creator.dmSequence,
+    // Outreach state — drives the CRM tabs:
+    //   Por contactar  = !dmSentAt
+    //   Em outreach    = dmSentAt && !repliedAt
+    //   Em contacto    = repliedAt
+    dmSentAt: creator.outreach?.dmSentAt || null,
+    repliedAt: creator.outreach?.repliedAt || null,
+    // Filters
+    addedByFirstName: creator.addedBy?.firstName || null,
+    dealScoreGrade,
+    hasAudit: !!creator.offer?.internal_metadata?.ecosystem_audit,
+    createdAt: createdAt || creator.createdAt || new Date().toISOString(),
+  };
+}
 
 // In-memory fallback for local dev (no Redis configured)
 const memStore = new Map();
@@ -163,21 +194,7 @@ export async function saveCreator(data) {
     updatedAt: now,
   };
 
-  const summary = {
-    id,
-    name: creator.name,
-    niche: creator.niche,
-    primaryPlatform: creator.primaryPlatform,
-    followers: _getPrimaryFollowers(creator),
-    pipelineStatus: creator.pipelineStatus,
-    hasOffer: !!(creator.offer || creator.offerId),
-    hasDm: !!creator.dmSequence,
-    // repliedAt — drives the CRM "Em contacto" tab. Set when the operator
-    // clicks "Respondeu" on the DM Writer (writes outreach.repliedAt). Stored
-    // in the summary so the list page doesn't need to fetch each creator.
-    repliedAt: creator.outreach?.repliedAt || null,
-    createdAt: now,
-  };
+  const summary = buildSummary(creator, now);
 
   if (useMemory()) {
     memStore.set(`creator:${id}`, JSON.stringify(creator));
@@ -304,33 +321,67 @@ export async function getCreator(id) {
 }
 
 export async function listCreators() {
+  // Note for callers (e.g. the original raw zrange members) — we rewrite
+  // the Redis index after enrichment, so the next listCreators call doesn't
+  // re-enrich. To do that we need the ORIGINAL member string to call zrem
+  // against. Use Redis when configured.
+  let rawMembers = [];
   let summaries;
   if (useMemory()) {
     summaries = [...memIndex];
   } else {
     const redis = getRedis();
-    const members = await redis.zrange('creators:index', 0, -1, { rev: true });
-    summaries = members.map(m => typeof m === 'string' ? JSON.parse(m) : m);
+    rawMembers = await redis.zrange('creators:index', 0, -1, { rev: true });
+    summaries = rawMembers.map(m => typeof m === 'string' ? JSON.parse(m) : m);
   }
 
-  // Enrich summaries with hasOffer/hasDm/repliedAt if missing (backfill for
-  // old records that pre-date these fields in the index).
-  const needsEnrich = summaries.some(s => s.hasOffer === undefined || s.repliedAt === undefined);
-  if (needsEnrich) {
-    const enriched = await Promise.all(summaries.map(async (s) => {
-      if (s.hasOffer !== undefined && s.repliedAt !== undefined) return s;
-      const full = await getCreator(s.id);
-      if (!full) return s;
-      return {
-        ...s,
-        hasOffer: !!(full.offer || full.offerId),
-        hasDm: !!full.dmSequence,
-        repliedAt: full.outreach?.repliedAt || null,
-      };
-    }));
-    return enriched;
-  }
-  return summaries;
+  // Enrich summaries with the fields that drive the CRM filters/tabs. The
+  // sentinel field for "this summary was written by the current schema" is
+  // dealScoreGrade — it's the last addition. If it's missing we fetch the
+  // full record, rebuild the summary, and rewrite the index entry so the
+  // next read pays nothing.
+  const needsEnrich = summaries.some(s =>
+    s.hasOffer === undefined
+    || s.repliedAt === undefined
+    || s.dmSentAt === undefined
+    || s.dealScoreGrade === undefined
+    || s.hasAudit === undefined
+    || s.addedByFirstName === undefined
+  );
+  if (!needsEnrich) return summaries;
+
+  const redis = useMemory() ? null : getRedis();
+  const enriched = await Promise.all(summaries.map(async (s, i) => {
+    const stale = s.hasOffer === undefined
+      || s.repliedAt === undefined
+      || s.dmSentAt === undefined
+      || s.dealScoreGrade === undefined
+      || s.hasAudit === undefined
+      || s.addedByFirstName === undefined;
+    if (!stale) return s;
+    const full = await getCreator(s.id);
+    if (!full) return s;
+    const rebuilt = { ...s, ...buildSummary(full, full.createdAt) };
+    // Persist the rebuilt summary back to the index so future reads don't
+    // re-fetch the full record. memIndex update is in-place; Redis needs a
+    // zrem of the original member + zadd of the new one. Score = original
+    // createdAt so position in the sorted set is stable.
+    if (useMemory()) {
+      memIndex[i] = rebuilt;
+    } else if (redis) {
+      try {
+        const original = rawMembers[i];
+        const originalStr = typeof original === 'string' ? original : JSON.stringify(original);
+        await redis.zrem('creators:index', originalStr);
+        const scoreMs = rebuilt.createdAt ? new Date(rebuilt.createdAt).getTime() : Date.now();
+        await redis.zadd('creators:index', { score: scoreMs, member: JSON.stringify(rebuilt) });
+      } catch {
+        // Best-effort — if rewrite fails, return the enriched view anyway.
+      }
+    }
+    return rebuilt;
+  }));
+  return enriched;
 }
 
 export async function updateCreator(id, updates) {
@@ -401,18 +452,7 @@ export async function updateCreator(id, updates) {
 
   const updated = { ...existing, ...updates, id, updatedAt: new Date().toISOString() };
 
-  const summary = {
-    id,
-    name: updated.name,
-    niche: updated.niche,
-    primaryPlatform: updated.primaryPlatform,
-    followers: _getPrimaryFollowers(updated),
-    pipelineStatus: updated.pipelineStatus || 'prospect',
-    hasOffer: !!(updated.offer || updated.offerId),
-    hasDm: !!updated.dmSequence,
-    repliedAt: updated.outreach?.repliedAt || null,
-    createdAt: updated.createdAt,
-  };
+  const summary = buildSummary(updated, updated.createdAt);
 
   if (useMemory()) {
     memStore.set(`creator:${id}`, JSON.stringify(updated));

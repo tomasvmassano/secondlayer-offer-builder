@@ -21,7 +21,24 @@ export default function CreatorsPage() {
   const [addYoutubeUrl, setAddYoutubeUrl] = useState("");
   const [addName, setAddName] = useState("");
   const [adding, setAdding] = useState(false);
-  const [crmTab, setCrmTab] = useState("novos");
+  // Default tab moved from "novos" → "por-contactar" so the no-DM-sent
+  // pile is what loads first. Legacy "novos" still routes to the same
+  // list via the filter logic below.
+  const [crmTab, setCrmTab] = useState("por-contactar");
+  // Filters — persisted to localStorage so they survive a reload.
+  // addedBy: null | "Tomás" | "Raúl" | etc.  (string match against summary.addedByFirstName)
+  // dealScore: null | "A" | "B" | "C" | "D"
+  // hasAudit: null | true | false
+  const [filters, setFilters] = useState({ addedBy: null, dealScore: null, hasAudit: null });
+  useEffect(() => {
+    try {
+      const stored = JSON.parse(localStorage.getItem('sl_crm_filters_v1') || 'null');
+      if (stored && typeof stored === 'object') setFilters(f => ({ ...f, ...stored }));
+    } catch {}
+  }, []);
+  useEffect(() => {
+    try { localStorage.setItem('sl_crm_filters_v1', JSON.stringify(filters)); } catch {}
+  }, [filters]);
   const [discoveryQueue, setDiscoveryQueue] = useState([]);
   const [discovering, setDiscovering] = useState(false);
   const [discoveryStatus, setDiscoveryStatus] = useState("");
@@ -613,33 +630,102 @@ export default function CreatorsPage() {
         )}
 
         {/* Tabs.
-            "Novos"       = active prospect, no reply yet (DM may have been sent
-                            but creator hasn't engaged).
-            "Em contacto" = creator replied to outreach — outreach.repliedAt
-                            is set (the operator clicked "Respondeu" on the
-                            DM Writer). This is the engaged-conversation tab.
-            "Frio"        = pipelineStatus === 'cold' — set automatically by
-                            the dm-reminders cron after 21 days with no reply,
-                            or manually.
-            "Discovery"   = candidates from the discovery queue (not yet
-                            added to the CRM). */}
+            "Por contactar" = active prospect, no DM sent yet — the "to-do" pile.
+            "Em outreach"   = DM sent, no reply yet — waiting on the creator.
+            "Em contacto"   = creator replied to outreach — outreach.repliedAt
+                              is set. This is the engaged-conversation tab.
+            "Frio"          = pipelineStatus === 'cold' — set by the
+                              dm-reminders cron after 21 days, or manually
+                              via the "Marcar frio" button.
+            "Discovery"     = candidates from the discovery queue (not yet
+                              added to the CRM). */}
         {(() => {
           const isFrio = (c) => c.pipelineStatus === 'cold';
           const isSigned = (c) => c.pipelineStatus === 'signed';
           const isActive = (c) => !isFrio(c) && !isSigned(c);
-          const warm = creators.filter(c => isActive(c) && c.repliedAt);
-          const cold = creators.filter(c => isActive(c) && !c.repliedAt);
-          const frio = creators.filter(isFrio);
-          const activeList = crmTab === "novos" ? cold
+          // Apply filters BEFORE tab classification so counts reflect what
+          // the operator will actually see. Empty filter = no constraint.
+          const matchesFilters = (c) => {
+            if (filters.addedBy && c.addedByFirstName !== filters.addedBy) return false;
+            if (filters.dealScore && c.dealScoreGrade !== filters.dealScore) return false;
+            if (filters.hasAudit === true && !c.hasAudit) return false;
+            if (filters.hasAudit === false && c.hasAudit) return false;
+            return true;
+          };
+          const filtered = creators.filter(matchesFilters);
+          const warm = filtered.filter(c => isActive(c) && c.repliedAt);
+          const outreach = filtered.filter(c => isActive(c) && !c.repliedAt && c.dmSentAt);
+          const porContactar = filtered.filter(c => isActive(c) && !c.repliedAt && !c.dmSentAt);
+          const frio = filtered.filter(isFrio);
+          const activeList = crmTab === "por-contactar" ? porContactar
+            : crmTab === "novos" ? porContactar // legacy alias
+            : crmTab === "outreach" ? outreach
             : crmTab === "contacto" ? warm
             : crmTab === "frio" ? frio
             : [];
 
+          // Unique operator names for the filter dropdown — derived from
+          // the actual data so the dropdown reflects who has actually
+          // added creators (no hardcoded list to maintain).
+          const operatorOptions = Array.from(new Set(
+            creators.map(c => c.addedByFirstName).filter(Boolean)
+          )).sort();
+          const filterCount = (filters.addedBy ? 1 : 0) + (filters.dealScore ? 1 : 0) + (filters.hasAudit !== null ? 1 : 0);
+
           return (
             <div>
+              {/* Filter chips row — sits above the tab bar so it applies to ALL tabs. */}
+              {creators.length > 0 && (
+                <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 8, marginBottom: 16, padding: "10px 0" }}>
+                  <span style={{ fontSize: 9, fontWeight: 700, color: "#555", letterSpacing: "0.10em", textTransform: "uppercase", marginRight: 4 }}>Filtros</span>
+
+                  {/* Adicionado por */}
+                  <FilterDropdown
+                    label="Adicionado por"
+                    value={filters.addedBy}
+                    options={operatorOptions.map(o => ({ value: o, label: o }))}
+                    onChange={(v) => setFilters(f => ({ ...f, addedBy: v }))}
+                  />
+
+                  {/* Deal Score */}
+                  <FilterDropdown
+                    label="Deal Score"
+                    value={filters.dealScore}
+                    options={[
+                      { value: 'A', label: 'A' },
+                      { value: 'B', label: 'B' },
+                      { value: 'C', label: 'C' },
+                      { value: 'D', label: 'D' },
+                    ]}
+                    onChange={(v) => setFilters(f => ({ ...f, dealScore: v }))}
+                  />
+
+                  {/* Audit */}
+                  <FilterDropdown
+                    label="Audit"
+                    value={filters.hasAudit === true ? 'yes' : filters.hasAudit === false ? 'no' : null}
+                    options={[
+                      { value: 'yes', label: '✓ tem audit' },
+                      { value: 'no',  label: '✗ sem audit' },
+                    ]}
+                    onChange={(v) => setFilters(f => ({ ...f, hasAudit: v === 'yes' ? true : v === 'no' ? false : null }))}
+                  />
+
+                  {filterCount > 0 && (
+                    <button
+                      onClick={() => setFilters({ addedBy: null, dealScore: null, hasAudit: null })}
+                      style={{ padding: "5px 11px", borderRadius: 4, background: "transparent", border: "1px solid rgba(177,30,47,0.3)", color: "#B11E2F", fontSize: 11, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}
+                    >
+                      Limpar ({filterCount})
+                    </button>
+                  )}
+                </div>
+              )}
+
               <div className="sl-tabs sl-hscroll" style={{ display: "flex", gap: 0, marginBottom: 28, borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
                 {[
-                  { key: "novos", label: "Novos", count: cold.length },
+                  { key: "por-contactar", label: "Por contactar", count: porContactar.length },
+                  { key: "outreach", label: "Em outreach", count: outreach.length },
                   { key: "contacto", label: "Em contacto", count: warm.length },
                   { key: "frio", label: "Frio", count: frio.length },
                   { key: "discovery", label: "Discovery", count: discoveryQueue.length },
@@ -1180,9 +1266,15 @@ export default function CreatorsPage() {
                 <div style={{ textAlign: "center", padding: 60, color: "#555" }}>
                   {search
                     ? "Nenhum creator encontrado."
-                    : crmTab === "novos"
-                      ? "Nenhum creator novo. Clica em \"+ Adicionar Creator\" para comecar."
-                      : "Nenhum creator em contacto. Cria uma oferta para mover creators para aqui."
+                    : filterCount > 0
+                      ? "Nenhum creator com estes filtros. Limpa um para ver mais."
+                      : crmTab === "por-contactar" || crmTab === "novos"
+                        ? "Nenhum creator por contactar. Clica em \"+ Adicionar Creator\" para começar."
+                        : crmTab === "outreach"
+                          ? "Nenhum creator em outreach. Marca DM enviada na página do creator para mover para aqui."
+                          : crmTab === "contacto"
+                            ? "Nenhum creator em contacto. Marca \"Respondeu\" na página do creator quando ele engajar."
+                            : "Nenhum creator nesta tab."
                   }
                 </div>
               ) : (
@@ -1255,5 +1347,43 @@ export default function CreatorsPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+// Filter dropdown chip — single-select. Native <select> for now to keep
+// the keyboard / touch behaviour predictable across desktop + mobile.
+// Active state (non-null value) gets the brand-red tint so it's obvious
+// what's filtering the list. Clearing routes through the same dropdown
+// via the "Todos" sentinel option (value="").
+function FilterDropdown({ label, value, options, onChange }) {
+  const active = value !== null && value !== '';
+  return (
+    <label style={{
+      display: "inline-flex", alignItems: "center", gap: 6,
+      padding: "4px 4px 4px 10px",
+      borderRadius: 4,
+      border: `1px solid ${active ? "rgba(177,30,47,0.4)" : "rgba(255,255,255,0.08)"}`,
+      background: active ? "rgba(177,30,47,0.06)" : "transparent",
+      fontSize: 11, fontFamily: "inherit",
+      cursor: "pointer",
+    }}>
+      <span style={{ fontSize: 10, color: active ? "#B11E2F" : "#666", fontWeight: 600 }}>{label}:</span>
+      <select
+        value={value || ''}
+        onChange={(e) => onChange(e.target.value || null)}
+        style={{
+          background: "transparent", border: "none", outline: "none",
+          color: active ? "#f5f5f5" : "#888",
+          fontSize: 11, fontWeight: 600, fontFamily: "inherit",
+          padding: "2px 4px", cursor: "pointer",
+          appearance: "none", WebkitAppearance: "none",
+        }}
+      >
+        <option value="" style={{ background: "#141414" }}>Todos</option>
+        {options.map(opt => (
+          <option key={opt.value} value={opt.value} style={{ background: "#141414" }}>{opt.label}</option>
+        ))}
+      </select>
+    </label>
   );
 }
