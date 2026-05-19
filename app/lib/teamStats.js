@@ -25,6 +25,21 @@ import { listCreators, getCreator } from './creators';
 
 const TIMEZONE = 'Europe/Lisbon';
 
+// ─────────────────────────────────────────────────────────────────────
+// STATS RESET POINT
+// All aggregations ignore events with timestamps BEFORE this date. The
+// historical data stays on each creator record — we just don't count
+// it for dashboard purposes, so the competition starts with a clean
+// slate. To re-reset later, set RESET_AT to a new ISO timestamp here
+// or via the STATS_RESET_AT env var (overrides this constant).
+// ─────────────────────────────────────────────────────────────────────
+const RESET_AT_DEFAULT = '2026-05-19T00:00:00.000Z';
+function statsResetMs() {
+  const raw = process.env.STATS_RESET_AT || RESET_AT_DEFAULT;
+  const t = new Date(raw).getTime();
+  return Number.isFinite(t) ? t : 0;
+}
+
 // Get the start-of-window timestamp (UTC ms) for the given window key, anchored
 // to Europe/Lisbon calendar boundaries.
 function windowStart(windowKey, now = new Date()) {
@@ -68,7 +83,20 @@ function lisbonOffsetMs(now) {
 function inWindow(iso, startMs) {
   if (!iso) return false;
   const t = new Date(iso).getTime();
-  return Number.isFinite(t) && t >= startMs;
+  if (!Number.isFinite(t)) return false;
+  // Hard floor: ignore anything before the global reset point. Keeps
+  // the dashboard's competition view clean of legacy data even when
+  // a window like 'all' would otherwise include everything.
+  if (t < statsResetMs()) return false;
+  return t >= startMs;
+}
+
+// Same as inWindow but without the upper window — for aggregations that
+// look at all events post-reset (funnels, pipeline, velocity, quality, etc.)
+function postReset(iso) {
+  if (!iso) return false;
+  const t = new Date(iso).getTime();
+  return Number.isFinite(t) && t >= statsResetMs();
 }
 
 // Canonical key for grouping actors. Lowercased + diacritics stripped, so
@@ -238,13 +266,15 @@ export async function getFunnels(creators) {
   const byUser = new Map();
   for (const c of all) {
     if (!c.addedBy) continue;
+    // Skip creators added before the stats reset — funnel is competition view.
+    if (!postReset(c.addedBy.at)) continue;
     const key = canonicalKey(c.addedBy.firstName);
     if (!byUser.has(key)) byUser.set(key, { firstName: c.addedBy.firstName, added: 0, dmd: 0, replied: 0, signed: 0 });
     const row = byUser.get(key);
     row.added += 1;
-    if (c.outreach?.dmSentAt) row.dmd += 1;
-    if (c.outreach?.repliedAt) row.replied += 1;
-    if (c.pipelineStatus === 'signed') row.signed += 1;
+    if (postReset(c.outreach?.dmSentAt)) row.dmd += 1;
+    if (postReset(c.outreach?.repliedAt)) row.replied += 1;
+    if (c.pipelineStatus === 'signed' && postReset(c.signedAt)) row.signed += 1;
   }
   return Array.from(byUser.entries()).map(([key, r]) => ({
     userId: key,
@@ -322,7 +352,9 @@ export async function getPipelineHealth({ now = new Date() } = {}) {
     const o = c.outreach || {};
     const isCold = c.pipelineStatus === 'cold';
     const isSigned = c.pipelineStatus === 'signed';
-    if (!o.dmSentAt || isCold || isSigned) continue;
+    // Gate the pipeline view on the reset — pre-reset conversations don't
+    // count toward the competition's pipeline.
+    if (!o.dmSentAt || !postReset(o.dmSentAt) || isCold || isSigned) continue;
     if (!o.repliedAt) {
       u.active += 1;
       const dmSentMs = new Date(o.dmSentAt).getTime();
@@ -349,13 +381,13 @@ export async function getVelocity() {
     if (!byUser.has(key)) byUser.set(key, { firstName: c.addedBy.firstName, addedToDm: [], repliedToFollow: [], firstDmToSigned: [] });
     const u = byUser.get(key);
     const o = c.outreach || {};
-    if (c.addedBy.at && o.dmSentAt) {
+    if (postReset(c.addedBy.at) && postReset(o.dmSentAt)) {
       u.addedToDm.push((new Date(o.dmSentAt).getTime() - new Date(c.addedBy.at).getTime()) / HOUR_MS);
     }
-    if (o.repliedAt && o.lastFollowUpAt && new Date(o.lastFollowUpAt) > new Date(o.repliedAt)) {
+    if (postReset(o.repliedAt) && postReset(o.lastFollowUpAt) && new Date(o.lastFollowUpAt) > new Date(o.repliedAt)) {
       u.repliedToFollow.push((new Date(o.lastFollowUpAt).getTime() - new Date(o.repliedAt).getTime()) / HOUR_MS);
     }
-    if (o.dmSentAt && c.pipelineStatus === 'signed' && c.signedAt) {
+    if (postReset(o.dmSentAt) && c.pipelineStatus === 'signed' && postReset(c.signedAt)) {
       u.firstDmToSigned.push((new Date(c.signedAt).getTime() - new Date(o.dmSentAt).getTime()) / DAY_MS);
     }
   }
@@ -384,10 +416,11 @@ export async function getQualityBreakdowns() {
   }
   for (const c of all) {
     const o = c.outreach || {};
-    if (!o.dmSentAt) continue;
+    if (!o.dmSentAt || !postReset(o.dmSentAt)) continue;
     const user = o.dmSentBy || c.addedBy;
     if (!user) continue;
-    const replied = !!o.repliedAt;
+    // Only count the reply if it also landed after the reset.
+    const replied = !!o.repliedAt && postReset(o.repliedAt);
     const template = c.dmSequence?.template || 'A';
     const lang = c.primaryLanguage || 'pt';
     const tier = c.offer?.client_facing_output?.pricing_tier || 'unknown';
@@ -448,7 +481,7 @@ export async function getNeedsAttention({ now = new Date(), dailyTarget = 30 } =
   const staleByUser = new Map();
   for (const c of all) {
     const o = c.outreach || {};
-    if (!o.dmSentAt || o.repliedAt || c.pipelineStatus === 'cold' || c.pipelineStatus === 'signed') continue;
+    if (!o.dmSentAt || !postReset(o.dmSentAt) || o.repliedAt || c.pipelineStatus === 'cold' || c.pipelineStatus === 'signed') continue;
     const lastTouchMs = Math.max(
       new Date(o.dmSentAt).getTime(),
       o.lastFollowUpAt ? new Date(o.lastFollowUpAt).getTime() : 0
@@ -467,7 +500,7 @@ export async function getNeedsAttention({ now = new Date(), dailyTarget = 30 } =
   let waiting = 0;
   for (const c of all) {
     const o = c.outreach || {};
-    if (!o.repliedAt) continue;
+    if (!o.repliedAt || !postReset(o.repliedAt)) continue;
     const repliedMs = new Date(o.repliedAt).getTime();
     const followMs = o.lastFollowUpAt ? new Date(o.lastFollowUpAt).getTime() : 0;
     if (followMs > repliedMs) continue; // already followed up
@@ -521,7 +554,8 @@ export async function getDeltas({ window = 'week', now = new Date() } = {}) {
 //   evening   19:00–04:59  (after-hours / overnight)
 export async function getHeatmap({ weeks = 4, now = new Date() } = {}) {
   const all = await loadAllCreators();
-  const cutoffMs = now.getTime() - weeks * 7 * DAY_MS;
+  // Cutoff is the later of "N weeks ago" and the global reset point.
+  const cutoffMs = Math.max(now.getTime() - weeks * 7 * DAY_MS, statsResetMs());
   // grid[day0..6][bucket0..3] — day 0 = Monday (matches Lisbon week start).
   const grid = Array.from({ length: 7 }, () => [0, 0, 0, 0]);
   const bucketOf = (hour) => {
@@ -557,10 +591,10 @@ export async function getRecentActivity({ limit = 8 } = {}) {
   const events = [];
   for (const c of all) {
     const o = c.outreach || {};
-    if (c.addedBy?.at) events.push({ at: c.addedBy.at, type: 'added', firstName: c.addedBy.firstName, creator: c.name, creatorId: c.id });
-    if (o.dmSentAt) events.push({ at: o.dmSentAt, type: 'dm_sent', firstName: (o.dmSentBy || c.addedBy)?.firstName, creator: c.name, creatorId: c.id });
-    if (o.repliedAt) events.push({ at: o.repliedAt, type: 'replied', firstName: (o.repliedMarkedBy || c.addedBy)?.firstName, creator: c.name, creatorId: c.id });
-    if (c.signedAt) events.push({ at: c.signedAt, type: 'signed', firstName: c.addedBy?.firstName, creator: c.name, creatorId: c.id });
+    if (postReset(c.addedBy?.at)) events.push({ at: c.addedBy.at, type: 'added', firstName: c.addedBy.firstName, creator: c.name, creatorId: c.id });
+    if (postReset(o.dmSentAt)) events.push({ at: o.dmSentAt, type: 'dm_sent', firstName: (o.dmSentBy || c.addedBy)?.firstName, creator: c.name, creatorId: c.id });
+    if (postReset(o.repliedAt)) events.push({ at: o.repliedAt, type: 'replied', firstName: (o.repliedMarkedBy || c.addedBy)?.firstName, creator: c.name, creatorId: c.id });
+    if (postReset(c.signedAt)) events.push({ at: c.signedAt, type: 'signed', firstName: c.addedBy?.firstName, creator: c.name, creatorId: c.id });
   }
   events.sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime());
   return events.slice(0, limit);
@@ -624,7 +658,7 @@ export async function getActivitySeries({ days = 7, now = new Date() } = {}) {
   const byUser = new Map();
   for (const c of all) {
     const o = c.outreach || {};
-    if (o.dmSentAt) {
+    if (postReset(o.dmSentAt)) {
       const actor = o.dmSentBy || c.addedBy;
       if (actor) {
         const k = canonicalKey(actor.firstName);
@@ -634,7 +668,7 @@ export async function getActivitySeries({ days = 7, now = new Date() } = {}) {
         u.dms.set(dateStr, (u.dms.get(dateStr) || 0) + 1);
       }
     }
-    if (o.repliedAt) {
+    if (postReset(o.repliedAt)) {
       const actor = o.repliedMarkedBy || c.addedBy;
       if (actor) {
         const k = canonicalKey(actor.firstName);
@@ -671,7 +705,7 @@ export async function getRevenueForecast() {
     return 0.02;
   };
   for (const c of all) {
-    if (!c.addedBy) continue;
+    if (!c.addedBy || !postReset(c.addedBy.at)) continue;
     if (c.pipelineStatus === 'cold') continue;
     const key = canonicalKey(c.addedBy.firstName);
     if (!byUser.has(key)) byUser.set(key, { firstName: c.addedBy.firstName, signedAnnual: 0, weightedAnnual: 0 });

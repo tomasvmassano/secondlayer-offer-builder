@@ -53,6 +53,17 @@ export default function EquipaPage() {
     return () => { cancelled = true; };
   }, [windowKey]);
 
+  // Canonical user order across the entire dashboard. data.rows is already
+  // sorted by dmsSent desc (leader first); we lock that order and every
+  // section uses .find() against this list so the same person is always
+  // in the same column. Without this, the Classificação card (sorted by
+  // €50 net) and the Receita card (Map insertion order) could put the
+  // same person in different positions.
+  const userOrder = useMemo(() => {
+    if (!data?.rows) return [];
+    return data.rows.map(r => ({ userId: r.userId, firstName: r.firstName }));
+  }, [data]);
+
   // Aggregates for the hero cards (sum across users in current window).
   // Target math: today = target × N people. Week = today × 5 weekdays.
   // Month = today × ~22 weekdays (real count via pacing). All = no target.
@@ -233,16 +244,23 @@ export default function EquipaPage() {
               </Card>
             </div>
 
-            {/* STANDINGS — monthly leaderboard with €50 net + pacing */}
+            {/* STANDINGS — monthly leaderboard with €50 net + pacing.
+                Column position locked to userOrder; #N rank is computed
+                from net €50 desc and shown as a badge. */}
             {data.monthlyTally?.length > 0 && (
               <div className="eq-fade" style={{ marginBottom: 18 }}>
                 <Card title="Classificação · Mês" subtitle="€50 acumulado · ritmo a 30/dia">
-                  <div style={{ display: "grid", gridTemplateColumns: `repeat(${Math.max(1, data.monthlyTally.length)}, 1fr)`, gap: 14 }}>
-                    {[...data.monthlyTally].sort((a, b) => b.netEur - a.netEur).map((row, i) => {
-                      const pace = data.pacing?.find(p => p.userId === row.userId);
-                      const isWinner = i === 0 && data.monthlyTally.length > 1 && row.netEur > 0;
-                      const onTrack = pace ? pace.pacePct >= 90 : null;
-                      return (
+                  <div style={{ display: "grid", gridTemplateColumns: `repeat(${Math.max(1, userOrder.length)}, 1fr)`, gap: 14 }}>
+                    {(() => {
+                      const ranked = [...data.monthlyTally].sort((a, b) => b.netEur - a.netEur).map(r => r.userId);
+                      return userOrder.map(({ userId, firstName }) => {
+                        const row = data.monthlyTally.find(m => m.userId === userId) || { userId, firstName, netEur: 0, daysHit: 0, daysMissed: 0 };
+                        const rank = ranked.indexOf(userId);
+                        const i = rank;
+                        const pace = data.pacing?.find(p => p.userId === userId);
+                        const isWinner = rank === 0 && data.monthlyTally.length > 1 && row.netEur > 0;
+                        const onTrack = pace ? pace.pacePct >= 90 : null;
+                        return (
                         <div key={row.userId} style={{
                           padding: 20,
                           background: isWinner ? `linear-gradient(135deg, rgba(34,197,94,0.08), ${SURFACE_1})` : SURFACE_1,
@@ -278,19 +296,23 @@ export default function EquipaPage() {
                           )}
                         </div>
                       );
-                    })}
+                      });
+                    })()}
                   </div>
                 </Card>
               </div>
             )}
 
-            {/* REVENUE FORECAST PER PERSON — restored from v2 */}
-            {data.revenue?.some(r => r.signedAnnualEur > 0 || r.pipelineWeightedAnnualEur > 0) && (
-              <div className="eq-fade" style={{ marginBottom: 18 }}>
-                <Card title="Receita projetada · por pessoa" subtitle="Assinados + pipeline ponderado por estágio">
-                  <div style={{ display: "grid", gridTemplateColumns: `repeat(${Math.max(1, data.revenue.length)}, 1fr)`, gap: 14 }}>
-                    {data.revenue.map(r => (
-                      <div key={r.userId} style={{ padding: 18, background: SURFACE_0, border: `1px solid ${BORDER}`, borderRadius: 16 }}>
+            {/* REVENUE FORECAST PER PERSON — restored from v2. Column order
+                locked to userOrder so the same person stays on the same side
+                as the other cards. */}
+            <div className="eq-fade" style={{ marginBottom: 18 }}>
+              <Card title="Receita projetada · por pessoa" subtitle="Assinados + pipeline ponderado por estágio">
+                <div style={{ display: "grid", gridTemplateColumns: `repeat(${Math.max(1, userOrder.length)}, 1fr)`, gap: 14 }}>
+                  {userOrder.map(({ userId, firstName }) => {
+                    const r = data.revenue?.find(x => x.userId === userId) || { userId, firstName, signedAnnualEur: 0, pipelineWeightedAnnualEur: 0 };
+                    return (
+                      <div key={userId} style={{ padding: 18, background: SURFACE_0, border: `1px solid ${BORDER}`, borderRadius: 16 }}>
                         <div style={{ fontSize: 13, fontWeight: 700, color: TEXT_HI, marginBottom: 14 }}>{r.firstName}</div>
                         <div style={{ marginBottom: 12 }}>
                           <div style={{ fontSize: 9, fontWeight: 600, color: GREEN, letterSpacing: "0.10em", textTransform: "uppercase", marginBottom: 4 }}>Assinados · anual</div>
@@ -302,11 +324,11 @@ export default function EquipaPage() {
                           <div style={{ fontSize: 10, color: TEXT_DIM, marginTop: 4 }}>Soma anual × prob. estágio</div>
                         </div>
                       </div>
-                    ))}
-                  </div>
-                </Card>
-              </div>
-            )}
+                    );
+                  })}
+                </div>
+              </Card>
+            </div>
 
             {/* HEATMAP + RECENT ACTIVITY side by side */}
             <div className="eq-fade" style={{ display: "grid", gridTemplateColumns: "1.4fr 1fr", gap: 18, marginBottom: 18 }}>
