@@ -116,8 +116,13 @@ export default function AuditQueuePage() {
           } else {
             const products = data.ecosystem_audit?.products_found?.length || 0;
             const communities = data.ecosystem_audit?.existing_communities?.length || 0;
+            // Capture URL count from diagnostics so a "0 produtos" result
+            // can be interpreted at a glance — was it data scarcity (only
+            // 1 URL inspected) or a real "creator has no products" finding?
+            const urlsInspected = data._diagnostics?.final_urls_inspected || 0;
+            const preDiscovered = data._diagnostics?.pre_discovered_count || 0;
             setCreators(prev => prev.map(row => row.id === creatorId
-              ? { ...row, status: 'done', hasAudit: true, auditCounts: { products, communities } }
+              ? { ...row, status: 'done', hasAudit: true, auditCounts: { products, communities, urlsInspected, preDiscovered } }
               : row));
           }
         } catch (err) {
@@ -362,7 +367,14 @@ function Row({ idx, row, selected, onToggle, disabled }) {
   const statusLabel = row.status === 'done' && row.auditCounts
     ? `✓ ${row.auditCounts.products} prod${row.auditCounts.communities ? ` · ${row.auditCounts.communities} com` : ''}`
     : (s.label || row.status);
-  const detail = row.auditError || (row.status === 'done' && row.auditCounts ? `${row.auditCounts.products} produtos, ${row.auditCounts.communities} comunidades encontradas` : '');
+  // When products=0, surface the URL count so the operator can tell
+  // "audit found nothing" apart from "creator had no public URLs to inspect".
+  const detail = row.auditError
+    || (row.status === 'done' && row.auditCounts && row.auditCounts.products === 0
+        ? `0 produtos · ${row.auditCounts.urlsInspected || 0} URLs inspecionadas${row.auditCounts.preDiscovered ? ` · ${row.auditCounts.preDiscovered} pre-encontrados` : ''}`
+        : (row.status === 'done' && row.auditCounts
+            ? `${row.auditCounts.products} produtos, ${row.auditCounts.communities} comunidades · ${row.auditCounts.urlsInspected || 0} URLs`
+            : ''));
   // Highlight selected rows so they pop visually — easier to scan a long
   // list and confirm what's about to run.
   const rowBg = selected

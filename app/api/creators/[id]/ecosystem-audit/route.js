@@ -119,6 +119,22 @@ export async function POST(request, { params }) {
     }
 
     // ── Step 5: persist ──
+    // Diagnostics persisted alongside the audit so the bulk-audit page (and
+    // anyone debugging "why did this creator come back empty?") can see
+    // exactly which step dropped products. Without this we re-run audits
+    // blind.
+    const diagnostics = {
+      seed_urls: seedUrls.size,
+      aggregators_resolved: aggregatorsSeen.length,
+      aggregator_resolution: aggregatorResolutionDiag,
+      final_urls_inspected: dedupedUrls.length,
+      deterministic_scrape: aggregatorScrape.diagnostics,
+      pre_discovered_count: preDiscoveredProducts.length,
+      retries: audit.retries,
+      products_returned: audit.data?.ecosystem_map?.products_found?.length || 0,
+      communities_returned: audit.data?.ecosystem_map?.existing_communities?.length || 0,
+      ran_at: new Date().toISOString(),
+    };
     const existingOffer = creator.offer || {};
     const existingMeta = existingOffer.internal_metadata || {};
     const updated = await updateCreator(id, {
@@ -127,6 +143,7 @@ export async function POST(request, { params }) {
         internal_metadata: {
           ...existingMeta,
           ecosystem_audit: audit.data,
+          ecosystem_audit_diagnostics: diagnostics,
           generation_timestamps: {
             ...(existingMeta.generation_timestamps || {}),
             ecosystem_audit: new Date().toISOString(),
@@ -138,15 +155,7 @@ export async function POST(request, { params }) {
     return NextResponse.json({
       ok: true,
       ecosystem_audit: audit.data,
-      _diagnostics: {
-        seed_urls: seedUrls.size,
-        aggregators_resolved: aggregatorsSeen.length,
-        aggregator_resolution: aggregatorResolutionDiag,
-        final_urls_inspected: dedupedUrls.length,
-        deterministic_scrape: aggregatorScrape.diagnostics,
-        pre_discovered_count: preDiscoveredProducts.length,
-        retries: audit.retries,
-      },
+      _diagnostics: diagnostics,
     });
   } catch (err) {
     return NextResponse.json({ error: err.message || 'Audit failed' }, { status: 500 });
@@ -345,6 +354,14 @@ async function runAudit(apiKey, creator, urls, aggregatorsSeen, preDiscoveredPro
     ? urls.map((u, i) => `${i + 1}. ${u.url}${u.title ? `  — labelled "${u.title}"` : ''}${u.source !== 'direct' ? `  (from aggregator ${u.source})` : ''}`).join('\n')
     : '(no public links discovered)';
 
+  // Resolve the creator's social handles so the LLM has concrete anchors
+  // when it does identity-verification on web_search results. Otherwise it
+  // doesn't know what counts as "this creator's domain".
+  const igHandle = (creator.platforms?.instagram?.url || '').match(/instagram\.com\/([^/?#]+)/i)?.[1] || '';
+  const tkHandle = (creator.platforms?.tiktok?.url || '').match(/tiktok\.com\/@?([^/?#]+)/i)?.[1] || '';
+  const ytHandle = (creator.platforms?.youtube?.url || '').match(/(?:youtube\.com\/(?:@|c\/|user\/))([^/?#]+)/i)?.[1] || '';
+  const ownedHandles = [igHandle && `@${igHandle} (IG)`, tkHandle && `@${tkHandle} (TT)`, ytHandle && `@${ytHandle} (YT)`].filter(Boolean).join(', ') || '(none)';
+
   // Inject deterministically-scraped products into the prompt as "already
   // verified" entries the model should include unchanged. The model's job
   // for these is enrichment (tier classification + transformation copy),
@@ -371,6 +388,19 @@ ${preDiscoveredProducts.map((p, i) => `${i + 1}. name: ${p.name}
 
 ## CREATOR
 ${creatorContext}
+
+## OWNED HANDLES (for identity verification)
+${ownedHandles}
+
+## URL PROVENANCE — READ BEFORE APPLYING IDENTITY VERIFICATION
+
+The URLs listed under "URLS TO INSPECT" below were scraped directly from THIS creator's own Instagram bio (the externalUrl field and the multi-link bio attached to their IG profile). They are by definition owned by them. **Do NOT apply the identity-verification rule to these URLs** — that rule exists to filter out same-first-name false positives from web_search, not to suppress URLs we already know belong to the creator.
+
+Verification rules apply ONLY to:
+  - Products / communities you DISCOVER via the three required web_search queries (the "[creator name] community / skool OR whop / membership" searches)
+  - Anything else you find while investigating that wasn't in the input URL list
+
+If you cannot find product details for an INPUT URL via web_search, that's a sparsity problem, not an ownership problem — still try to enumerate via web_search of the URL itself. Aggregator pages must be enumerated card by card; if the Apify expander failed for a given aggregator URL (you'll see "(aggregator — Apify returned 0)" in the URLS list), web_search the aggregator URL directly and list every product card visible.
 
 ${preDiscoveredBlock}## URLS TO INSPECT (use web_search on each)
 ${urlList}

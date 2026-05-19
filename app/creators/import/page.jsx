@@ -142,8 +142,9 @@ export default function BulkImportPage() {
           } else {
             const products = data.ecosystem_audit?.products_found?.length || 0;
             const communities = data.ecosystem_audit?.existing_communities?.length || 0;
+            const urlsInspected = data._diagnostics?.final_urls_inspected || 0;
             setParsedRows(prev => prev.map(row => row.creatorId === creatorId
-              ? { ...row, auditStatus: 'done', auditCounts: { products, communities } }
+              ? { ...row, auditStatus: 'done', auditCounts: { products, communities, urlsInspected } }
               : row));
           }
         } catch (err) {
@@ -563,7 +564,9 @@ function RowItem({ idx, row, isCurrent }) {
   const s = statusColors[row.status] || statusColors.pending;
   const a = row.auditStatus ? auditColors[row.auditStatus] : null;
   const auditLabel = row.auditStatus === 'done' && row.auditCounts
-    ? `✓ audit · ${row.auditCounts.products} prod${row.auditCounts.communities ? ` · ${row.auditCounts.communities} com` : ''}`
+    ? (row.auditCounts.products === 0
+        ? `audit · 0 prod (${row.auditCounts.urlsInspected || 0} URLs)`
+        : `✓ audit · ${row.auditCounts.products} prod${row.auditCounts.communities ? ` · ${row.auditCounts.communities} com` : ''}`)
     : (a?.label || null);
   const detail = row.error || row.auditError || row.reason || (row.score ? `${row.score} (${row.grade})` : '');
   return (

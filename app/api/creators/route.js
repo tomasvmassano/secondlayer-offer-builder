@@ -100,10 +100,14 @@ export async function POST(request) {
               },
               body: JSON.stringify({
                 model: 'claude-sonnet-4-20250514',
-                max_tokens: 1500,
+                // Bumped 1500 → 2500 (2026-05-19) to fit BIO_PRODUCT_1-5 +
+                // COMPETITOR_1-3 alongside the existing audience/format
+                // output. Without the headroom these new fields get
+                // truncated and the downstream audit has nothing to chew on.
+                max_tokens: 2500,
                 messages: [{
                   role: 'user',
-                  content: `Infer this Instagram creator's niche + audience + recent-post themes from the data below. Respond with ONLY these labelled lines — no explanation, no other text:
+                  content: `Infer this Instagram creator's niche + audience + recent-post themes + product hints from the data below. Respond with ONLY these labelled lines — no explanation, no other text:
 
 NICHE: [their niche, e.g. "Food / Baking", "Fitness", "Photography", "Business / Marketing", "Real Estate"]
 
@@ -121,10 +125,26 @@ FORMAT_CAROUSELS: [estimated % carousels]
 FORMAT_STATIC: [estimated % static]
 POSTS_PER_WEEK: [estimated, e.g. "4.2"]
 
+BIO_PRODUCT_1: [url]|||[platform, e.g. "Stan Store", "Linktree", "Gumroad", "Own site"]|||[product name]|||[price if visible, else "Unknown"]|||[currency, e.g. "EUR", "USD"]
+BIO_PRODUCT_2: [...]|||[...]|||[...]|||[...]|||[...]
+BIO_PRODUCT_3: [...]|||[...]|||[...]|||[...]|||[...]
+BIO_PRODUCT_4: [...]|||[...]|||[...]|||[...]|||[...]
+BIO_PRODUCT_5: [...]|||[...]|||[...]|||[...]|||[...]
+COMPETITOR_1: [name]|||[platform e.g. "Skool", "Patreon", "own course"]|||[price if visible, else "Unknown"]|||[currency]|||[estimated audience size if visible]|||[url if visible]
+COMPETITOR_2: [...]|||[...]|||[...]|||[...]|||[...]|||[...]
+COMPETITOR_3: [...]|||[...]|||[...]|||[...]|||[...]|||[...]
+
+For BIO_PRODUCT_*: enumerate every paid product, lead magnet, course, ebook, app, community, or service you can identify from the bio text, the external URL, and the multi-link bio array below. Don't invent — only list what's referenced. If the creator only has one product, fill BIO_PRODUCT_1 and put NONE on the rest. If the only link is an aggregator (Linktree / Stan / Beacons) without enough info to enumerate cards, still list it as one product entry referencing the aggregator URL.
+
+For COMPETITOR_*: name 3-5 competitors in the same niche/audience with similar offers. Use known direct competitors when possible; otherwise generic well-known names in the niche. Put NONE if you genuinely don't know any.
+
+Use "NONE" as the whole value for any slot you can't fill — never invent.
+
 === CREATOR DATA ===
 Name: ${profile.name}
 Bio: ${profile.bio || 'No bio'}
 External URL: ${profile.externalUrl || 'None'}
+Instagram multi-link bio: ${(profile.platforms?.instagram?.bioLinks || []).map(l => `${l.title || '(no title)'} → ${l.url}`).join(' | ') || 'None'}
 Instagram Followers: ${igRaw?.followers || 0}
 Engagement: ${profile.engagement || 'Unknown'}
 Verified: ${profile.isVerified}
