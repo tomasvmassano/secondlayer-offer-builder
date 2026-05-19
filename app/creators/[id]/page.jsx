@@ -251,6 +251,11 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
   const [dmTemplate, setDmTemplate] = useState("A");
   const [dmNotes, setDmNotes] = useState("");
   const [dmInputs, setDmInputs] = useState({});
+  // Signed-in operator's display name (Tomás / Raúl) — used as the DM signer
+  // so the message goes out under whoever's actually generating it. Fetched
+  // once from /api/auth/me; falls back to "Raul" if the call fails so legacy
+  // behaviour is preserved.
+  const [senderName, setSenderName] = useState("Raul");
   const [rewritingDm, setRewritingDm] = useState(false);
   const [rewriteInstruction, setRewriteInstruction] = useState("");
   const [rewriteLoading, setRewriteLoading] = useState(false);
@@ -310,6 +315,18 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
   const [offerStep, setOfferStep] = useState(0);
 
   useEffect(() => { Promise.resolve(paramsPromise).then(setParams); }, [paramsPromise]);
+
+  // One-shot fetch of the signed-in operator's display name so DMs go out
+  // under Tomás / Raúl based on who's actually generating. Falls back to
+  // "Raul" silently if /api/auth/me 401s (legacy behaviour).
+  useEffect(() => {
+    let cancelled = false;
+    fetch('/api/auth/me')
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (!cancelled && d?.user?.firstName) setSenderName(d.user.firstName); })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, []);
 
   const fetchCreator = useCallback(async (id) => {
     try {
@@ -397,6 +414,7 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
         body: JSON.stringify({
           stage,
           template: dmTemplate,
+          senderName,
           inputs: {
             primeiro_nome: dmInputs.primeiro_nome || "",
           },
@@ -440,7 +458,7 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
       await patchCreator({ dmSequence: merged });
       if (data.inputs) setDmInputs({ _filled: true, ...data.inputs });
     } catch (e) { setDmError(e.message); } finally { setDmLoading(false); }
-  }, [creator, dmTemplate, dmInputs, dmNotes, patchCreator]);
+  }, [creator, dmTemplate, dmInputs, dmNotes, senderName, patchCreator]);
 
   // — DM Reply handler —
   const handleReply = useCallback(async () => {
@@ -607,7 +625,7 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
           touchpointKey: "cold_dm", currentContent: creator.dmSequence.dm,
           instruction: rewriteInstruction,
           creatorName: creator.name,
-          senderName: "Raul",
+          senderName,
           language: "Portuguese",
         }),
       });
@@ -618,7 +636,7 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
       setRewriteInstruction("");
     } catch (e) { console.error(e); }
     finally { setRewriteLoading(false); }
-  }, [creator, rewriteInstruction, patchCreator]);
+  }, [creator, rewriteInstruction, senderName, patchCreator]);
 
   // — Offer Builder generate —
   const generateOffer = useCallback(async () => {
@@ -1578,9 +1596,11 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
                 <div>
                   <label style={{ display: "block", fontSize: 10, fontWeight: 600, color: "#555", marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.05em" }}>Template</label>
                   <select style={inputStyle} value={dmTemplate} onChange={e => setDmTemplate(e.target.value)}>
-                    <option value="A">A — Second Layer</option>
-                    <option value="B">B — Day in the Life</option>
+                    <option value="A">A — Second Layer (consultivo)</option>
+                    <option value="B">B — Second Layer (parceria)</option>
+                    <option value="C">C — Day in the Life</option>
                   </select>
+                  <div style={{ fontSize: 9, color: "#444", marginTop: 6, lineHeight: 1.4 }}>Vai sair assinado por <strong style={{ color: "#888" }}>{senderName}</strong>.</div>
                 </div>
                 <div>
                   <label style={{ display: "block", fontSize: 10, fontWeight: 600, color: "#555", marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.05em" }}>Notas <span style={{ fontWeight: 400, color: "#333" }}>(opcional)</span></label>

@@ -81,3 +81,33 @@ export async function getCurrentUser(request) {
   const token = getSessionTokenFromRequest(request);
   return await verifySessionJWT(token);
 }
+
+// Canonical display names for known operators. The auth layer only knows the
+// email-derived ASCII slug ("tomas", "raul"); for DM signatures and other
+// human-facing surfaces we want the accented Portuguese forms. Extend this map
+// when a new operator joins (or eventually replace with a per-user display-name
+// field on the user record).
+const DISPLAY_NAME_OVERRIDES = {
+  'tomas@informallabs.com': 'Tomás',
+  'raul@informallabs.com':  'Raúl',
+};
+
+/**
+ * Resolve a user's first name for display purposes (DM signatures, dashboards).
+ * Order of resolution:
+ *   1. Explicit `name` on the user record (split first word).
+ *   2. Hardcoded operator override (above).
+ *   3. Email-derived: local-part before `.` or `@`, title-cased.
+ * Returns null when nothing usable can be derived.
+ */
+export function displayFirstName(userOrEmail) {
+  if (!userOrEmail) return null;
+  const email = typeof userOrEmail === 'string' ? userOrEmail : (userOrEmail.email || '');
+  const explicitName = typeof userOrEmail === 'object' ? (userOrEmail.name || null) : null;
+  if (explicitName) return String(explicitName).trim().split(/\s+/)[0];
+  const normalised = email.trim().toLowerCase();
+  if (DISPLAY_NAME_OVERRIDES[normalised]) return DISPLAY_NAME_OVERRIDES[normalised];
+  const slug = normalised.split('@')[0].split('.')[0];
+  if (!slug) return null;
+  return slug.charAt(0).toUpperCase() + slug.slice(1);
+}

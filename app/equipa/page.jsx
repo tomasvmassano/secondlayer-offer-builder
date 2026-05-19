@@ -1097,17 +1097,28 @@ function RecentActivityFeed({ events }) {
   );
 }
 
+// Human labels for the template-letter quality breakdown. Keeps the
+// dashboard readable when more than 2 templates are in play. Update when
+// new templates are added in app/api/dm-writer/route.js.
+const TEMPLATE_LABELS = {
+  A: 'A · SL consultivo',
+  B: 'B · SL parceria',
+  C: 'C · Day in the Life',
+};
+
 function QualityBars({ title, items }) {
   if (!items?.length) return null;
+  const isTemplate = title === 'Template';
   return (
     <div style={{ marginBottom: 14 }}>
       <div style={{ fontSize: 9, fontWeight: 600, color: TEXT_LO, letterSpacing: "0.10em", textTransform: "uppercase", marginBottom: 8 }}>{title}</div>
       <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
         {items.map((it, i) => {
           const color = it.rate >= 15 ? GREEN : it.rate >= 5 ? AMBER : TEXT_LO;
+          const label = isTemplate ? (TEMPLATE_LABELS[it.key] || it.key) : it.key;
           return (
             <div key={i} style={{ display: "flex", alignItems: "center", gap: 10 }}>
-              <span style={{ fontSize: 11, color: TEXT_MID, width: 60 }}>{it.key}</span>
+              <span style={{ fontSize: 11, color: TEXT_MID, width: isTemplate ? 130 : 60 }}>{label}</span>
               <div style={{ flex: 1, height: 6, background: SURFACE_0, borderRadius: 6, overflow: "hidden", border: `1px solid ${BORDER}` }}>
                 <div style={{ height: "100%", width: `${Math.min(100, it.rate * 2)}%`, background: color, borderRadius: 6, transition: "width 600ms" }} />
               </div>
