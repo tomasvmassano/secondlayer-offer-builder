@@ -630,10 +630,18 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
     if (!creator?.dmSequence?.dm) return;
     setRewriteLoading(true);
     try {
+      // Paired rewrite: when the Day 1 email exists, send it alongside the
+      // DM so Claude rewrites both together using the same feedback. The
+      // server applies the rewrite to the DM in full and to the email's
+      // observation + pitch paragraphs, leaving the email scaffold intact.
+      const day1 = creator.dmSequence?.email_day1;
+      const hasPair = !!(day1?.body || day1?.subject);
       const r = await fetch("/api/dm-rewrite", {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          touchpointKey: "cold_dm", currentContent: creator.dmSequence.dm,
+          touchpointKey: hasPair ? "cold_dm_pair" : "cold_dm",
+          currentContent: creator.dmSequence.dm,
+          currentEmail: hasPair ? { subject: day1?.subject || '', body: day1?.body || '' } : undefined,
           instruction: rewriteInstruction,
           creatorName: creator.name,
           senderName,
@@ -645,7 +653,15 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
       });
       if (!r.ok) throw new Error("Rewrite failed");
       const data = await r.json();
-      await patchCreator({ dmSequence: { ...creator.dmSequence, dm: data.rewritten } });
+      // Patch DM always; patch email_day1 too when the server sent one back.
+      const nextSeq = { ...creator.dmSequence, dm: data.rewritten };
+      if (data.rewrittenEmail && (data.rewrittenEmail.subject || data.rewrittenEmail.body)) {
+        nextSeq.email_day1 = {
+          subject: data.rewrittenEmail.subject || creator.dmSequence?.email_day1?.subject || '',
+          body: data.rewrittenEmail.body || creator.dmSequence?.email_day1?.body || '',
+        };
+      }
+      await patchCreator({ dmSequence: nextSeq });
       setRewritingDm(false);
       setRewriteInstruction("");
     } catch (e) { console.error(e); }
@@ -1780,20 +1796,57 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
                   );
                 })()}
 
-                {/* Cold DM */}
-                <MessageCard label="T+0 — Cold DM" type="dm" content={seq.dm || ""} accent>
-                  {!rewritingDm ? (
-                    <button onClick={() => { setRewritingDm(true); setRewriteInstruction(""); }} style={{ marginTop: 10, padding: "4px 10px", borderRadius: 4, border: "1px solid rgba(255,255,255,0.06)", background: "transparent", color: "#666", fontSize: 9, cursor: "pointer", fontFamily: "inherit" }}>Reescrever</button>
+                {/* Cold outreach pair — the DM + Day 1 email say the same
+                    thing in two formats. We pair them visually and share
+                    a single rewrite panel below: operator feedback applies
+                    to both messages so they stay consistent. */}
+                <p style={{ ...sectionTitleStyle, marginTop: 8 }}>Cold outreach</p>
+                <div className="sl-grid-2" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 12 }}>
+                  <MessageCard label="T+0 — Cold DM" type="dm" content={seq.dm || ""} accent />
+                  {seq.email_day1?.body ? (
+                    <MessageCard label="Day 1 — Email" type="email" content={`Subject: ${seq.email_day1.subject || ""}\n\n${seq.email_day1.body}`} accent />
                   ) : (
-                    <div style={{ marginTop: 12, paddingTop: 12, borderTop: "1px solid rgba(255,255,255,0.06)" }}>
-                      <textarea autoFocus placeholder="O que queres mudar? Ex: 'mais curto', 'referir o podcast'..." value={rewriteInstruction} onChange={e => setRewriteInstruction(e.target.value)} style={{ ...inputStyle, display: "block", minHeight: 50, fontSize: 12, marginBottom: 8 }} />
+                    <div style={{ padding: "18px 20px", background: "#0d0d0d", border: "1px dashed rgba(255,255,255,0.06)", borderRadius: 10, color: "#555", fontSize: 11, display: "flex", alignItems: "center", justifyContent: "center", textAlign: "center" }}>
+                      Day 1 email ainda não gerado.<br />Regenera o DM para criar o par.
+                    </div>
+                  )}
+                </div>
+
+                {/* Unified rewrite panel — controls both cards above. */}
+                <div style={{ marginBottom: 24, padding: "14px 16px", background: "#141414", border: "1px solid rgba(255,255,255,0.04)", borderRadius: 10 }}>
+                  {!rewritingDm ? (
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+                      <div style={{ fontSize: 11, color: "#888" }}>
+                        Reescreve DM + Email Day 1 juntos. O feedback aplica-se aos dois — a estrutura do email (greeting, sign-off, etc.) fica intacta.
+                      </div>
+                      <button
+                        onClick={() => { setRewritingDm(true); setRewriteInstruction(""); }}
+                        style={{ padding: "8px 16px", borderRadius: 6, border: "1px solid rgba(122,14,24,0.4)", background: "transparent", color: "#B11E2F", fontSize: 11, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap" }}
+                      >
+                        Reescrever DM + Email
+                      </button>
+                    </div>
+                  ) : (
+                    <div>
+                      <div style={{ fontSize: 10, fontWeight: 700, color: "#888", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 8 }}>O que queres mudar? (aplica-se a ambos)</div>
+                      <textarea
+                        autoFocus
+                        placeholder="Ex: 'mais curto', 'referir o podcast', 'menos agressivo no Block 2'..."
+                        value={rewriteInstruction}
+                        onChange={e => setRewriteInstruction(e.target.value)}
+                        style={{ ...inputStyle, display: "block", minHeight: 60, fontSize: 12, marginBottom: 10 }}
+                      />
                       <div style={{ display: "flex", gap: 6 }}>
-                        <button onClick={rewriteDm} disabled={rewriteLoading} style={{ padding: "6px 16px", borderRadius: 6, border: "none", background: "#7A0E18", color: "#fff", fontSize: 11, fontWeight: 600, cursor: rewriteLoading ? "wait" : "pointer", fontFamily: "inherit" }}>{rewriteLoading ? "A reescrever..." : "Reescrever"}</button>
-                        <button onClick={() => { setRewritingDm(false); setRewriteInstruction(""); }} style={{ padding: "6px 12px", borderRadius: 6, border: "1px solid rgba(255,255,255,0.06)", background: "transparent", color: "#666", fontSize: 11, cursor: "pointer", fontFamily: "inherit" }}>Cancelar</button>
+                        <button onClick={rewriteDm} disabled={rewriteLoading} style={{ padding: "8px 18px", borderRadius: 6, border: "none", background: "#7A0E18", color: "#fff", fontSize: 12, fontWeight: 600, cursor: rewriteLoading ? "wait" : "pointer", fontFamily: "inherit" }}>
+                          {rewriteLoading ? "A reescrever..." : (seq.email_day1?.body ? "Reescrever DM + Email" : "Reescrever DM")}
+                        </button>
+                        <button onClick={() => { setRewritingDm(false); setRewriteInstruction(""); }} style={{ padding: "8px 14px", borderRadius: 6, border: "1px solid rgba(255,255,255,0.06)", background: "transparent", color: "#666", fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>
+                          Cancelar
+                        </button>
                       </div>
                     </div>
                   )}
-                </MessageCard>
+                </div>
 
                 {/* Follow-ups */}
                 <p style={{ ...sectionTitleStyle, marginTop: 24 }}>Follow-ups</p>
@@ -1804,17 +1857,11 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
                 <MessageCard label="T+7 — Segunda DM" type="dm" content={followupT7} />
                 <MessageCard label="T+14 — Breakup" type="dm" content={breakupT14} />
 
-                {/* Emails — Day 1 always generated with the initial DM; Day 7 +
-                    Day 14 are generated ON DEMAND so we don't burn tokens for
-                    the ~80% of creators that never reach those stages. The
-                    reminder cron pings the operator when each is due; the
-                    operator clicks "Gerar" here, the LLM produces just that
-                    single email merged into the existing dmSequence. */}
-                <p style={{ ...sectionTitleStyle, marginTop: 24 }}>Emails</p>
-
-                {seq.email_day1?.body && (
-                  <MessageCard label="Day 1 — Email" type="email" content={`Subject: ${seq.email_day1.subject || ""}\n\n${seq.email_day1.body}`} />
-                )}
+                {/* Day 7 + Day 14 emails — generated ON DEMAND so we don't
+                    burn tokens for the ~80% of creators that never reach
+                    those stages. The reminder cron pings the operator when
+                    each is due; the operator clicks "Gerar" here. */}
+                <p style={{ ...sectionTitleStyle, marginTop: 24 }}>Emails follow-up</p>
 
                 {seq.email_day7?.body ? (
                   <MessageCard label="Day 7 — Email" type="email" content={`Subject: ${seq.email_day7.subject || ""}\n\n${seq.email_day7.body}`} />
