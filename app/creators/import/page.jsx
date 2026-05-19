@@ -23,6 +23,12 @@ const MIN_DEAL_SCORE = 35;
 const THROTTLE_MS = 7000; // 7s between calls → ~8.5/min, under 30K TPM
 const APIFY_COST_PER_ROW = 0.10;    // EUR — lean IG scrape
 const CLAUDE_COST_PER_ROW = 0.01;   // USD — Sonnet no-tools, ~3K tokens
+// Audit pacing — ecosystem audit uses Sonnet + web_search (~10K tokens
+// per call). At 25s/audit we sit at ~2.4 audits/min ≈ 24K TPM, leaving
+// headroom for the import's lean scrapes (~17K TPM at 8.5/min). The
+// audit route has its own 429 backoff so the rare spike still recovers.
+const AUDIT_PACE_MS = 25000;
+const AUDIT_COST_PER_ROW = 0.12;    // USD — Sonnet + web_search, ~10K tokens
 
 // ── CSV parser (handles quoted cells with commas inside) ──
 function parseCsv(text) {
@@ -92,13 +98,78 @@ function igHandleOf(url) {
 export default function BulkImportPage() {
   const [csvText, setCsvText] = useState('');
   const [parseError, setParseError] = useState('');
-  const [parsedRows, setParsedRows] = useState([]);    // [{ name, instagram, tiktok, youtube, status, result, error }]
+  const [parsedRows, setParsedRows] = useState([]);    // [{ name, instagram, tiktok, youtube, status, result, error, auditStatus?, auditCounts? }]
   const [existingHandles, setExistingHandles] = useState(new Set());
   const [running, setRunning] = useState(false);
   const [paused, setPaused] = useState(false);
   const [currentIdx, setCurrentIdx] = useState(-1);
   const fileRef = useRef(null);
   const cancelRef = useRef(false);
+
+  // Auto-audit: after each successful import the creator gets enqueued for
+  // ecosystem audit (Sonnet + web_search). Worker drains the queue at
+  // AUDIT_PACE_MS so we stay under the Anthropic TPM ceiling. Default ON
+  // because the operator otherwise has to manually click "Audit" on 50
+  // creators after import — the whole point of bulk import.
+  const [autoAudit, setAutoAudit] = useState(true);
+  const auditQueueRef = useRef([]);          // [creatorId] — FIFO of pending audits
+  const auditWorkerRunningRef = useRef(false);
+  const auditCancelRef = useRef(false);
+
+  // ── Audit worker ──
+  // Drains auditQueueRef one creator at a time, paced at AUDIT_PACE_MS.
+  // Single-flight (re-entry guarded by auditWorkerRunningRef) so multiple
+  // enqueues from the import loop don't spawn parallel workers. Row updates
+  // use creatorId-based matching (not index) so a refresh or mid-run row
+  // reorder doesn't write to the wrong row. Declared at the TOP of the
+  // component (before any useEffect that might call enqueueAudit) so the
+  // dep arrays don't trip the temporal dead zone.
+  const startAuditWorker = useCallback(() => {
+    if (auditWorkerRunningRef.current) return;
+    auditWorkerRunningRef.current = true;
+    auditCancelRef.current = false;
+    (async () => {
+      while (auditQueueRef.current.length > 0 && !auditCancelRef.current) {
+        const creatorId = auditQueueRef.current.shift();
+        setParsedRows(prev => prev.map(r => r.creatorId === creatorId ? { ...r, auditStatus: 'running' } : r));
+        try {
+          const r = await fetch(`/api/creators/${creatorId}/ecosystem-audit`, { method: 'POST' });
+          const data = await r.json();
+          if (!r.ok) {
+            setParsedRows(prev => prev.map(row => row.creatorId === creatorId
+              ? { ...row, auditStatus: 'failed', auditError: data.error || `HTTP ${r.status}` }
+              : row));
+          } else {
+            const products = data.ecosystem_audit?.products_found?.length || 0;
+            const communities = data.ecosystem_audit?.existing_communities?.length || 0;
+            setParsedRows(prev => prev.map(row => row.creatorId === creatorId
+              ? { ...row, auditStatus: 'done', auditCounts: { products, communities } }
+              : row));
+          }
+        } catch (err) {
+          setParsedRows(prev => prev.map(row => row.creatorId === creatorId
+            ? { ...row, auditStatus: 'failed', auditError: err.message || 'Network error' }
+            : row));
+        }
+        // Pace next audit (unless this was the last one or we were cancelled).
+        if (auditQueueRef.current.length > 0 && !auditCancelRef.current) {
+          await new Promise(res => setTimeout(res, AUDIT_PACE_MS));
+        }
+      }
+      auditWorkerRunningRef.current = false;
+    })();
+  }, []);
+
+  const enqueueAudit = useCallback((creatorId) => {
+    if (!creatorId) return;
+    // Mark the row as pending so the UI surfaces "audit a aguardar" right
+    // away, even before the worker picks it up.
+    setParsedRows(prev => prev.map(r => r.creatorId === creatorId && !r.auditStatus
+      ? { ...r, auditStatus: 'pending' }
+      : r));
+    auditQueueRef.current.push(creatorId);
+    startAuditWorker();
+  }, [startAuditWorker]);
 
   // Resume from localStorage if a batch was running and the tab reloaded.
   useEffect(() => {
@@ -120,6 +191,23 @@ export default function BulkImportPage() {
       setExistingHandles(handles);
     }).catch(() => {});
   }, []);
+
+  // After parsedRows loads from localStorage on mount, resume any audits
+  // that didn't finish before the tab was closed. We look for saved rows
+  // with no terminal auditStatus and push them back onto the worker queue.
+  // Guarded with a ref so this only fires once per page-load, not on every
+  // parsedRows update (which would re-enqueue mid-run).
+  const auditResumeFiredRef = useRef(false);
+  useEffect(() => {
+    if (auditResumeFiredRef.current) return;
+    if (parsedRows.length === 0) return;
+    auditResumeFiredRef.current = true;
+    if (!autoAudit) return;
+    const toResume = parsedRows
+      .filter(r => r.status === 'saved' && r.creatorId && (!r.auditStatus || r.auditStatus === 'pending' || r.auditStatus === 'running'))
+      .map(r => r.creatorId);
+    for (const id of toResume) enqueueAudit(id);
+  }, [parsedRows, autoAudit, enqueueAudit]);
 
   // Persist state during a run.
   useEffect(() => {
@@ -238,6 +326,13 @@ export default function BulkImportPage() {
           } else if (data.creator) {
             // Compute display score from creator (server doesn't return it when saved)
             next[i] = { ...next[i], status: 'saved', creatorId: data.id };
+            // Auto-fire ecosystem audit for this creator. The worker paces
+            // itself (AUDIT_PACE_MS) so even 50 fires in quick succession
+            // won't 429. Setting state outside this map call would conflict
+            // with React batching — defer with queueMicrotask.
+            if (autoAudit) {
+              queueMicrotask(() => enqueueAudit(data.id));
+            }
           } else {
             next[i] = { ...next[i], status: 'error', error: 'Resposta inválida do servidor' };
           }
@@ -266,11 +361,13 @@ export default function BulkImportPage() {
     setCurrentIdx(-1);
     setRunning(false);
     setPaused(false);
-  }, [parsedRows, running]);
+  }, [parsedRows, running, autoAudit, enqueueAudit]);
 
   function stopImport() {
     cancelRef.current = true;
     setPaused(true);
+    // Also halt the audit worker — operator pressed pause for a reason.
+    auditCancelRef.current = true;
   }
 
   function resetAll() {
@@ -292,9 +389,20 @@ export default function BulkImportPage() {
   const errors = parsedRows.filter(r => r.status === 'error').length;
   const scrapable = pending; // will hit the scrape; duplicates/invalid don't
   const estApifyCost = (scrapable * APIFY_COST_PER_ROW).toFixed(2);
-  const estClaudeCost = (scrapable * CLAUDE_COST_PER_ROW).toFixed(2);
-  const etaSecs = Math.ceil(scrapable * THROTTLE_MS / 1000);
+  const estClaudeCost = (scrapable * (CLAUDE_COST_PER_ROW + (autoAudit ? AUDIT_COST_PER_ROW : 0))).toFixed(2);
+  // ETA: import + audits run in parallel (worker starts on first save) but
+  // audits drain slower than imports, so audit-pace dominates total time
+  // when autoAudit is on. Take the max so we don't under-promise.
+  const importSecs = scrapable * THROTTLE_MS / 1000;
+  const auditSecs = autoAudit ? scrapable * AUDIT_PACE_MS / 1000 : 0;
+  const etaSecs = Math.ceil(Math.max(importSecs, auditSecs));
   const etaStr = etaSecs < 60 ? `${etaSecs}s` : `${Math.floor(etaSecs / 60)}min ${etaSecs % 60}s`;
+  // Audit progress for the live banner.
+  const auditPending = parsedRows.filter(r => r.auditStatus === 'pending').length;
+  const auditRunning = parsedRows.filter(r => r.auditStatus === 'running').length;
+  const auditDone = parsedRows.filter(r => r.auditStatus === 'done').length;
+  const auditFailed = parsedRows.filter(r => r.auditStatus === 'failed').length;
+  const auditTotal = auditPending + auditRunning + auditDone + auditFailed;
 
   return (
     <div style={{ minHeight: "100vh", background: "#0a0a0a", color: "#f5f5f5", fontFamily: "'Inter', sans-serif" }}>
@@ -341,12 +449,34 @@ export default function BulkImportPage() {
         {parsedRows.length > 0 && (
           <div>
             {/* Stats bar */}
-            <div className="sl-grid-2" style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 14, marginBottom: 24 }}>
+            <div className="sl-grid-2" style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 14, marginBottom: 16 }}>
               <StatCard label="Total" value={total} color="#f5f5f5" />
               <StatCard label="Para scrape" value={scrapable} color="#22c55e" />
               <StatCard label="Skip (dup / inválido)" value={duplicates + invalid} color="#888" />
               <StatCard label="Custo estimado" value={`€${estApifyCost} + $${estClaudeCost}`} small color="#B11E2F" />
             </div>
+
+            {/* Auto-audit toggle — sits between stats and action banner so the
+                cost estimate above reacts to it in real time. Disabled while
+                a run is in progress so we don't strand half the queue. */}
+            <label style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 16px", background: "#141414", border: `1px solid ${autoAudit ? "rgba(34,197,94,0.25)" : "rgba(255,255,255,0.06)"}`, borderRadius: 10, marginBottom: 20, cursor: running ? "not-allowed" : "pointer", opacity: running ? 0.7 : 1 }}>
+              <input
+                type="checkbox"
+                checked={autoAudit}
+                disabled={running}
+                onChange={e => setAutoAudit(e.target.checked)}
+                style={{ width: 16, height: 16, accentColor: "#22c55e" }}
+              />
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 13, fontWeight: 600, color: "#f5f5f5" }}>Correr ecosystem audit automaticamente</div>
+                <div style={{ fontSize: 11, color: "#888", marginTop: 2 }}>Após cada import, audit dispara em fila com pacing de 25s/audit. +${AUDIT_COST_PER_ROW.toFixed(2)} Claude por creator.</div>
+              </div>
+              {auditTotal > 0 && (
+                <span style={{ fontSize: 10, color: "#888", whiteSpace: "nowrap", fontFamily: "'JetBrains Mono', monospace" }}>
+                  {auditDone}/{auditTotal} ✓ {auditFailed > 0 ? `· ${auditFailed} ✗` : ''} {(auditPending + auditRunning) > 0 ? `· ${auditPending + auditRunning} a correr` : ''}
+                </span>
+              )}
+            </label>
 
             {/* Progress + actions */}
             {running ? (
@@ -373,6 +503,11 @@ export default function BulkImportPage() {
                 <div>
                   <div style={{ fontSize: 13, fontWeight: 600, color: "#22c55e" }}>Import concluído</div>
                   <div style={{ fontSize: 11, color: "#888", marginTop: 4 }}>{saved} guardados · {rejected} rejeitados (D-tier) · {duplicates} duplicados · {invalid} inválidos · {errors} erros</div>
+                  {(auditPending + auditRunning) > 0 && (
+                    <div style={{ fontSize: 11, color: "#3b82f6", marginTop: 6 }}>
+                      Audits em curso: {auditDone}/{auditTotal} · {auditPending + auditRunning} a aguardar. Deixa esta página aberta — fecha o tab e os audits param.
+                    </div>
+                  )}
                 </div>
                 <div style={{ display: "flex", gap: 8 }}>
                   <button onClick={resetAll} style={{ padding: "10px 16px", background: "transparent", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 6, color: "#888", fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>Nova importação</button>
@@ -383,7 +518,7 @@ export default function BulkImportPage() {
 
             {/* Preview table */}
             <div className="sl-hscroll" style={{ border: "1px solid rgba(255,255,255,0.06)", borderRadius: 10, overflow: "hidden" }}>
-              <div style={{ display: "grid", gridTemplateColumns: "50px 1.5fr 2fr 0.6fr 0.6fr 1fr 1.5fr", padding: "12px 16px", background: "#141414", fontSize: 10, fontWeight: 700, color: "#666", letterSpacing: "0.08em", textTransform: "uppercase", minWidth: 640 }}>
+              <div style={{ display: "grid", gridTemplateColumns: "50px 1.5fr 2fr 0.6fr 0.6fr 1.6fr 1.4fr", padding: "12px 16px", background: "#141414", fontSize: 10, fontWeight: 700, color: "#666", letterSpacing: "0.08em", textTransform: "uppercase", minWidth: 680 }}>
                 <div>#</div><div>Nome</div><div>Instagram</div><div>TT</div><div>YT</div><div>Status</div><div>Detalhe</div>
               </div>
               {parsedRows.map((r, i) => (
@@ -416,10 +551,23 @@ function RowItem({ idx, row, isCurrent }) {
     invalid:   { color: '#ef4444',  bg: 'rgba(239,68,68,0.06)',         label: '✗ Inválido' },
     error:     { color: '#ef4444',  bg: 'rgba(239,68,68,0.08)',         label: '✗ Erro' },
   };
+  // Audit status renders as a second pill so the operator can scan both
+  // states at a glance. Only shown for rows that actually have an audit
+  // attached (saved/duplicate creators).
+  const auditColors = {
+    pending: { color: '#888',    bg: 'rgba(255,255,255,0.03)',    label: 'audit pendente' },
+    running: { color: '#3b82f6', bg: 'rgba(59,130,246,0.08)',     label: 'audit a correr…' },
+    done:    { color: '#22c55e', bg: 'rgba(34,197,94,0.08)',      label: null /* see counts below */ },
+    failed:  { color: '#ef4444', bg: 'rgba(239,68,68,0.08)',      label: 'audit falhou' },
+  };
   const s = statusColors[row.status] || statusColors.pending;
-  const detail = row.error || row.reason || (row.score ? `${row.score} (${row.grade})` : '');
+  const a = row.auditStatus ? auditColors[row.auditStatus] : null;
+  const auditLabel = row.auditStatus === 'done' && row.auditCounts
+    ? `✓ audit · ${row.auditCounts.products} prod${row.auditCounts.communities ? ` · ${row.auditCounts.communities} com` : ''}`
+    : (a?.label || null);
+  const detail = row.error || row.auditError || row.reason || (row.score ? `${row.score} (${row.grade})` : '');
   return (
-    <div style={{ display: "grid", gridTemplateColumns: "50px 1.5fr 2fr 0.6fr 0.6fr 1fr 1.5fr", padding: "10px 16px", borderTop: "1px solid rgba(255,255,255,0.04)", background: isCurrent ? "rgba(59,130,246,0.05)" : (idx % 2 === 0 ? "transparent" : "rgba(255,255,255,0.01)"), fontSize: 12, alignItems: "center", minWidth: 640 }}>
+    <div style={{ display: "grid", gridTemplateColumns: "50px 1.5fr 2fr 0.6fr 0.6fr 1.6fr 1.4fr", padding: "10px 16px", borderTop: "1px solid rgba(255,255,255,0.04)", background: isCurrent ? "rgba(59,130,246,0.05)" : (idx % 2 === 0 ? "transparent" : "rgba(255,255,255,0.01)"), fontSize: 12, alignItems: "center", minWidth: 680 }}>
       <div style={{ color: "#444", fontFamily: "'JetBrains Mono', monospace", fontSize: 11 }}>{idx + 1}</div>
       <div style={{ color: row.creatorId ? "#22c55e" : "#f5f5f5", fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
         {row.creatorId ? <a href={`/creators/${row.creatorId}`} target="_blank" rel="noopener" style={{ color: "inherit", textDecoration: "none" }}>{row.name || '—'}</a> : (row.name || '—')}
@@ -427,8 +575,11 @@ function RowItem({ idx, row, isCurrent }) {
       <div style={{ color: "#666", fontSize: 11, fontFamily: "'JetBrains Mono', monospace", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{row.igHandle ? `@${row.igHandle}` : '—'}</div>
       <div style={{ color: row.tiktok ? "#888" : "#333", fontSize: 10 }}>{row.tiktok ? '✓' : '—'}</div>
       <div style={{ color: row.youtube ? "#888" : "#333", fontSize: 10 }}>{row.youtube ? '✓' : '—'}</div>
-      <div>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
         <span style={{ padding: "3px 8px", borderRadius: 4, fontSize: 10, fontWeight: 600, background: s.bg, color: s.color, border: `1px solid ${s.color}33` }}>{s.label}</span>
+        {a && auditLabel && (
+          <span style={{ padding: "3px 8px", borderRadius: 4, fontSize: 10, fontWeight: 600, background: a.bg, color: a.color, border: `1px solid ${a.color}33` }} title={row.auditError || ''}>{auditLabel}</span>
+        )}
       </div>
       <div style={{ color: "#666", fontSize: 11, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{detail}</div>
     </div>

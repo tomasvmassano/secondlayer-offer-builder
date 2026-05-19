@@ -377,7 +377,12 @@ ${urlList}
 
 ${aggregatorsSeen.length > 0 ? `## AGGREGATORS RESOLVED\nThe following aggregator URLs were already resolved and their destinations appear in the URLS list above (so you don't need to re-scrape them):\n${aggregatorsSeen.map(a => `- ${a}`).join('\n')}\n\n` : ''}Return ONLY the JSON object. No code fences, no preamble.`;
 
-  const resp = await fetch('https://api.anthropic.com/v1/messages', {
+  // Anthropic call wrapped so we can retry on 429 (rate limit). The Hobby
+  // plan caps at 30k tokens/min — bulk-import's auto-audit can fire 3+ of
+  // these per minute, so 429s are expected. The dm-writer route handles
+  // 429s the same way; mirroring the pattern here keeps the auto-audit
+  // pipeline resilient without a server-side queue.
+  const callAnthropic = () => fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -393,7 +398,16 @@ ${aggregatorsSeen.length > 0 ? `## AGGREGATORS RESOLVED\nThe following aggregato
     }),
   });
 
-  const data = await resp.json();
+  let resp = await callAnthropic();
+  let data = await resp.json();
+  if (resp.status === 429) {
+    // Sleep ~65s (just past the 60s window) then try once more. If that
+    // also 429s, surface to the caller so the auto-audit worker can mark
+    // the row 'failed' and the operator can re-queue manually.
+    await new Promise(r => setTimeout(r, 65000));
+    resp = await callAnthropic();
+    data = await resp.json();
+  }
   if (!resp.ok) {
     return { error: data.error?.message || `Anthropic ${resp.status}`, errors: [], raw: null, retries: retryCount };
   }
