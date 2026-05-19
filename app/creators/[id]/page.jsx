@@ -472,6 +472,9 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
           originalDm: creator.dmSequence.dm || "",
           creatorName: creator.name,
           buraco: creator.dmSequence.inputs?.observacao_dor || creator.dmSequence.inputs?.buraco_identificado || "",
+          // Without this the route defaulted to PT, even for English creators
+          // — Raul ended up pasting Portuguese replies to English DMs.
+          language: creator.primaryLanguage || 'pt',
         }),
       });
       if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || "Failed");
@@ -634,7 +637,10 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
           instruction: rewriteInstruction,
           creatorName: creator.name,
           senderName,
-          language: "Portuguese",
+          // Source from the creator's resolved primaryLanguage so English
+          // creators don't get their DMs silently translated to Portuguese
+          // on every rewrite. Falls back to 'pt' for legacy null records.
+          language: creator.primaryLanguage || 'pt',
         }),
       });
       if (!r.ok) throw new Error("Rewrite failed");

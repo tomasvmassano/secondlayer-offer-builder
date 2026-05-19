@@ -119,11 +119,19 @@ export async function POST(request) {
     const meetingNotes = Object.entries(creator.meeting || {}).filter(([, v]) => v?.trim()).map(([k, v]) => `${k}: ${v}`).join('\n');
     if (meetingNotes) creatorContext += `\n## MEETING NOTES\n${meetingNotes}\n`;
 
-    // Build the message — include references for maximum quality
-    const lang = (ae.language || '').toLowerCase().includes('portugu') ? 'Portuguese' : 'English';
+    // Build the message — include references for maximum quality.
+    // Language source-of-truth is creator.primaryLanguage ('pt' | 'en') —
+    // set by resolvePrimaryLanguage() at scrape time. Previously this used
+    // a fuzzy match against audienceEstimate.language which would silently
+    // fall back to English for any creator whose audience string didn't
+    // contain "portugu" (e.g. "PT 80%" wouldn't match).
+    const primaryLang = (creator.primaryLanguage || '').toString().toLowerCase();
+    const lang = primaryLang.startsWith('en') ? 'English'
+      : primaryLang.startsWith('pt') ? 'European Portuguese (NOT Brazilian, always "tu" never "você")'
+      : (ae.language || '').toLowerCase().includes('portugu') ? 'European Portuguese' : 'English';
     let userMessage = `${config.instruction}\n\n${creatorContext}`;
     if (refsContext) userMessage += `\n\n---\n\n## REFERENCE MATERIAL\n\n${refsContext}`;
-    userMessage += `\n\n---\nGenerate the asset now. Be specific to this creator — use their real data. Write in ${lang}. Be thorough and strategic.`;
+    userMessage += `\n\n---\nGenerate the asset now. Be specific to this creator — use their real data. Write in ${lang}. Do NOT mix languages or translate. Be thorough and strategic.`;
 
     // Full system prompt — no truncation needed with streaming
     const fullSystem = 'You are a world-class marketing strategist for Second Layer, an agency that builds communities/courses for content creators in Portugal and Dubai. EUR currency. Be specific, strategic, and use real creator data. Apply the frameworks from the reference material.\n\n' + systemPrompt;

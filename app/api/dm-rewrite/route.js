@@ -14,6 +14,13 @@ export async function POST(request) {
     return NextResponse.json({ error: 'Missing touchpointKey or currentContent' }, { status: 400 });
   }
 
+  // Canonical language code — 'en' if explicitly english-ish, else 'pt'.
+  // Accepts 'en' / 'pt' / 'English' / 'Portuguese' so existing callers keep
+  // working. Previously this route hardcoded a PT-default which silently
+  // translated English creators' DMs back to Portuguese on every rewrite.
+  const lang = (language || '').toString().toLowerCase().startsWith('en') ? 'en' : 'pt';
+  const langLabel = lang === 'en' ? 'natural English' : 'European Portuguese (NOT Brazilian, always "tu", never "você")';
+
   try {
     const r = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
@@ -30,21 +37,24 @@ export async function POST(request) {
 - NEVER use dashes (—, –, -) as punctuation.
 - NEVER mention pricing, commission, %, business model, "partnership", "collaboration", "proposal", "agency", or "services".
 - Keep the same tone and format as the original.
-- Default to Portuguese unless told otherwise.
+- Write in the EXACT language specified in the user message. Do NOT translate. Do NOT switch languages. If the user message says "Write in natural English", the output MUST be English. If it says "European Portuguese", output MUST be European Portuguese.
 - Output ONLY the rewritten message. No explanation, no preamble.`, cache_control: { type: 'ephemeral' } }],
         messages: [{
           role: 'user',
           content: `Rewrite this ${touchpointKey} for creator "${creatorName || 'this creator'}".
 
-CURRENT VERSION:
+## LANGUAGE
+Write in ${langLabel}. The original (below) is in ${langLabel}. Keep it that way.
+
+## CURRENT VERSION
 ${currentContent}
 
-${instruction ? `INSTRUCTIONS FOR REWRITE:\n${instruction}` : 'Just improve it — make it feel more natural and human.'}
+${instruction ? `## INSTRUCTIONS FOR REWRITE\n${instruction}` : '## INSTRUCTION\nJust improve it — make it feel more natural and human.'}
 
-Sender: ${senderName || 'Tomás'}
-Language: ${language || 'Portuguese'}
+## SENDER
+${senderName || 'Raul'}
 
-Write ONLY the rewritten message. Nothing else.`,
+Write ONLY the rewritten message in ${langLabel}. Nothing else.`,
         }],
       }),
     });
