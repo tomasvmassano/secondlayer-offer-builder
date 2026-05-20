@@ -50,6 +50,25 @@ When approaching the cap, shorten Block 2 first (cut a sentence from the observa
 
 This cap applies ONLY to the DM section. Emails and comments have their own (looser) ceilings and are not limited by this rule.
 
+## OPERATOR INSTRUCTIONS — HIGHEST PRIORITY
+
+If the user message contains a "## OPERATOR INSTRUCTIONS" block at the top, treat that block as the operator's brief and apply it LITERALLY to every output block (DM, comment, every email). Operator instructions override:
+- Default scenario angles (A/B/C) when in conflict
+- Default block sequencing tone
+- Default phrasing of the observation, the question, the email opening
+- Anything in INPUTS or NOTES that contradicts them
+
+Examples of how to interpret operator instructions:
+- "mention her podcast" → the DM AND the email reference the podcast specifically (not generic content)
+- "she's based in Brazil so use Brazilian PT" → override the default European Portuguese rule
+- "skip the algorithm-risk line" → remove that specific line from Block 2 (Template B) without rewriting the rest
+- "she just hit 1M followers, congratulate" → Block 1 acknowledges that specifically
+- "I met her at an event last week" → use as a real referral hook in Block 1 (overrides the "don't invent context" rule because the operator IS giving you the context)
+
+If an operator instruction conflicts with a fixed template phrase (e.g. Block 4 partnership frame), apply the instruction to surrounding blocks but keep the fixed phrase as-is unless the instruction explicitly says to change it.
+
+NEVER ignore operator instructions silently. If something is genuinely impossible (e.g. "mention her dog's name" but no dog is in INPUTS), pick the closest faithful interpretation instead of dropping the directive.
+
 ## ANTI-AI CHECKLIST — read every sentence against this
 
 If a sentence triggers ANY of these, rewrite it:
@@ -997,9 +1016,33 @@ observacao_dor: ${inputFields.observacao_dor || inputFields.buraco_identificado 
     ? `Compose ONLY the Day 14 breakup email. Output ONLY the EMAIL_DAY14_SUBJECT and EMAIL_DAY14 delimiters and skip EVERY other section.`
     : `Compose ONLY: the Cold DM, the T+3 Comment, and the Day 1 Email. Output the INPUTS block + DM + COMMENT_T3 + EMAIL_DAY1_SUBJECT + EMAIL_DAY1. DO NOT generate EMAIL_DAY7 or EMAIL_DAY14 — those are generated later on demand. Skip those delimiters entirely.`;
 
+  // Operator instructions (the "Notas (Opcional)" textarea in the UI) ride
+  // at the TOP of the user message so the model sees them before it
+  // commits to scenario picks + template phrasing. Buried at the bottom
+  // (where the field used to live), the model treated them as background
+  // and ignored most of them. The header is intentionally loud — "##
+  // OPERATOR INSTRUCTIONS · APPLY TO EVERY BLOCK" — so the system prompt's
+  // priority rule has something to anchor on. A reminder at the very end
+  // re-pings the model right before it emits the output, because long
+  // user messages cause it to drift back to defaults near the close.
+  const notesTrimmed = (notes || '').trim();
+  const notesBlock = notesTrimmed
+    ? `## OPERATOR INSTRUCTIONS · APPLY TO EVERY BLOCK
+The operator wrote the following instructions for THIS specific creator. Treat them as the operator's brief — apply them literally to the DM, the comment, and every email. They override default scenario picks and template phrasing where they conflict. Do NOT paraphrase, do NOT skip them.
+
+${notesTrimmed}
+
+---
+
+`
+    : '';
+  const notesReminder = notesTrimmed
+    ? `\n\nBefore you write a single block, re-read the OPERATOR INSTRUCTIONS at the top of this message. Apply them literally. If you wrote a block that ignores or contradicts them, rewrite it.`
+    : '';
+
   const userMessage = `Generate the DM outreach for this creator.
 
-## PROFILE
+${notesBlock}## PROFILE
 ${profileSummary}
 
 ## INPUTS (fill [FILL] from profile)
@@ -1007,9 +1050,8 @@ ${inputsSummary}
 
 ## TEMPLATE: ${template}
 ## SENDER: ${senderName}
-${notes ? `\n## NOTES\n${notes}` : ''}
 
-${stageInstruction} Follow the output format exactly. ZERO em dashes.`;
+${stageInstruction} Follow the output format exactly. ZERO em dashes.${notesReminder}`;
 
   try {
     const callAnthropic = async () => fetch('https://api.anthropic.com/v1/messages', {
