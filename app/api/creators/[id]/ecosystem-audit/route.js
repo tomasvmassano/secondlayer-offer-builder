@@ -444,10 +444,19 @@ async function runAudit(apiKey, creator, urls, aggregatorsSeen, preDiscoveredPro
   const preDiscoveredBlock = preDiscoveredProducts.length > 0
     ? `## PRE-DISCOVERED PRODUCTS (already verified by deterministic scraper — INCLUDE ALL OF THESE)
 
-These products were extracted directly from the aggregator HTML (stan.store __NEXT_DATA__, etc.) and have been verified to belong to THIS creator. Include EVERY ONE in products_found. The scraper gave you name + price + URL + a tentative tier — your job for these is to:
-  - Keep name + price_eur + url + format AS-IS unless you have stronger evidence
+These products were extracted directly from the aggregator HTML (stan.store __NEXT_DATA__, linktr.ee __NEXT_DATA__, etc.) and have been verified to belong to THIS creator. Include EVERY ONE in products_found. The scraper gave you name + URL + (sometimes) price + a tentative tier — your job for these is to:
+  - Keep name + url AS-IS unless you have stronger evidence
   - Add a transformation_offered field (1 sentence describing the outcome)
   - Verify the tier matches our enum and adjust ONLY if obviously wrong
+
+**CRITICAL — cross-reference URL_PREVIEWS for prices when price_eur is null:**
+Many pre-discovered products (especially from Linktree) arrive with \`price_eur: null\` because the aggregator scraper only captures name + URL. The URL_PREVIEWS block below DOES contain the actual price for these products — fetched server-side from the destination page (Hotmart checkout, Substack pricing page, etc.). For each pre-discovered product:
+  1. Find the URL_PREVIEW entry whose URL matches the product's URL (match by domain + path, ignore query strings).
+  2. If the preview has \`priceHints\`, use the first numeric value as the product's price_eur. Convert other currencies to EUR using approximate rates if needed (USD × 0.92, GBP × 1.17).
+  3. Example: pre-discovered product { name: "Ebook X", url: "pay.hotmart.com/ABC?bid=123", price_eur: null }; URL_PREVIEW for pay.hotmart.com/ABC has priceHints: ["5,29 €"] → set price_eur: 5.29 in your output.
+
+If both the scraper and the URL preview have prices, prefer the URL preview (it's the live page; the scraper may have stale data).
+
 You may add ADDITIONAL products beyond this list (from URLs not covered by the scraper, from web_search), but you may NOT drop any of these.
 
 ${preDiscoveredProducts.map((p, i) => `${i + 1}. name: ${p.name}
@@ -468,12 +477,17 @@ ${preDiscoveredProducts.map((p, i) => `${i + 1}. name: ${p.name}
   const previewsBlock = urlPreviews.length > 0
     ? `## URL PREVIEWS (server-fetched HTML — use this BEFORE web_search)
 
-For each URL in the input list, we already fetched the page server-side and pulled the title, meta description, visible text, and any price-like substrings. Use these previews as your PRIMARY source for product details. Only fall through to web_search when the preview is missing pricing or you need to inspect a subpage (e.g. /pricing) that the preview hints at.
+For each URL in the input list, we fetched the page server-side and pulled the title, meta description, visible text, and any price-like substrings. We ALSO followed up to 2 pricing-related sub-pages per primary URL (look for "Discovered from: ..." in the entries below) — that's how we surface $X/month pricing when the homepage doesn't show it but /pricing does.
 
-The previews are GROUND TRUTH for what THIS creator publishes — they came from THIS creator's own bio URLs. Identity-verification does NOT apply to anything in these previews.
+Use these previews as your PRIMARY source for product details. Only fall through to web_search when the preview is missing pricing AND a follow-up sub-page wasn't auto-discovered.
+
+The previews are GROUND TRUTH for what THIS creator publishes — they came from THIS creator's own bio URLs (or sub-pages of those URLs). Identity-verification does NOT apply to anything in these previews.
+
+**When a preview has \`Discovered from: X\`, treat it as enriching the primary URL X**. Example: primary URL is valuebyraph.com (homepage, no price visible); a follow-up preview for valuebyraph.com/pricing/ contains "$49/month" — that's the price for the Pro tier of the SAME creator. Attribute it to that product, not to a new product.
 
 ${urlPreviews.map((p, i) => {
   const lines = [`${i + 1}. ${p.url}`];
+  if (p.sourceUrl) lines.push(`   Discovered from: ${p.sourceUrl} (followed pricing-related link)`);
   if (p.error) {
     lines.push(`   (fetch error: ${p.error} — try web_search instead)`);
     return lines.join('\n');

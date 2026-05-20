@@ -65,6 +65,69 @@ function extractMetaTitleDescription(html) {
   };
 }
 
+// Find pricing-related internal links on a page. The fetcher uses these
+// to do a single 1-level follow — fetch the top 2 candidates so prices
+// that live on /pricing or /join (not on the homepage) still surface.
+// Score: match in the URL path is worth more than match in link text
+// because text can be ambiguous ("Pro" might be a button to a Pro tier
+// OR a content tag).
+// Two tiers of pricing-related signals. STRONG signals are URLs/text
+// that almost always lead to a pricing page (e.g. /pricing, /plans,
+// /checkout). WEAK signals are ambiguous (e.g. /pro could be a content
+// category tag; "Premium" could be a feature page). Weighting both
+// ensures we pick the unambiguous candidate when both are present.
+const PRICING_STRONG_PATH = /\/(pricing|plans?|join|subscribe|membership|checkout|tiers?)(\/|\?|#|$)/i;
+const PRICING_WEAK_PATH = /\/(upgrade|premium|pro|paid|gold|plus)(\/|\?|#|$)/i;
+const PRICING_STRONG_TEXT = /^\s*(pricing|plans?|join now|subscribe|membership|checkout|tiers?|see pricing|view plans?)\s*$/i;
+const PRICING_WEAK_TEXT = /\b(upgrade|premium|pro|paid|gold|plus)\b/i;
+
+function extractPricingLinks(html, baseUrl) {
+  let baseHost;
+  try { baseHost = new URL(baseUrl).hostname; } catch { return []; }
+
+  const links = new Map(); // url → { score, text }
+  const anchorRe = /<a\s+[^>]*href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/gi;
+  let m;
+  while ((m = anchorRe.exec(html)) !== null) {
+    const href = m[1].trim();
+    if (!href || href.startsWith('#') || href.startsWith('mailto:') || href.startsWith('tel:') || href.startsWith('javascript:')) continue;
+
+    // Strip nested tags from link text and decode entities so "<span>Pricing</span>" still scores.
+    const text = htmlToText(m[2]).slice(0, 100);
+
+    let score = 0;
+    if (PRICING_STRONG_PATH.test(href)) score += 5;
+    else if (PRICING_WEAK_PATH.test(href)) score += 2;
+    if (PRICING_STRONG_TEXT.test(text)) score += 4;
+    else if (PRICING_WEAK_TEXT.test(text)) score += 1;
+    if (score === 0) continue;
+
+    // Resolve to absolute URL on the same host. Cross-origin pricing
+    // links (e.g. → stripe.com/checkout) are out of scope here — those
+    // are platform-specific landings the LLM can web_search if needed.
+    let absUrl;
+    try {
+      absUrl = new URL(href, baseUrl);
+      if (absUrl.hostname !== baseHost) continue;
+      // Strip query strings + fragments to dedupe; some sites tack on UTM params per nav slot
+      absUrl.hash = '';
+      absUrl.search = '';
+    } catch { continue; }
+
+    const finalUrl = absUrl.toString();
+    if (finalUrl === baseUrl.replace(/[?#].*$/, '')) continue; // Don't follow back to self
+    const existing = links.get(finalUrl);
+    if (!existing || score > existing.score) {
+      links.set(finalUrl, { score, text });
+    }
+  }
+
+  return [...links.entries()]
+    .map(([url, info]) => ({ url, ...info }))
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 2);
+}
+
 // Price-pattern matcher. Covers the formats SL creators' pages use:
 //   USD: $49, $49/month, $49 / mo, $1,200
 //   EUR: €19, €19/mês, €19 / month, 19€
@@ -103,10 +166,18 @@ function extractPriceHints(text) {
  * Fetch one URL and return a structured preview. Soft-fail: any error
  * (timeout, 4xx, 5xx, dns) returns an object with { error } instead of
  * throwing, so the caller can continue with the URLs that did work.
+ *
+ * @param {string} url
+ * @param {object} [opts]
+ * @param {boolean} [opts.extractLinks=true]  When true, also scan the HTML
+ *   for pricing-related internal links and return them under
+ *   `discoveredPricingLinks` so the batch caller can do a 1-level follow.
+ *   Set false on the follow-up fetches themselves to avoid recursion.
  */
-export async function fetchUrlPreview(url) {
+export async function fetchUrlPreview(url, opts = {}) {
+  const { extractLinks = true } = opts;
   if (!url || !/^https?:\/\//i.test(url)) {
-    return { url, title: '', description: '', priceHints: [], textExcerpt: '', error: 'invalid URL' };
+    return { url, title: '', description: '', priceHints: [], textExcerpt: '', discoveredPricingLinks: [], error: 'invalid URL' };
   }
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
@@ -118,17 +189,18 @@ export async function fetchUrlPreview(url) {
     });
     clearTimeout(timer);
     if (!res.ok) {
-      return { url, title: '', description: '', priceHints: [], textExcerpt: '', error: `HTTP ${res.status}` };
+      return { url, title: '', description: '', priceHints: [], textExcerpt: '', discoveredPricingLinks: [], error: `HTTP ${res.status}` };
     }
     const html = await res.text();
     const { title, description } = extractMetaTitleDescription(html);
     const fullText = htmlToText(html);
     const textExcerpt = fullText.slice(0, MAX_TEXT_CHARS);
     const priceHints = extractPriceHints(fullText);
-    return { url, title, description, priceHints, textExcerpt };
+    const discoveredPricingLinks = extractLinks ? extractPricingLinks(html, url) : [];
+    return { url, title, description, priceHints, textExcerpt, discoveredPricingLinks };
   } catch (err) {
     clearTimeout(timer);
-    return { url, title: '', description: '', priceHints: [], textExcerpt: '', error: err.name === 'AbortError' ? 'timeout' : (err.message || 'fetch failed') };
+    return { url, title: '', description: '', priceHints: [], textExcerpt: '', discoveredPricingLinks: [], error: err.name === 'AbortError' ? 'timeout' : (err.message || 'fetch failed') };
   }
 }
 
@@ -137,8 +209,49 @@ export async function fetchUrlPreview(url) {
  * input URL (even on failure, with `error` populated). Bounded
  * concurrency would be polite but at typical audit sizes (3-10 URLs)
  * unrestricted Promise.all is fine.
+ *
+ * Pass 2: for every primary URL that surfaced a pricing-related internal
+ * link (homepage with /pricing in the nav, /pro tier link, etc.) we fetch
+ * the top discovered link too. This is what closes the gap when a
+ * creator's homepage doesn't show the price — the price lives on the
+ * sub-page. We follow ONE level deep and skip if the URL is already in
+ * the input list. The follow-up itself doesn't recursively discover more
+ * links (extractLinks: false) so we never spider.
  */
 export async function fetchUrlPreviews(urls) {
   if (!Array.isArray(urls) || urls.length === 0) return [];
-  return Promise.all(urls.map(u => fetchUrlPreview(typeof u === 'string' ? u : u?.url)));
+
+  const inputUrls = urls.map(u => typeof u === 'string' ? u : u?.url).filter(Boolean);
+  const primary = await Promise.all(inputUrls.map(u => fetchUrlPreview(u, { extractLinks: true })));
+
+  // Collect follow-up candidates from each primary's discoveredPricingLinks.
+  // Dedupe across primaries (a /pricing link might appear on every page).
+  // Cap at 2 follow-ups per primary URL (top-scoring) — covers cases like
+  // "creator has BOTH /pricing AND /pro" where each landing matters.
+  // Total follow-ups bounded by primaries × 2.
+  const inputSet = new Set(inputUrls.map(u => u.replace(/[?#].*$/, '')));
+  const followCandidates = new Map(); // url → { sourceUrl }
+  for (const p of primary) {
+    if (!p?.discoveredPricingLinks?.length) continue;
+    for (const candidate of p.discoveredPricingLinks.slice(0, 2)) {
+      const normalised = candidate.url.replace(/[?#].*$/, '');
+      if (inputSet.has(normalised)) continue;        // already in user-provided URLs
+      if (followCandidates.has(normalised)) continue; // dedup across primaries
+      followCandidates.set(normalised, { sourceUrl: p.url, linkText: candidate.text });
+    }
+  }
+
+  if (followCandidates.size === 0) return primary;
+
+  const followUrls = [...followCandidates.keys()];
+  const followResults = await Promise.all(followUrls.map(u => fetchUrlPreview(u, { extractLinks: false })));
+
+  // Annotate follow-ups so the LLM knows they were discovered from another URL.
+  const annotated = followResults.map(r => ({
+    ...r,
+    sourceUrl: followCandidates.get(r.url.replace(/[?#].*$/, ''))?.sourceUrl || null,
+    discoveredFrom: 'follow-pricing-link',
+  }));
+
+  return [...primary, ...annotated];
 }
