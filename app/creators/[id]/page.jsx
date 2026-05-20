@@ -215,7 +215,7 @@ const OpenProfileButton = ({ profileUrl, platformLabel, dmText }) => {
         transition: "all 0.18s ease",
       }}
     >
-      {copied ? "✓ DM copiada · perfil aberto" : (hasText ? "↗ Ver perfil + copiar DM" : "↗ Ver perfil")}
+      {copied ? "✓ Copiada" : "↗ Ver perfil"}
     </a>
   );
 };
