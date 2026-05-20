@@ -2719,11 +2719,13 @@ function EcosystemAuditPanel({ creator, setCreator, running, error, diag, onRun 
       {error && (
         <div style={{ padding: "10px 14px", borderRadius: 6, background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.25)", color: "#ef4444", fontSize: 11, marginBottom: 12, whiteSpace: "pre-wrap" }}>{error}</div>
       )}
-      {diag && !running && (
-        <div style={{ fontSize: 10, color: "#444", marginBottom: 12, fontFamily: "'JetBrains Mono', ui-monospace, monospace" }}>
-          {diag.seed_urls} seed urls · {diag.aggregators_resolved} aggregators resolved · {diag.final_urls_inspected} urls inspected · {diag.retries} retries
-        </div>
-      )}
+      {/* Diagnostics — live `diag` from the current session if present,
+          otherwise the persisted version from the last audit. Helps the
+          operator answer "why did this audit return 0 products?" without
+          re-running. Per-URL preview signals show which links surfaced
+          content vs which failed. */}
+      <AuditDiagnostics diag={diag || creator.offer?.internal_metadata?.ecosystem_audit_diagnostics} running={running} />
+
 
       {!audit && !running && (
         <div style={{ padding: "20px 16px", textAlign: "center", color: "#444", fontSize: 12, border: "1px dashed rgba(255,255,255,0.06)", borderRadius: 6 }}>
@@ -3049,6 +3051,107 @@ function EcosystemAuditPanel({ creator, setCreator, running, error, diag, onRun 
           {runAt && (
             <div style={{ fontSize: 10, color: "#333", marginTop: 14, paddingTop: 10, borderTop: "1px solid rgba(255,255,255,0.04)" }}>
               Last run: {new Date(runAt).toLocaleString("pt-PT")}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────
+// Audit diagnostics — operator-facing "why did this audit come back
+// empty?" view. Pulls the persisted per-URL signal so the team can
+// see exactly which inputs surfaced products and which failed
+// silently (fetch timeout, dead page, JS-rendered with no pricing).
+// ─────────────────────────────────────────────────────────────────
+
+function AuditDiagnostics({ diag, running }) {
+  const [open, setOpen] = useState(false);
+  if (running || !diag) return null;
+
+  // One-line summary that's always visible.
+  const summary = `${diag.seed_urls ?? '?'} seed urls · ${diag.aggregators_resolved ?? 0} aggregators · ${diag.final_urls_inspected ?? '?'} inspected · ${diag.url_previews_count ?? 0} previews · ${diag.products_returned ?? '?'} products returned${diag.retries ? ` · ${diag.retries} retries` : ''}`;
+
+  const ran = diag.ran_at ? new Date(diag.ran_at).toLocaleString('pt-PT') : null;
+  const hasError = !!diag.error;
+
+  return (
+    <div style={{ marginBottom: 12, padding: "10px 12px", background: hasError ? "rgba(239,68,68,0.04)" : "rgba(255,255,255,0.02)", border: `1px solid ${hasError ? "rgba(239,68,68,0.15)" : "rgba(255,255,255,0.05)"}`, borderRadius: 6, fontFamily: "'JetBrains Mono', ui-monospace, monospace" }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+        <div style={{ fontSize: 10, color: hasError ? "#ef4444" : "#666", flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis" }}>
+          {hasError ? `✗ ${diag.error}` : summary}
+          {ran && <span style={{ color: "#444", marginLeft: 8 }}>· {ran}</span>}
+        </div>
+        <button
+          onClick={() => setOpen(o => !o)}
+          style={{ padding: "2px 8px", borderRadius: 4, background: "transparent", border: "1px solid rgba(255,255,255,0.08)", color: "#888", fontSize: 10, cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap" }}
+        >
+          {open ? "Esconder detalhe" : "Ver detalhe"}
+        </button>
+      </div>
+
+      {open && (
+        <div style={{ marginTop: 10, paddingTop: 10, borderTop: "1px solid rgba(255,255,255,0.05)", display: "flex", flexDirection: "column", gap: 10 }}>
+          {/* Aggregator resolution — per-URL Apify expansion result */}
+          {Array.isArray(diag.aggregator_resolution) && diag.aggregator_resolution.length > 0 && (
+            <div>
+              <div style={{ fontSize: 9, fontWeight: 700, color: "#888", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 4 }}>Aggregator resolution (Apify)</div>
+              {diag.aggregator_resolution.map((r, i) => (
+                <div key={i} style={{ fontSize: 10, color: "#666", lineHeight: 1.5 }}>
+                  {r.url}
+                  <span style={{ color: r.resolved_count > 0 ? "#22c55e" : "#ef4444", marginLeft: 6 }}>
+                    → {r.resolved_count} links{r.kept_aggregator ? " (Apify returned 0, kept bare URL)" : ""}
+                  </span>
+                  {r.error && <span style={{ color: "#ef4444", marginLeft: 6 }}>· {r.error}</span>}
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Deterministic scrape — Stan/Linktree direct extraction */}
+          {Array.isArray(diag.deterministic_scrape) && diag.deterministic_scrape.length > 0 && (
+            <div>
+              <div style={{ fontSize: 9, fontWeight: 700, color: "#888", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 4 }}>Deterministic scrape (Stan / Linktree)</div>
+              {diag.deterministic_scrape.map((s, i) => (
+                <div key={i} style={{ fontSize: 10, color: "#666", lineHeight: 1.5 }}>
+                  {s.source || 'unknown'}: {s.url || '—'}
+                  <span style={{ color: s.count > 0 ? "#22c55e" : "#ef4444", marginLeft: 6 }}>
+                    {s.count > 0 ? `→ ${s.count} products` : s.error ? `→ ${s.error}` : '→ no products'}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* URL previews — server-side fetch per URL */}
+          {Array.isArray(diag.url_previews) && diag.url_previews.length > 0 && (
+            <div>
+              <div style={{ fontSize: 9, fontWeight: 700, color: "#888", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 4 }}>URL previews (server-fetched HTML)</div>
+              {diag.url_previews.map((p, i) => (
+                <div key={i} style={{ fontSize: 10, color: "#666", lineHeight: 1.5, marginBottom: 4 }}>
+                  <div style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.url}</div>
+                  {p.error ? (
+                    <div style={{ color: "#ef4444", marginLeft: 8 }}>✗ {p.error}</div>
+                  ) : (
+                    <div style={{ marginLeft: 8, color: "#888" }}>
+                      {p.title ? <span>"{p.title}"</span> : <span style={{ color: "#555" }}>no title</span>}
+                      {p.had_text ? <span style={{ color: "#22c55e", marginLeft: 8 }}>✓ text fetched</span> : <span style={{ color: "#ef4444", marginLeft: 8 }}>✗ empty page</span>}
+                      {p.priceHints?.length > 0 && <span style={{ color: "#22c55e", marginLeft: 8 }}>· prices: {p.priceHints.slice(0, 3).join(', ')}</span>}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Raw output excerpt — only present on parse failures */}
+          {diag.raw_excerpt && (
+            <div>
+              <div style={{ fontSize: 9, fontWeight: 700, color: "#ef4444", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 4 }}>Raw model output (parse failed)</div>
+              <pre style={{ fontSize: 9, color: "#666", maxHeight: 200, overflow: "auto", whiteSpace: "pre-wrap", background: "rgba(0,0,0,0.3)", padding: 8, borderRadius: 4, margin: 0 }}>
+                {diag.raw_excerpt}
+              </pre>
             </div>
           )}
         </div>

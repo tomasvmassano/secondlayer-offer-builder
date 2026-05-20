@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getCreator, updateCreator } from '../../../../lib/creators';
 import { scrapeBioLinks } from '../../../../lib/apify';
 import { scrapeKnownAggregators } from '../../../../lib/aggregatorScrapers';
+import { fetchUrlPreviews } from '../../../../lib/urlPreview';
 import { validateEcosystemAudit, VALID_TIERS, VALID_ROLES } from '../../../../lib/schemas/ecosystemAudit';
 
 // Web_search adds 5-10 tool-use rounds — this can run up to ~90s.
@@ -112,8 +113,37 @@ export async function POST(request, { params }) {
     const aggregatorScrape = await scrapeKnownAggregators(scrapeTargets);
     const preDiscoveredProducts = aggregatorScrape.products;
 
+    // ── Step 2.75: server-side URL previews ──
+    // For URLs that fall through the aggregator scrapers (personal sites,
+    // Substack, Skool, Whop, Patreon, custom paywall landing pages…) we
+    // fetch the HTML ourselves and pull title + meta description +
+    // visible text + any price-like strings. Without this the LLM relies
+    // on web_search alone, which is unreliable for paywalled or
+    // JS-rendered content (the price usually lives on a subpage). Cheap
+    // and parallel — ~5s for 5 URLs, no LLM cost.
+    //
+    // Skip aggregator URLs that we've already deterministically scraped
+    // (preDiscoveredProducts covers them) and obvious dead-end domains
+    // (instagram.com, tiktok.com, youtube.com — those are creators' own
+    // social handles, not products).
+    const SOCIAL_DOMAINS = ['instagram.com', 'tiktok.com', 'youtube.com', 'youtu.be', 'twitter.com', 'x.com', 'facebook.com'];
+    const previewTargets = dedupedUrls
+      .map(u => u.url)
+      .filter(u => {
+        try {
+          const host = new URL(u).hostname.toLowerCase().replace(/^www\./, '');
+          if (SOCIAL_DOMAINS.some(d => host === d || host.endsWith('.' + d))) return false;
+          // If we already pre-discovered products from this URL via the
+          // deterministic scraper, skip preview to save bandwidth.
+          if (aggregatorScrape.scrapedUrls?.includes(u)) return false;
+          return true;
+        } catch { return false; }
+      });
+    const urlPreviews = await fetchUrlPreviews(previewTargets);
+    const urlPreviewsWithSignal = urlPreviews.filter(p => p && (p.title || p.description || p.textExcerpt || p.priceHints?.length));
+
     // ── Step 3: ask Claude ──
-    const audit = await runAudit(apiKey, creator, dedupedUrls, aggregatorsSeen, preDiscoveredProducts);
+    const audit = await runAudit(apiKey, creator, dedupedUrls, aggregatorsSeen, preDiscoveredProducts, urlPreviewsWithSignal);
     if (audit.error) {
       // Persist failure diagnostics so the next debug session has the raw
       // model output + the failure reason. Without this we lose the
@@ -159,6 +189,17 @@ export async function POST(request, { params }) {
       final_urls_inspected: dedupedUrls.length,
       deterministic_scrape: aggregatorScrape.diagnostics,
       pre_discovered_count: preDiscoveredProducts.length,
+      // URL-preview step (fetched server-side, fed as ground-truth context
+      // to the LLM). Per-URL summary lets the operator see WHICH URLs
+      // contributed signal and which failed.
+      url_previews: urlPreviewsWithSignal.map(p => ({
+        url: p.url,
+        title: p.title || '',
+        priceHints: p.priceHints || [],
+        had_text: !!p.textExcerpt,
+        error: p.error || null,
+      })),
+      url_previews_count: urlPreviewsWithSignal.length,
       retries: audit.retries,
       products_returned: audit.data?.ecosystem_map?.products_found?.length || 0,
       communities_returned: audit.data?.ecosystem_map?.existing_communities?.length || 0,
@@ -372,7 +413,7 @@ Empty array [] if standalone.
 4. Run the REQUIRED ADDITIONAL DISCOVERY queries scaled to URL density (see that section). With 5+ input URLs, default is to skip them.
 5. Output must be VALID JSON. No surrounding text. No explanation.`;
 
-async function runAudit(apiKey, creator, urls, aggregatorsSeen, preDiscoveredProducts = [], retryCount = 0) {
+async function runAudit(apiKey, creator, urls, aggregatorsSeen, preDiscoveredProducts = [], urlPreviews = [], retryCount = 0) {
   const creatorContext = [
     `Creator: ${creator.name || 'Unknown'}`,
     `Niche: ${creator.niche || 'Unknown'}`,
@@ -418,6 +459,35 @@ ${preDiscoveredProducts.map((p, i) => `${i + 1}. name: ${p.name}
 `
     : '';
 
+  // Page-preview block — title + meta description + visible text + price
+  // hints we fetched server-side. This is what closes the gap for URLs
+  // that don't expose products via web_search alone (personal sites,
+  // Substack, Skool, Patreon, custom paywall pages, etc.). For each URL
+  // the model gets the actual page text — it no longer has to guess from
+  // search snippets.
+  const previewsBlock = urlPreviews.length > 0
+    ? `## URL PREVIEWS (server-fetched HTML — use this BEFORE web_search)
+
+For each URL in the input list, we already fetched the page server-side and pulled the title, meta description, visible text, and any price-like substrings. Use these previews as your PRIMARY source for product details. Only fall through to web_search when the preview is missing pricing or you need to inspect a subpage (e.g. /pricing) that the preview hints at.
+
+The previews are GROUND TRUTH for what THIS creator publishes — they came from THIS creator's own bio URLs. Identity-verification does NOT apply to anything in these previews.
+
+${urlPreviews.map((p, i) => {
+  const lines = [`${i + 1}. ${p.url}`];
+  if (p.error) {
+    lines.push(`   (fetch error: ${p.error} — try web_search instead)`);
+    return lines.join('\n');
+  }
+  if (p.title) lines.push(`   Title: ${p.title}`);
+  if (p.description) lines.push(`   Description: ${p.description}`);
+  if (p.priceHints?.length) lines.push(`   Price hints found: ${p.priceHints.join(' | ')}`);
+  if (p.textExcerpt) lines.push(`   Page text (first ~2500 chars):\n   "${p.textExcerpt.slice(0, 2500)}"`);
+  return lines.join('\n');
+}).join('\n\n')}
+
+`
+    : '';
+
   const userMessage = `Investigate this creator's existing product ecosystem and return the JSON per the schema in your system prompt.
 
 ## CREATOR
@@ -429,7 +499,8 @@ ${ownedHandles}
 ## URL PROVENANCE
 The URLs under "URLS TO INSPECT" come from THIS creator's own IG bio (externalUrl + multi-link bio). They are owned by definition. The identity-verification rule applies ONLY to extras you find via web_search, NOT to these input URLs. If an aggregator shows "(aggregator — Apify returned 0)", web_search the aggregator URL directly and list every visible product card.
 
-${preDiscoveredBlock}## URLS TO INSPECT (use web_search on each) — count: ${urls.length}
+${preDiscoveredBlock}${previewsBlock}## URLS TO INSPECT — count: ${urls.length}
+Use the URL PREVIEWS above as your primary source. Only run web_search when a URL preview is missing or when you need to follow a subpage hinted at by the preview (e.g. preview shows "Pricing" / "Pro" nav links — search for the price page).
 Per the URL-density rule in your system prompt: ${urls.length >= 5 ? 'this is DENSE (5+) — SKIP the 3 additional discovery searches unless URL inspection turns up zero commerce signals.' : urls.length >= 3 ? 'this is MEDIUM (3-4) — run ONLY the community-search (#1), skip #2 and #3.' : 'this is SPARSE (0-2) — run ALL THREE additional discovery searches.'}
 ${urlList}
 
@@ -481,7 +552,7 @@ Return ONLY the JSON object matching the schema in your system prompt. Start you
   const parsed = tryParseJson(rawText);
   if (!parsed) {
     if (retryCount < 1) {
-      return runAudit(apiKey, creator, urls, aggregatorsSeen, preDiscoveredProducts, retryCount + 1);
+      return runAudit(apiKey, creator, urls, aggregatorsSeen, preDiscoveredProducts, urlPreviews, retryCount + 1);
     }
     return { error: 'Model returned non-JSON output after retry', raw: rawText, errors: [], retries: retryCount };
   }
