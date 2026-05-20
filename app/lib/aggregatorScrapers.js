@@ -31,8 +31,8 @@ import vm from 'node:vm';
 
 const SCRAPERS = {
   'stan.store': scrapeStanStore,
-  // 'linktr.ee':  scrapeLinktree,   // next priority after stan.store
-  // 'beacons.ai': scrapeBeacons,    // ditto
+  'linktr.ee':  scrapeLinktree,
+  // 'beacons.ai': scrapeBeacons,    // next priority
 };
 
 // Pull the bare hostname out of a URL string. Returns lowercase domain
@@ -149,8 +149,9 @@ async function scrapeStanStore(url) {
     }
   }
 
-  // ── Path 2: Legacy Next __NEXT_DATA__ blob ──
-  const match = html.match(/<script id="__NEXT_DATA__" type="application\/json">([\s\S]*?)<\/script>/);
+  // ── Path 2: Legacy Next __NEXT_DATA__ blob (tolerant of extra
+  // attributes like crossorigin="anonymous" on the script tag). ──
+  const match = html.match(/<script id="__NEXT_DATA__"[^>]*>([\s\S]*?)<\/script>/);
   if (match) {
     try {
       const data = JSON.parse(match[1]);
@@ -418,4 +419,129 @@ function decodeHtmlEntities(s) {
     .replace(/&apos;/g, "'")
     .replace(/&nbsp;/g, ' ')
     .replace(/&#(\d+);/g, (_, n) => String.fromCharCode(Number(n)));
+}
+
+// ─────────────────────────────────────────────────────────────────
+// Linktree scraper
+// ─────────────────────────────────────────────────────────────────
+//
+// Linktree is a Next.js app. The entire link list ships in a
+// `<script id="__NEXT_DATA__" type="application/json">{...}</script>`
+// blob inside the HTML — no IIFE, no eval, just JSON.parse.
+//
+// The link array lives at `props.pageProps.account.links` (current shape
+// since 2023). Each entry has at minimum:
+//   { id, type, title, url, position, isActive, ... }
+// Types we care about (we keep them all and let the audit's LLM classify):
+//   "CLASSIC"          — plain external link
+//   "MUSIC"            — audio embed
+//   "VIDEO"            — video embed
+//   "COMMERCE"         — Linktree's own paid-content tier
+//   "SHOP"             — Shopify-style product
+//
+// We DON'T attempt price/tier inference for Linktree because the link
+// titles rarely include prices — the LLM enriches each via web_search
+// of the destination URL. We return tier='unknown' so the audit's
+// "PRE-DISCOVERED PRODUCTS" block treats them as the LLM's enrichment
+// candidates (vs Stan.store entries which arrive with concrete pricing).
+//
+// Fallback chain:
+//   1. Parse __NEXT_DATA__ JSON, read account.links
+//   2. Regex over <a class="...sc-...Link..."> patterns (older Linktree)
+//   3. Return ok:false so the audit's LLM-with-web_search takes over
+//
+// Why this matters: Apify's bio-link expander (used as the runtime
+// safety net upstream) silently fails on Linktree fairly often
+// (rate limit, captcha, DOM change). When that happens we end up with
+// "1 URL inspected" and Claude can't web_search a JS-rendered Linktree
+// page reliably — the page cards aren't in Google's index. The
+// deterministic scraper here closes that gap.
+
+async function scrapeLinktree(url) {
+  let res;
+  try {
+    res = await fetch(url, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9',
+        'Accept-Language': 'en-US,en;q=0.5',
+      },
+      redirect: 'follow',
+    });
+  } catch (err) {
+    return { ok: false, products: [], error: `linktree fetch failed: ${err.message}`, source: 'linktr.ee' };
+  }
+  if (!res.ok) {
+    return { ok: false, products: [], error: `linktr.ee HTTP ${res.status}`, source: 'linktr.ee' };
+  }
+  const html = await res.text();
+
+  // Path 1 — __NEXT_DATA__ JSON blob. Linktree ships the tag with
+  // additional attributes after type="application/json" (e.g.
+  // crossorigin="anonymous"), so the regex must tolerate anything
+  // between the id and the closing >.
+  const match = html.match(/<script id="__NEXT_DATA__"[^>]*>([\s\S]*?)<\/script>/);
+  if (match) {
+    try {
+      const data = JSON.parse(match[1]);
+      // The path varies slightly across Linktree releases. Check the most
+      // common locations in order.
+      const account = data?.props?.pageProps?.account
+        || data?.props?.pageProps?.profile
+        || data?.props?.pageProps?.user
+        || null;
+      const linksRaw = account?.links
+        || data?.props?.pageProps?.links
+        || [];
+      if (Array.isArray(linksRaw) && linksRaw.length > 0) {
+        const products = linksRaw
+          .filter(l => l && (l.url || l.modifiers?.contactDetails) && l.isActive !== false)
+          .map(l => ({
+            name: decodeHtmlEntities(l.title || l.label || l.text || 'Untitled link'),
+            price_eur: null,            // LLM enriches via web_search of the destination
+            url: l.url || '',
+            format: linktreeTypeToFormat(l.type),
+            tier: 'unknown',            // LLM classifies
+            transformation_offered: '', // LLM fills in
+          }))
+          .filter(p => p.url && /^https?:\/\//i.test(p.url));
+        if (products.length > 0) {
+          return { ok: true, products, source: 'linktr.ee (next-data)' };
+        }
+      }
+    } catch {
+      // fall through to regex
+    }
+  }
+
+  // Path 2 — regex over rendered anchor tags. Linktree wraps each card in
+  // an <a> tag with both data-testid="LinkButton" and the destination URL.
+  // This is brittle (Linktree changes class names regularly) but useful
+  // when __NEXT_DATA__ isn't present (rare).
+  const anchorMatches = [...html.matchAll(/<a[^>]*data-testid="LinkButton"[^>]*href="([^"]+)"[^>]*>[\s\S]*?<p[^>]*>([\s\S]*?)<\/p>/gi)];
+  if (anchorMatches.length > 0) {
+    const products = anchorMatches.map(m => ({
+      name: decodeHtmlEntities(m[2].replace(/<[^>]+>/g, '').trim()),
+      price_eur: null,
+      url: m[1],
+      format: 'other',
+      tier: 'unknown',
+      transformation_offered: '',
+    })).filter(p => p.url && p.name);
+    if (products.length > 0) {
+      return { ok: true, products, source: 'linktr.ee (anchor regex)' };
+    }
+  }
+
+  return { ok: false, products: [], error: 'No links found in HTML', source: 'linktr.ee' };
+}
+
+function linktreeTypeToFormat(type) {
+  switch (String(type || '').toUpperCase()) {
+    case 'MUSIC':    return 'other';
+    case 'VIDEO':    return 'other';
+    case 'COMMERCE': return 'other';
+    case 'SHOP':     return 'physical_product';
+    default:         return 'other';
+  }
 }
