@@ -157,6 +157,66 @@ const MessageCard = ({ label, type, content, accent, children }) => {
   );
 };
 
+// One-click "send DM" button for the creator header.
+//
+// Instagram, unlike Gmail, doesn't expose any URL parameter to pre-fill the
+// DM body — the platform's deep links only accept a recipient handle. The
+// closest approximation we can offer:
+//   1. Copy the generated DM text to the clipboard silently
+//   2. Open the IG DM thread directly via ig.me/m/{handle}
+//      (Meta's official shortlink — opens the IG app on mobile, lands on
+//       the web DM thread on desktop)
+// One paste (Cmd+V) and the operator is sending. The button flips to
+// "✓ Copiada" for 2 seconds after click so the operator knows the copy
+// landed before they switch tabs.
+//
+// Renders nothing when there's no IG handle on file (a dead button helps
+// nobody). When dmText is empty (creator hasn't been through dm-writer yet)
+// the chat still opens — we just skip the clipboard step.
+const OpenDmButton = ({ handle, dmText, dmFirstName }) => {
+  const [copied, setCopied] = useState(false);
+  if (!handle) return null;
+  const igUrl = `https://ig.me/m/${handle}`;
+  const hasText = !!(dmText && dmText.trim());
+  const onClick = () => {
+    if (hasText && typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
+      navigator.clipboard.writeText(dmText).then(() => {
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2200);
+      }).catch(() => {/* silent — the chat still opens */});
+    }
+  };
+  return (
+    <a
+      href={igUrl}
+      target="_blank"
+      rel="noopener noreferrer"
+      onClick={onClick}
+      title={hasText ? `Copia a DM gerada e abre o chat Instagram com @${handle}. Depois é só colar (Cmd+V) e enviar.` : `Abre o chat Instagram com @${handle}. Gera a DM primeiro para a copiares automaticamente.`}
+      style={{
+        fontSize: 9,
+        fontWeight: 700,
+        letterSpacing: "0.06em",
+        textTransform: "uppercase",
+        padding: "3px 10px",
+        borderRadius: 4,
+        background: copied ? "rgba(34,197,94,0.15)" : "rgba(177,30,47,0.15)",
+        color: copied ? "#22c55e" : "#B11E2F",
+        border: `1px solid ${copied ? "rgba(34,197,94,0.4)" : "rgba(177,30,47,0.35)"}`,
+        cursor: "pointer",
+        fontFamily: "inherit",
+        textDecoration: "none",
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 4,
+        transition: "all 0.18s ease",
+      }}
+    >
+      {copied ? "✓ Copiada" : (hasText ? "✉ DM" : "✉ DM · vazia")}
+    </a>
+  );
+};
+
 const PendingEmailCard = ({ label, hint, loading, onClick }) => (
   <div style={{ padding: "16px 18px", borderRadius: 8, background: "transparent", border: "1px dashed rgba(255,255,255,0.08)", marginBottom: 10 }}>
     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
@@ -1198,6 +1258,28 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
                   >
                     ↗ Ver perfil
                   </a>
+                );
+              })()}
+              {/* "DM" — Instagram can't pre-fill DM text via URL params
+                  (platform limitation), so we approximate Gmail's one-click
+                  flow by copying the generated DM to the clipboard AND
+                  opening the IG chat with this creator in one tap. Operator
+                  hits Cmd+V and sends. Brief "✓ Copiada" feedback confirms
+                  the copy landed. */}
+              {(() => {
+                const handle = (() => {
+                  const direct = creator.platforms?.instagram?.handle;
+                  if (direct) return String(direct).replace(/^@/, '').toLowerCase();
+                  const url = creator.platforms?.instagram?.url || '';
+                  const m = url.match(/instagram\.com\/([^/?#]+)/i);
+                  return m ? m[1].replace(/^@/, '').toLowerCase() : null;
+                })();
+                return (
+                  <OpenDmButton
+                    handle={handle}
+                    dmText={creator.dmSequence?.dm || ''}
+                    dmFirstName={(creator.name || '').split(/\s+/)[0]}
+                  />
                 );
               })()}
               {/* "Email" — same one-click pattern as "Ver perfil", but for
