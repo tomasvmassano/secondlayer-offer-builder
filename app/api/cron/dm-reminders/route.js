@@ -5,7 +5,16 @@ import { listCreators, getCreator, updateCreator } from '../../../lib/creators';
 // fetch full records only for prospects that haven't replied.
 export const maxDuration = 60;
 
-const NOTIFY_EMAILS = ['tomas@informallabs.com', 'raul@informallabs.com'];
+// Per-operator routing (2026-05-20). Each operator gets their OWN digest
+// covering only the creators they added. Creators with no addedBy.email
+// (legacy / ambiguous) go to BOTH so we never silently drop them — that
+// forces the operator to explicitly assign an owner.
+//
+// Email keys MUST be lowercased to match creator.addedBy.email.toLowerCase().
+const OPERATORS = [
+  { email: 'tomas@informallabs.com', firstName: 'Tomás' },
+  { email: 'raul@informallabs.com',  firstName: 'Raul'  },
+];
 const HUB_BASE = 'https://hub.secondlayerhq.com';
 
 // Outreach cadence — days since the initial DM was sent.
@@ -57,6 +66,11 @@ export async function GET(request) {
     const out = c.outreach || {};
     if (out.repliedAt) continue;                                  // engaged → skip
 
+    // Owner attribution — addedBy.email (lowercased) is the routing key.
+    // null means "no owner": such creators get included in every operator's
+    // digest so they don't silently fall through the cracks.
+    const ownerEmail = c.addedBy?.email ? String(c.addedBy.email).toLowerCase() : null;
+
     // The "first contact" anchor: explicit outreach.dmSentAt wins, else fall
     // back to dmSequence.generatedAt (the user usually sends within minutes of
     // generating). If neither exists, the creator is in "no DM yet" bucket.
@@ -66,7 +80,7 @@ export async function GET(request) {
       // don't pester about creators added this morning).
       const ageDays = c.createdAt ? daysBetween(c.createdAt, now) : 0;
       if (ageDays >= 1) {
-        buckets.noDm.push({ id: c.id, name: c.name, niche: c.niche, followers: pickFollowers(c), ageDays });
+        buckets.noDm.push({ id: c.id, name: c.name, niche: c.niche, followers: pickFollowers(c), ageDays, ownerEmail });
       }
       continue;
     }
@@ -82,7 +96,7 @@ export async function GET(request) {
         pipelineStatus: 'cold',
         outreach: { ...out, remindersSent: { ...remindersSent, autoCold: now.toISOString() } },
       }).catch(() => null);
-      buckets.autoCold.push({ id: c.id, name: c.name, niche: c.niche, daysSinceDM: days });
+      buckets.autoCold.push({ id: c.id, name: c.name, niche: c.niche, daysSinceDM: days, ownerEmail });
       continue;
     }
 
@@ -104,6 +118,7 @@ export async function GET(request) {
       followers: pickFollowers(c),
       daysSinceDM: days,
       followUpsDone,
+      ownerEmail,
     });
 
     // Mark this reminder as sent for this creator → cron never re-pings the
@@ -129,17 +144,53 @@ export async function GET(request) {
     timestamp: now.toISOString(),
   };
 
-  // Only send the digest if there's something actionable.
-  if (totalDue > 0 || buckets.noDm.length > 0 || buckets.autoCold.length > 0) {
+  // Per-operator dispatch. Each operator receives a digest that includes
+  // only the creators they own (addedBy.email match), PLUS any creators
+  // with no owner attribution (those go to everyone so the gap stays
+  // visible). Operators with nothing actionable skip the email entirely.
+  const perOperator = [];
+  for (const op of OPERATORS) {
+    const view = filterForOperator(buckets, op.email);
+    const opTotalDue = view.lastTouch.length + view.valueDrop.length + view.softNudge.length;
+    const actionable = opTotalDue > 0 || view.noDm.length > 0 || view.autoCold.length > 0;
+    if (!actionable) {
+      perOperator.push({ email: op.email, sent: false, reason: 'nothing-due' });
+      continue;
+    }
     try {
-      await sendDigest(buckets, stats);
+      await sendDigest(op, view, { ...stats, opTotalDue });
+      perOperator.push({
+        email: op.email,
+        sent: true,
+        lastTouch: view.lastTouch.length,
+        valueDrop: view.valueDrop.length,
+        softNudge: view.softNudge.length,
+        noDm: view.noDm.length,
+        autoCold: view.autoCold.length,
+      });
     } catch (err) {
-      console.error('[dm-reminders] email send failed:', err.message);
-      return NextResponse.json({ ...stats, emailError: err.message });
+      console.error(`[dm-reminders] email to ${op.email} failed:`, err.message);
+      perOperator.push({ email: op.email, sent: false, error: err.message });
     }
   }
 
-  return NextResponse.json(stats);
+  return NextResponse.json({ ...stats, perOperator });
+}
+
+// Filter every bucket down to creators that belong to one operator.
+// Ownership rule: ownerEmail matches OR ownerEmail is null (ambiguous →
+// everyone). This is intentional — see OPERATORS comment at the top of
+// the file.
+function filterForOperator(buckets, operatorEmail) {
+  const op = String(operatorEmail || '').toLowerCase();
+  const keep = (item) => !item.ownerEmail || item.ownerEmail === op;
+  return {
+    lastTouch: buckets.lastTouch.filter(keep),
+    valueDrop: buckets.valueDrop.filter(keep),
+    softNudge: buckets.softNudge.filter(keep),
+    noDm:      buckets.noDm.filter(keep),
+    autoCold:  buckets.autoCold.filter(keep),
+  };
 }
 
 function pickFollowers(c) {
@@ -150,28 +201,34 @@ function pickFollowers(c) {
 }
 
 // ── Email digest ──
-async function sendDigest(buckets, stats) {
+//
+// Per-operator (2026-05-20): each operator receives a digest with only the
+// creators they own. The greeting + subject are personalised so the email
+// reads like it was written for that person. Ambiguous (no-owner) creators
+// are included in every operator's digest until somebody assigns them.
+async function sendDigest(operator, buckets, stats) {
   const apiKey = process.env.RESEND_API_KEY;
   if (!apiKey) {
-    console.warn('[dm-reminders] RESEND_API_KEY missing — digest not sent');
+    console.warn(`[dm-reminders] RESEND_API_KEY missing — digest for ${operator.email} not sent`);
     return;
   }
 
   const lisbonTime = new Date(stats.timestamp).toLocaleString('pt-PT', { timeZone: 'Europe/Lisbon', dateStyle: 'medium', timeStyle: 'short' });
 
-  // Subject summarises severity.
+  // Subject summarises severity for THIS operator. Falls back to "apenas
+  // update" when only informational sections (noDm / autoCold) fired.
   const subjectBits = [];
   if (buckets.lastTouch.length) subjectBits.push(`${buckets.lastTouch.length} críticos`);
   if (buckets.valueDrop.length) subjectBits.push(`${buckets.valueDrop.length} value drops`);
   if (buckets.softNudge.length) subjectBits.push(`${buckets.softNudge.length} soft nudges`);
   if (buckets.autoCold.length)  subjectBits.push(`${buckets.autoCold.length} cooled`);
-  const subject = `[Second Layer] Reminders · ${subjectBits.join(' · ') || 'apenas update'}`;
+  const subject = `[Second Layer] Os teus reminders · ${subjectBits.join(' · ') || 'apenas update'}`;
 
-  const fmtRow = (c) => `• ${c.name}${c.niche ? ' · ' + c.niche : ''}${c.followers ? ' · ' + c.followers.toLocaleString() + ' followers' : ''} · DM enviada há ${c.daysSinceDM} dias${c.followUpsDone ? ' · ' + c.followUpsDone + ' follow-ups feitos' : ''}`;
-  const fmtRowHtml = (c) => `<li style="margin-bottom: 6px;"><a href="${HUB_BASE}/creators/${c.id}?tab=dm" style="color: #f5f5f5; text-decoration: none; font-weight: 600;">${escape(c.name)}</a> <span style="color: #888;">${c.niche ? '· ' + escape(c.niche) : ''}${c.followers ? ' · ' + c.followers.toLocaleString() + ' followers' : ''} · DM há ${c.daysSinceDM} dias${c.followUpsDone ? ' · ' + c.followUpsDone + ' follow-ups' : ''}</span></li>`;
+  const fmtRow = (c) => `• ${c.name}${c.niche ? ' · ' + c.niche : ''}${c.followers ? ' · ' + c.followers.toLocaleString() + ' followers' : ''} · DM enviada há ${c.daysSinceDM} dias${c.followUpsDone ? ' · ' + c.followUpsDone + ' follow-ups feitos' : ''}${c.ownerEmail ? '' : ' · ⚠ sem owner'}`;
+  const fmtRowHtml = (c) => `<li style="margin-bottom: 6px;"><a href="${HUB_BASE}/creators/${c.id}?tab=dm" style="color: #f5f5f5; text-decoration: none; font-weight: 600;">${escape(c.name)}</a> <span style="color: #888;">${c.niche ? '· ' + escape(c.niche) : ''}${c.followers ? ' · ' + c.followers.toLocaleString() + ' followers' : ''} · DM há ${c.daysSinceDM} dias${c.followUpsDone ? ' · ' + c.followUpsDone + ' follow-ups' : ''}${c.ownerEmail ? '' : ' · <span style="color:#eab308;">⚠ sem owner</span>'}</span></li>`;
 
   // ── Plain-text version ──
-  const lines = [`Olá Tomás e Raul,`, ``, `Reminders de outreach corridos às ${lisbonTime} (Lisboa).`, ``];
+  const lines = [`Olá ${operator.firstName},`, ``, `Reminders dos teus creators corridos às ${lisbonTime} (Lisboa).`, ``];
   if (buckets.lastTouch.length) {
     lines.push(`⚠️  ÚLTIMO TOQUE — dia 14 (${buckets.lastTouch.length})`);
     lines.push(`Envia DM #3 e Email #3 (último contacto). Se não responder até dia 21, vai automaticamente para cold.`);
@@ -211,10 +268,14 @@ async function sendDigest(buckets, stats) {
     <p style="font-size: 13px; color: #888; margin: 0 0 12px;">${hint}</p>
     <ul style="padding-left: 16px; margin: 0; list-style: disc; font-size: 13px; color: #f5f5f5;">${items.map(fmt).join('')}</ul>`;
 
+  // Headline uses opTotalDue — the count for THIS operator's filtered view,
+  // not the team-wide total. Falls back to 0 for legacy callers that pass
+  // the old stats shape.
+  const headlineCount = stats.opTotalDue ?? stats.totalDue ?? 0;
   const html = `<div style="font-family: -apple-system, BlinkMacSystemFont, 'Inter', sans-serif; color: #f5f5f5; background: #0a0a0a; padding: 32px 28px; max-width: 640px;">
-  <div style="font-size: 9px; color: #B11E2F; font-weight: 700; letter-spacing: 0.18em; text-transform: uppercase;">● Reminders</div>
-  <h1 style="font-size: 32px; font-weight: 700; margin: 8px 0 4px; color: #f5f5f5; letter-spacing: -0.02em;">${stats.totalDue} follow-up${stats.totalDue === 1 ? '' : 's'} ${stats.totalDue === 1 ? 'devido hoje' : 'devidos hoje'}</h1>
-  <p style="font-size: 13px; color: #888; margin: 0;">${lisbonTime} · Lisboa</p>
+  <div style="font-size: 9px; color: #B11E2F; font-weight: 700; letter-spacing: 0.18em; text-transform: uppercase;">● Reminders · ${escape(operator.firstName)}</div>
+  <h1 style="font-size: 32px; font-weight: 700; margin: 8px 0 4px; color: #f5f5f5; letter-spacing: -0.02em;">${headlineCount} follow-up${headlineCount === 1 ? '' : 's'} ${headlineCount === 1 ? 'devido hoje' : 'devidos hoje'}</h1>
+  <p style="font-size: 13px; color: #888; margin: 0;">${lisbonTime} · Lisboa · Só os teus creators</p>
 
   ${section('#ef4444', '⚠️ Último toque · dia 14', 'Envia DM #3 e Email #3. Se não responder em 7 dias, vai automaticamente para cold.', buckets.lastTouch, fmtRowHtml)}
   ${section('#eab308', '🟠 Value drop · dia 7', 'Envia DM #2 e Email #2. Drop de valor concreto — caso, número, prova.', buckets.valueDrop, fmtRowHtml)}
@@ -239,7 +300,7 @@ async function sendDigest(buckets, stats) {
     headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({
       from: 'Second Layer Hub <hub@informallabs.com>',
-      to: NOTIFY_EMAILS,
+      to: [operator.email],
       subject,
       text,
       html,
