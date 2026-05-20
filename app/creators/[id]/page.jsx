@@ -1257,19 +1257,48 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
                 <div style={{ marginBottom: 12, padding: "12px 14px", background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.04)", borderRadius: 8 }}>
                   {creator.bio && <p style={{ fontSize: 12, color: "#bbb", margin: 0, lineHeight: 1.6, whiteSpace: "pre-wrap" }}>{creator.bio}</p>}
                   {creator.externalUrl && <a href={creator.externalUrl.startsWith("http") ? creator.externalUrl : "https://" + creator.externalUrl} target="_blank" rel="noopener noreferrer" style={{ display: "block", marginTop: 6, fontSize: 11, color: "#7A0E18", textDecoration: "none" }}>{creator.externalUrl}</a>}
-                  {creator.contactEmail && (
-                    <div style={{ marginTop: 8, display: "flex", alignItems: "center", gap: 8, padding: "6px 10px", background: "rgba(34,197,94,0.06)", border: "1px solid rgba(34,197,94,0.20)", borderRadius: 6 }}>
-                      <span style={{ fontSize: 9, fontWeight: 700, color: "#22c55e", letterSpacing: "0.10em", textTransform: "uppercase" }}>Email</span>
-                      <a href={`mailto:${creator.contactEmail}`} style={{ fontSize: 12, color: "#22c55e", textDecoration: "none", fontFamily: "'JetBrains Mono', ui-monospace, monospace" }}>{creator.contactEmail}</a>
-                      <button
-                        onClick={() => navigator.clipboard.writeText(creator.contactEmail)}
-                        title="Copy email"
-                        style={{ marginLeft: "auto", padding: "2px 8px", borderRadius: 4, border: "1px solid rgba(34,197,94,0.25)", background: "transparent", color: "#22c55e", fontSize: 9, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}
-                      >
-                        Copy
-                      </button>
-                    </div>
-                  )}
+                  {creator.contactEmail && (() => {
+                    // Build a Gmail compose URL that mirrors the "Ver perfil" IG
+                    // flow — one click jumps straight to a draft. When the
+                    // creator already has a generated Day 1 email in their
+                    // dmSequence, we pre-fill subject + body so the operator
+                    // can review, tweak, and send without round-tripping
+                    // through the CRM DM tab. Falls back to just-the-recipient
+                    // for creators that haven't been through dm-writer yet.
+                    const day1 = creator.dmSequence?.email_day1;
+                    const subject = day1?.subject?.trim() || '';
+                    const body = day1?.body?.trim() || '';
+                    const params = new URLSearchParams({
+                      view: 'cm',
+                      fs: '1',
+                      to: creator.contactEmail,
+                    });
+                    if (subject) params.set('su', subject);
+                    if (body) params.set('body', body);
+                    const gmailUrl = `https://mail.google.com/mail/?${params.toString()}`;
+                    return (
+                      <div style={{ marginTop: 8, display: "flex", alignItems: "center", gap: 8, padding: "6px 10px", background: "rgba(34,197,94,0.06)", border: "1px solid rgba(34,197,94,0.20)", borderRadius: 6 }}>
+                        <span style={{ fontSize: 9, fontWeight: 700, color: "#22c55e", letterSpacing: "0.10em", textTransform: "uppercase" }}>Email</span>
+                        <a href={`mailto:${creator.contactEmail}`} style={{ fontSize: 12, color: "#22c55e", textDecoration: "none", fontFamily: "'JetBrains Mono', ui-monospace, monospace" }}>{creator.contactEmail}</a>
+                        <a
+                          href={gmailUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          title={day1 ? "Open Gmail compose · Day 1 pre-filled" : "Open Gmail compose"}
+                          style={{ marginLeft: "auto", padding: "2px 8px", borderRadius: 4, border: "1px solid rgba(34,197,94,0.35)", background: "rgba(34,197,94,0.10)", color: "#22c55e", fontSize: 9, fontWeight: 700, textDecoration: "none", fontFamily: "inherit", letterSpacing: "0.04em" }}
+                        >
+                          ✉ Gmail{day1 ? " · Day 1" : ""}
+                        </a>
+                        <button
+                          onClick={() => navigator.clipboard.writeText(creator.contactEmail)}
+                          title="Copy email"
+                          style={{ padding: "2px 8px", borderRadius: 4, border: "1px solid rgba(34,197,94,0.25)", background: "transparent", color: "#22c55e", fontSize: 9, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}
+                        >
+                          Copy
+                        </button>
+                      </div>
+                    );
+                  })()}
                 </div>
               )}
               {/* IG multi-link bio — Instagram's native "Links" feature, up to 5
