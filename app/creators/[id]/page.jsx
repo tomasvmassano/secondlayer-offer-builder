@@ -157,42 +157,45 @@ const MessageCard = ({ label, type, content, accent, children }) => {
   );
 };
 
-// One-click "send DM" button for the creator header.
+// "Ver perfil" — one-click profile open that ALSO copies the generated
+// cold DM to the clipboard. Designed around the actual Instagram outreach
+// workflow: you have to follow the creator first (IG requires it for cold
+// DMs to land in the primary inbox rather than the Requests filter), and
+// IG offers no URL that auto-follows. So this button does the most the
+// platform allows in one click:
 //
-// Instagram, unlike Gmail, doesn't expose any URL parameter to pre-fill the
-// DM body — the platform's deep links only accept a recipient handle. The
-// closest approximation we can offer:
-//   1. Copy the generated DM text to the clipboard silently
-//   2. Open the IG DM thread directly via ig.me/m/{handle}
-//      (Meta's official shortlink — opens the IG app on mobile, lands on
-//       the web DM thread on desktop)
-// One paste (Cmd+V) and the operator is sending. The button flips to
-// "✓ Copiada" for 2 seconds after click so the operator knows the copy
-// landed before they switch tabs.
+//   1. Copy dmSequence.dm to the clipboard silently
+//   2. Open the creator's profile in a new tab
 //
-// Renders nothing when there's no IG handle on file (a dead button helps
-// nobody). When dmText is empty (creator hasn't been through dm-writer yet)
-// the chat still opens — we just skip the clipboard step.
-const OpenDmButton = ({ handle, dmText, dmFirstName }) => {
+// Operator's flow from there: Follow → Message → Cmd+V → send. Four steps
+// total instead of the five-step version (separate copy + open).
+//
+// The button briefly flips to "✓ Copiada" for 2.2s after click so the
+// operator knows the copy landed before they switch tabs. When dmText is
+// empty (creator hasn't been through dm-writer yet) the profile still
+// opens, the copy step is just skipped, and the label flips to a subtle
+// "↗ Ver perfil · sem DM" so the operator knows what's missing.
+const OpenProfileButton = ({ profileUrl, platformLabel, dmText }) => {
   const [copied, setCopied] = useState(false);
-  if (!handle) return null;
-  const igUrl = `https://ig.me/m/${handle}`;
+  if (!profileUrl) return null;
   const hasText = !!(dmText && dmText.trim());
   const onClick = () => {
     if (hasText && typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
       navigator.clipboard.writeText(dmText).then(() => {
         setCopied(true);
         setTimeout(() => setCopied(false), 2200);
-      }).catch(() => {/* silent — the chat still opens */});
+      }).catch(() => {/* silent — the profile still opens */});
     }
   };
   return (
     <a
-      href={igUrl}
+      href={profileUrl}
       target="_blank"
       rel="noopener noreferrer"
       onClick={onClick}
-      title={hasText ? `Copia a DM gerada e abre o chat Instagram com @${handle}. Depois é só colar (Cmd+V) e enviar.` : `Abre o chat Instagram com @${handle}. Gera a DM primeiro para a copiares automaticamente.`}
+      title={hasText
+        ? `Copia a DM gerada e abre o perfil ${platformLabel} em nova aba. Depois é só seguir → mensagem → colar (Cmd+V).`
+        : `Abre o perfil ${platformLabel} em nova aba. Gera a DM primeiro para a copiares automaticamente.`}
       style={{
         fontSize: 9,
         fontWeight: 700,
@@ -200,9 +203,9 @@ const OpenDmButton = ({ handle, dmText, dmFirstName }) => {
         textTransform: "uppercase",
         padding: "3px 10px",
         borderRadius: 4,
-        background: copied ? "rgba(34,197,94,0.15)" : "rgba(177,30,47,0.15)",
-        color: copied ? "#22c55e" : "#B11E2F",
-        border: `1px solid ${copied ? "rgba(34,197,94,0.4)" : "rgba(177,30,47,0.35)"}`,
+        background: copied ? "rgba(34,197,94,0.15)" : "rgba(122,14,24,0.1)",
+        color: copied ? "#22c55e" : "#7A0E18",
+        border: `1px solid ${copied ? "rgba(34,197,94,0.4)" : "rgba(122,14,24,0.25)"}`,
         cursor: "pointer",
         fontFamily: "inherit",
         textDecoration: "none",
@@ -212,7 +215,7 @@ const OpenDmButton = ({ handle, dmText, dmFirstName }) => {
         transition: "all 0.18s ease",
       }}
     >
-      {copied ? "✓ Copiada" : (hasText ? "✉ DM" : "✉ DM · vazia")}
+      {copied ? "✓ DM copiada · perfil aberto" : (hasText ? "↗ Ver perfil + copiar DM" : "↗ Ver perfil")}
     </a>
   );
 };
@@ -1228,12 +1231,16 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
                   {runningFullScrape ? "A scrapear..." : "↻ Full Scrape"}
                 </button>
               )}
-              {/* "Ver perfil" — opens the creator's main social profile in a
-                  new tab. Picks the URL that matches primaryPlatform (defaults
-                  to Instagram, which is the actual primary for most of our
-                  prospects). Falls back through the other platforms when the
-                  primary one isn't recorded. Hidden when no profile URL is
-                  available anywhere — better than rendering a dead link. */}
+              {/* "Ver perfil" — single button that (a) copies the generated
+                  cold DM to the clipboard and (b) opens the creator's main
+                  social profile in a new tab. Picks the URL that matches
+                  primaryPlatform (defaults to Instagram). Falls back through
+                  TikTok / YouTube when the primary isn't recorded. Hidden
+                  when no profile URL is available.
+
+                  Workflow on Instagram: click here → Follow → Message → paste.
+                  IG requires the follow step before cold DMs land in the
+                  primary inbox; there's no URL that bypasses it. */}
               {(() => {
                 const platforms = creator.platforms || {};
                 const igHandle = platforms.instagram?.handle ? `https://instagram.com/${String(platforms.instagram.handle).replace(/^@/, '')}` : null;
@@ -1249,36 +1256,10 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
                                     : profileUrl === ytUrl ? 'YouTube'
                                     : 'Instagram';
                 return (
-                  <a
-                    href={profileUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    title={`Abrir perfil ${platformLabel} em nova aba`}
-                    style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", padding: "3px 10px", borderRadius: 4, background: "rgba(122,14,24,0.1)", color: "#7A0E18", border: "1px solid rgba(122,14,24,0.25)", cursor: "pointer", fontFamily: "inherit", textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 4 }}
-                  >
-                    ↗ Ver perfil
-                  </a>
-                );
-              })()}
-              {/* "DM" — Instagram can't pre-fill DM text via URL params
-                  (platform limitation), so we approximate Gmail's one-click
-                  flow by copying the generated DM to the clipboard AND
-                  opening the IG chat with this creator in one tap. Operator
-                  hits Cmd+V and sends. Brief "✓ Copiada" feedback confirms
-                  the copy landed. */}
-              {(() => {
-                const handle = (() => {
-                  const direct = creator.platforms?.instagram?.handle;
-                  if (direct) return String(direct).replace(/^@/, '').toLowerCase();
-                  const url = creator.platforms?.instagram?.url || '';
-                  const m = url.match(/instagram\.com\/([^/?#]+)/i);
-                  return m ? m[1].replace(/^@/, '').toLowerCase() : null;
-                })();
-                return (
-                  <OpenDmButton
-                    handle={handle}
+                  <OpenProfileButton
+                    profileUrl={profileUrl}
+                    platformLabel={platformLabel}
                     dmText={creator.dmSequence?.dm || ''}
-                    dmFirstName={(creator.name || '').split(/\s+/)[0]}
                   />
                 );
               })()}
