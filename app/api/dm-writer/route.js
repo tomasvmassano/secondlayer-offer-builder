@@ -41,6 +41,14 @@ Template text is FIXED except for variables. Do NOT paraphrase template sentence
 One blank line between blocks. No emojis in emails or comments (DM allows max 1 emoji in the reacao_pessoal variable if natural). No links. Never mention "Second Layer".
 Never promise specific numbers. Never use titles (Sr., CEO, Founder).
 
+## CHARACTER LIMIT — HARD CAP
+
+The DM (every character between ===DM=== and ===COMMENT_T3===, INCLUDING the greeting line, blank lines between blocks, and the "Abraço, {senderName}" sign-off) MUST be 1000 characters or fewer. Instagram silently truncates DMs above 1000 chars — anything cut off is a wasted send.
+
+When approaching the cap, shorten Block 2 first (cut a sentence from the observation), then tighten Block 3 (one shorter question). Never cut the greeting, never cut the sign-off. If you're over, REWRITE — do not paste a half-DM.
+
+This cap applies ONLY to the DM section. Emails and comments have their own (looser) ceilings and are not limited by this rule.
+
 ## ANTI-AI CHECKLIST — read every sentence against this
 
 If a sentence triggers ANY of these, rewrite it:
@@ -1092,6 +1100,61 @@ ${stageInstruction} Follow the output format exactly. ZERO em dashes.`;
         subject: extract('EMAIL_DAY1_SUBJECT', 'EMAIL_DAY1'),
         body: extract('EMAIL_DAY1', 'EMAIL_DAY7_SUBJECT'),
       };
+
+      // Instagram silently truncates DMs over 1000 chars. The system prompt
+      // already enforces this but LLMs are unreliable at exact char counts,
+      // so we validate post-hoc and run ONE compression pass if we're over.
+      // The retry only asks for a shorter DM — comment + emails are kept
+      // from the first response so we don't waste tokens regenerating them.
+      const DM_HARD_CAP = 1000;
+      if (result.dm.length > DM_HARD_CAP) {
+        const overshoot = result.dm.length - DM_HARD_CAP;
+        const shrinkSystem = `You are a copy editor compressing a cold DM. The DM below is ${result.dm.length} characters (over the 1000-char Instagram limit by ${overshoot}). Rewrite it to be ≤ 1000 characters total INCLUDING the greeting, blank lines, and sign-off.
+
+Rules:
+- Keep the same observation, same question, same voice. Do NOT add new content. Do NOT change the closing.
+- Shorten Block 2 (observation) first — cut one sentence. Then tighten Block 3 (the question) if still over.
+- Preserve the exact greeting line and the "Abraço," / "Cheers," / "Un abrazo," + sender on its own line.
+- ZERO em dashes, en dashes, or " - " punctuation.
+- Output ONLY the rewritten DM. No commentary, no delimiters, nothing else.`;
+        try {
+          const compressRes = await fetch('https://api.anthropic.com/v1/messages', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'x-api-key': apiKey,
+              'anthropic-version': '2023-06-01',
+            },
+            body: JSON.stringify({
+              model: 'claude-sonnet-4-20250514',
+              max_tokens: 1500,
+              system: [{ type: 'text', text: shrinkSystem }],
+              messages: [{ role: 'user', content: result.dm }],
+            }),
+          });
+          if (compressRes.ok) {
+            const compressData = await compressRes.json();
+            const shrunk = (compressData.content || [])
+              .filter(b => b.type === 'text')
+              .map(b => b.text)
+              .join('\n')
+              .trim();
+            const cleanShrunk = stripDashes(shrunk);
+            // Only accept the shrink if it actually fits — otherwise keep the
+            // original and surface the overflow to the client so the
+            // operator knows to trim manually before sending.
+            if (cleanShrunk && cleanShrunk.length <= DM_HARD_CAP) {
+              result.dm = cleanShrunk;
+            } else {
+              result.dm_overflow = { length: result.dm.length, cap: DM_HARD_CAP };
+            }
+          } else {
+            result.dm_overflow = { length: result.dm.length, cap: DM_HARD_CAP };
+          }
+        } catch {
+          result.dm_overflow = { length: result.dm.length, cap: DM_HARD_CAP };
+        }
+      }
     } else if (stage === 'followup_7') {
       result.email_day7 = {
         subject: extract('EMAIL_DAY7_SUBJECT', 'EMAIL_DAY7'),

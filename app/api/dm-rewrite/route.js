@@ -33,12 +33,19 @@ export async function POST(request) {
   // prompt, one call, marginal extra output tokens for the email).
   const isPair = !!(currentEmail && (currentEmail.subject || currentEmail.body));
 
+  // 1000-char Instagram cap — anything over gets silently truncated when
+  // pasted into the IG inbox. The DM-only rewrite enforces it on the
+  // single output; the paired-rewrite enforces it on the ===DM=== section.
+  const DM_HARD_CAP = 1000;
+  const isDmRewrite = touchpointKey === 'dm';
+
   const systemTextSingle = `You rewrite outreach messages for Second Layer. Rules:
 - Write like a real person, peer to peer. Not an agency pitch.
 - NEVER use dashes (—, –, -) as punctuation.
 - NEVER mention pricing, commission, %, business model, "partnership", "collaboration", "proposal", "agency", or "services".
 - Keep the same tone and format as the original.
-- Write in the EXACT language specified in the user message. Do NOT translate. Do NOT switch languages.
+- Write in the EXACT language specified in the user message. Do NOT translate. Do NOT switch languages.${isDmRewrite ? `
+- HARD CHARACTER CAP: the rewritten DM (including greeting, blank lines, and sign-off) MUST be ${DM_HARD_CAP} characters or fewer. Instagram silently truncates above this. If you're approaching the cap, shorten the observation first, then tighten the question. Never cut the greeting or sign-off.` : ''}
 - Output ONLY the rewritten message. No explanation, no preamble.`;
 
   const systemTextPair = `You rewrite a paired outreach unit for Second Layer: the cold DM + the Day 1 email. Both say the SAME thing in two formats — the DM is the short version, the email is the longer written version with one extra paragraph of context. They MUST stay consistent: same observation, same pitch, same close, same voice.
@@ -49,13 +56,13 @@ Rules:
 - NEVER mention pricing, commission, %, business model, "partnership", "collaboration", "proposal", "agency", or "services".
 - Apply the operator's feedback to BOTH messages. If they say "make it sharper", both get sharper. If they say "mention the podcast", both reference the podcast.
 - Preserve each format's scaffold:
-  - DM: short, no email-style greeting, no subject. Pure body.
+  - DM: short, no email-style greeting, no subject. Pure body. HARD CHARACTER CAP ${DM_HARD_CAP}: the entire DM section (greeting + blocks + sign-off) MUST be ${DM_HARD_CAP} characters or fewer. Instagram silently truncates above this. The email is NOT capped — it can be longer.
   - Email: keep the greeting line ("Olá X" / "Hey X" / "Hola X"), the Instagram acknowledgement opener ("Enviei mensagem para o Instagram, mas..." / "I also messaged you on Instagram but..." / "Te envié mensaje por Instagram, pero..."), the partnership-frame line, the video CTA, the soft close ("Faz sentido?" / "Does it make sense?" / "¿Tiene sentido?"), and the sign-off ("Abraço,", "Cheers,", "Un abrazo,"). The OBSERVATION + PITCH paragraphs absorb the rewrite; the scaffold stays.
 - Write in the EXACT language specified in the user message. Do NOT translate. Do NOT switch languages.
 - Output strictly in this format (no preamble, no commentary):
 
 ===DM===
-[rewritten DM, ready to paste]
+[rewritten DM, ready to paste — MUST be ≤ ${DM_HARD_CAP} chars]
 ===EMAIL_SUBJECT===
 [rewritten subject line — keep close to original unless operator feedback demands change]
 ===EMAIL===
@@ -120,8 +127,55 @@ Output the three delimited sections in ${langLabel}. Nothing else.`;
 
     const rawText = (data.content || []).filter(b => b.type === 'text').map(b => b.text).join('\n');
 
+    // Helper — one shot at compressing an over-cap DM. Same pattern as
+    // dm-writer's overflow handler: send the over-long text back to Claude
+    // with a tight "shorten while preserving observation + question + voice"
+    // instruction. Returns the trimmed string when the compression actually
+    // fits; otherwise returns null so the caller can decide what to do.
+    async function compressDm(overLongDm) {
+      const compressSystem = `You are a copy editor compressing a cold Instagram DM. The DM below is ${overLongDm.length} characters (over the ${DM_HARD_CAP}-char Instagram limit). Rewrite it to be ≤ ${DM_HARD_CAP} characters total INCLUDING the greeting, blank lines, and sign-off.
+
+Rules:
+- Keep the same observation, same question, same voice. Do NOT add new content.
+- Shorten the observation first by one sentence. Tighten the question if still over.
+- Preserve the greeting and sign-off lines exactly.
+- ZERO em dashes, en dashes, or " - " punctuation.
+- Output ONLY the rewritten DM. No commentary.`;
+      const compressRes = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': apiKey,
+          'anthropic-version': '2023-06-01',
+        },
+        body: JSON.stringify({
+          model: 'claude-sonnet-4-20250514',
+          max_tokens: 1500,
+          system: [{ type: 'text', text: compressSystem }],
+          messages: [{ role: 'user', content: overLongDm }],
+        }),
+      });
+      if (!compressRes.ok) return null;
+      const compressData = await compressRes.json();
+      const shrunk = (compressData.content || [])
+        .filter(b => b.type === 'text')
+        .map(b => b.text)
+        .join('\n')
+        .trim();
+      return (shrunk && shrunk.length <= DM_HARD_CAP) ? shrunk : null;
+    }
+
     if (!isPair) {
-      return NextResponse.json({ rewritten: rawText });
+      let out = rawText;
+      let overflow = null;
+      // Only enforce the cap when the operator is rewriting the DM itself.
+      // Touchpoints like emails/comments are not Instagram-bound.
+      if (isDmRewrite && out.length > DM_HARD_CAP) {
+        const shrunk = await compressDm(out).catch(() => null);
+        if (shrunk) out = shrunk;
+        else overflow = { length: out.length, cap: DM_HARD_CAP };
+      }
+      return NextResponse.json({ rewritten: out, ...(overflow ? { dm_overflow: overflow } : {}) });
     }
 
     // Parse delimited sections. Tolerant of extra whitespace and missing
@@ -132,13 +186,22 @@ Output the three delimited sections in ${langLabel}. Nothing else.`;
       const m = rawText.match(re);
       return m ? m[1].trim() : '';
     };
-    const rewrittenDm = extract('DM', 'EMAIL_SUBJECT') || currentContent;
+    let rewrittenDm = extract('DM', 'EMAIL_SUBJECT') || currentContent;
     const rewrittenSubject = extract('EMAIL_SUBJECT', 'EMAIL') || currentEmail?.subject || '';
     const rewrittenBody = extract('EMAIL', '') || currentEmail?.body || '';
+
+    // Same overflow guard for the paired DM. The email half is not capped.
+    let dmOverflow = null;
+    if (rewrittenDm.length > DM_HARD_CAP) {
+      const shrunk = await compressDm(rewrittenDm).catch(() => null);
+      if (shrunk) rewrittenDm = shrunk;
+      else dmOverflow = { length: rewrittenDm.length, cap: DM_HARD_CAP };
+    }
 
     return NextResponse.json({
       rewritten: rewrittenDm,
       rewrittenEmail: { subject: rewrittenSubject, body: rewrittenBody },
+      ...(dmOverflow ? { dm_overflow: dmOverflow } : {}),
     });
   } catch (err) {
     return NextResponse.json({ error: err.message }, { status: 502 });

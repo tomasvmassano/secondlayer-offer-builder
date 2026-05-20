@@ -115,19 +115,47 @@ const inputStyle = { width: "100%", padding: "10px 14px", background: "#1a1a1a",
 
 // Defined at module level so React never sees a new component type on re-render.
 // If defined inside the render function, every keystroke causes remount + cursor reset.
-const MessageCard = ({ label, type, content, accent, children }) => (
-  <div style={{ padding: "16px 18px", borderRadius: 8, background: "#141414", border: `1px solid ${accent ? "rgba(122,14,24,0.2)" : "rgba(255,255,255,0.04)"}`, marginBottom: 10 }}>
-    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-        <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: accent ? "#7A0E18" : "#888" }}>{label}</span>
-        <span style={{ fontSize: 8, padding: "1px 6px", borderRadius: 3, background: type === "email" ? "#1a1520" : "rgba(255,255,255,0.03)", color: type === "email" ? "#9a7abf" : "#666", fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase" }}>{type}</span>
+//
+// DM_CHAR_CAP — Instagram silently truncates DMs over 1000 chars. We show a
+// live char counter on type="dm" cards so the operator sees the budget at a
+// glance. Counter goes amber when within 50 chars of the cap and red once
+// over. Other card types (email, comment) don't render the counter — only
+// DM is platform-capped.
+const DM_CHAR_CAP = 1000;
+const MessageCard = ({ label, type, content, accent, children }) => {
+  const isDm = type === 'dm';
+  const len = (content || '').length;
+  const over = isDm && len > DM_CHAR_CAP;
+  const close = isDm && !over && len > DM_CHAR_CAP - 50;
+  const counterColor = over ? '#ef4444' : close ? '#eab308' : '#666';
+  return (
+    <div style={{ padding: "16px 18px", borderRadius: 8, background: "#141414", border: `1px solid ${over ? 'rgba(239,68,68,0.45)' : accent ? "rgba(122,14,24,0.2)" : "rgba(255,255,255,0.04)"}`, marginBottom: 10 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: accent ? "#7A0E18" : "#888" }}>{label}</span>
+          <span style={{ fontSize: 8, padding: "1px 6px", borderRadius: 3, background: type === "email" ? "#1a1520" : "rgba(255,255,255,0.03)", color: type === "email" ? "#9a7abf" : "#666", fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase" }}>{type}</span>
+          {isDm && (
+            <span
+              title={over ? `Acima do limite do Instagram (1000). Instagram corta o que passar.` : close ? `Perto do limite do Instagram (1000)` : `Limite do Instagram: 1000 caracteres`}
+              style={{ fontSize: 9, padding: "1px 6px", borderRadius: 3, background: over ? "rgba(239,68,68,0.12)" : close ? "rgba(234,179,8,0.10)" : "rgba(255,255,255,0.03)", color: counterColor, fontWeight: 600, fontFamily: "'JetBrains Mono', ui-monospace, monospace", letterSpacing: "0.04em" }}
+            >
+              {len}/{DM_CHAR_CAP}
+              {over ? ' ⚠' : ''}
+            </span>
+          )}
+        </div>
+        <button onClick={() => navigator.clipboard.writeText(content)} style={{ padding: "4px 10px", borderRadius: 4, border: "1px solid rgba(255,255,255,0.06)", background: "transparent", color: "#666", fontSize: 9, cursor: "pointer", fontFamily: "inherit" }}>Copy</button>
       </div>
-      <button onClick={() => navigator.clipboard.writeText(content)} style={{ padding: "4px 10px", borderRadius: 4, border: "1px solid rgba(255,255,255,0.06)", background: "transparent", color: "#666", fontSize: 9, cursor: "pointer", fontFamily: "inherit" }}>Copy</button>
+      <div style={{ fontSize: 13, color: "#ccc", lineHeight: 1.7, whiteSpace: "pre-wrap" }}>{content}</div>
+      {over && (
+        <div style={{ marginTop: 10, padding: "8px 10px", background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.25)", borderRadius: 6, fontSize: 11, color: "#ef4444", lineHeight: 1.5 }}>
+          DM está {len - DM_CHAR_CAP} caracteres acima do limite do Instagram. Pede um rewrite mais curto antes de enviar — o IG corta o que passar.
+        </div>
+      )}
+      {children}
     </div>
-    <div style={{ fontSize: 13, color: "#ccc", lineHeight: 1.7, whiteSpace: "pre-wrap" }}>{content}</div>
-    {children}
-  </div>
-);
+  );
+};
 
 const PendingEmailCard = ({ label, hint, loading, onClick }) => (
   <div style={{ padding: "16px 18px", borderRadius: 8, background: "transparent", border: "1px dashed rgba(255,255,255,0.08)", marginBottom: 10 }}>
