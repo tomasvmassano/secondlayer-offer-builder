@@ -306,6 +306,8 @@ ${elements || '(none)'}`;
   // from Phase 3 stay verbatim.
   const langHint = creator?.primaryLanguage === 'en'
     ? `LANGUAGE: Output every string field in ENGLISH. mechanism.letters[].word + .explanation in English. value_stack item.problem/solution/delivery in English. unlocked_bonuses in English.`
+    : creator?.primaryLanguage === 'es'
+    ? `LANGUAGE: Output every string field in Castilian Spanish (España, "tú" form). mechanism.letters[].word + .explanation in Spanish (e.g. S = "Someter", T = "Transformar"). value_stack item.problem/solution/delivery in Spanish. unlocked_bonuses in Spanish. KEEP proper nouns / brand phrases / Phase 3 vocabulary elements verbatim. Do NOT mix languages within a single sentence.`
     : `LANGUAGE: Output every string field in PORTUGUESE (PT-PT). mechanism.letters[].word + .explanation in Portuguese. value_stack item.problem/solution/delivery in Portuguese. unlocked_bonuses in Portuguese. KEEP proper nouns / brand phrases / Phase 3 vocabulary elements verbatim. Do NOT mix languages within a single sentence.`;
 
   const userMessage = `Build the value stack + pricing for this offer. Each CP3 module typically becomes one stack item. value_stack.total MUST be 5-10× value_stack.actualPrice (use the creator's currency from CP2 target_price). mechanism.letters MUST have one entry per letter of mechanism.name.

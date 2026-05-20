@@ -171,6 +171,55 @@ const COPY = {
     section3: 'TECH & AUTOMATION',
     section4: 'STRATEGY & SUPPORT',
   },
+  // Castilian Spanish — added 2026-05-20 for Spain/LATAM Spanish-speaking
+  // creators. Tone matches the PT block (direct, no-nonsense, "tú" form).
+  es: {
+    coverTag: 'PLAN DE LANZAMIENTO · 001',
+    coverTopRight: 'SECONDLAYER',
+    coverTitleA: 'Plan de',
+    coverTitleB: 'Lanzamiento',
+    coverSub: 'Roadmap completo · desde el calentamiento de audiencia al lanzamiento de la comunidad',
+    phasesEyebrow: 'VISIÓN GENERAL',
+    phasesTitleA: '60 días.',
+    phasesTitleB: '3 fases.',
+    phasesSub: 'Cada fase tiene un objetivo claro, assets concretos y métricas para validar antes de avanzar.',
+    phaseNames: ['Top of funnel', 'Middle of funnel', 'Bottom of funnel'],
+    phaseEyebrows: ['CALENTAMIENTO', 'CAPTACIÓN', 'CONVERSIÓN'],
+    phaseDays: ['DÍAS 1–21', 'DÍAS 22–42', 'DÍAS 43–60'],
+    metaLabel: 'OBJETIVO',
+    weeklyEyebrow: 'DIAGNÓSTICO',
+    weeklyTitleA: 'Lo que vamos',
+    weeklyTitleB: 'a lanzar',
+    weeklyContent: 'CONTENIDO SEMANAL',
+    libraryLabel: 'BIBLIOTECA PREGRABADA',
+    objectives: 'OBJETIVOS',
+    organicContent: 'CONTENIDO ORGÁNICO',
+    emailSequence: 'SECUENCIA DE EMAILS',
+    launchSequence: 'SECUENCIA DE LANZAMIENTO',
+    paidTraffic: 'TRÁFICO PAGADO',
+    assets: 'ASSETS QUE ENTREGAMOS',
+    phaseSubs: [
+      'Reactivar audiencia. Captar emails. Construir deseo por la comunidad antes de venderla.',
+      'Nutrir la waitlist con secuencia de emails. Validar oferta con beta. Crear urgencia real para el lanzamiento.',
+      'Lanzamiento público. Carrito abierto 5 días. Anuncios escalando. Conversión máxima.',
+    ],
+    deliverablesEyebrow: 'ENTREGABLES',
+    deliverablesTitleA: 'Todo lo que',
+    deliverablesTitleB: 'construimos.',
+    deliverablesSub: 'Inventario completo de los assets entregados durante los 60 días. Todo tuyo para siempre.',
+    weekEyebrow: 'ROADMAP',
+    weekTitleA: 'Semana',
+    weekTitleB: 'a semana.',
+    weekSub: 'Visión concreta de lo que pasa en cada una de las 8 semanas.',
+    weekFooter: 'Cada semana tiene reunión de revisión · ajustamos con datos reales, no con suposiciones.',
+    valFooter: 'Validación obligatoria entre fases · no avanzamos si la anterior no alcanza las métricas mínimas.',
+    advance: (n, goal) => `Validación para pasar a la Fase ${n} · ${goal} al final del periodo.`,
+    expected: 'Resultado esperado',
+    section1: 'COPY & CONTENIDO',
+    section2: 'DISEÑO & VISUAL',
+    section3: 'TECH & AUTOMATIZACIÓN',
+    section4: 'ESTRATEGIA & SOPORTE',
+  },
 };
 
 // Derive realistic phase goals from the creator's audience size.
@@ -179,12 +228,20 @@ function deriveGoals(audience, lang) {
   const waitlistLeads = Math.max(500, Math.round(a * 0.0017 / 100) * 100);
   const foundingMembers = Math.max(60, Math.round(waitlistLeads * 0.065 / 10) * 10);
   const paidMembers = Math.max(150, Math.round(foundingMembers * 3.0 / 10) * 10);
-  const fmt = (n) => n.toLocaleString(lang === 'en' ? 'en-US' : 'pt-PT');
+  const locale = lang === 'en' ? 'en-US' : lang === 'es' ? 'es-ES' : 'pt-PT';
+  const fmt = (n) => n.toLocaleString(locale);
   if (lang === 'en') {
     return [
       `${fmt(waitlistLeads)} leads on waitlist`,
       `${foundingMembers} founding members confirmed`,
       `${paidMembers} paid members`,
+    ];
+  }
+  if (lang === 'es') {
+    return [
+      `${fmt(waitlistLeads)} leads en waitlist`,
+      `${foundingMembers} founding members confirmados`,
+      `${paidMembers} miembros de pago`,
     ];
   }
   return [
@@ -200,8 +257,18 @@ export async function GET(request, { params }) {
     const creator = await getCreator(creatorId);
     if (!creator) return NextResponse.json({ error: 'Creator not found' }, { status: 404 });
 
-    const lang = (creator?.primaryLanguage || '').toLowerCase().includes('en') ? 'en' : 'pt';
+    // 3-way language gate. Default = PT to preserve legacy behaviour for
+    // creators with empty primaryLanguage.
+    const rawPrimary = (creator?.primaryLanguage || '').toLowerCase();
+    const lang = rawPrimary.startsWith('en') ? 'en'
+               : rawPrimary.startsWith('es') ? 'es'
+               : 'pt';
     const t = COPY[lang];
+    // pickLang(en, pt, es) — picks the matching string. ES defaults to EN
+    // when not supplied (most launch-plan strings have only PT/EN baked in;
+    // ES translations were added on a best-effort basis and the safe
+    // fallback is English, which is still readable for a Spanish audience).
+    const pickLang = (en, pt, es) => lang === 'en' ? en : lang === 'es' ? (es ?? en) : pt;
     // Read via the canonical accessor — works for both wizard-generated offers
     // (client_facing_output set directly) and legacy offers (derived from
     // the parsed markdown blob on the fly). Internal_metadata never leaks here.
@@ -508,6 +575,8 @@ export async function GET(request, { params }) {
     const today = new Date();
     const monthNames = lang === 'en'
       ? ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC']
+      : lang === 'es'
+      ? ['ENE','FEB','MAR','ABR','MAY','JUN','JUL','AGO','SEP','OCT','NOV','DIC']
       : ['JAN','FEV','MAR','ABR','MAI','JUN','JUL','AGO','SET','OUT','NOV','DEZ'];
     const dateStr = `${monthNames[today.getMonth()]} ${today.getFullYear()}`;
     doc.setFont(MONO, 'normal');
@@ -604,9 +673,11 @@ export async function GET(request, { params }) {
     eyebrow(t.weeklyEyebrow, margin, 78);
     title(t.weeklyTitleA, t.weeklyTitleB, margin, 144);
     subtitle(
-      lang === 'en'
-        ? `${commName} — monthly community at €${price}/mo. The exact weekly content + pre-recorded vault we'll ship.`
-        : `${commName} — comunidade mensal a €${price}/mês. O conteúdo semanal exato + a biblioteca pré-gravada que vamos lançar.`,
+      pickLang(
+        `${commName} — monthly community at €${price}/mo. The exact weekly content + pre-recorded vault we'll ship.`,
+        `${commName} — comunidade mensal a €${price}/mês. O conteúdo semanal exato + a biblioteca pré-gravada que vamos lançar.`,
+        `${commName} — comunidad mensual a €${price}/mes. El contenido semanal exacto + la biblioteca pregrabada que vamos a lanzar.`,
+      ),
       margin, 162, 800
     );
 
@@ -713,63 +784,83 @@ export async function GET(request, { params }) {
 
     // ── PAGE 4 · FASE 01 ──
     phaseDetailPage(4, 0,
-      lang === 'en' ? 'Top' : 'Topo',
-      lang === 'en' ? 'of funnel' : 'de funil',
+      pickLang('Top', 'Topo', 'Top'),
+      pickLang('of funnel', 'de funil', 'of funnel'),
       [
-        { title: t.objectives, items: lang === 'en' ? [
+        { title: t.objectives, items: pickLang([
           'Reactivate engagement from baseline to 1.5%',
           `Capture ${goals[0]}`,
           `Position ${creator?.name || 'creator'} as authority #1`,
-        ] : [
+        ], [
           'Reactivar engagement da baseline para 1.5%',
           `Capturar ${goals[0]}`,
           `Posicionar ${creator?.name || 'criador'} como autoridade nº1`,
-        ]},
-        { title: t.organicContent, items: lang === 'en' ? [
+        ], [
+          'Reactivar engagement de baseline a 1,5%',
+          `Captar ${goals[0]}`,
+          `Posicionar a ${creator?.name || 'creador'} como autoridad nº1`,
+        ])},
+        { title: t.organicContent, items: pickLang([
           '9 Reels (3/week): contrarian hooks on your niche',
           '3 carousels: personal story + vision',
           '21 stories (1/day): behind-the-scenes, polls, testimonials',
           '1 weekly Live 30min: niche Q&A with waitlist hook',
-        ] : [
+        ], [
           '9 Reels (3/semana): hooks contrarian sobre o teu nicho',
           '3 carrosséis storytelling: percurso pessoal e visão',
           '21 stories (1/dia): bastidores, polls, testimonials',
           '1 Live semanal 30min: Q&A com gancho para waitlist',
-        ]},
-        { title: t.assets, items: lang === 'en' ? [
+        ], [
+          '9 Reels (3/semana): hooks contrarios sobre tu nicho',
+          '3 carruseles: historia personal + visión',
+          '21 stories (1/día): bastidores, polls, testimonios',
+          '1 Live semanal 30min: Q&A de nicho con gancho a la waitlist',
+        ])},
+        { title: t.assets, items: pickLang([
           'Lead magnet (PDF + videos)',
           'Waitlist landing page (copy + design + tracking)',
           'Scripts for 9 Reels + 3 carousels',
           'Email capture + auto-tagging system',
           'Weekly metrics dashboard',
-        ] : [
+        ], [
           'Lead magnet (PDF + vídeos)',
           'Landing page de waitlist (copy + design + tracking)',
           'Guiões para 9 Reels + 3 carrosséis',
           'Sistema de captura de emails + tagging automático',
           'Dashboard de métricas semanais',
-        ]},
+        ], [
+          'Lead magnet (PDF + vídeos)',
+          'Landing page de waitlist (copy + diseño + tracking)',
+          'Guiones para 9 Reels + 3 carruseles',
+          'Sistema de captura de emails + tagging automático',
+          'Dashboard de métricas semanales',
+        ])},
       ],
       t.advance(2, goals[0])
     );
 
     // ── PAGE 5 · FASE 02 ──
     phaseDetailPage(5, 1,
-      lang === 'en' ? 'Middle' : 'Meio',
-      lang === 'en' ? 'of funnel' : 'de funil',
+      pickLang('Middle', 'Meio', 'Middle'),
+      pickLang('of funnel', 'de funil', 'of funnel'),
       [
-        { title: t.objectives, items: lang === 'en' ? [
+        { title: t.objectives, items: pickLang([
           'Warm waitlist with 7 storytelling emails',
           'Beta-test offer with 100 founding members (€14/mo lifetime)',
           'Collect 20+ testimonials and cases for launch',
           'Refine messaging based on real responses',
-        ] : [
+        ], [
           'Aquecer waitlist com 7 emails de storytelling',
           'Beta-test oferta com 100 founding members (€14/mês vitalício)',
           'Recolher 20+ testimonials e cases para usar no lançamento',
           'Refinar mensagem com base em respostas reais',
-        ]},
-        { title: t.emailSequence, items: lang === 'en' ? [
+        ], [
+          'Calentar la waitlist con 7 emails de storytelling',
+          'Beta-test de la oferta con 100 founding members (€14/mes vitalicio)',
+          'Recoger 20+ testimonios y casos para el lanzamiento',
+          'Refinar el mensaje con respuestas reales',
+        ])},
+        { title: t.emailSequence, items: pickLang([
           'Email 1 · Story: how I got here',
           'Email 2 · The method',
           'Email 3 · Waitlist-exclusive content',
@@ -777,7 +868,7 @@ export async function GET(request, { params }) {
           'Email 5 · The problem with generic online courses',
           'Email 6 · Founding-member invite (limited spots)',
           'Email 7 · Final 24h beta call',
-        ] : [
+        ], [
           'Email 1 · História: como cheguei aqui',
           'Email 2 · O método',
           'Email 3 · Conteúdo exclusivo da waitlist',
@@ -785,22 +876,37 @@ export async function GET(request, { params }) {
           'Email 5 · O problema com cursos online genéricos',
           'Email 6 · Convite founding members (vagas limitadas)',
           'Email 7 · Última chamada beta · 24h',
-        ]},
-        { title: t.assets, items: lang === 'en' ? [
+        ], [
+          'Email 1 · Historia: cómo llegué aquí',
+          'Email 2 · El método',
+          'Email 3 · Contenido exclusivo de la waitlist',
+          'Email 4 · Caso de transformación',
+          'Email 5 · El problema con los cursos online genéricos',
+          'Email 6 · Invitación founding members (plazas limitadas)',
+          'Email 7 · Última llamada beta · 24h',
+        ])},
+        { title: t.assets, items: pickLang([
           '7 complete emails (copy + design + automation)',
           'Beta founding-members page (restricted access)',
           'Stripe payment + checkout system',
           'Onboarding sequence for the first 100',
           `Community platform configured (${cfo.platform || 'Circle / Skool'})`,
           'Testimonial collection system',
-        ] : [
+        ], [
           '7 emails completos (copy + design + automação)',
           'Página beta founding members (acesso restrito)',
           'Sistema de pagamento Stripe + checkout',
           'Onboarding sequence para os primeiros 100',
           `Plataforma da comunidade configurada (${cfo.platform || 'Circle / Skool'})`,
           'Sistema de recolha de testimonials',
-        ]},
+        ], [
+          '7 emails completos (copy + diseño + automatización)',
+          'Página beta founding members (acceso restringido)',
+          'Sistema de pago Stripe + checkout',
+          'Onboarding para los primeros 100',
+          `Plataforma de la comunidad configurada (${cfo.platform || 'Circle / Skool'})`,
+          'Sistema de recogida de testimonios',
+        ])},
       ],
       t.advance(3, goals[1])
     );
@@ -808,40 +914,54 @@ export async function GET(request, { params }) {
     // ── PAGE 6 · FASE 03 ──
     const paidMembersNum = Number(String(goals[2]).replace(/[^0-9]/g, '')) || 300;
     const expectedMRR = Math.round(price * paidMembersNum);
-    const mrrFmt = expectedMRR.toLocaleString(lang === 'en' ? 'en-US' : 'pt-PT');
+    const mrrLocale = lang === 'en' ? 'en-US' : lang === 'es' ? 'es-ES' : 'pt-PT';
+    const mrrFmt = expectedMRR.toLocaleString(mrrLocale);
     phaseDetailPage(6, 2,
-      lang === 'en' ? 'Bottom' : 'Fundo',
-      lang === 'en' ? 'of funnel' : 'de funil',
+      pickLang('Bottom', 'Fundo', 'Bottom'),
+      pickLang('of funnel', 'de funil', 'of funnel'),
       [
-        { title: t.launchSequence, items: lang === 'en' ? [
+        { title: t.launchSequence, items: pickLang([
           'Day 43-49 · Pre-launch: 3 emails + public content',
           'Day 51 · Cart opens · email + posts',
           'Day 52-54 · Sales sequence (3 emails)',
           'Day 55 · 24h final notice + Live Q&A',
           'Day 56 · Cart closes at midnight',
-        ] : [
+        ], [
           'Dia 43-49 · Pré-lançamento: 3 emails + conteúdo público',
           'Dia 51 · Carrinho abre · email + posts',
           'Dia 52-54 · Sequência de vendas (3 emails)',
           'Dia 55 · 24h aviso final + Live de Q&A',
           'Dia 56 · Carrinho fecha à meia-noite',
-        ]},
-        { title: t.paidTraffic, items: lang === 'en' ? [
+        ], [
+          'Día 43-49 · Pre-lanzamiento: 3 emails + contenido público',
+          'Día 51 · Carrito abre · email + posts',
+          'Día 52-54 · Secuencia de ventas (3 emails)',
+          'Día 55 · Aviso final 24h + Live Q&A',
+          'Día 56 · Carrito cierra a medianoche',
+        ])},
+        { title: t.paidTraffic, items: pickLang([
           'Meta Ads · €50/day initial, scale to €200/day',
           'TikTok Ads · €30/day (younger audience)',
           'Retargeting sales-page visitors',
           'Lookalike audiences from founding members',
           'Creatives: 6 videos + 4 carousels',
           'Total estimated budget: €4,000–6,000',
-        ] : [
+        ], [
           'Meta Ads · €50/dia inicial, escala até €200/dia',
           'TikTok Ads · €30/dia (audiência mais jovem)',
           'Retargeting visitantes da sales page',
           'Lookalike audiences a partir dos founding members',
           'Criativos: 6 vídeos + 4 carrosséis',
           'Budget total estimado: €4,000–6,000',
-        ]},
-        { title: t.assets, items: lang === 'en' ? [
+        ], [
+          'Meta Ads · €50/día inicial, escala hasta €200/día',
+          'TikTok Ads · €30/día (audiencia más joven)',
+          'Retargeting de visitantes de la sales page',
+          'Audiencias lookalike a partir de los founding members',
+          'Creatividades: 6 vídeos + 4 carruseles',
+          'Presupuesto total estimado: €4.000–6.000',
+        ])},
+        { title: t.assets, items: pickLang([
           'Complete sales page (long-form, with video)',
           'Masterclass page + registration system',
           '5 launch emails (copy + design)',
@@ -849,7 +969,7 @@ export async function GET(request, { params }) {
           'Full Meta + TikTok campaign setup',
           'Optimized checkout + €47 upsell',
           'Live conversion tracking dashboard',
-        ] : [
+        ], [
           'Sales page completa (long-form, com vídeo)',
           'Página da masterclass + sistema de inscrição',
           '5 emails de lançamento (copy + design)',
@@ -857,11 +977,21 @@ export async function GET(request, { params }) {
           'Setup completo de campanhas Meta + TikTok',
           'Página de checkout otimizada + upsell €47',
           'Live tracking de conversões em tempo real',
-        ]},
+        ], [
+          'Sales page completa (long-form, con vídeo)',
+          'Página de la masterclass + sistema de inscripción',
+          '5 emails de lanzamiento (copy + diseño)',
+          '10 creatividades de ads (6 vídeos + 4 carruseles)',
+          'Setup completo de campañas Meta + TikTok',
+          'Página de checkout optimizada + upsell €47',
+          'Dashboard de tracking de conversiones en vivo',
+        ])},
       ],
-      lang === 'en'
-        ? `${t.expected} · ${goals[2]} · €${mrrFmt} MRR by end of day 60.`
-        : `${t.expected} · ${goals[2]} · €${mrrFmt} MRR no fim do dia 60.`
+      pickLang(
+        `${t.expected} · ${goals[2]} · €${mrrFmt} MRR by end of day 60.`,
+        `${t.expected} · ${goals[2]} · €${mrrFmt} MRR no fim do dia 60.`,
+        `${t.expected} · ${goals[2]} · €${mrrFmt} MRR al final del día 60.`,
+      )
     );
 
     // ═══════════════════════════════════════════════════════════════
@@ -878,7 +1008,7 @@ export async function GET(request, { params }) {
     const quadW = (pageW - margin * 2 - 18) / 2;
     const quadH = (pageH - quadY - 70 - 18) / 2;
     const quadrants = [
-      { title: t.section1, items: lang === 'en' ? [
+      { title: t.section1, items: pickLang([
         '1 complete lead magnet (PDF + videos)',
         '12 Reel scripts',
         '3 Instagram carousels',
@@ -886,7 +1016,7 @@ export async function GET(request, { params }) {
         '12 nurture + launch emails',
         'Long-form sales page',
         'All ad copy (Meta + TikTok)',
-      ] : [
+      ], [
         '1 Lead magnet completo (PDF + vídeos)',
         '12 guiões de Reels',
         '3 carrosséis de Instagram',
@@ -894,8 +1024,16 @@ export async function GET(request, { params }) {
         '12 emails de nurture e lançamento',
         'Sales page long-form',
         'Copy de todos os ads (Meta + TikTok)',
-      ]},
-      { title: t.section2, items: lang === 'en' ? [
+      ], [
+        '1 Lead magnet completo (PDF + vídeos)',
+        '12 guiones de Reels',
+        '3 carruseles de Instagram',
+        '21 stories pre-escritas',
+        '12 emails de nurturing y lanzamiento',
+        'Sales page long-form',
+        'Copy de todos los ads (Meta + TikTok)',
+      ])},
+      { title: t.section2, items: pickLang([
         'Lead magnet professionally designed',
         'Waitlist landing page',
         'Masterclass page',
@@ -903,7 +1041,7 @@ export async function GET(request, { params }) {
         'Checkout + upsell pages',
         '10 ad creatives (6 videos + 4 carousels)',
         'Community visual identity',
-      ] : [
+      ], [
         'Lead magnet maquetado profissionalmente',
         'Landing page de waitlist',
         'Página da masterclass',
@@ -911,8 +1049,16 @@ export async function GET(request, { params }) {
         'Páginas de checkout e upsell',
         '10 criativos de ads (6 vídeos + 4 carrosséis)',
         'Identidade visual da comunidade',
-      ]},
-      { title: t.section3, items: lang === 'en' ? [
+      ], [
+        'Lead magnet maquetado profesionalmente',
+        'Landing page de waitlist',
+        'Página de la masterclass',
+        'Sales page con vídeo embebido',
+        'Páginas de checkout y upsell',
+        '10 creatividades de ads (6 vídeos + 4 carruseles)',
+        'Identidad visual de la comunidad',
+      ])},
+      { title: t.section3, items: pickLang([
         'Community platform configured',
         'Email marketing system (sequences + tags)',
         'Stripe + optimized checkout',
@@ -920,7 +1066,7 @@ export async function GET(request, { params }) {
         'Meta + TikTok campaign setup',
         'Automatic onboarding for new members',
         'Real-time metrics dashboard',
-      ] : [
+      ], [
         'Plataforma da comunidade configurada',
         'Sistema de email marketing (sequências e tags)',
         'Stripe + checkout otimizado',
@@ -928,8 +1074,16 @@ export async function GET(request, { params }) {
         'Setup de campanhas Meta + TikTok',
         'Onboarding automático de novos membros',
         'Dashboard de métricas em tempo real',
-      ]},
-      { title: t.section4, items: lang === 'en' ? [
+      ], [
+        'Plataforma de la comunidad configurada',
+        'Sistema de email marketing (secuencias y tags)',
+        'Stripe + checkout optimizado',
+        'Pixel + tracking + UTMs',
+        'Setup de campañas Meta + TikTok',
+        'Onboarding automático para nuevos miembros',
+        'Dashboard de métricas en tiempo real',
+      ])},
+      { title: t.section4, items: pickLang([
         'Complete 60-day editorial calendar',
         'Week-by-week roadmap',
         'Weekly 60min review meetings',
@@ -937,7 +1091,7 @@ export async function GET(request, { params }) {
         'Metrics analysis and adjustments',
         'Post-launch retention plan',
         'Scale roadmap from month 3+',
-      ] : [
+      ], [
         'Calendário editorial completo de 60 dias',
         'Roteiro semana a semana',
         'Reuniões semanais de revisão (60min)',
@@ -945,7 +1099,15 @@ export async function GET(request, { params }) {
         'Análise de métricas e ajustes',
         'Plano de retenção pós-lançamento',
         'Roadmap de escala mês 3+',
-      ]},
+      ], [
+        'Calendario editorial completo de 60 días',
+        'Roadmap semana a semana',
+        'Reuniones semanales de revisión (60min)',
+        'Acceso directo por WhatsApp en horario laboral',
+        'Análisis de métricas y ajustes',
+        'Plan de retención post-lanzamiento',
+        'Roadmap de escala desde el mes 3+',
+      ])},
     ];
     quadrants.forEach((q, i) => {
       const col = i % 2, row = Math.floor(i / 2);
@@ -973,7 +1135,7 @@ export async function GET(request, { params }) {
     const colDescX = margin + colWeek + colPhase + 20;
     const colDescW = pageW - margin - colDescX;
 
-    const weeks = lang === 'en' ? [
+    const weeks = pickLang([
       ['W1', 'WARM-UP',    'Tech setup · waitlist landing page · lead magnet finalized · active pixel'],
       ['W2', 'WARM-UP',    'Organic content starts · 3 Reels · 1 carousel · first Live'],
       ['W3', 'WARM-UP',    'Intensive content · daily stories · first 800-1000 emails on waitlist'],
@@ -982,7 +1144,7 @@ export async function GET(request, { params }) {
       ['W6', 'CAPTURE',    'Beta close · 100 founding members · testimonials collected · offer refined'],
       ['W7', 'CONVERSION', 'Pre-launch · 3 warm-up emails · ads on in cold-traffic mode'],
       ['W8', 'CONVERSION', 'Live masterclass · cart opens · sales sequence · ad scaling'],
-    ] : [
+    ], [
       ['S1', 'AQUECIMENTO','Setup técnico · landing page de waitlist · lead magnet finalizado · pixel ativo'],
       ['S2', 'AQUECIMENTO','Início do conteúdo orgânico · 3 Reels · 1 carrossel · primeira Live'],
       ['S3', 'AQUECIMENTO','Conteúdo intensivo · stories diários · primeiros 800-1000 emails na waitlist'],
@@ -991,7 +1153,16 @@ export async function GET(request, { params }) {
       ['S6', 'CAPTAÇÃO',   'Fecho do beta · 100 founding members · recolha de testimonials · refinamento da oferta'],
       ['S7', 'CONVERSÃO',  'Pré-lançamento · 3 emails de aquecimento · ads ligados em modo de tráfego frio'],
       ['S8', 'CONVERSÃO',  'Masterclass ao vivo · carrinho abre · sequência de vendas · escala de ads'],
-    ];
+    ], [
+      ['S1', 'CALENTAMIENTO','Setup técnico · landing page de waitlist · lead magnet finalizado · pixel activo'],
+      ['S2', 'CALENTAMIENTO','Inicio del contenido orgánico · 3 Reels · 1 carrusel · primera Live'],
+      ['S3', 'CALENTAMIENTO','Contenido intensivo · stories diarias · primeros 800-1000 emails en la waitlist'],
+      ['S4', 'CAPTACIÓN',    'Inicio del nurturing de la waitlist · emails 1, 2 y 3 enviados · plataforma de la comunidad lista'],
+      ['S5', 'CAPTACIÓN',    'Invitación founding members · oferta beta a €14 · primeros 50 miembros'],
+      ['S6', 'CAPTACIÓN',    'Cierre del beta · 100 founding members · testimonios recogidos · oferta refinada'],
+      ['S7', 'CONVERSIÓN',   'Pre-lanzamiento · 3 emails de calentamiento · ads encendidos en modo tráfico frío'],
+      ['S8', 'CONVERSIÓN',   'Masterclass en directo · carrito abre · secuencia de ventas · escala de ads'],
+    ]);
     weeks.forEach((row, i) => {
       const yy = tableY + i * rowH;
       // Subtle row band — alternates between two dark shades.
@@ -1007,7 +1178,9 @@ export async function GET(request, { params }) {
       doc.text(row[0], margin + colWeek / 2, yy + rowH / 2 + 6, { align: 'center' });
       // Phase chip
       const phase = row[1];
-      const chipShade = phase.includes('AQU') || phase.includes('WARM') ? [60, 18, 24]
+      // ES uses CALENTAMIENTO (matches "CALENT"), CAPTACIÓN (matches "CAPT"), CONVERSIÓN.
+      // PT uses AQUECIMENTO, CAPTAÇÃO, CONVERSÃO. EN uses WARM, CAPTURE, CONVERSION.
+      const chipShade = phase.includes('AQU') || phase.includes('WARM') || phase.includes('CALENT') ? [60, 18, 24]
         : phase.includes('CAPT') ? [85, 22, 30]
         : RED_DEEP;
       setFill(chipShade); setDraw(RED); doc.setLineWidth(0.5);

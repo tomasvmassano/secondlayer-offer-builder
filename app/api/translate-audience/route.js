@@ -4,7 +4,7 @@ import { NextResponse } from 'next/server';
  * Translate audience data block to a target language.
  * Used by the pitch deck to ensure audience labels match creator's primaryLanguage.
  *
- * Input:  { audience: {gender, age, location, language, interests}, targetLanguage: "pt"|"en" }
+ * Input:  { audience: {gender, age, location, language, interests}, targetLanguage: "pt"|"en"|"es" }
  * Output: { audience: same shape but translated }
  */
 export async function POST(request) {
@@ -23,16 +23,21 @@ export async function POST(request) {
     return NextResponse.json({ error: 'audience and targetLanguage required' }, { status: 400 });
   }
 
-  const targetLangFull = targetLanguage === 'pt' ? 'European Portuguese' : 'English';
+  const targetLangFull = targetLanguage === 'pt'
+    ? 'European Portuguese'
+    : targetLanguage === 'es'
+    ? 'Castilian Spanish (España, "tú" form)'
+    : 'English';
 
   const prompt = `Translate the following audience data block to ${targetLangFull}. Preserve the structure exactly. Translate ALL text including country names, demographics, percentages stay as numbers but labels translate.
 
 Examples of translation:
-- "65% Female, 35% Male" → "65% Feminino, 35% Masculino" (PT)
+- "65% Female, 35% Male" → "65% Feminino, 35% Masculino" (PT) / "65% Femenino, 35% Masculino" (ES)
 - "Portugal 70%, Other Portuguese speaking countries 30%" → "Portugal 70%, Outros países lusófonos 30%" (PT)
+- "Spain 70%, Other Spanish speaking countries 30%" → "España 70%, Otros países hispanohablantes 30%" (ES)
 - "25-34" → "25-34" (numbers stay)
-- "English 80%, Portuguese 20%" → "Inglês 80%, Português 20%" (PT)
-- "Healthy Lifestyle, Meal Prep" → "Estilo de Vida Saudável, Preparação de Refeições" (PT)
+- "English 80%, Portuguese 20%" → "Inglês 80%, Português 20%" (PT) / "Inglés 80%, Portugués 20%" (ES)
+- "Healthy Lifestyle, Meal Prep" → "Estilo de Vida Saudável, Preparação de Refeições" (PT) / "Estilo de Vida Saludable, Preparación de Comidas" (ES)
 
 Input audience:
 ${JSON.stringify(audience, null, 2)}

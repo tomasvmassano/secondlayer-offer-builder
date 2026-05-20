@@ -268,6 +268,8 @@ CREATOR VOICE: ${uniqueness?.creator_voice_summary || '(none)'}`;
 
   const langHint = creator?.primaryLanguage === 'en'
     ? `LANGUAGE: Output every string field in ENGLISH. Use English day labels (MON/TUE/WED/THU/FRI/SAT/SUN) for weekly_formats.day.`
+    : creator?.primaryLanguage === 'es'
+    ? `LANGUAGE: Output every string field in Castilian Spanish (España, "tú" form). Use Spanish day labels (LUN/MAR/MIÉ/JUE/VIE/SÁB/DOM) for weekly_formats.day. Phase 3 vocabulary may be in English or Portuguese — keep proper nouns / brand phrases / vocabulary elements verbatim ("Stride System Template", etc.) but translate descriptions and transformation_delivered into Spanish. Do NOT mix languages within a single sentence.`
     : `LANGUAGE: Output every string field in PORTUGUESE (PT-PT). Use Portuguese day labels (SEG/TER/QUA/QUI/SEX/SÁB/DOM) for weekly_formats.day. Phase 3 vocabulary may be in English — keep proper nouns / brand phrases / vocabulary elements verbatim ("Stride System Template", etc.) but translate descriptions and transformation_delivered into Portuguese. Do NOT mix languages within a single sentence.`;
 
   const userMessage = `Design 4-8 modules for this offer plus the weekly_formats + library arrays that derive from them. Every module must link to ≥1 Phase 3 uniqueness element by its [index] number.

@@ -172,9 +172,12 @@ export default function OnboardingPage() {
     }
   };
 
-  // Lang
-  const lang = creator?.primaryLanguage === 'en' ? 'en' : 'pt';
-  const t = (pt, en) => lang === 'en' ? en : pt;
+  // Lang — 3-way (pt | en | es). Helper takes (pt, en, es?) and falls back
+  // to EN when an ES string isn't provided so legacy `t(pt, en)` calls keep
+  // working for ES creators (they'll see English rather than blank text).
+  const rawLang = (creator?.primaryLanguage || '').toLowerCase();
+  const lang = rawLang === 'en' ? 'en' : rawLang === 'es' ? 'es' : 'pt';
+  const t = (pt, en, es) => lang === 'en' ? en : lang === 'es' ? (es ?? en) : pt;
 
   const filledCount = ALL_FIELDS.filter(f => isFilled(responses[f.key])).length;
   const filledRequired = REQUIRED_KEYS.filter(k => isFilled(responses[k])).length;

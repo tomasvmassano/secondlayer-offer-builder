@@ -284,6 +284,8 @@ Audience: ${audienceLine}`;
   // in the target language regardless.
   const langHint = creator?.primaryLanguage === 'en'
     ? `LANGUAGE: Output every string field in ENGLISH. The Phase 1-3 inputs above may be in English already — keep it that way.`
+    : creator?.primaryLanguage === 'es'
+    ? `LANGUAGE: Output every string field in Castilian Spanish (España, "tú" form). The Phase 1-3 inputs above may be in English or Portuguese — translate the strategic substance into Spanish for the output. Do NOT mix languages.`
     : `LANGUAGE: Output every string field in PORTUGUESE (PT-PT). The Phase 1-3 inputs above may be in English — translate the strategic substance into Portuguese for the output. Do NOT mix languages.`;
 
   const userMessage = `Synthesise the three internal analyses below into the strategic frame for this creator's new offer.

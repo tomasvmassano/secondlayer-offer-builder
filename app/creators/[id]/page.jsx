@@ -371,7 +371,15 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
       platforms: fmtPlat(creator.platforms),
       engagement: creator.engagement || "",
       primary_platform: creator.primaryPlatform || "Instagram",
-      language: (ae.language || "").toLowerCase().includes("portugu") ? "Português" : "English",
+      // Language label fed into dm-writer input templates. Mirrors the
+      // creator's primaryLanguage (the gold source) when available; falls
+      // back to the audience-language string heuristic otherwise.
+      language: creator?.primaryLanguage === 'pt' ? 'Português'
+              : creator?.primaryLanguage === 'es' ? 'Español'
+              : creator?.primaryLanguage === 'en' ? 'English'
+              : (ae.language || '').toLowerCase().includes('portugu') ? 'Português'
+              : (ae.language || '').toLowerCase().includes('span') || (ae.language || '').toLowerCase().includes('españ') ? 'Español'
+              : 'English',
       instagram: creator.platforms?.instagram?.url || "",
       tiktok: creator.tiktokUrl || creator.platforms?.tiktok?.url || "",
       youtube: creator.youtubeUrl || creator.platforms?.youtube?.url || "",
@@ -1056,25 +1064,42 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
               {(() => {
                 const lang = creator.primaryLanguage;
                 const audienceHint = creator.intelligence?.audience?.primaryLanguage || creator.audienceEstimate?.language || '';
-                const toggleLanguage = () => {
-                  const next = lang === 'en' ? 'pt' : 'en';
-                  if (window.confirm(`Mudar idioma para ${next === 'en' ? 'English' : 'Portuguese'}? Todos os assets (DM, emails, offer, etc.) vão ser gerados em ${next === 'en' ? 'inglês' : 'português'}.`)) {
+                // Cycle PT → EN → ES → PT. Each click bumps to the next.
+                // Spanish was added 2026-05-20 alongside the dm-writer ES
+                // templates so the operator can flip a Spanish creator's
+                // badge instead of editing redis manually.
+                const CYCLE = { pt: 'en', en: 'es', es: 'pt' };
+                const LANG_NAMES_PT = { pt: 'Português', en: 'Inglês', es: 'Espanhol' };
+                const LANG_NAMES_NATIVE = { pt: 'português', en: 'inglês', es: 'espanhol' };
+                const cycleLanguage = () => {
+                  const next = CYCLE[lang] || 'en';
+                  if (window.confirm(`Mudar idioma para ${LANG_NAMES_PT[next]}? Todos os assets (DM, emails, offer, etc.) vão ser gerados em ${LANG_NAMES_NATIVE[next]}.`)) {
                     patchCreator({ primaryLanguage: next });
                   }
                 };
+                // Each language gets its own colour bucket — green = PT (legacy
+                // home market), blue = EN (international), amber = ES (new).
+                const colors = lang === 'en'
+                  ? { bg: 'rgba(59,130,246,0.1)', fg: '#3b82f6', border: 'rgba(59,130,246,0.25)' }
+                  : lang === 'pt'
+                  ? { bg: 'rgba(34,197,94,0.1)', fg: '#22c55e', border: 'rgba(34,197,94,0.25)' }
+                  : lang === 'es'
+                  ? { bg: 'rgba(234,179,8,0.1)', fg: '#eab308', border: 'rgba(234,179,8,0.25)' }
+                  : { bg: 'rgba(255,255,255,0.03)', fg: '#888', border: 'rgba(255,255,255,0.08)' };
+                const label = lang === 'en' ? 'EN' : lang === 'pt' ? 'PT' : lang === 'es' ? 'ES' : 'Lang ?';
                 return (
                   <button
-                    onClick={toggleLanguage}
-                    title={audienceHint ? `Audiência: ${audienceHint}\nClica para mudar o idioma de todos os assets.` : 'Clica para mudar o idioma de todos os assets.'}
+                    onClick={cycleLanguage}
+                    title={audienceHint ? `Audiência: ${audienceHint}\nClica para alternar PT → EN → ES.` : 'Clica para alternar PT → EN → ES.'}
                     style={{
                       fontSize: 11, fontWeight: 700, padding: "3px 8px",
-                      background: lang === 'en' ? "rgba(59,130,246,0.1)" : lang === 'pt' ? "rgba(34,197,94,0.1)" : "rgba(255,255,255,0.03)",
-                      color: lang === 'en' ? "#3b82f6" : lang === 'pt' ? "#22c55e" : "#888",
-                      border: `1px solid ${lang === 'en' ? "rgba(59,130,246,0.25)" : lang === 'pt' ? "rgba(34,197,94,0.25)" : "rgba(255,255,255,0.08)"}`,
+                      background: colors.bg,
+                      color: colors.fg,
+                      border: `1px solid ${colors.border}`,
                       borderRadius: 4, cursor: "pointer", fontFamily: "inherit"
                     }}
                   >
-                    {lang === 'en' ? 'EN' : lang === 'pt' ? 'PT' : 'Lang ?'}
+                    {label}
                   </button>
                 );
               })()}
@@ -1668,11 +1693,16 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
             // English creator doesn't get PT text. Style mirrors the cold DM:
             // short, conversational, no em dashes, signed off with "Raul".
             const isEn = creator?.primaryLanguage === 'en';
+            const isEs = creator?.primaryLanguage === 'es';
             const followupT7 = isEn
               ? `Hey ${firstName},\n\nNoticed I haven't heard back. Figured it's worth recording a 3-minute video with a concrete proposal for your case.\n\nIf it doesn't land, you close it and won't hear from me again. Sound fair?\n\nCheers,\nRaul`
+              : isEs
+              ? `Hola ${firstName},\n\nVi que aún no hemos hablado. Pensé que valía la pena grabarte un vídeo de 3 minutos con una propuesta concreta para tu caso.\n\nSi no encaja, lo cierras y no vuelves a oír de mí. ¿Tiene sentido?\n\nUn abrazo,\nRaul`
               : `Olá ${firstName},\n\nVi que ainda não vimos um do outro. Achei que valia a pena gravar-te um vídeo de 3 minutos com uma proposta concreta para o teu caso.\n\nSe não fizer sentido, fechas e não voltas a ouvir de mim. Faz sentido?\n\nAbraço,\nRaul`;
             const breakupT14 = isEn
               ? `Hey ${firstName},\n\nI'll assume now isn't the moment. Closing the loop on my end.\n\nIf that changes, the door stays open.\n\nCheers,\nRaul`
+              : isEs
+              ? `Hola ${firstName},\n\nAsumo que ahora no es el momento. Cierro el bucle por mi lado.\n\nSi algún día cambia, la puerta queda abierta.\n\nUn abrazo,\nRaul`
               : `Olá ${firstName},\n\nAssumo que agora não é altura. Fecho o loop do meu lado.\n\nSe um dia mudar, a porta fica aberta.\n\nAbraço,\nRaul`;
 
             return (

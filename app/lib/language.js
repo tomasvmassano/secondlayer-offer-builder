@@ -46,34 +46,59 @@ function parseLanguageString(str) {
  * Resolve a creator's primary deliverable language.
  *
  * Returns:
- *   "pt" — PT >= threshold, use Portuguese
- *   "en" — every other case: EN >= threshold, OR neither reaches threshold,
- *          OR detected language is something else (Spanish/Arabic/etc.).
+ *   "pt" — Portuguese dominates and meets the threshold
+ *   "es" — Spanish dominates and meets the threshold (added 2026-05-20)
+ *   "en" — every other case: EN >= threshold, OR no single language reaches
+ *          threshold, OR detected language is something Second Layer does
+ *          not deliver in yet (Arabic, French, etc.).
  *
- * Decision (2026-05-18): rather than returning null and flagging
- * "language_not_served", we default to EN for non-PT creators. Second
- * Layer's product surface only renders in PT or EN, and the operator can
- * still override per-creator via the language badge. This means a
- * Spanish-audience creator gets EN assets rather than silently falling
- * back to PT downstream (which was the old behaviour for null).
+ * Decision (2026-05-18, extended 2026-05-20): Second Layer now ships
+ * outreach + assets in PT, EN, and ES. For audiences that don't match any
+ * of those, we default to EN rather than null so downstream branches that
+ * check `=== 'en'` produce content instead of falling back to PT.
  *
- * When BOTH PT and EN meet threshold, the higher % wins.
+ * When MORE THAN ONE supported language meets the threshold, the highest
+ * percentage wins. Ties resolve in priority order: PT > ES > EN (PT and ES
+ * are the smaller markets; if a creator's audience is half-EN we still
+ * default to the dominant non-EN audience because the operator is more
+ * likely to want to address the local one).
  *
  * @param {string|object} input Language string from intelligence.audience.primaryLanguage
- *                              OR a pre-parsed object like { pt: 70, en: 20 }
+ *                              OR a pre-parsed object like { pt: 70, en: 20, es: 10 }
  * @param {number} threshold Minimum percent (default 20). Lower = more inclusive.
  */
 export function resolvePrimaryLanguage(input, threshold = THRESHOLD) {
   const langs = typeof input === 'string' ? parseLanguageString(input) : (input || {});
   const pt = langs.pt || 0;
   const en = langs.en || 0;
+  const es = langs.es || 0;
 
-  if (pt >= threshold && en >= threshold) {
-    return pt >= en ? 'pt' : 'en';
-  }
-  if (pt >= threshold) return 'pt';
-  // Everything else → EN (covers en >= threshold AND non-PT/non-EN audiences
-  // AND audiences too fragmented to commit to one language).
-  return 'en';
+  const candidates = [];
+  if (pt >= threshold) candidates.push(['pt', pt]);
+  if (es >= threshold) candidates.push(['es', es]);
+  if (en >= threshold) candidates.push(['en', en]);
+
+  if (candidates.length === 0) return 'en';
+
+  // Highest percentage wins. Tie-break order: PT > ES > EN (smaller markets
+  // first so a 30/30 PT/EN audience still gets PT assets).
+  const priority = { pt: 3, es: 2, en: 1 };
+  candidates.sort((a, b) => b[1] - a[1] || priority[b[0]] - priority[a[0]]);
+  return candidates[0][0];
+}
+
+/**
+ * Coerce any incoming language value to one of the three supported codes.
+ * Used by API routes and UI components that branch on the language. Keeps
+ * legacy values, mis-cased input, and full-name strings ("Spanish", "es-MX")
+ * normalised to 'pt' | 'en' | 'es'.
+ */
+export function normalizeLanguageCode(value, fallback = 'en') {
+  if (!value) return fallback;
+  const v = String(value).toLowerCase().trim();
+  if (v === 'pt' || v.startsWith('pt-') || v.startsWith('portugu')) return 'pt';
+  if (v === 'es' || v.startsWith('es-') || v.startsWith('spanish') || v.startsWith('espa')) return 'es';
+  if (v === 'en' || v.startsWith('en-') || v.startsWith('engl')) return 'en';
+  return fallback;
 }
 

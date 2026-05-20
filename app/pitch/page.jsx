@@ -89,23 +89,39 @@ function formatEuro(n) {
 // generated before that prompt fix still lives in Redis. Regenerating CP3/CP4
 // for every existing creator is expensive; this hot-fixes the render path.
 function localizePriceString(s, lang) {
-  if (typeof s !== 'string' || lang !== 'en') return s;
+  if (typeof s !== 'string') return s;
+  // PT or unknown → leave PT-formatted source alone.
+  if (lang !== 'en' && lang !== 'es') return s;
   let out = s;
-  // Currency symbol first — every € becomes $ for an EN creator.
-  out = out.replace(/€/g, '$');
-  // Unit labels.
-  out = out.replace(/\/mês/g, '/mo').replace(/\/m[êe]s/g, '/mo');
-  out = out.replace(/\/ano/g, '/yr');
-  // Common PT tier names.
-  out = out.replace(/\bMensal\b/g, 'Monthly');
-  out = out.replace(/\bAnual\b/g, 'Annual');
-  out = out.replace(/\bRecomendado\b/g, 'Recommended');
-  out = out.replace(/2 meses grátis/gi, '2 months free');
-  out = out.replace(/(\d+)\s*meses?\s*gr[áa]tis/gi, '$1 months free');
-  out = out.replace(/(\d+)\s*membros?\b/gi, '$1 members');
-  // Number formatting: PT uses "." as thousands separator (2.970). Swap to ","
-  // for EN. Only inside currency-adjacent numbers to avoid touching counts.
-  out = out.replace(/\$(\d{1,3}(?:\.\d{3})+)(?!\d)/g, (m, num) => '$' + num.replace(/\./g, ','));
+  if (lang === 'en') {
+    // Currency symbol first — every € becomes $ for an EN creator.
+    out = out.replace(/€/g, '$');
+    // Unit labels.
+    out = out.replace(/\/mês/g, '/mo').replace(/\/m[êe]s/g, '/mo');
+    out = out.replace(/\/ano/g, '/yr');
+    // Common PT tier names.
+    out = out.replace(/\bMensal\b/g, 'Monthly');
+    out = out.replace(/\bAnual\b/g, 'Annual');
+    out = out.replace(/\bRecomendado\b/g, 'Recommended');
+    out = out.replace(/2 meses grátis/gi, '2 months free');
+    out = out.replace(/(\d+)\s*meses?\s*gr[áa]tis/gi, '$1 months free');
+    out = out.replace(/(\d+)\s*membros?\b/gi, '$1 members');
+    // Number formatting: PT uses "." as thousands separator (2.970). Swap to ","
+    // for EN. Only inside currency-adjacent numbers to avoid touching counts.
+    out = out.replace(/\$(\d{1,3}(?:\.\d{3})+)(?!\d)/g, (m, num) => '$' + num.replace(/\./g, ','));
+    return out;
+  }
+  // lang === 'es' — keep € symbol (Spain uses euros), translate units + tier
+  // names from PT to ES. Spain shares "." as thousands separator with PT so
+  // no number-format swap is needed.
+  out = out.replace(/\/mês/g, '/mes').replace(/\/m[êe]s/g, '/mes');
+  out = out.replace(/\/ano/g, '/año');
+  out = out.replace(/\bMensal\b/g, 'Mensual');
+  out = out.replace(/\bAnual\b/g, 'Anual');
+  out = out.replace(/\bRecomendado\b/g, 'Recomendado');
+  out = out.replace(/2 meses grátis/gi, '2 meses gratis');
+  out = out.replace(/(\d+)\s*meses?\s*gr[áa]tis/gi, '$1 meses gratis');
+  out = out.replace(/(\d+)\s*membros?\b/gi, '$1 miembros');
   return out;
 }
 
@@ -322,6 +338,17 @@ function PitchPageContent() {
   const creatorId = searchParams.get('creatorId');
 
   const [creator, setCreator] = useState(null);
+  // pitchLang(en, pt, es) — 3-way string picker. Defaults to EN when ES is
+  // missing so Spanish creators get an English deck rather than a Portuguese
+  // one (consistent with the rest of the app's ES-fallback strategy).
+  // Hoisted alongside the component state so all the slide JSX below can
+  // reach it without prop-drilling.
+  const pitchLang = (en, pt, es) => {
+    const lang = (creator?.primaryLanguage || '').toLowerCase();
+    if (lang === 'pt') return pt;
+    if (lang === 'es') return es ?? en;
+    return en;
+  };
   const [loading, setLoading] = useState(true);
   const [showInvestimento, setShowInvestimento] = useState(false);
   const [exporting, setExporting] = useState(false);
@@ -405,12 +432,17 @@ function PitchPageContent() {
     // Sample text to check
     const sample = [audienceData.gender, audienceData.location, audienceData.language]
       .filter(Boolean).join(' ').toLowerCase();
-    const isPT = /\b(feminino|masculino|portuguesa?|espanhola?|outros?|países|portugues|português)\b/.test(sample);
+    const isPT = /\b(feminino|masculino|portuguesa?|outros?|países|portugues|português)\b/.test(sample);
     const isEN = /\b(female|male|portuguese|spanish|other|countries|english)\b/.test(sample);
+    // ES heuristic — Castilian audience labels. "Femenino" (no -i-) and
+    // "Masculino" plus country/lang variants. "Países" matches PT and ES so
+    // we anchor on "hispano" / "España" / "Inglés/Portugués" to disambiguate.
+    const isES = /\b(femenino|masculino|inglés|portugués|hispano|hispanohablantes|españa|espa[ñn]oles?)\b/.test(sample);
 
     const needsTranslation =
-      (targetLang === 'pt' && isEN && !isPT) ||
-      (targetLang === 'en' && isPT && !isEN);
+      (targetLang === 'pt' && (isEN || isES) && !isPT) ||
+      (targetLang === 'en' && (isPT || isES) && !isEN) ||
+      (targetLang === 'es' && (isPT || isEN) && !isES);
 
     if (!needsTranslation) {
       setTranslatedAudience(audienceData);
@@ -933,7 +965,7 @@ function PitchPageContent() {
           <div style={{ flex: 1, display: "flex", alignItems: "flex-end", justifyContent: "space-between", width: "100%", fontFamily: "'JetBrains Mono', ui-monospace, monospace", fontSize: 13, letterSpacing: "0.22em", textTransform: "uppercase", color: "#8A8A8A", fontWeight: 500 }}>
             <div>Lisboa · PT</div>
             <div>—</div>
-            <div>{new Date().toLocaleDateString(creator?.primaryLanguage === 'en' ? 'en-US' : 'pt-PT', { month: 'long', year: 'numeric' })}</div>
+            <div>{new Date().toLocaleDateString(pitchLang('en-US', 'pt-PT', 'es-ES'), { month: 'long', year: 'numeric' })}</div>
           </div>
         </div>
       </Slide>
@@ -965,7 +997,7 @@ function PitchPageContent() {
           <h1 style={{ fontSize: 124, fontWeight: 800, margin: 0, lineHeight: 0.96, letterSpacing: "-0.035em", color: "#f5f5f5", maxWidth: 1500 }}>
             <StyledKeyword
               text={slides.corePromise.headline}
-              keyword={creator?.primaryLanguage === 'en' ? 'business' : 'negócio'}
+              keyword={pitchLang('business', 'negócio', 'negocio')}
               italicStyle={{ color: "#B11E2F", fontSize: 124 }}
             />
           </h1>
@@ -994,12 +1026,12 @@ function PitchPageContent() {
       }>
         <div style={{ flex: 1, display: "flex", flexDirection: "column", width: "100%" }}>
           <div style={{ fontSize: 18, fontWeight: 600, color: "#B11E2F", letterSpacing: "0.28em", textTransform: "uppercase" }}>
-            {creator?.primaryLanguage === 'en' ? 'Ecosystem' : 'Ecossistema'}
+            {pitchLang('Ecosystem', 'Ecossistema', 'Ecosistema')}
           </div>
           <div style={{ height: 18 }} />
           <h1 style={{ fontSize: 72, fontWeight: 800, margin: 0, lineHeight: 1.0, letterSpacing: "-0.03em", color: "#f5f5f5" }}>
             <StyledLastWord
-              text={creator?.primaryLanguage === 'en' ? 'How this fits' : 'Onde isto encaixa'}
+              text={pitchLang('How this fits', 'Onde isto encaixa', 'Dónde encaja esto')}
               italicStyle={{ ...italicSerif, color: "#B11E2F", fontSize: 76 }}
             />
           </h1>
@@ -1009,6 +1041,7 @@ function PitchPageContent() {
             <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
               {(() => {
                 const en = creator?.primaryLanguage === 'en';
+                const es = creator?.primaryLanguage === 'es';
                 // Build all rungs with a numeric price, then sort ascending so
                 // the cascade reads bottom-of-funnel → top-of-ladder. Lead
                 // magnets land at the top (price 0). The NEW slots into its
@@ -1050,7 +1083,7 @@ function PitchPageContent() {
                         boxShadow: "0 0 24px rgba(177,30,47,0.15)",
                       }}>
                         <div style={{ fontSize: 11, fontWeight: 700, color: "#B11E2F", letterSpacing: "0.22em", textTransform: "uppercase", marginBottom: 6 }}>
-                          {en ? '● New' : '● Novo'}
+                          {en ? '● New' : es ? '● Nuevo' : '● Novo'}
                         </div>
                         <div style={{ ...italicSerif, fontSize: 30, color: "#f5f5f5", lineHeight: 1.05, marginBottom: 6 }}>{slides.businessContext.newOfferName}</div>
                         <div style={{ fontSize: 22, color: "#B11E2F", fontFamily: "'JetBrains Mono', ui-monospace, monospace", fontWeight: 700 }}>
@@ -1063,12 +1096,13 @@ function PitchPageContent() {
                     );
                   }
                   const p = r.product;
-                  const tierLbl = (PITCH_TIER_LABELS[p.tier] || { pt: p.tier, en: p.tier });
-                  const tierTxt = en ? tierLbl.en : tierLbl.pt;
+                  const tierLbl = (PITCH_TIER_LABELS[p.tier] || { pt: p.tier, en: p.tier, es: p.tier });
+                  const tierTxt = en ? tierLbl.en : es ? (tierLbl.es || tierLbl.en) : tierLbl.pt;
                   const isLeadMagnet = p.tier === 'lead_magnet';
+                  // ES uses € (Spain). EN uses $. PT uses €.
                   const cur = en ? '$' : '€';
                   const priceDisplay = isLeadMagnet
-                    ? (en ? 'Free' : 'Grátis')
+                    ? (en ? 'Free' : es ? 'Gratis' : 'Grátis')
                     : (p.price_eur ? cur + p.price_eur : localizePriceString(p.price, creator?.primaryLanguage) || '—');
                   return (
                     <div key={`p-${i}`} style={{ opacity: 0.55 }}>
@@ -1119,7 +1153,7 @@ function PitchPageContent() {
       }>
         <div style={{ flex: 1, display: "flex", flexDirection: "column", width: "100%" }}>
           <div style={{ fontSize: 18, fontWeight: 600, color: "#B11E2F", letterSpacing: "0.28em", textTransform: "uppercase" }}>
-            {creator?.primaryLanguage === 'en' ? 'The community' : 'A comunidade'}
+            {pitchLang('The community', 'A comunidade', 'La comunidad')}
           </div>
           <div style={{ height: 22 }} />
           <div style={{ display: "grid", gridTemplateColumns: "1.4fr 1fr", gap: 36, alignItems: "start" }}>
@@ -1145,8 +1179,11 @@ function PitchPageContent() {
           {/* Calendar — full-width bottom, slightly smaller */}
           {(() => {
             const en = creator?.primaryLanguage === 'en';
+            const es = creator?.primaryLanguage === 'es';
             const days = en
               ? ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN']
+              : es
+              ? ['LUN', 'MAR', 'MIÉ', 'JUE', 'VIE', 'SÁB', 'DOM']
               : ['SEG', 'TER', 'QUA', 'QUI', 'SEX', 'SÁB', 'DOM'];
             const dayBuckets = days.map(d => ({
               day: d,
@@ -1186,11 +1223,11 @@ function PitchPageContent() {
       }>
         <div style={{ flex: 1, display: "flex", flexDirection: "column", width: "100%" }}>
           <div style={{ fontSize: 18, fontWeight: 600, color: "#B11E2F", letterSpacing: "0.28em", textTransform: "uppercase" }}>
-            {creator?.primaryLanguage === 'en' ? 'The method' : 'O método'}
+            {pitchLang('The method', 'O método', 'El método')}
           </div>
           <div style={{ height: 14 }} />
           <h2 style={{ fontSize: 24, fontWeight: 500, color: "#9E9E9E", margin: 0, letterSpacing: "0.02em" }}>
-            {creator?.primaryLanguage === 'en' ? 'The method we built for you' : 'O método que construímos para ti'}
+            {pitchLang('The method we built for you', 'O método que construímos para ti', 'El método que construimos para ti')}
           </h2>
 
           {/* Huge mechanism acronym — center hero */}
@@ -1226,7 +1263,7 @@ function PitchPageContent() {
       }>
         <div style={{ flex: 1, display: "flex", flexDirection: "column", width: "100%" }}>
           <div style={{ fontSize: 18, fontWeight: 600, color: "#B11E2F", letterSpacing: "0.28em", textTransform: "uppercase" }}>
-            {creator?.primaryLanguage === 'en' ? 'The value' : 'O valor'}
+            {pitchLang('The value', 'O valor', 'El valor')}
           </div>
           <div style={{ height: 18 }} />
           <h1 style={{ fontSize: 88, fontWeight: 800, margin: 0, lineHeight: 1.0, letterSpacing: "-0.03em", color: "#f5f5f5" }}>
@@ -1257,10 +1294,10 @@ function PitchPageContent() {
                 <table style={{ width: "100%", borderCollapse: "collapse" }}>
                   <thead>
                     <tr style={{ background: "rgba(177,30,47,0.08)" }}>
-                      <th style={{ padding: "14px 18px", textAlign: "left", fontSize: 11, fontWeight: 700, color: "#B11E2F", letterSpacing: "0.18em", textTransform: "uppercase", borderBottom: "1px solid #1F1F1F" }}>{creator?.primaryLanguage === 'en' ? 'Problem' : 'Problema'}</th>
-                      <th style={{ padding: "14px 18px", textAlign: "left", fontSize: 11, fontWeight: 700, color: "#B11E2F", letterSpacing: "0.18em", textTransform: "uppercase", borderBottom: "1px solid #1F1F1F" }}>{creator?.primaryLanguage === 'en' ? 'Solution' : 'Solução'}</th>
-                      <th style={{ padding: "14px 18px", textAlign: "left", fontSize: 11, fontWeight: 700, color: "#B11E2F", letterSpacing: "0.18em", textTransform: "uppercase", borderBottom: "1px solid #1F1F1F" }}>{creator?.primaryLanguage === 'en' ? 'Delivery' : 'Entrega'}</th>
-                      <th style={{ padding: "14px 18px", textAlign: "right", fontSize: 11, fontWeight: 700, color: "#B11E2F", letterSpacing: "0.18em", textTransform: "uppercase", borderBottom: "1px solid #1F1F1F", fontFamily: "'JetBrains Mono', ui-monospace, monospace" }}>{creator?.primaryLanguage === 'en' ? 'Value' : 'Valor'}</th>
+                      <th style={{ padding: "14px 18px", textAlign: "left", fontSize: 11, fontWeight: 700, color: "#B11E2F", letterSpacing: "0.18em", textTransform: "uppercase", borderBottom: "1px solid #1F1F1F" }}>{pitchLang('Problem', 'Problema', 'Problema')}</th>
+                      <th style={{ padding: "14px 18px", textAlign: "left", fontSize: 11, fontWeight: 700, color: "#B11E2F", letterSpacing: "0.18em", textTransform: "uppercase", borderBottom: "1px solid #1F1F1F" }}>{pitchLang('Solution', 'Solução', 'Solución')}</th>
+                      <th style={{ padding: "14px 18px", textAlign: "left", fontSize: 11, fontWeight: 700, color: "#B11E2F", letterSpacing: "0.18em", textTransform: "uppercase", borderBottom: "1px solid #1F1F1F" }}>{pitchLang('Delivery', 'Entrega', 'Entrega')}</th>
+                      <th style={{ padding: "14px 18px", textAlign: "right", fontSize: 11, fontWeight: 700, color: "#B11E2F", letterSpacing: "0.18em", textTransform: "uppercase", borderBottom: "1px solid #1F1F1F", fontFamily: "'JetBrains Mono', ui-monospace, monospace" }}>{pitchLang('Value', 'Valor', 'Valor')}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -1302,7 +1339,7 @@ function PitchPageContent() {
           <div style={{ marginTop: 28, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24 }}>
             <div style={{ padding: "26px 32px", background: "rgba(15,15,15,0.78)", border: "1px solid #1F1F1F", borderRadius: 12 }}>
               <div style={{ fontSize: 12, fontWeight: 600, color: "#888", letterSpacing: "0.18em", textTransform: "uppercase", marginBottom: 8 }}>
-                {creator?.primaryLanguage === 'en' ? 'Total stacked value' : 'Valor total empilhado'}
+                {pitchLang('Total stacked value', 'Valor total empilhado', 'Valor total apilado')}
               </div>
               <div style={{ fontSize: 48, fontWeight: 800, color: "#1F8A4C", letterSpacing: "-0.03em", fontFamily: "'JetBrains Mono', ui-monospace, monospace" }}>
                 <Editable value={localizePriceString(slides.valueStack.total, creator?.primaryLanguage)} onChange={v => updateSlide('valueStack', 'total', v)} />
@@ -1310,7 +1347,7 @@ function PitchPageContent() {
             </div>
             <div style={{ padding: "26px 32px", background: "rgba(177,30,47,0.08)", border: "1px solid rgba(177,30,47,0.4)", borderRadius: 12 }}>
               <div style={{ fontSize: 12, fontWeight: 600, color: "#B11E2F", letterSpacing: "0.18em", textTransform: "uppercase", marginBottom: 8 }}>
-                {creator?.primaryLanguage === 'en' ? 'Actual price' : 'Preço real'}
+                {pitchLang('Actual price', 'Preço real', 'Precio real')}
               </div>
               <div style={{ ...italicSerif, fontSize: 64, color: "#f5f5f5", letterSpacing: "-0.02em", lineHeight: 1 }}>
                 <Editable value={localizePriceString(slides.valueStack.actualPrice, creator?.primaryLanguage)} onChange={v => updateSlide('valueStack', 'actualPrice', v)} />
@@ -1328,7 +1365,7 @@ function PitchPageContent() {
           {/* Eyebrow + headline */}
           <div>
             <div style={{ fontSize: 18, fontWeight: 600, color: "#B11E2F", letterSpacing: "0.28em", textTransform: "uppercase" }}>
-              {creator?.primaryLanguage === 'en' ? 'Audit' : 'Auditoria'}
+              {pitchLang('Audit', 'Auditoria', 'Auditoría')}
             </div>
             <div style={{ height: 18 }} />
             <h1 style={{ fontSize: 78, fontWeight: 800, margin: 0, lineHeight: 1.0, letterSpacing: "-0.03em", color: "#f5f5f5" }}>
@@ -1351,13 +1388,13 @@ function PitchPageContent() {
           <div style={{ marginTop: 36, display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 18 }}>
             <div style={{ padding: "28px 32px", background: "rgba(15,15,15,0.78)", border: "1px solid rgba(177,30,47,0.55)", borderRadius: 14 }}>
               <div style={{ fontSize: 16, fontWeight: 600, color: "#B11E2F", letterSpacing: "0.22em", textTransform: "uppercase", marginBottom: 14 }}>
-                {creator?.primaryLanguage === 'en' ? 'Total audience' : 'Audiência total'}
+                {pitchLang('Total audience', 'Audiência total', 'Audiencia total')}
               </div>
               <div style={{ fontSize: 64, fontWeight: 700, letterSpacing: "-0.03em", lineHeight: 1, color: "#f5f5f5" }}>{formatFollowers(audience)}</div>
             </div>
             <div style={{ padding: "28px 32px", background: "rgba(15,15,15,0.78)", border: "1px solid #1F1F1F", borderRadius: 14 }}>
               <div style={{ fontSize: 16, fontWeight: 600, color: "#8A8A8A", letterSpacing: "0.22em", textTransform: "uppercase", marginBottom: 14 }}>
-                {creator?.primaryLanguage === 'en' ? 'Platform' : 'Plataforma'}
+                {pitchLang('Platform', 'Plataforma', 'Plataforma')}
               </div>
               <div style={{ fontSize: 40, fontWeight: 600, letterSpacing: "-0.02em", lineHeight: 1, color: "#f5f5f5" }}>{creator?.primaryPlatform || 'Instagram'}</div>
             </div>
@@ -1367,7 +1404,7 @@ function PitchPageContent() {
             </div>
             <div style={{ padding: "28px 32px", background: "rgba(15,15,15,0.78)", border: "1px solid #1F1F1F", borderRadius: 14 }}>
               <div style={{ fontSize: 16, fontWeight: 600, color: "#8A8A8A", letterSpacing: "0.22em", textTransform: "uppercase", marginBottom: 14 }}>
-                {creator?.primaryLanguage === 'en' ? 'Niche' : 'Nicho'}
+                {pitchLang('Niche', 'Nicho', 'Nicho')}
               </div>
               <div style={{ fontSize: 32, fontWeight: 600, letterSpacing: "-0.02em", lineHeight: 1.1, color: "#f5f5f5" }}>{creator?.niche || '—'}</div>
             </div>
@@ -1388,18 +1425,17 @@ function PitchPageContent() {
               .slice(0, 3)
               .filter(p => p.topic);
             if (ranked.length === 0) return null;
-            const en = creator?.primaryLanguage === 'en';
             return (
               <div style={{ marginTop: 22, padding: "26px 36px", background: "rgba(15,15,15,0.78)", border: "1px solid rgba(177,30,47,0.4)", borderRadius: 14 }}>
                 <div style={{ fontSize: 12, fontWeight: 600, color: "#B11E2F", letterSpacing: "0.22em", textTransform: "uppercase", marginBottom: 16 }}>
-                  {en ? 'Themes that resonate most' : 'Temas que mais ressoam'}
+                  {pitchLang('Themes that resonate most', 'Temas que mais ressoam', 'Temas que más resuenan')}
                 </div>
                 <div style={{ display: "grid", gridTemplateColumns: `repeat(${ranked.length}, 1fr)`, gap: 18 }}>
                   {ranked.map((p, i) => (
                     <div key={i} style={{ padding: "16px 18px", background: "rgba(177,30,47,0.06)", border: "1px solid rgba(177,30,47,0.25)", borderRadius: 10 }}>
                       <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 8, marginBottom: 6 }}>
                         <div style={{ fontFamily: "'JetBrains Mono', ui-monospace, monospace", fontSize: 11, color: "#8A8A8A", letterSpacing: "0.16em", textTransform: "uppercase" }}>
-                          {p.format || (en ? 'Post' : 'Post')}
+                          {p.format || 'Post'}
                         </div>
                         {p._er > 0 && (
                           <div style={{ fontFamily: "'JetBrains Mono', ui-monospace, monospace", fontSize: 11, color: "#B11E2F", fontWeight: 700 }}>
@@ -1423,7 +1459,7 @@ function PitchPageContent() {
               {slides.audience.audienceForList.length > 0 && (
                 <div style={{ padding: "26px 30px", background: "rgba(15,15,15,0.78)", border: "1px solid rgba(177,30,47,0.45)", borderRadius: 14 }}>
                   <div style={{ fontSize: 12, fontWeight: 600, color: "#B11E2F", letterSpacing: "0.22em", textTransform: "uppercase", marginBottom: 14 }}>
-                    {creator?.primaryLanguage === 'en' ? 'For' : 'Para quem é'}
+                    {pitchLang('For', 'Para quem é', 'Para quién es')}
                   </div>
                   <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 10 }}>
                     {slides.audience.audienceForList.map((s, i) => (
@@ -1438,7 +1474,7 @@ function PitchPageContent() {
               {slides.audience.audienceNotForList.length > 0 && (
                 <div style={{ padding: "26px 30px", background: "rgba(15,15,15,0.78)", border: "1px solid #1F1F1F", borderRadius: 14 }}>
                   <div style={{ fontSize: 12, fontWeight: 600, color: "#8A8A8A", letterSpacing: "0.22em", textTransform: "uppercase", marginBottom: 14 }}>
-                    {creator?.primaryLanguage === 'en' ? 'Not for' : 'Não é para'}
+                    {pitchLang('Not for', 'Não é para', 'No es para')}
                   </div>
                   <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 10 }}>
                     {slides.audience.audienceNotForList.map((s, i) => (
@@ -1461,7 +1497,7 @@ function PitchPageContent() {
       }>
         <div style={{ flex: 1, display: "flex", flexDirection: "column", width: "100%" }}>
           <div style={{ fontSize: 18, fontWeight: 600, color: "#B11E2F", letterSpacing: "0.28em", textTransform: "uppercase" }}>
-            {creator?.primaryLanguage === 'en' ? 'Launch plan' : 'Plano de lançamento'}
+            {pitchLang('Launch plan', 'Plano de lançamento', 'Plan de lanzamiento')}
           </div>
           <div style={{ height: 28 }} />
           <h1 style={{ fontSize: 88, fontWeight: 800, margin: 0, lineHeight: 1.0, letterSpacing: "-0.03em", color: "#f5f5f5" }}>
@@ -1479,9 +1515,9 @@ function PitchPageContent() {
                 {/* Top row: phase label LEFT + days pill RIGHT (Lia-style) */}
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14, position: "relative", gap: 12 }}>
                   <div style={{ fontSize: 16, fontWeight: 600, color: "#B11E2F", letterSpacing: "0.22em", textTransform: "uppercase" }}>
-                    {i === 0 ? (creator?.primaryLanguage === 'en' ? 'Validate' : 'Validar')
-                    : i === 1 ? (creator?.primaryLanguage === 'en' ? 'Launch' : 'Lançar')
-                              : (creator?.primaryLanguage === 'en' ? 'Scale' : 'Escalar')}
+                    {i === 0 ? pitchLang('Validate', 'Validar', 'Validar')
+                    : i === 1 ? pitchLang('Launch', 'Lançar', 'Lanzar')
+                              : pitchLang('Scale', 'Escalar', 'Escalar')}
                   </div>
                   {phase.days && (
                     <div style={{ padding: "6px 12px", border: "1px solid rgba(177,30,47,0.6)", background: "rgba(177,30,47,0.10)", borderRadius: 8, fontFamily: "'JetBrains Mono', ui-monospace, monospace", fontSize: 12, fontWeight: 700, color: "#f5f5f5", letterSpacing: "0.12em", whiteSpace: "nowrap" }}>
@@ -1527,7 +1563,7 @@ function PitchPageContent() {
                 {phase.goal && (
                   <div style={{ marginTop: "auto", padding: "14px 18px", border: "1px solid rgba(177,30,47,0.55)", background: "rgba(177,30,47,0.08)", borderRadius: 10, position: "relative" }}>
                     <div style={{ fontSize: 11, fontWeight: 700, color: "#B11E2F", letterSpacing: "0.22em", textTransform: "uppercase", marginBottom: 4 }}>
-                      {creator?.primaryLanguage === 'en' ? 'Goal' : 'Meta'}
+                      {pitchLang('Goal', 'Meta', 'Meta')}
                     </div>
                     <div style={{ fontSize: 17, fontWeight: 600, color: "#f5f5f5", lineHeight: 1.35 }}>
                       <Editable value={phase.goal} onChange={v => {
@@ -1555,13 +1591,13 @@ function PitchPageContent() {
       }>
         <div style={{ flex: 1, display: "flex", flexDirection: "column", width: "100%" }}>
           <div style={{ fontSize: 18, fontWeight: 600, color: "#B11E2F", letterSpacing: "0.28em", textTransform: "uppercase" }}>
-            {creator?.primaryLanguage === 'en' ? 'Projection' : 'Projecção'}
+            {pitchLang('Projection', 'Projecção', 'Proyección')}
           </div>
           <div style={{ height: 14 }} />
           <h1 style={{ fontSize: 68, fontWeight: 800, margin: 0, lineHeight: 1.0, letterSpacing: "-0.03em", color: "#f5f5f5" }}>
             <StyledKeyword
               text={slides.numbers.title}
-              keyword={creator?.primaryLanguage === 'en' ? 'numbers' : 'números'}
+              keyword={pitchLang('numbers', 'números', 'números')}
               italicStyle={{ color: "#B11E2F", fontSize: 76 }}
             />
           </h1>
@@ -1571,7 +1607,6 @@ function PitchPageContent() {
               cohort + annual cohort revenue, since MRR is a meaningless
               metric for a launch-cohort business. */}
           {(() => {
-            const en = creator?.primaryLanguage === 'en';
             const mode = offerProjection?.mode || 'recurring';
             if (mode === 'one_time' || mode === 'hybrid') {
               const perLaunch = (offerProjection.firstLaunchBuyers || 0) * (offerProjection.priceNumeric || 0);
@@ -1580,19 +1615,19 @@ function PitchPageContent() {
                 <div style={{ marginTop: 32, padding: "36px 44px", background: "rgba(122,14,24,0.08)", border: "1px solid rgba(122,14,24,0.55)", borderRadius: 14, display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 40 }}>
                   <div>
                     <div style={{ fontSize: 16, fontWeight: 600, color: "#B11E2F", letterSpacing: "0.22em", textTransform: "uppercase", marginBottom: 14 }}>
-                      {en ? 'Annual revenue · moderate' : 'Receita anual · cenário moderado'}
+                      {pitchLang('Annual revenue · moderate', 'Receita anual · cenário moderado', 'Ingresos anuales · escenario moderado')}
                     </div>
                     <div style={{ lineHeight: 0.9, letterSpacing: "-0.02em" }}>
                       <span style={{ ...italicSerif, fontSize: 124, fontWeight: 400, color: "#B11E2F" }}>{formatEuro(annual)}</span>
-                      <span style={{ fontSize: 38, color: "#8A8A8A", fontWeight: 500, marginLeft: 4 }}>/{en ? 'yr' : 'ano'}</span>
+                      <span style={{ fontSize: 38, color: "#8A8A8A", fontWeight: 500, marginLeft: 4 }}>/{pitchLang('yr', 'ano', 'año')}</span>
                     </div>
                   </div>
                   <div style={{ textAlign: "right" }}>
                     <div style={{ fontSize: 16, fontWeight: 600, color: "#8A8A8A", letterSpacing: "0.22em", textTransform: "uppercase", marginBottom: 10, whiteSpace: "nowrap" }}>
-                      {en ? `Per launch × ${offerProjection.launchesPerYear}/yr` : `Por lançamento × ${offerProjection.launchesPerYear}/ano`}
+                      {pitchLang(`Per launch × ${offerProjection.launchesPerYear}/yr`, `Por lançamento × ${offerProjection.launchesPerYear}/ano`, `Por lanzamiento × ${offerProjection.launchesPerYear}/año`)}
                     </div>
                     <div style={{ fontSize: 38, fontWeight: 600, letterSpacing: "-0.01em", color: "#f5f5f5" }}>{formatEuro(perLaunch)}</div>
-                    <div style={{ fontSize: 12, color: "#666", marginTop: 4 }}>{offerProjection.firstLaunchBuyers} {en ? 'buyers/launch' : 'compradores/lançamento'}</div>
+                    <div style={{ fontSize: 12, color: "#666", marginTop: 4 }}>{offerProjection.firstLaunchBuyers} {pitchLang('buyers/launch', 'compradores/lançamento', 'compradores/lanzamiento')}</div>
                   </div>
                 </div>
               );
@@ -1605,12 +1640,12 @@ function PitchPageContent() {
                   </div>
                   <div style={{ lineHeight: 0.9, letterSpacing: "-0.02em" }}>
                     <span style={{ ...italicSerif, fontSize: 124, fontWeight: 400, color: "#B11E2F" }}>{formatEuro(moderateSteadyMRR)}</span>
-                    <span style={{ fontSize: 38, color: "#8A8A8A", fontWeight: 500, marginLeft: 4 }}>/{en ? 'mo' : 'mês'}</span>
+                    <span style={{ fontSize: 38, color: "#8A8A8A", fontWeight: 500, marginLeft: 4 }}>/{pitchLang('mo', 'mês', 'mes')}</span>
                   </div>
                 </div>
                 <div style={{ textAlign: "right" }}>
                   <div style={{ fontSize: 16, fontWeight: 600, color: "#8A8A8A", letterSpacing: "0.22em", textTransform: "uppercase", marginBottom: 10, whiteSpace: "nowrap" }}>
-                    {en ? 'Cumulative · Year 1' : 'Receita acumulada · Ano 1'}
+                    {pitchLang('Cumulative · Year 1', 'Receita acumulada · Ano 1', 'Ingresos acumulados · Año 1')}
                   </div>
                   <div style={{ fontSize: 38, fontWeight: 600, letterSpacing: "-0.01em", color: "#f5f5f5" }}>{formatEuro(moderateCumulative)}</div>
                 </div>
@@ -1623,21 +1658,20 @@ function PitchPageContent() {
               new offer in isolation. Shows status quo vs with-new-offer at
               the moderate scenario, both annualised. */}
           {ecosystemProjection && ecosystemProjection.headline.statusQuoAnnual > 0 && (() => {
-            const en = creator?.primaryLanguage === 'en';
             const eco = ecosystemProjection;
             return (
               <div style={{ marginTop: 14, padding: "20px 28px", background: "rgba(34,197,94,0.05)", border: "1px solid rgba(34,197,94,0.30)", borderRadius: 14, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 28 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 28, flex: 1 }}>
                   <div>
                     <div style={{ fontSize: 10, fontWeight: 600, color: "#888", letterSpacing: "0.16em", textTransform: "uppercase", marginBottom: 4 }}>
-                      {en ? 'Ecosystem today (annual)' : 'Ecossistema hoje (anual)'}
+                      {pitchLang('Ecosystem today (annual)', 'Ecossistema hoje (anual)', 'Ecosistema hoy (anual)')}
                     </div>
                     <div style={{ fontSize: 30, fontWeight: 700, color: "#888", letterSpacing: "-0.01em" }}>{formatEuro(eco.headline.statusQuoAnnual)}</div>
                   </div>
                   <div style={{ fontSize: 32, color: "#444", fontWeight: 300 }}>→</div>
                   <div>
                     <div style={{ fontSize: 10, fontWeight: 600, color: "#22c55e", letterSpacing: "0.16em", textTransform: "uppercase", marginBottom: 4 }}>
-                      {en ? 'With new offer' : 'Com nova oferta'}
+                      {pitchLang('With new offer', 'Com nova oferta', 'Con nueva oferta')}
                     </div>
                     <div style={{ fontSize: 36, fontWeight: 700, color: "#22c55e", letterSpacing: "-0.01em" }}>{formatEuro(eco.headline.withNewOfferAnnual)}</div>
                   </div>
@@ -1673,6 +1707,12 @@ function PitchPageContent() {
                       <div><span style={{ color: "#7A0E18" }}>MRR (month N)</span> = (members × (1 − churn) + new) × price</div>
                       <div style={{ marginTop: 10, fontSize: 12, color: "#888" }}>Launch month uses a higher conversion rate (waitlist effect).</div>
                     </>
+                  ) : creator?.primaryLanguage === 'es' ? (
+                    <>
+                      <div><span style={{ color: "#7A0E18" }}>Nuevos miembros</span> = audiencia × tasa conv. %</div>
+                      <div><span style={{ color: "#7A0E18" }}>MRR (mes N)</span> = (miembros × (1 − churn) + nuevos) × precio</div>
+                      <div style={{ marginTop: 10, fontSize: 12, color: "#888" }}>El mes de lanzamiento usa una tasa de conversión mayor (efecto waitlist).</div>
+                    </>
                   ) : (
                     <>
                       <div><span style={{ color: "#7A0E18" }}>Membros novos</span> = audiência × taxa conv. %</div>
@@ -1689,10 +1729,10 @@ function PitchPageContent() {
                   <Editable value={slides.numbers.assumptionsTitle} onChange={v => updateSlide('numbers', 'assumptionsTitle', v)} />
                 </div>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-                  <LabelInput label={creator?.primaryLanguage === 'en' ? 'Audience' : 'Audiência'} value={audience} onChange={setAudience} type="number" />
-                  <LabelInput label={creator?.primaryLanguage === 'en' ? 'Price (€/mo)' : 'Preço (€/mês)'} value={price} onChange={setPrice} type="number" />
-                  <LabelInput label={creator?.primaryLanguage === 'en' ? 'Engagement rate' : 'Taxa de engagement'} value={engagement} onChange={setEngagement} type="number" step="0.1" suffix="%" />
-                  <LabelInput label={creator?.primaryLanguage === 'en' ? 'Monthly churn' : 'Saídas mensais'} value={scenarios.moderado.churn * 100} onChange={v => updateScenarioParam('moderado', 'churn', v / 100)} type="number" step="0.5" suffix="%" />
+                  <LabelInput label={pitchLang('Audience', 'Audiência', 'Audiencia')} value={audience} onChange={setAudience} type="number" />
+                  <LabelInput label={pitchLang('Price (€/mo)', 'Preço (€/mês)', 'Precio (€/mes)')} value={price} onChange={setPrice} type="number" />
+                  <LabelInput label={pitchLang('Engagement rate', 'Taxa de engagement', 'Tasa de engagement')} value={engagement} onChange={setEngagement} type="number" step="0.1" suffix="%" />
+                  <LabelInput label={pitchLang('Monthly churn', 'Saídas mensais', 'Churn mensual')} value={scenarios.moderado.churn * 100} onChange={v => updateScenarioParam('moderado', 'churn', v / 100)} type="number" step="0.5" suffix="%" />
                 </div>
               </div>
             </div>
@@ -1710,7 +1750,7 @@ function PitchPageContent() {
       }>
         <div style={{ flex: 1, display: "flex", flexDirection: "column", width: "100%" }}>
           <div style={{ fontSize: 18, fontWeight: 600, color: "#B11E2F", letterSpacing: "0.28em", textTransform: "uppercase" }}>
-            {creator?.primaryLanguage === 'en' ? 'Proof' : 'Prova'}
+            {pitchLang('Proof', 'Prova', 'Prueba')}
           </div>
           <div style={{ height: 18 }} />
           <h1 style={{ fontSize: 88, fontWeight: 800, margin: 0, lineHeight: 1.0, letterSpacing: "-0.03em", color: "#f5f5f5" }}>
@@ -1752,7 +1792,7 @@ function PitchPageContent() {
                 </h3>
                 <div style={{ marginTop: 20, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, fontFamily: "'JetBrains Mono', ui-monospace, monospace" }}>
                   <div>
-                    <div style={{ fontSize: 10, color: "#666", letterSpacing: "0.16em", textTransform: "uppercase" }}>{creator?.primaryLanguage === 'en' ? 'Members' : 'Membros'}</div>
+                    <div style={{ fontSize: 10, color: "#666", letterSpacing: "0.16em", textTransform: "uppercase" }}>{pitchLang('Members', 'Membros', 'Miembros')}</div>
                     <div style={{ fontSize: 20, color: "#f5f5f5", fontWeight: 600 }}>
                       <Editable value={localizePriceString(c.members, creator?.primaryLanguage)} onChange={v => {
                         const next = [...slides.cases.items]; next[i] = { ...c, members: v };
@@ -1761,7 +1801,7 @@ function PitchPageContent() {
                     </div>
                   </div>
                   <div>
-                    <div style={{ fontSize: 10, color: "#666", letterSpacing: "0.16em", textTransform: "uppercase" }}>{creator?.primaryLanguage === 'en' ? 'Price' : 'Preço'}</div>
+                    <div style={{ fontSize: 10, color: "#666", letterSpacing: "0.16em", textTransform: "uppercase" }}>{pitchLang('Price', 'Preço', 'Precio')}</div>
                     <div style={{ fontSize: 20, color: "#f5f5f5", fontWeight: 600 }}>
                       <Editable value={localizePriceString(c.price, creator?.primaryLanguage)} onChange={v => {
                         const next = [...slides.cases.items]; next[i] = { ...c, price: v };
@@ -1816,7 +1856,7 @@ function PitchPageContent() {
         }>
           <div style={{ flex: 1, display: "flex", flexDirection: "column", width: "100%" }}>
             <div style={{ fontSize: 18, fontWeight: 600, color: "#B11E2F", letterSpacing: "0.28em", textTransform: "uppercase" }}>
-              {creator?.primaryLanguage === 'en' ? 'Investment structure' : 'Estrutura de investimento'}
+              {pitchLang('Investment structure', 'Estrutura de investimento', 'Estructura de inversión')}
             </div>
             <div style={{ height: 18 }} />
             <h1 style={{ ...italicSerif, fontSize: 88, margin: 0, lineHeight: 1.0, color: "#B11E2F", marginBottom: 36 }}>
@@ -1949,13 +1989,13 @@ function guessNewOfferTier(role, pricingModel) {
 // Anything not in this list falls back to its raw key (defensive).
 export const PITCH_TIER_ORDER = ['lead_magnet', 'low_ticket', 'mid_ticket', 'recurring', 'high_ticket', 'service', 'physical_product'];
 export const PITCH_TIER_LABELS = {
-  lead_magnet:      { pt: 'Lead Magnet · Grátis',    en: 'Lead Magnet · Free' },
-  low_ticket:       { pt: 'Low Ticket',              en: 'Low Ticket' },
-  mid_ticket:       { pt: 'Mid Ticket',              en: 'Mid Ticket' },
-  recurring:        { pt: 'Recorrente · Mensal',     en: 'Recurring · Monthly' },
-  high_ticket:      { pt: 'High Ticket',             en: 'High Ticket' },
-  service:          { pt: 'Serviço 1-on-1',          en: '1-on-1 Service' },
-  physical_product: { pt: 'Produto Físico',          en: 'Physical Product' },
+  lead_magnet:      { pt: 'Lead Magnet · Grátis',    en: 'Lead Magnet · Free',    es: 'Lead Magnet · Gratis' },
+  low_ticket:       { pt: 'Low Ticket',              en: 'Low Ticket',            es: 'Low Ticket' },
+  mid_ticket:       { pt: 'Mid Ticket',              en: 'Mid Ticket',            es: 'Mid Ticket' },
+  recurring:        { pt: 'Recorrente · Mensal',     en: 'Recurring · Monthly',   es: 'Recurrente · Mensual' },
+  high_ticket:      { pt: 'High Ticket',             en: 'High Ticket',           es: 'High Ticket' },
+  service:          { pt: 'Serviço 1-on-1',          en: '1-on-1 Service',        es: 'Servicio 1-on-1' },
+  physical_product: { pt: 'Produto Físico',          en: 'Physical Product',      es: 'Producto Físico' },
 };
 
 // Plain-language strategic-role prose. Reuses the high-ticket product name
@@ -2058,8 +2098,12 @@ function deriveLibraryFromModules(modules, lang) {
 
 function buildDefaultSlides(creator) {
   const name = firstName(creator?.name || 'Creator');
-  const lang = creator?.primaryLanguage === 'en' ? 'en' : 'pt';
-  const t = (pt, en) => lang === 'en' ? en : pt;
+  // Build-time language code — 3-way. Helper signature is `t(pt, en, es)` for
+  // forward-compatibility. ES strings that aren't supplied fall back to EN so
+  // we don't ship empty defaults for Spanish creators.
+  const rawLang = (creator?.primaryLanguage || '').toLowerCase();
+  const lang = rawLang === 'en' ? 'en' : rawLang === 'es' ? 'es' : 'pt';
+  const t = (pt, en, es) => lang === 'en' ? en : lang === 'es' ? (es ?? en) : pt;
 
   // ── Canonical accessor: every consumer reads from `client_facing_output` ──
   // For legacy creators that only have `offer.parsed` (pre-wizard markdown), the

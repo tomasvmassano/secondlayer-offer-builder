@@ -398,6 +398,8 @@ Pick pricing_model and target_price that fit this tier AND the confirmed_role.`)
   // phrases like "Stride System Template") which stay as-is.
   const langHint = creator?.primaryLanguage === 'en'
     ? `LANGUAGE: Output every string field in ENGLISH.`
+    : creator?.primaryLanguage === 'es'
+    ? `LANGUAGE: Output every string field in Castilian Spanish (España, "tú" form). Translate Phase 3 voice + vocabulary into Spanish where it's prose, but KEEP proper nouns / brand phrases / vocabulary elements verbatim ("Stride System Template", "Brain Dump", etc. — don't translate those). Do NOT mix languages within a single sentence.`
     : `LANGUAGE: Output every string field in PORTUGUESE (PT-PT). Translate Phase 3 voice + vocabulary into Portuguese where it's prose, but KEEP proper nouns / brand phrases / vocabulary elements verbatim ("Stride System Template", "Brain Dump", etc. — don't translate those). Do NOT mix languages within a single sentence.`;
 
   const userMessage = `Generate the core offer for this creator. Match the creator_voice_summary tone exactly. Reuse Phase 3 vocabulary when possible.

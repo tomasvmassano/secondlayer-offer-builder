@@ -38,21 +38,24 @@ export async function POST(request) {
 
     // Compatibility shims — fill missing fields so the existing render code
     // (which references old field names) doesn't crash on the new shape.
-    const lang = creator?.primaryLanguage === 'en' ? 'en' : 'pt';
+    // Lang resolves to one of three codes: 'pt' | 'en' | 'es'.
+    const rawLang = (creator?.primaryLanguage || '').toLowerCase();
+    const lang = rawLang === 'en' ? 'en' : rawLang === 'es' ? 'es' : 'pt';
+    const pick = (en, pt, es) => lang === 'en' ? en : lang === 'es' ? es : pt;
     const labels = {
-      today: lang === 'en' ? 'Today' : 'Hoje',
-      withSL: lang === 'en' ? 'With Second Layer' : 'Com a Second Layer',
-      build: lang === 'en' ? 'We Build (one time)' : 'Construímos (uma vez)',
-      operate: lang === 'en' ? 'We Operate (every month)' : 'Operamos (todos os meses)',
-      audience: lang === 'en' ? 'Estimated Audience' : 'Audiência Estimada',
-      from: lang === 'en' ? 'FROM' : 'DE',
-      to: lang === 'en' ? 'TO' : 'PARA',
-      assumptions: lang === 'en' ? 'Assumptions (live editable)' : 'Premissas (ajustáveis ao vivo)',
-      youKey: lang === 'en' ? 'You' : 'Tu',
-      usKey: lang === 'en' ? 'Us' : 'Nós',
-      setupNote: lang === 'en' ? 'One-time investment' : 'Investimento único',
-      commissionNote: lang === 'en' ? 'Monthly revenue share' : 'Revenue share mensal',
-      includedTitle: lang === 'en' ? 'What\'s included' : 'O que está incluído',
+      today: pick('Today', 'Hoje', 'Hoy'),
+      withSL: pick('With Second Layer', 'Com a Second Layer', 'Con Second Layer'),
+      build: pick('We Build (one time)', 'Construímos (uma vez)', 'Construimos (una vez)'),
+      operate: pick('We Operate (every month)', 'Operamos (todos os meses)', 'Operamos (cada mes)'),
+      audience: pick('Estimated Audience', 'Audiência Estimada', 'Audiencia Estimada'),
+      from: pick('FROM', 'DE', 'DE'),
+      to: pick('TO', 'PARA', 'A'),
+      assumptions: pick('Assumptions (live editable)', 'Premissas (ajustáveis ao vivo)', 'Hipótesis (editables en vivo)'),
+      youKey: pick('You', 'Tu', 'Tú'),
+      usKey: pick('Us', 'Nós', 'Nosotros'),
+      setupNote: pick('One-time investment', 'Investimento único', 'Inversión única'),
+      commissionNote: pick('Monthly revenue share', 'Revenue share mensal', 'Revenue share mensual'),
+      includedTitle: pick("What's included", 'O que está incluído', 'Qué incluye'),
     };
     // Fill safe defaults for fields removed/renamed in the new design
     if (slides.audience && slides.audience.closer === undefined) slides.audience.closer = '';
@@ -63,7 +66,7 @@ export async function POST(request) {
       slides.close.bottom = slides.close.bottom || '';
     }
     if (slides.buildOperate && !slides.buildOperate.title) {
-      slides.buildOperate.title = lang === 'en' ? 'What We Build & Operate' : 'O Que Construímos + O Que Operamos';
+      slides.buildOperate.title = pick('What We Build & Operate', 'O Que Construímos + O Que Operamos', 'Qué Construimos y Operamos');
     }
 
     const pres = new PptxGenJS();

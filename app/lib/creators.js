@@ -143,7 +143,7 @@ export async function saveCreator(data) {
     brand: data.brand || { colors: { primary: '#7A0E18', secondary: '#1a1a1a', accent: '#f5f5f5' }, fonts: { heading: '', body: '' }, logoUrl: '', voice: '' },
     metrics: data.metrics || { revenue: {}, acquisition: {}, email: {}, community: {} },
     intelligence: data.intelligence || { bioLinks: [], topPosts: [], contentStyle: null, competitors: [], audience: null },
-    primaryLanguage: data.primaryLanguage || null, // "pt" | "en" | null (null = not yet detected or not served)
+    primaryLanguage: data.primaryLanguage || null, // "pt" | "en" | "es" | null (null = not yet detected)
     // Revenue baseline — single source of truth for both Pitch and Offer Projector.
     // null = use defaults (scraped audience, nicho-based price). When user edits in
     // either page, value is saved here so the other page reads the same number.
@@ -272,9 +272,11 @@ export async function getCreator(id) {
   }
 
   // Backfill primaryLanguage for legacy creators where the resolver returned
-  // null (pre-2026-05-18 behaviour for non-PT/non-EN audiences). New decision:
-  // default to 'en' so downstream branches that check `=== 'en'` produce
-  // English content instead of silently falling back to PT.
+  // null (pre-2026-05-18 behaviour for non-PT/non-EN audiences). Default to
+  // 'en' so downstream branches produce content. As of 2026-05-20 the
+  // resolver can also return 'es' for Spanish-dominant audiences, but we
+  // don't auto-upgrade legacy records here — they keep whatever was
+  // written, and the operator can flip the badge in the UI.
   if (creator.primaryLanguage == null) {
     creator = { ...creator, primaryLanguage: 'en' };
   }

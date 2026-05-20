@@ -14,12 +14,17 @@ export async function POST(request) {
     return NextResponse.json({ error: 'Missing touchpointKey or currentContent' }, { status: 400 });
   }
 
-  // Canonical language code — 'en' if explicitly english-ish, else 'pt'.
-  // Accepts 'en' / 'pt' / 'English' / 'Portuguese' so existing callers keep
-  // working. Previously this route hardcoded a PT-default which silently
-  // translated English creators' DMs back to Portuguese on every rewrite.
-  const lang = (language || '').toString().toLowerCase().startsWith('en') ? 'en' : 'pt';
-  const langLabel = lang === 'en' ? 'natural English' : 'European Portuguese (NOT Brazilian, always "tu", never "você")';
+  // Canonical language code — 'en' | 'pt' | 'es' (Castilian). Accepts the
+  // raw codes plus the long names ("English", "Portuguese", "Spanish",
+  // "Español") so existing callers keep working. Default is PT for
+  // back-compat with legacy callers that pre-date language routing.
+  const raw = (language || '').toString().toLowerCase();
+  const lang = raw.startsWith('en') ? 'en'
+             : (raw.startsWith('es') || raw.startsWith('span') || raw.startsWith('espa')) ? 'es'
+             : 'pt';
+  const langLabel = lang === 'en' ? 'natural English'
+                  : lang === 'es' ? 'Castilian Spanish (España), always "tú", never "vos" or "usted"'
+                  : 'European Portuguese (NOT Brazilian, always "tu", never "você")';
 
   // Paired mode: when currentEmail is supplied we rewrite BOTH the DM and
   // the Day 1 email in a single Claude call. The DM and email say the same
@@ -45,7 +50,7 @@ Rules:
 - Apply the operator's feedback to BOTH messages. If they say "make it sharper", both get sharper. If they say "mention the podcast", both reference the podcast.
 - Preserve each format's scaffold:
   - DM: short, no email-style greeting, no subject. Pure body.
-  - Email: keep the greeting line ("Olá X" / "Hey X"), the Instagram acknowledgement opener ("Enviei mensagem para o Instagram, mas..." / "I also messaged you on Instagram but..."), the partnership-frame line, the video CTA, the soft close ("Faz sentido?" / "Does it make sense?"), and the sign-off. The OBSERVATION + PITCH paragraphs absorb the rewrite; the scaffold stays.
+  - Email: keep the greeting line ("Olá X" / "Hey X" / "Hola X"), the Instagram acknowledgement opener ("Enviei mensagem para o Instagram, mas..." / "I also messaged you on Instagram but..." / "Te envié mensaje por Instagram, pero..."), the partnership-frame line, the video CTA, the soft close ("Faz sentido?" / "Does it make sense?" / "¿Tiene sentido?"), and the sign-off ("Abraço,", "Cheers,", "Un abrazo,"). The OBSERVATION + PITCH paragraphs absorb the rewrite; the scaffold stays.
 - Write in the EXACT language specified in the user message. Do NOT translate. Do NOT switch languages.
 - Output strictly in this format (no preamble, no commentary):
 

@@ -120,7 +120,7 @@ export async function POST(request) {
     if (meetingNotes) creatorContext += `\n## MEETING NOTES\n${meetingNotes}\n`;
 
     // Build the message — include references for maximum quality.
-    // Language source-of-truth is creator.primaryLanguage ('pt' | 'en') —
+    // Language source-of-truth is creator.primaryLanguage ('pt' | 'en' | 'es') —
     // set by resolvePrimaryLanguage() at scrape time. Previously this used
     // a fuzzy match against audienceEstimate.language which would silently
     // fall back to English for any creator whose audience string didn't
@@ -128,7 +128,10 @@ export async function POST(request) {
     const primaryLang = (creator.primaryLanguage || '').toString().toLowerCase();
     const lang = primaryLang.startsWith('en') ? 'English'
       : primaryLang.startsWith('pt') ? 'European Portuguese (NOT Brazilian, always "tu" never "você")'
-      : (ae.language || '').toLowerCase().includes('portugu') ? 'European Portuguese' : 'English';
+      : primaryLang.startsWith('es') ? 'Castilian Spanish (España, always "tú" form)'
+      : (ae.language || '').toLowerCase().includes('portugu') ? 'European Portuguese'
+      : (ae.language || '').toLowerCase().includes('spanish') || (ae.language || '').toLowerCase().includes('españ') ? 'Castilian Spanish (España)'
+      : 'English';
     let userMessage = `${config.instruction}\n\n${creatorContext}`;
     if (refsContext) userMessage += `\n\n---\n\n## REFERENCE MATERIAL\n\n${refsContext}`;
     userMessage += `\n\n---\nGenerate the asset now. Be specific to this creator — use their real data. Write in ${lang}. Do NOT mix languages or translate. Be thorough and strategic.`;
