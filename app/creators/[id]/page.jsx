@@ -1200,6 +1200,38 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
                   </a>
                 );
               })()}
+              {/* "Email" — same one-click pattern as "Ver perfil", but for
+                  Gmail compose. Renders only when contactEmail is present (no
+                  point in a dead button). When the creator has a generated
+                  Day 1 email in dmSequence, the URL pre-fills subject + body
+                  so the draft opens ready to review and send. The same logic
+                  lives in the Instagram block lower on the page — we
+                  duplicate it here so the action is always visible without
+                  scrolling. */}
+              {creator.contactEmail && (() => {
+                const day1 = creator.dmSequence?.email_day1;
+                const subject = day1?.subject?.trim() || '';
+                const body = day1?.body?.trim() || '';
+                const params = new URLSearchParams({
+                  view: 'cm',
+                  fs: '1',
+                  to: creator.contactEmail,
+                });
+                if (subject) params.set('su', subject);
+                if (body) params.set('body', body);
+                const gmailUrl = `https://mail.google.com/mail/?${params.toString()}`;
+                return (
+                  <a
+                    href={gmailUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    title={day1 ? `Abrir Gmail · Day 1 pré-preenchido (${creator.contactEmail})` : `Abrir Gmail · ${creator.contactEmail}`}
+                    style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", padding: "3px 10px", borderRadius: 4, background: "rgba(34,197,94,0.1)", color: "#22c55e", border: "1px solid rgba(34,197,94,0.25)", cursor: "pointer", fontFamily: "inherit", textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 4 }}
+                  >
+                    ✉ Email{day1 ? " · Day 1" : ""}
+                  </a>
+                );
+              })()}
             </div>
           </div>
         </div>
