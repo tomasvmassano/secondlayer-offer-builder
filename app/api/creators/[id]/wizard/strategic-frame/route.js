@@ -199,9 +199,10 @@ async function runStrategicFrame(apiKey, creator, retryCount = 0, extraInstructi
   // ── Phase 1 summary
   let auditBlock = '';
   if (audit) {
-    const products = (audit.ecosystem_map?.products_found || []).map(p =>
-      `${p.name} (${p.tier} · ${p.format}${p.price_eur ? ' · €' + p.price_eur : ''})`
-    ).join('\n  - ');
+    const products = (audit.ecosystem_map?.products_found || []).map(p => {
+      const sym = p.currency === 'USD' ? '$' : p.currency === 'GBP' ? '£' : '€';
+      return `${p.name} (${p.tier} · ${p.format}${p.price_eur ? ' · ' + sym + p.price_eur : ''})`;
+    }).join('\n  - ');
     const gaps = (audit.ecosystem_map?.gaps_identified || []).join('\n  - ');
     const cannibalization = (audit.cannibalization_constraints || []).join('\n  - ');
     const synergy = (audit.synergy_opportunities || []).join('\n  - ');

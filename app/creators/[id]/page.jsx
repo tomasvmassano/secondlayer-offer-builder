@@ -95,6 +95,18 @@ function formatFollowers(n) {
   return String(n);
 }
 
+// Currency-symbol lookup. Default EUR when the field is missing on
+// legacy product records — pre-2026-05-20 audits didn't capture
+// currency so price_eur was effectively EUR-typed.
+function currencySymbol(code) {
+  switch (String(code || 'EUR').toUpperCase()) {
+    case 'USD': return '$';
+    case 'GBP': return '£';
+    case 'EUR':
+    default:    return '€';
+  }
+}
+
 const metricCardStyle = { padding: "12px 16px", background: "#141414", border: "1px solid rgba(255,255,255,0.04)", borderRadius: 8, minWidth: 0 };
 const metricLabelStyle = { fontSize: 10, fontWeight: 600, color: "#555", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 4 };
 const metricValueStyle = { fontSize: 16, fontWeight: 700, color: "#f5f5f5" };
@@ -2604,7 +2616,7 @@ function EcosystemAuditPanel({ creator, setCreator, running, error, diag, onRun 
     setDirty(true);
   };
   const addProduct = () => {
-    setLocalProducts(prev => [...prev, { name: '', tier: 'low_ticket', format: 'product', price_eur: null, url: '', transformation_offered: '' }]);
+    setLocalProducts(prev => [...prev, { name: '', tier: 'low_ticket', format: 'product', price_eur: null, currency: 'EUR', url: '', transformation_offered: '' }]);
     setDirty(true);
   };
   const deleteProduct = (i) => {
@@ -2620,7 +2632,7 @@ function EcosystemAuditPanel({ creator, setCreator, running, error, diag, onRun 
     setDirty(true);
   };
   const addCommunity = () => {
-    setLocalCommunities(prev => [...prev, { name: '', tier: 'recurring', format: 'Skool community', price_eur: null, url: '' }]);
+    setLocalCommunities(prev => [...prev, { name: '', tier: 'recurring', format: 'Skool community', price_eur: null, currency: 'EUR', url: '' }]);
     setDirty(true);
   };
   const deleteCommunity = (i) => {
@@ -2807,8 +2819,8 @@ function EcosystemAuditPanel({ creator, setCreator, running, error, diag, onRun 
                       const tc = TIER_COLORS[p.tier] || TIER_COLORS.physical_product;
                       return (
                         <div key={i} style={{ padding: "10px 12px", background: "#0a0a0a", borderRadius: 6, border: `1px solid ${tc.border}` }}>
-                          {/* Row 1: name (flex) · tier · price · delete */}
-                          <div className="sl-grid-4" style={{ display: "grid", gridTemplateColumns: "1fr 140px 90px 28px", gap: 8, marginBottom: 6, alignItems: "center" }}>
+                          {/* Row 1: name (flex) · tier · price · currency · delete */}
+                          <div className="sl-grid-4" style={{ display: "grid", gridTemplateColumns: "1fr 140px 80px 60px 28px", gap: 8, marginBottom: 6, alignItems: "center" }}>
                             <input
                               type="text"
                               value={p.name || ''}
@@ -2828,10 +2840,20 @@ function EcosystemAuditPanel({ creator, setCreator, running, error, diag, onRun 
                             <input
                               type="number"
                               value={p.price_eur ?? ''}
-                              placeholder="€ price"
+                              placeholder={currencySymbol(p.currency) + ' price'}
                               onChange={e => editProduct(i, 'price_eur', e.target.value === '' ? null : Number(e.target.value))}
                               style={{ ...inputStyle, textAlign: "right" }}
                             />
+                            <select
+                              value={p.currency || 'EUR'}
+                              onChange={e => editProduct(i, 'currency', e.target.value)}
+                              title="Currency — stored alongside the price so the actual checkout amount is visible. No auto-conversion."
+                              style={{ ...inputStyle, fontSize: 10, fontWeight: 700, cursor: "pointer", appearance: "none", WebkitAppearance: "none", textAlign: "center" }}
+                            >
+                              <option value="EUR" style={{ background: "#0a0a0a" }}>€ EUR</option>
+                              <option value="USD" style={{ background: "#0a0a0a" }}>$ USD</option>
+                              <option value="GBP" style={{ background: "#0a0a0a" }}>£ GBP</option>
+                            </select>
                             <button
                               onClick={() => deleteProduct(i)}
                               title="Delete this product"
@@ -2937,7 +2959,7 @@ function EcosystemAuditPanel({ creator, setCreator, running, error, diag, onRun 
                   <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                     {localCommunities.map((c, i) => (
                       <div key={i} style={{ padding: "10px 12px", background: "rgba(234,179,8,0.04)", borderRadius: 6, border: "1px solid rgba(234,179,8,0.25)" }}>
-                        <div className="sl-grid-4" style={{ display: "grid", gridTemplateColumns: "1fr 140px 90px 28px", gap: 8, marginBottom: 6, alignItems: "center" }}>
+                        <div className="sl-grid-4" style={{ display: "grid", gridTemplateColumns: "1fr 140px 80px 60px 28px", gap: 8, marginBottom: 6, alignItems: "center" }}>
                           <input
                             type="text"
                             value={c.name || ''}
@@ -2957,10 +2979,20 @@ function EcosystemAuditPanel({ creator, setCreator, running, error, diag, onRun 
                           <input
                             type="number"
                             value={c.price_eur ?? ''}
-                            placeholder="€/mo"
+                            placeholder={currencySymbol(c.currency) + '/mo'}
                             onChange={e => editCommunity(i, 'price_eur', e.target.value === '' ? null : Number(e.target.value))}
                             style={{ ...inputStyle, textAlign: "right" }}
                           />
+                          <select
+                            value={c.currency || 'EUR'}
+                            onChange={e => editCommunity(i, 'currency', e.target.value)}
+                            title="Currency"
+                            style={{ ...inputStyle, fontSize: 10, fontWeight: 700, cursor: "pointer", appearance: "none", WebkitAppearance: "none", textAlign: "center" }}
+                          >
+                            <option value="EUR" style={{ background: "#0a0a0a" }}>€ EUR</option>
+                            <option value="USD" style={{ background: "#0a0a0a" }}>$ USD</option>
+                            <option value="GBP" style={{ background: "#0a0a0a" }}>£ GBP</option>
+                          </select>
                           <button
                             onClick={() => deleteCommunity(i)}
                             title="Delete this community"

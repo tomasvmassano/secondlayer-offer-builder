@@ -684,7 +684,7 @@ ${TEMPLATE_FRAMING[template]}
 
   const auditProductsBlock = auditProducts.length
     ? auditProducts.map(p =>
-        `  - "${p.name}"${p.price_eur ? ` €${p.price_eur}` : ''}${p.format ? ` [${p.format}]` : ''}${p.transformation_offered ? ` — ${p.transformation_offered}` : ''}`
+        `  - "${p.name}"${p.price_eur ? ` ${p.currency === 'USD' ? '$' : p.currency === 'GBP' ? '£' : '€'}${p.price_eur}` : ''}${p.format ? ` [${p.format}]` : ''}${p.transformation_offered ? ` — ${p.transformation_offered}` : ''}`
       ).join('\n')
     : null;
 

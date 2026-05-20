@@ -59,6 +59,10 @@ export async function POST(request, { params }) {
       nextProducts = body.products_found.map(p => ({
         name: p.name?.trim() || '',
         price_eur: p.price_eur ?? null,
+        // Currency persists alongside price. Default EUR for legacy records
+        // (and when operator doesn't supply one). Validated against the
+        // 3-currency enum in schemas/ecosystemAudit.js.
+        currency: (p.currency && ['EUR', 'USD', 'GBP'].includes(p.currency)) ? p.currency : (p.price_eur != null ? 'EUR' : null),
         format: p.format?.trim() || 'other',
         tier: p.tier || 'low_ticket',
         url: p.url?.trim() || '',
@@ -88,6 +92,7 @@ export async function POST(request, { params }) {
       nextCommunities = body.existing_communities.map(c => ({
         name: c.name?.trim() || '',
         price_eur: c.price_eur ?? null,
+        currency: (c.currency && ['EUR', 'USD', 'GBP'].includes(c.currency)) ? c.currency : (c.price_eur != null ? 'EUR' : null),
         tier: c.tier || 'recurring',
         format: c.format?.trim() || 'community',
         url: c.url?.trim() || '',

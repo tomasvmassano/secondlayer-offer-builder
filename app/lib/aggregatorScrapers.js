@@ -259,12 +259,20 @@ function nuxtPageToProduct(page, baseUrl) {
   const isMembership = price.membership_duration_available === true ||
     (typeof price.membership_duration === 'number' && price.membership_duration > 0);
   const isFree = priceUsd === 0 || priceUsd == null;
-  const price_eur = isFree ? null : Math.round(priceUsd * 0.92);
+  // Stan.store stores prices natively in USD. We keep the value AS-IS
+  // (no EUR conversion) and stamp currency='USD' so the UI displays
+  // "$319" instead of "€319". The field name price_eur is legacy.
+  const price_eur = isFree ? null : priceUsd;
+  const currency = isFree ? null : 'USD';
 
   const slug = (page.slug || '').replace(/^\//, '');
   const productUrl = slug ? `${baseUrl}/${slug}` : baseUrl;
 
   const lowerName = product.title.toLowerCase();
+  // Tier thresholds use USD bands since Stan.store is USD-native.
+  // ($30 / $100 / $500 is roughly equivalent to the EUR bands the
+  // creator-side wizard uses — close enough for the LLM to override
+  // if it sees stronger evidence.)
   let tier;
   if (isMembership) tier = 'recurring';
   else if (isFree) tier = 'lead_magnet';
@@ -284,6 +292,7 @@ function nuxtPageToProduct(page, baseUrl) {
   return {
     name: product.title.trim(),
     price_eur,
+    currency,
     url: productUrl,
     format,
     tier,
@@ -305,9 +314,10 @@ function scrapeStanStoreHtmlFallback(html, url) {
     if (Number.isFinite(priceUsd) && name) {
       products.push({
         name,
-        // Stan.store prices are typically USD. Convert at ~0.92 (rough).
-        // Operator can edit via the CRUD if exact conversion matters.
-        price_eur: Math.round(priceUsd * 0.92),
+        // Stan.store is USD-native. Keep the original price + stamp
+        // currency so the UI shows "$" instead of fake-converting to "€".
+        price_eur: priceUsd,
+        currency: 'USD',
         url,
         format: 'digital product',
       });
@@ -360,9 +370,10 @@ function stanProductToStandard(p, baseUrl) {
     priceUsd = p.amount > 1000 ? p.amount / 100 : p.amount;
   }
   const isFree = priceUsd === 0 || priceUsd == null;
-  // Rough USD→EUR conversion. Good enough for audit purposes; operator
-  // can correct via CRUD if precision matters for a high-value pitch.
-  const price_eur = isFree ? null : Math.round(priceUsd * 0.92);
+  // Stan.store is USD-native. Keep the value as-is and stamp currency
+  // so downstream rendering shows "$" not a fake-converted "€".
+  const price_eur = isFree ? null : priceUsd;
+  const currency = isFree ? null : 'USD';
 
   // Tier inference — free = lead_magnet, recurring keyword → recurring,
   // otherwise band by price.
@@ -398,6 +409,7 @@ function stanProductToStandard(p, baseUrl) {
   return {
     name: name || '(unnamed product)',
     price_eur,
+    currency,
     url: productUrl,
     format,
     tier,
@@ -498,7 +510,8 @@ async function scrapeLinktree(url) {
           .filter(l => l && (l.url || l.modifiers?.contactDetails) && l.isActive !== false)
           .map(l => ({
             name: decodeHtmlEntities(l.title || l.label || l.text || 'Untitled link'),
-            price_eur: null,            // LLM enriches via web_search of the destination
+            price_eur: null,            // LLM enriches from URL_PREVIEW of the destination
+            currency: null,             // LLM detects from destination preview
             url: l.url || '',
             format: linktreeTypeToFormat(l.type),
             tier: 'unknown',            // LLM classifies
@@ -523,6 +536,7 @@ async function scrapeLinktree(url) {
     const products = anchorMatches.map(m => ({
       name: decodeHtmlEntities(m[2].replace(/<[^>]+>/g, '').trim()),
       price_eur: null,
+      currency: null,
       url: m[1],
       format: 'other',
       tier: 'unknown',

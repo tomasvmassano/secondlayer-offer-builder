@@ -312,6 +312,20 @@ Classify each product into EXACTLY ONE of these tiers:
 
 If price isn't visible after web_search, set price_eur to null and rely on format + transformation to classify the tier (a "1-on-1 mentorship" with no published price is high_ticket; a "free newsletter" is lead_magnet).
 
+## CURRENCY — DO NOT CONVERT
+
+When a product's price is visible, record the NUMBER in price_eur AS-IS in its original currency (the field name is legacy; the value is whatever currency the creator charges) and set the \`currency\` field to one of: 'EUR', 'USD', 'GBP'.
+
+Examples:
+  - "$49/month" on a US creator's site  →  price_eur: 49, currency: 'USD'
+  - "€19/mês" on a Portuguese creator    →  price_eur: 19, currency: 'EUR'
+  - "£29 one-off" on a UK creator        →  price_eur: 29, currency: 'GBP'
+  - "$319" on a Stan.store storefront    →  price_eur: 319, currency: 'USD'
+
+NEVER convert between currencies. If you see "$49", do NOT multiply by 0.92 to get €45 — store 49 + USD. The creator charges in USD, the checkout charges in USD, the operator needs to see USD. Converting introduces error and breaks the offer-pricing math downstream.
+
+When the currency isn't visible (price hint shows just a number without a symbol), default to EUR if the creator's domain is .pt / .es / .fr / .de / European Substack / Portuguese-language content; default to USD if the storefront is on Stan.store / Gumroad / Beehiiv with USD-default pricing; default to USD otherwise. When in doubt, default USD and flag it in transformation_offered (e.g. "USD assumed — verify"). Do NOT guess EUR by default.
+
 ## STRATEGIC ROLE
 
 The hub team is building this creator a paid monthly community. Pick ONE role for it:
@@ -331,6 +345,7 @@ Return ONLY this JSON. No markdown code fences. No commentary. No prefix or suff
       {
         "name": "string",
         "price_eur": number_or_null,
+        "currency": "EUR|USD|GBP",
         "format": "course|ebook|coaching|app|service|book|physical_product|newsletter|community|template|other",
         "tier": "lead_magnet|low_ticket|mid_ticket|high_ticket|recurring|service|physical_product",
         "url": "string",
@@ -341,6 +356,7 @@ Return ONLY this JSON. No markdown code fences. No commentary. No prefix or suff
       {
         "name": "string",
         "price_eur": number_or_null,
+        "currency": "EUR|USD|GBP",
         "tier": "lead_magnet|low_ticket|mid_ticket|high_ticket|recurring|service|physical_product",
         "format": "string (e.g. 'Skool community', 'Whop monthly', 'private Discord')",
         "url": "string (optional, '' if not crawlable)"
@@ -452,8 +468,13 @@ These products were extracted directly from the aggregator HTML (stan.store __NE
 **CRITICAL — cross-reference URL_PREVIEWS for prices when price_eur is null:**
 Many pre-discovered products (especially from Linktree) arrive with \`price_eur: null\` because the aggregator scraper only captures name + URL. The URL_PREVIEWS block below DOES contain the actual price for these products — fetched server-side from the destination page (Hotmart checkout, Substack pricing page, etc.). For each pre-discovered product:
   1. Find the URL_PREVIEW entry whose URL matches the product's URL (match by domain + path, ignore query strings).
-  2. If the preview has \`priceHints\`, use the first numeric value as the product's price_eur. Convert other currencies to EUR using approximate rates if needed (USD × 0.92, GBP × 1.17).
-  3. Example: pre-discovered product { name: "Ebook X", url: "pay.hotmart.com/ABC?bid=123", price_eur: null }; URL_PREVIEW for pay.hotmart.com/ABC has priceHints: ["5,29 €"] → set price_eur: 5.29 in your output.
+  2. If the preview has \`priceHints\`, use the first numeric value as the product's price_eur AND detect the currency from the symbol/code in the hint:
+       - "$49", "$49 /month", "49 USD"      → price_eur: 49, currency: 'USD'
+       - "€19", "19,99 €", "19 EUR"          → price_eur: 19, currency: 'EUR' (or 19.99)
+       - "£29", "29 GBP"                     → price_eur: 29, currency: 'GBP'
+     Do NOT convert — preserve the original currency. The field name "price_eur" is legacy; the value is the amount in the original currency, and the \`currency\` field tells the UI which symbol to render.
+  3. Example: pre-discovered product { name: "Ebook X", url: "pay.hotmart.com/ABC?bid=123", price_eur: null }; URL_PREVIEW priceHints: ["5,29 €"] → price_eur: 5.29, currency: 'EUR'.
+  4. Example: pre-discovered product { name: "UGC Method", url: "stan.store/rachmartinez/...", price_eur: null }; URL_PREVIEW priceHints: ["$319"] → price_eur: 319, currency: 'USD' (NOT 293.48).
 
 If both the scraper and the URL preview have prices, prefer the URL preview (it's the live page; the scraper may have stale data).
 
@@ -461,6 +482,7 @@ You may add ADDITIONAL products beyond this list (from URLs not covered by the s
 
 ${preDiscoveredProducts.map((p, i) => `${i + 1}. name: ${p.name}
    price_eur: ${p.price_eur}
+   currency (tentative): ${p.currency || '(unknown — detect from URL_PREVIEW)'}
    url: ${p.url}
    format: ${p.format}
    tier (tentative): ${p.tier}`).join('\n\n')}

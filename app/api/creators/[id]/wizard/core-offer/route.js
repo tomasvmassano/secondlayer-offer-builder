@@ -321,11 +321,12 @@ Positioning tension: ${frame.positioning_tension}`;
   let auditBlock = '';
   if (audit) {
     const ecoMap = audit.ecosystem_map || {};
+    const symFor = (cur) => cur === 'USD' ? '$' : cur === 'GBP' ? '£' : '€';
     const products = (ecoMap.products_found || []).map(p =>
-      `  - ${p.name} (${p.tier} · ${p.format}${p.price_eur ? ' · €' + p.price_eur : ''})${p.transformation_offered ? `\n      promises: ${p.transformation_offered}` : ''}`
+      `  - ${p.name} (${p.tier} · ${p.format}${p.price_eur ? ' · ' + symFor(p.currency) + p.price_eur : ''})${p.transformation_offered ? `\n      promises: ${p.transformation_offered}` : ''}`
     ).join('\n');
     const communities = (ecoMap.existing_communities || []).map(c =>
-      `  - ${c.name} (${c.tier}${c.price_eur ? ' · €' + c.price_eur + '/mo' : ''} · ${c.format})${c.transformation_offered ? `\n      promises: ${c.transformation_offered}` : ''}`
+      `  - ${c.name} (${c.tier}${c.price_eur ? ' · ' + symFor(c.currency) + c.price_eur + '/mo' : ''} · ${c.format})${c.transformation_offered ? `\n      promises: ${c.transformation_offered}` : ''}`
     ).join('\n');
     const cannibalRisk = ecoMap.community_cannibalization_risk || 'unknown';
     auditBlock = `## ECOSYSTEM (Phase 1)

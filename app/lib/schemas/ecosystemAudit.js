@@ -29,12 +29,18 @@ export const VALID_ROLES = [
 
 export const VALID_CANNIBALIZATION_RISK = ['high', 'medium', 'low', 'none'];
 
+// Currency: ISO-4217 codes for the three currencies SL operates in. The
+// field is REQUIRED on every product now — we no longer convert to EUR.
+// Stored alongside price_eur (the field name is legacy; the value is the
+// price in the original currency). UI reads `currency` to pick the symbol.
+export const VALID_CURRENCIES = ['EUR', 'USD', 'GBP'];
+
 // Shape (for reference — JS, not a runtime type system):
 //
 // {
 //   ecosystem_map: {
 //     products_found: [
-//       { name, price_eur, format, tier, url, transformation_offered }
+//       { name, price_eur, currency, format, tier, url, transformation_offered }
 //     ],
 //     // NEW: Existing communities are called out separately from products,
 //     // because they're the highest cannibalization risk for our offer.
@@ -42,7 +48,7 @@ export const VALID_CANNIBALIZATION_RISK = ['high', 'medium', 'low', 'none'];
 //     // same tier — if Tomás already has Blueprint Academy at €36/mo
 //     // (low_ticket), we cannot ship another low-ticket community.
 //     existing_communities: [
-//       { name, price_eur, tier, format, url }
+//       { name, price_eur, currency, tier, format, url }
 //     ],
 //     community_cannibalization_risk: 'high' | 'medium' | 'low' | 'none',
 //     has_high_ticket: boolean,
@@ -84,6 +90,12 @@ export function validateEcosystemAudit(obj) {
         if (!isStr(p.name)) push(`${px}.name`, 'required non-empty string');
         if (p.price_eur != null && !isNum(p.price_eur)) push(`${px}.price_eur`, 'must be number or null');
         if (p.price_eur != null && p.price_eur < 0) push(`${px}.price_eur`, 'must be >= 0');
+        // currency — required when price_eur is set. Legacy records (pre
+        // currency field) get a soft-default to EUR in the migration layer
+        // so this only fails on FRESH outputs missing the field.
+        if (p.price_eur != null && p.currency != null && !VALID_CURRENCIES.includes(p.currency)) {
+          push(`${px}.currency`, `must be one of ${VALID_CURRENCIES.join('|')} (got ${p.currency})`);
+        }
         if (!isStr(p.format)) push(`${px}.format`, 'required non-empty string');
         if (!VALID_TIERS.includes(p.tier)) push(`${px}.tier`, `must be one of ${VALID_TIERS.join('|')}`);
         if (!isStr(p.url)) push(`${px}.url`, 'required non-empty string');
@@ -101,6 +113,9 @@ export function validateEcosystemAudit(obj) {
         if (!ec || typeof ec !== 'object' || Array.isArray(ec)) { push(px, 'must be an object'); return; }
         if (!isStr(ec.name)) push(`${px}.name`, 'required non-empty string');
         if (ec.price_eur != null && !isNum(ec.price_eur)) push(`${px}.price_eur`, 'must be number or null');
+        if (ec.price_eur != null && ec.currency != null && !VALID_CURRENCIES.includes(ec.currency)) {
+          push(`${px}.currency`, `must be one of ${VALID_CURRENCIES.join('|')} (got ${ec.currency})`);
+        }
         if (!VALID_TIERS.includes(ec.tier)) push(`${px}.tier`, `must be one of ${VALID_TIERS.join('|')}`);
         if (!isStr(ec.format)) push(`${px}.format`, 'required non-empty string');
         // url optional — sometimes the community URL isn't crawlable
