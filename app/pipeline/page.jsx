@@ -95,7 +95,7 @@ export default function PipelinePage() {
           <div style={{ textAlign: "center", padding: "60px 20px" }}>
             <div style={{ width: 48, height: 48, margin: "0 auto 16px", borderRadius: 12, background: "rgba(255,255,255,0.03)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24, color: "#333" }}>&#128274;</div>
             <p style={{ fontSize: 15, color: "#666", marginBottom: 8 }}>Nenhum creator fechado</p>
-            <p style={{ fontSize: 12, color: "#444", marginBottom: 24 }}>Vai ao CRM, pesquisa um creator, e clica "Fechar Deal" para o adicionar ao pipeline.</p>
+            <p style={{ fontSize: 12, color: "#444", marginBottom: 24 }}>Marca um creator como signed para o adicionares ao pipeline.</p>
             <a href="/creators" style={{ display: "inline-block", padding: "10px 24px", borderRadius: 8, background: "#7A0E18", color: "#fff", fontSize: 13, fontWeight: 600, textDecoration: "none", fontFamily: "inherit" }}>Ir para CRM</a>
           </div>
         ) : (

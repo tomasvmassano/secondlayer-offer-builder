@@ -1168,12 +1168,38 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
                   {runningFullScrape ? "A scrapear..." : "↻ Full Scrape"}
                 </button>
               )}
-              {creator.pipelineStatus !== 'signed' && (
-                <button onClick={() => { if (window.confirm("Fechar deal com " + creator.name + "? Isto move o creator para o Pipeline.")) patchCreator({ pipelineStatus: 'signed', signedAt: new Date().toISOString() }); }}
-                  style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", padding: "3px 10px", borderRadius: 4, background: "rgba(122,14,24,0.1)", color: "#7A0E18", border: "1px solid rgba(122,14,24,0.25)", cursor: "pointer", fontFamily: "inherit" }}>
-                  Fechar Deal
-                </button>
-              )}
+              {/* "Ver perfil" — opens the creator's main social profile in a
+                  new tab. Picks the URL that matches primaryPlatform (defaults
+                  to Instagram, which is the actual primary for most of our
+                  prospects). Falls back through the other platforms when the
+                  primary one isn't recorded. Hidden when no profile URL is
+                  available anywhere — better than rendering a dead link. */}
+              {(() => {
+                const platforms = creator.platforms || {};
+                const igHandle = platforms.instagram?.handle ? `https://instagram.com/${String(platforms.instagram.handle).replace(/^@/, '')}` : null;
+                const igUrl = platforms.instagram?.url || igHandle;
+                const tkUrl = creator.tiktokUrl || platforms.tiktok?.url || null;
+                const ytUrl = creator.youtubeUrl || platforms.youtube?.url || null;
+                const primary = (creator.primaryPlatform || 'Instagram').toLowerCase();
+                const profileUrl = primary === 'tiktok' ? (tkUrl || igUrl || ytUrl)
+                                 : primary === 'youtube' ? (ytUrl || igUrl || tkUrl)
+                                 : (igUrl || tkUrl || ytUrl);
+                if (!profileUrl) return null;
+                const platformLabel = profileUrl === tkUrl ? 'TikTok'
+                                    : profileUrl === ytUrl ? 'YouTube'
+                                    : 'Instagram';
+                return (
+                  <a
+                    href={profileUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    title={`Abrir perfil ${platformLabel} em nova aba`}
+                    style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", padding: "3px 10px", borderRadius: 4, background: "rgba(122,14,24,0.1)", color: "#7A0E18", border: "1px solid rgba(122,14,24,0.25)", cursor: "pointer", fontFamily: "inherit", textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 4 }}
+                  >
+                    ↗ Ver perfil
+                  </a>
+                );
+              })()}
             </div>
           </div>
         </div>
