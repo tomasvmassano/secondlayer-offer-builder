@@ -223,19 +223,24 @@ How many products should you typically find on each aggregator?
   - beacons.ai: 5-15
 If your final products_found list contains fewer items than the page visibly shows, you've failed.
 
-## REQUIRED ADDITIONAL DISCOVERY — DO THIS EVEN IF THE URL LIST IS COMPLETE
+## REQUIRED ADDITIONAL DISCOVERY — scale to URL density
 
-The creator's bio links DO NOT necessarily list everything they sell. The hub team has been burned by missing existing communities (e.g. a creator with a Skool community at a custom domain that wasn't in their bio). To prevent this, you MUST perform at minimum these THREE additional web_search queries before producing output, and incorporate anything you find:
+The creator's bio links DO NOT necessarily list everything they sell. The hub team has been burned by missing existing communities (e.g. a creator with a Skool community at a custom domain that wasn't in their bio). Use these additional web_search queries before producing output:
 
   1. '"[creator name]" community'        — finds branded community pages, custom domains, etc.
   2. '"[creator name]" skool OR whop'    — finds Skool/Whop-hosted communities
   3. '"[creator name]" membership OR newsletter premium' — finds paid memberships/Substack-style products
 
-Replace [creator name] with the actual creator name from the input. If the creator is well-known by a brand name as well (e.g. "Late Checkout" for Greg Isenberg, "The AI Income Labs" for Mariah Brunner), run the brand-name variant too.
+**HOW MANY TO RUN** — scale to the URL list you were given:
+  - 0–2 input URLs (sparse bio): run ALL THREE — the bio probably hides a community.
+  - 3–4 input URLs: run #1 (community) ONLY — the bio is meaty enough that the other two are usually redundant.
+  - 5+ input URLs: SKIP all three — the bio is dense, run them only if your URL-inspection turned up zero commerce signals.
 
-Anything you find via these searches MUST be added to products_found and (if it's a community) to existing_communities. This is non-negotiable — a missed existing community is the most expensive failure mode for the downstream wizard.
+This scaling matters: every extra web_search consumes 500–2000 tokens of result text, and dense-bio creators were exhausting the output budget before the JSON could complete. The community-search (#1) is the highest-value of the three since missed communities are the most expensive failure for the downstream wizard.
 
-DO NOT skip these searches even if the URL list seems comprehensive. Bio links are routinely incomplete.
+Replace [creator name] with the actual creator name from the input. If the creator is well-known by a brand name as well (e.g. "Late Checkout" for Greg Isenberg), run the brand-name variant of #1 too.
+
+Anything you find via these searches MUST be added to products_found and (if it's a community) to existing_communities.
 
 ## CRITICAL — IDENTITY VERIFICATION (avoid same-first-name false positives)
 
@@ -364,7 +369,7 @@ Empty array [] if standalone.
    - has_mid_ticket MUST be true iff products_found contains at least one product with tier='mid_ticket'.
    - has_recurring MUST be true iff EITHER (a) products_found contains a product with tier='recurring' OR (b) existing_communities is non-empty. Paid communities are subscription-based by definition — even if you classify a particular community as 'mid_ticket' (e.g. annual flat fee), has_recurring is still true because there's an ongoing-access offer.
 3. If a URL is a 404 / parked / private / errored, OMIT it from products_found rather than including a placeholder.
-4. Run the REQUIRED ADDITIONAL DISCOVERY queries before producing output. Missing an existing community is the worst failure mode.
+4. Run the REQUIRED ADDITIONAL DISCOVERY queries scaled to URL density (see that section). With 5+ input URLs, default is to skip them.
 5. Output must be VALID JSON. No surrounding text. No explanation.`;
 
 async function runAudit(apiKey, creator, urls, aggregatorsSeen, preDiscoveredProducts = [], retryCount = 0) {
@@ -424,7 +429,8 @@ ${ownedHandles}
 ## URL PROVENANCE
 The URLs under "URLS TO INSPECT" come from THIS creator's own IG bio (externalUrl + multi-link bio). They are owned by definition. The identity-verification rule applies ONLY to extras you find via web_search, NOT to these input URLs. If an aggregator shows "(aggregator — Apify returned 0)", web_search the aggregator URL directly and list every visible product card.
 
-${preDiscoveredBlock}## URLS TO INSPECT (use web_search on each)
+${preDiscoveredBlock}## URLS TO INSPECT (use web_search on each) — count: ${urls.length}
+Per the URL-density rule in your system prompt: ${urls.length >= 5 ? 'this is DENSE (5+) — SKIP the 3 additional discovery searches unless URL inspection turns up zero commerce signals.' : urls.length >= 3 ? 'this is MEDIUM (3-4) — run ONLY the community-search (#1), skip #2 and #3.' : 'this is SPARSE (0-2) — run ALL THREE additional discovery searches.'}
 ${urlList}
 
 ${aggregatorsSeen.length > 0 ? `## AGGREGATORS RESOLVED\nThese aggregator URLs were already resolved; their destinations appear in URLS above:\n${aggregatorsSeen.map(a => `- ${a}`).join('\n')}\n\n` : ''}## OUTPUT
@@ -444,11 +450,12 @@ Return ONLY the JSON object matching the schema in your system prompt. Start you
     },
     body: JSON.stringify({
       model: 'claude-sonnet-4-20250514',
-      // Bumped 4000 → 8000 (2026-05-19) — web_search workflows can chew
-      // through 4-8 tool rounds before assembling the JSON, and we saw
-      // "Model returned non-JSON output after retry" failures where the
-      // JSON was getting truncated mid-object. Bigger budget = headroom.
-      max_tokens: 8000,
+      // 4000 → 8000 (2026-05-19) → 12000 (2026-05-20). Creators with 5+ bio
+      // links and no aggregator (forms.gle, YouTube, custom domains, etc.)
+      // require 8+ web_search rounds before assembling the JSON; the model
+      // was still truncating at 8K on those (e.g. Paras Madan). Each
+      // additional 4K of headroom costs ~$0.06 — cheap for reliability.
+      max_tokens: 12000,
       tools: [{ type: 'web_search_20250305', name: 'web_search' }],
       system: [{ type: 'text', text: SYSTEM_PROMPT, cache_control: { type: 'ephemeral' } }],
       messages: [{ role: 'user', content: userMessage }],
