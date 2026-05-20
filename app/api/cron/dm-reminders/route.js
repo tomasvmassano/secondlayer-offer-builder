@@ -111,6 +111,23 @@ export async function GET(request) {
     }
     if (!matched) continue;
 
+    // Resolve the operator that will receive this row so we can sign the
+     // copy-paste follow-up text with their name. Default to the addedBy
+     // first name; ambiguous owners get "Raul" (the most common case).
+    const ownerFirstName = c.addedBy?.firstName || 'Raul';
+    const lang = (c.primaryLanguage || 'pt').toLowerCase();
+    const langCode = lang === 'en' ? 'en' : lang === 'es' ? 'es' : 'pt';
+    const creatorFirstName = (c.name || '').split(/\s+/)[0] || 'pessoa';
+    const igUrl = c.platforms?.instagram?.url
+      || (c.platforms?.instagram?.handle ? `https://instagram.com/${c.platforms.instagram.handle.replace(/^@/, '')}` : null);
+    // Pre-canned follow-up DM text the operator can paste into the IG inbox.
+    // One template per milestone × language. Stored emails (day 7 / day 14)
+    // come from dmSequence when present — generated previously by dm-writer
+    // in stage='followup_7' / 'followup_14'. If absent we fall back to the
+    // brand-locked breakup template defined below.
+    const followUpDm = buildFollowUpDm(matched.key, creatorFirstName, ownerFirstName, langCode);
+    const storedFollowUpEmail = pickStoredFollowUpEmail(c, matched.key);
+
     buckets[matched.key].push({
       id: c.id,
       name: c.name,
@@ -119,6 +136,9 @@ export async function GET(request) {
       daysSinceDM: days,
       followUpsDone,
       ownerEmail,
+      igUrl,
+      followUpDm,
+      followUpEmail: storedFollowUpEmail,
     });
 
     // Mark this reminder as sent for this creator → cron never re-pings the
@@ -200,6 +220,54 @@ function pickFollowers(c) {
   return Math.max(ig, tk, yt);
 }
 
+// ─── Follow-up DM templates ───
+//
+// Hand-written so the operator can paste straight into Instagram without
+// editing. Tone matches Raul's voice (validate → soft re-ask → sign-off).
+// Three milestones × three languages = 9 templates. The {creator} and
+// {sender} placeholders get substituted at build time.
+const DM_TEMPLATES = {
+  pt: {
+    softNudge:  `Olá {creator},\n\nNão quero ser persistente. Voltei a pensar no que te enviei e queria saber se fez algum sentido para o teu caso. Mesmo que não seja o momento certo, qualquer feedback ajuda.\n\nAbraço,\n{sender}`,
+    valueDrop:  `Olá {creator},\n\nA acompanhar. Estive a trabalhar com alguém parecido com o teu perfil e o resultado deu-me uma ideia concreta para a tua estrutura. Vale o vídeo de 3 minutos?\n\nAbraço,\n{sender}`,
+    lastTouch:  `Olá {creator},\n\nÚltimo toque do meu lado. Não vou voltar a mandar mensagem. Se um dia mudar de ideias, a porta fica aberta.\n\nAbraço,\n{sender}`,
+  },
+  en: {
+    softNudge:  `Hey {creator},\n\nNot trying to be pushy. Just thinking about what I sent the other day and wondering if it landed for your case. Even a quick "not now" helps.\n\nCheers,\n{sender}`,
+    valueDrop:  `Hey {creator},\n\nFollowing up. I've been working with a creator close to your profile and the result gave me a concrete idea for your structure. Worth a 3-minute video?\n\nCheers,\n{sender}`,
+    lastTouch:  `Hey {creator},\n\nLast message from my side. I won't reach out again. If anything changes down the line, the door stays open.\n\nCheers,\n{sender}`,
+  },
+  es: {
+    softNudge:  `Hola {creator},\n\nNo quiero ser pesado. Volví a pensar en lo que te escribí y quería saber si tuvo sentido para tu caso. Aunque no sea el momento, cualquier feedback ayuda.\n\nUn abrazo,\n{sender}`,
+    valueDrop:  `Hola {creator},\n\nAtento. He estado trabajando con alguien parecido a tu perfil y el resultado me dio una idea concreta para tu estructura. ¿Vale un vídeo de 3 minutos?\n\nUn abrazo,\n{sender}`,
+    lastTouch:  `Hola {creator},\n\nÚltimo mensaje de mi lado. No te volveré a escribir. Si algún día cambia, la puerta queda abierta.\n\nUn abrazo,\n{sender}`,
+  },
+};
+
+function buildFollowUpDm(milestoneKey, creatorFirstName, senderFirstName, langCode) {
+  const lang = DM_TEMPLATES[langCode] || DM_TEMPLATES.pt;
+  const tpl = lang[milestoneKey] || lang.softNudge;
+  return tpl
+    .replace(/\{creator\}/g, creatorFirstName)
+    .replace(/\{sender\}/g, senderFirstName);
+}
+
+// Surface a stored follow-up email (day 7 / day 14) from the creator's
+// dmSequence when one exists. dm-writer only generates these on demand
+// (stage='followup_7'/'followup_14') so most creators won't have one
+// pre-baked. Returns null when nothing's available.
+function pickStoredFollowUpEmail(creator, milestoneKey) {
+  const seq = creator?.dmSequence;
+  if (!seq) return null;
+  const slot = milestoneKey === 'valueDrop'  ? 'email_day7'
+             : milestoneKey === 'lastTouch'  ? 'email_day14'
+             : null;
+  if (!slot) return null;
+  const e = seq[slot];
+  if (!e || !e.body) return null;
+  return { subject: e.subject || '', body: e.body };
+}
+
 // ── Email digest ──
 //
 // Per-operator (2026-05-20): each operator receives a digest with only the
@@ -224,28 +292,78 @@ async function sendDigest(operator, buckets, stats) {
   if (buckets.autoCold.length)  subjectBits.push(`${buckets.autoCold.length} cooled`);
   const subject = `[Second Layer] Os teus reminders · ${subjectBits.join(' · ') || 'apenas update'}`;
 
+  // Compact text row — used for noDm / autoCold sections that don't need
+  // copy-paste payloads. The "due" sections render a richer per-creator
+  // card via fmtCardText / fmtCardHtml below.
   const fmtRow = (c) => `• ${c.name}${c.niche ? ' · ' + c.niche : ''}${c.followers ? ' · ' + c.followers.toLocaleString() + ' followers' : ''} · DM enviada há ${c.daysSinceDM} dias${c.followUpsDone ? ' · ' + c.followUpsDone + ' follow-ups feitos' : ''}${c.ownerEmail ? '' : ' · ⚠ sem owner'}`;
   const fmtRowHtml = (c) => `<li style="margin-bottom: 6px;"><a href="${HUB_BASE}/creators/${c.id}?tab=dm" style="color: #f5f5f5; text-decoration: none; font-weight: 600;">${escape(c.name)}</a> <span style="color: #888;">${c.niche ? '· ' + escape(c.niche) : ''}${c.followers ? ' · ' + c.followers.toLocaleString() + ' followers' : ''} · DM há ${c.daysSinceDM} dias${c.followUpsDone ? ' · ' + c.followUpsDone + ' follow-ups' : ''}${c.ownerEmail ? '' : ' · <span style="color:#eab308;">⚠ sem owner</span>'}</span></li>`;
 
+  // Rich card — for soft-nudge / value-drop / last-touch creators. Includes
+  // an Instagram button (clickable on most mobile mail apps) and the
+  // pre-canned follow-up DM in a monospace box that's easy to copy.
+  // When a stored email (day 7 / day 14) exists, we also surface its
+  // subject + body in a second copy block.
+  const fmtCardText = (c) => {
+    const lines = [];
+    lines.push(`• ${c.name}${c.niche ? ' · ' + c.niche : ''}${c.followers ? ' · ' + c.followers.toLocaleString() + ' followers' : ''} · DM há ${c.daysSinceDM} dias${c.followUpsDone ? ' · ' + c.followUpsDone + ' follow-ups' : ''}${c.ownerEmail ? '' : ' · ⚠ sem owner'}`);
+    if (c.igUrl) lines.push(`  Instagram: ${c.igUrl}`);
+    lines.push(`  Hub: ${HUB_BASE}/creators/${c.id}?tab=dm`);
+    if (c.followUpDm) {
+      lines.push(`  ── DM follow-up (copia) ──`);
+      c.followUpDm.split('\n').forEach(l => lines.push(`  ${l}`));
+    }
+    if (c.followUpEmail?.body) {
+      lines.push(`  ── Email follow-up (copia) ──`);
+      if (c.followUpEmail.subject) lines.push(`  Subject: ${c.followUpEmail.subject}`);
+      c.followUpEmail.body.split('\n').forEach(l => lines.push(`  ${l}`));
+    }
+    return lines.join('\n');
+  };
+
+  const fmtCardHtml = (c) => {
+    const igBtn = c.igUrl
+      ? `<a href="${c.igUrl}" style="display: inline-block; padding: 6px 10px; background: #18181b; color: #f5f5f5; text-decoration: none; border: 1px solid rgba(255,255,255,0.12); border-radius: 6px; font-size: 11px; font-weight: 600; margin-right: 6px;">↗ Instagram</a>`
+      : '';
+    const hubBtn = `<a href="${HUB_BASE}/creators/${c.id}?tab=dm" style="display: inline-block; padding: 6px 10px; background: #B11E2F; color: #fff; text-decoration: none; border-radius: 6px; font-size: 11px; font-weight: 600;">↗ Abrir no Hub</a>`;
+    const dmBlock = c.followUpDm ? `
+      <div style="font-size: 10px; color: #B11E2F; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; margin: 14px 0 4px;">DM follow-up · copia</div>
+      <pre style="font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; color: #f5f5f5; background: #050505; border: 1px solid rgba(255,255,255,0.06); border-radius: 6px; padding: 12px 14px; margin: 0; white-space: pre-wrap; line-height: 1.55;">${escape(c.followUpDm)}</pre>` : '';
+    const emailBlock = c.followUpEmail?.body ? `
+      <div style="font-size: 10px; color: #eab308; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; margin: 14px 0 4px;">Email follow-up · copia${c.followUpEmail.subject ? ' · ' + escape(c.followUpEmail.subject) : ''}</div>
+      <pre style="font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; color: #f5f5f5; background: #050505; border: 1px solid rgba(255,255,255,0.06); border-radius: 6px; padding: 12px 14px; margin: 0; white-space: pre-wrap; line-height: 1.55;">${escape(c.followUpEmail.body)}</pre>` : '';
+    return `
+    <div style="background: #111; border: 1px solid rgba(255,255,255,0.06); border-radius: 10px; padding: 16px 18px; margin-bottom: 14px;">
+      <div style="font-size: 16px; font-weight: 700; color: #f5f5f5;">${escape(c.name)}${c.ownerEmail ? '' : ' <span style="color:#eab308; font-size: 10px; font-weight: 700; letter-spacing: 0.1em;">⚠ SEM OWNER</span>'}</div>
+      <div style="font-size: 12px; color: #888; margin: 2px 0 10px;">${c.niche ? escape(c.niche) + ' · ' : ''}${c.followers ? c.followers.toLocaleString() + ' followers · ' : ''}DM há ${c.daysSinceDM} dias${c.followUpsDone ? ' · ' + c.followUpsDone + ' follow-ups' : ''}</div>
+      <div>${igBtn}${hubBtn}</div>
+      ${dmBlock}
+      ${emailBlock}
+    </div>`;
+  };
+
   // ── Plain-text version ──
+  // Due-bucket creators render as cards (with IG link + copy-paste DM +
+  // copy-paste email when available). Informational sections (noDm /
+  // autoCold) stay compact rows. Blank line between cards for readability
+  // in plain-text mail clients.
   const lines = [`Olá ${operator.firstName},`, ``, `Reminders dos teus creators corridos às ${lisbonTime} (Lisboa).`, ``];
   if (buckets.lastTouch.length) {
     lines.push(`⚠️  ÚLTIMO TOQUE — dia 14 (${buckets.lastTouch.length})`);
     lines.push(`Envia DM #3 e Email #3 (último contacto). Se não responder até dia 21, vai automaticamente para cold.`);
-    buckets.lastTouch.forEach(c => lines.push(fmtRow(c)));
     lines.push('');
+    buckets.lastTouch.forEach(c => { lines.push(fmtCardText(c)); lines.push(''); });
   }
   if (buckets.valueDrop.length) {
     lines.push(`🟠 VALUE DROP — dia 7 (${buckets.valueDrop.length})`);
     lines.push(`Envia DM #2 e Email #2. Drop de valor concreto (caso, número).`);
-    buckets.valueDrop.forEach(c => lines.push(fmtRow(c)));
     lines.push('');
+    buckets.valueDrop.forEach(c => { lines.push(fmtCardText(c)); lines.push(''); });
   }
   if (buckets.softNudge.length) {
     lines.push(`🟢 SOFT NUDGE — dia 3 (${buckets.softNudge.length})`);
     lines.push(`Envia DM #1 follow-up + Email #1 follow-up. Referência um post recente, sem pressão.`);
-    buckets.softNudge.forEach(c => lines.push(fmtRow(c)));
     lines.push('');
+    buckets.softNudge.forEach(c => { lines.push(fmtCardText(c)); lines.push(''); });
   }
   if (buckets.noDm.length) {
     lines.push(`📭 SEM DM AINDA (${buckets.noDm.length})`);
@@ -263,10 +381,18 @@ async function sendDigest(operator, buckets, stats) {
   const text = lines.join('\n');
 
   // ── HTML version ──
+  // Two section renderers:
+  //   - `section()` for compact <li> rows (noDm / autoCold)
+  //   - `cardSection()` for the due-bucket cards with IG button + copy blocks
   const section = (color, title, hint, items, fmt) => items.length === 0 ? '' : `
     <h3 style="font-size: 11px; color: ${color}; letter-spacing: 0.16em; text-transform: uppercase; margin: 28px 0 4px;">${title} <span style="color: #888; font-weight: 400;">· ${items.length}</span></h3>
     <p style="font-size: 13px; color: #888; margin: 0 0 12px;">${hint}</p>
     <ul style="padding-left: 16px; margin: 0; list-style: disc; font-size: 13px; color: #f5f5f5;">${items.map(fmt).join('')}</ul>`;
+
+  const cardSection = (color, title, hint, items) => items.length === 0 ? '' : `
+    <h3 style="font-size: 11px; color: ${color}; letter-spacing: 0.16em; text-transform: uppercase; margin: 28px 0 4px;">${title} <span style="color: #888; font-weight: 400;">· ${items.length}</span></h3>
+    <p style="font-size: 13px; color: #888; margin: 0 0 14px;">${hint}</p>
+    ${items.map(fmtCardHtml).join('')}`;
 
   // Headline uses opTotalDue — the count for THIS operator's filtered view,
   // not the team-wide total. Falls back to 0 for legacy callers that pass
@@ -277,9 +403,9 @@ async function sendDigest(operator, buckets, stats) {
   <h1 style="font-size: 32px; font-weight: 700; margin: 8px 0 4px; color: #f5f5f5; letter-spacing: -0.02em;">${headlineCount} follow-up${headlineCount === 1 ? '' : 's'} ${headlineCount === 1 ? 'devido hoje' : 'devidos hoje'}</h1>
   <p style="font-size: 13px; color: #888; margin: 0;">${lisbonTime} · Lisboa · Só os teus creators</p>
 
-  ${section('#ef4444', '⚠️ Último toque · dia 14', 'Envia DM #3 e Email #3. Se não responder em 7 dias, vai automaticamente para cold.', buckets.lastTouch, fmtRowHtml)}
-  ${section('#eab308', '🟠 Value drop · dia 7', 'Envia DM #2 e Email #2. Drop de valor concreto — caso, número, prova.', buckets.valueDrop, fmtRowHtml)}
-  ${section('#22c55e', '🟢 Soft nudge · dia 3', 'Envia DM #1 follow-up + Email #1 follow-up. Referência um post recente, sem pressão.', buckets.softNudge, fmtRowHtml)}
+  ${cardSection('#ef4444', '⚠️ Último toque · dia 14', 'Envia DM #3 e Email #3. Se não responder em 7 dias, vai automaticamente para cold.', buckets.lastTouch)}
+  ${cardSection('#eab308', '🟠 Value drop · dia 7', 'Envia DM #2 e Email #2. Drop de valor concreto — caso, número, prova.', buckets.valueDrop)}
+  ${cardSection('#22c55e', '🟢 Soft nudge · dia 3', 'Envia DM #1 follow-up + Email #1 follow-up. Referência um post recente, sem pressão.', buckets.softNudge)}
 
   ${buckets.noDm.length === 0 ? '' : `
     <h3 style="font-size: 11px; color: #3b82f6; letter-spacing: 0.16em; text-transform: uppercase; margin: 28px 0 4px;">📭 Sem DM ainda <span style="color: #888; font-weight: 400;">· ${buckets.noDm.length}</span></h3>

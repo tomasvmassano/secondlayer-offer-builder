@@ -1,27 +1,42 @@
 import { NextResponse } from 'next/server';
 import { getDailyScoreboard } from '../../../lib/teamStats';
-import { listTeamEmails } from '../../../lib/users';
 
 // ─────────────────────────────────────────────────────────────────
-// Daily DM accountability report — fired by Vercel Cron near end of day
-// Europe/Lisbon. Sends one email to every team member showing the
-// scoreboard + who owes €50 to whom for that day.
+// End-of-day report — per-operator email with the day's outreach
+// metrics + €50 accountability rule.
 //
-// Scheduled at 22:55 UTC weekdays (vercel.json). To handle DST:
-//   - Summer (DST):  22:55 UTC === 23:55 Lisbon → 5 min before midnight
-//   - Winter:        22:55 UTC === 22:55 Lisbon → ~65 min early
-// Hobby plan limits crons to 2, so a single schedule is used for both
-// halves of the year. The early-winter case is fine for accountability —
-// the operator has had all day to hit the goal at that point.
+// Scheduled at 22:55 UTC weekdays (vercel.json). Mon-Fri only —
+// `55 22 * * 1-5` enforces weekdays. Sundays/Saturdays the team
+// isn't expected to do outreach, so no email.
 //
-// Mon-Fri only — `55 22 * * 1-5` enforces weekdays.
+// Two design changes vs the previous version (2026-05-20):
+//   1. Recipients come from the hardcoded OPERATORS list, not
+//      listTeamEmails(). The old behaviour silently skipped the
+//      email when `team:emails` was empty AND the TEAM_EMAILS env
+//      var wasn't set — which is exactly why no EOD email has
+//      arrived. Hardcoding the two operators removes that failure
+//      mode entirely.
+//   2. Each operator now gets their OWN email with their own
+//      headline, metric grid, and €50 status. The team scoreboard
+//      still appears at the bottom so everyone can see who hit
+//      the goal and who owes whom.
 //
-// Auth: middleware lets /api/cron/* through without a session, so we
-// guard here with CRON_SECRET. Vercel sends "Authorization: Bearer
-// <CRON_SECRET>" when the env var is set.
+// The scoreboard math (€50 split when someone misses, even split
+// among winners) stays in lib/teamStats so getDailyScoreboard()
+// is still the single source of truth.
+//
+// Auth: middleware lets /api/cron/* through without a session,
+// guarded here with CRON_SECRET. Vercel sends the bearer token
+// automatically when the env var is set.
 // ─────────────────────────────────────────────────────────────────
 
 export const maxDuration = 30;
+
+const OPERATORS = [
+  { email: 'tomas@informallabs.com', firstName: 'Tomás' },
+  { email: 'raul@informallabs.com',  firstName: 'Raul'  },
+];
+const HUB_BASE = 'https://hub.secondlayerhq.com';
 
 function checkCronAuth(request) {
   const expected = process.env.CRON_SECRET;
@@ -38,79 +53,195 @@ function todayLisbonStr() {
   return fmt.format(new Date());
 }
 
-function buildScoreboardHtml(scoreboard, target) {
+// Find the row that belongs to a specific operator. canonicalKey() in
+// teamStats lowercases + strips accents, so "Tomás" → "tomas". Match
+// against the operator's firstName the same way.
+function findRowFor(scoreboard, firstName) {
+  const key = String(firstName || '').toLowerCase()
+    .normalize('NFD').replace(/[̀-ͯ]/g, '').trim();
+  return scoreboard.find(r => r.userId === key) || null;
+}
+
+// Empty row shape so the email always renders, even when an operator
+// hasn't touched anything today. Without this we'd skip the email and
+// the operator wouldn't know they missed the goal.
+function zeroRow(firstName) {
+  return {
+    userId: String(firstName || '').toLowerCase(),
+    firstName,
+    creatorsAdded: 0,
+    dmsSent: 0,
+    emailsSent: 0,
+    touchesSent: 0,
+    followUpsDone: 0,
+    followUpsDm: 0,
+    followUpsEmail: 0,
+    repliesReceived: 0,
+    repliesViaDm: 0,
+    repliesViaEmail: 0,
+    signed: 0,
+    replyRate: 0,
+    dmReplyRate: 0,
+    emailReplyRate: 0,
+    target: 30,
+    missedGoal: true,
+    totalOwedEur: 0,
+    totalEarnedEur: 0,
+  };
+}
+
+// ── Email body builders ──
+
+function buildOperatorEmail(operator, myRow, scoreboard, target) {
   const dateStr = todayLisbonStr();
   const winners = scoreboard.filter(r => !r.missedGoal);
   const losers = scoreboard.filter(r => r.missedGoal);
+  const hit = !myRow.missedGoal;
+  const deficit = Math.max(0, target - myRow.touchesSent);
 
-  const rows = scoreboard.map(r => {
+  // Subject — fast read in the inbox. Leads with hit/miss + count.
+  const status = hit ? 'OK' : `falta ${deficit}`;
+  const subject = `[Second Layer] EOD · ${operator.firstName} · ${myRow.touchesSent}/${target} touches · ${status}`;
+
+  // €50 verdict — bilateral split. Winners earn €50 from each loser.
+  // Losers owe €50 to each winner. When nobody hits or everyone hits,
+  // the verdict line stays informational ("ninguém deve nada").
+  let verdictText;
+  let verdictHtml;
+  if (losers.length === 0) {
+    verdictText = `Toda a equipa cumpriu. Ninguém deve €50 hoje.`;
+    verdictHtml = `<p style="margin: 0; color: #22c55e; font-size: 14px; font-weight: 600;">Toda a equipa cumpriu. Ninguém deve €50 hoje.</p>`;
+  } else if (winners.length === 0) {
+    verdictText = `Ninguém cumpriu o objetivo de ${target}. Sem €50 a transferir.`;
+    verdictHtml = `<p style="margin: 0; color: #eab308; font-size: 14px; font-weight: 600;">Ninguém cumpriu o objetivo de ${target}. Sem €50 a transferir.</p>`;
+  } else if (hit) {
+    const losersNames = losers.map(l => l.firstName).join(', ');
+    const earned = losers.length * 50;
+    verdictText = `Cumpriste. Recebes €${earned} de ${losersNames}.`;
+    verdictHtml = `<p style="margin: 0; color: #22c55e; font-size: 14px; font-weight: 600;">Cumpriste. Recebes <span style="font-weight: 800;">€${earned}</span> de ${losersNames}.</p>`;
+  } else {
+    const winnersNames = winners.map(w => w.firstName).join(', ');
+    const owed = winners.length * 50;
+    verdictText = `Falhaste por ${deficit}. Deves €${owed} (€50 a cada um: ${winnersNames}).`;
+    verdictHtml = `<p style="margin: 0; color: #ef4444; font-size: 14px; font-weight: 600;">Falhaste por ${deficit}. Deves <span style="font-weight: 800;">€${owed}</span> (€50 a cada um: ${winnersNames}).</p>`;
+  }
+
+  // Metric grid — the operator's full day at a glance. Combined "Replies"
+  // shows the channel split inline ("3 (2 DM · 1 email)") so the reader
+  // doesn't have to mentally aggregate two cells. Same for follow-ups.
+  const repliesSplit = myRow.repliesReceived > 0
+    ? ` (${myRow.repliesViaDm} DM · ${myRow.repliesViaEmail} email)`
+    : '';
+  const followUpsSplit = myRow.followUpsDone > 0
+    ? ` (${myRow.followUpsDm} DM · ${myRow.followUpsEmail} email)`
+    : '';
+
+  const metricGrid = [
+    { label: 'Outreach touches', value: `${myRow.touchesSent} / ${target}`, accent: hit ? '#22c55e' : '#ef4444', hint: 'Creators únicos contactados hoje · meta diária' },
+    { label: 'DMs enviadas', value: myRow.dmsSent, hint: 'Mensagens Instagram enviadas' },
+    { label: 'Emails enviados', value: myRow.emailsSent, hint: 'Emails Day 1 enviados' },
+    { label: 'Follow-ups feitos', value: `${myRow.followUpsDone}${followUpsSplit}`, hint: 'Soft nudge / value drop / último toque marcados' },
+    { label: 'Respostas', value: `${myRow.repliesReceived}${repliesSplit}`, accent: myRow.repliesReceived > 0 ? '#22c55e' : null, hint: 'Creators que responderam hoje' },
+    { label: 'Reply rate', value: `${myRow.replyRate}%`, hint: `DM ${myRow.dmReplyRate}% · Email ${myRow.emailReplyRate}%` },
+    { label: 'Creators adicionados', value: myRow.creatorsAdded, hint: 'Novos creators que entraram no CRM hoje' },
+    { label: 'Signed', value: myRow.signed, accent: myRow.signed > 0 ? '#22c55e' : null, hint: 'Deals fechados hoje' },
+  ];
+
+  // ── Plain text ──
+  const textLines = [];
+  textLines.push(`EOD · ${operator.firstName} · ${dateStr}`);
+  textLines.push('');
+  textLines.push(`${myRow.touchesSent}/${target} touches · ${hit ? 'CUMPRIU ✓' : 'FALHOU (deficit ' + deficit + ')'}`);
+  textLines.push(verdictText);
+  textLines.push('');
+  textLines.push('── Métricas de hoje ──');
+  for (const m of metricGrid) {
+    textLines.push(`${m.label}: ${m.value}${m.hint ? '  (' + m.hint + ')' : ''}`);
+  }
+  textLines.push('');
+  textLines.push('── Scoreboard da equipa ──');
+  for (const r of scoreboard) {
+    const status = r.missedGoal ? `falhou (${r.touchesSent}/${target})` : `OK (${r.touchesSent})`;
+    const debt = r.totalOwedEur > 0 ? ` · deve €${r.totalOwedEur}` : r.totalEarnedEur > 0 ? ` · recebe €${r.totalEarnedEur}` : '';
+    textLines.push(`- ${r.firstName}: ${status}${debt}`);
+  }
+  textLines.push('');
+  textLines.push(`Equipa completa: ${HUB_BASE}/equipa`);
+  const text = textLines.join('\n');
+
+  // ── HTML ──
+  const metricCell = (m) => `
+    <td style="padding: 14px 16px; background: #111; border: 1px solid rgba(255,255,255,0.06); border-radius: 8px; vertical-align: top; width: 50%;">
+      <div style="font-size: 10px; color: #888; letter-spacing: 0.14em; text-transform: uppercase; margin-bottom: 6px;">${m.label}</div>
+      <div style="font-size: 22px; font-weight: 700; color: ${m.accent || '#f5f5f5'}; line-height: 1.1; letter-spacing: -0.01em;">${m.value}</div>
+      ${m.hint ? `<div style="font-size: 11px; color: #666; margin-top: 6px;">${m.hint}</div>` : ''}
+    </td>`;
+
+  // Pair cells into 2-column rows so the email reads well on mobile.
+  const gridRows = [];
+  for (let i = 0; i < metricGrid.length; i += 2) {
+    gridRows.push(`<tr>${metricCell(metricGrid[i])}<td style="width: 8px;"></td>${metricGrid[i + 1] ? metricCell(metricGrid[i + 1]) : '<td></td>'}</tr><tr><td colspan="3" style="height: 8px; line-height: 8px;">&nbsp;</td></tr>`);
+  }
+
+  const scoreboardRows = scoreboard.map(r => {
     const dot = r.missedGoal ? '#ef4444' : '#22c55e';
-    const status = r.missedGoal ? `Falhou (${r.dmsSent}/${target})` : `✓ Cumpriu (${r.dmsSent})`;
-    const debt = r.totalOwedEur > 0 ? `<span style="color:#ef4444; font-weight:600;">Deve €${r.totalOwedEur}</span>`
-      : r.totalEarnedEur > 0 ? `<span style="color:#22c55e; font-weight:600;">Recebe €${r.totalEarnedEur}</span>`
-      : `<span style="color:#888;">—</span>`;
+    const status = r.missedGoal ? `falhou (${r.touchesSent}/${target})` : `OK (${r.touchesSent})`;
+    const debt = r.totalOwedEur > 0 ? `<span style="color: #ef4444; font-weight: 700;">deve €${r.totalOwedEur}</span>`
+      : r.totalEarnedEur > 0 ? `<span style="color: #22c55e; font-weight: 700;">recebe €${r.totalEarnedEur}</span>`
+      : `<span style="color: #888;">—</span>`;
     return `<tr>
-      <td style="padding:10px 14px; border-bottom:1px solid #eee;"><span style="display:inline-block; width:8px; height:8px; border-radius:50%; background:${dot}; margin-right:8px;"></span><strong>${r.firstName}</strong></td>
-      <td style="padding:10px 14px; border-bottom:1px solid #eee; color:#444;">${status}</td>
-      <td style="padding:10px 14px; border-bottom:1px solid #eee; text-align:right;">${debt}</td>
+      <td style="padding: 10px 14px; border-bottom: 1px solid rgba(255,255,255,0.06); color: #f5f5f5;"><span style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: ${dot}; margin-right: 8px;"></span>${escape(r.firstName)}</td>
+      <td style="padding: 10px 14px; border-bottom: 1px solid rgba(255,255,255,0.06); color: #aaa;">${status}</td>
+      <td style="padding: 10px 14px; border-bottom: 1px solid rgba(255,255,255,0.06); text-align: right;">${debt}</td>
     </tr>`;
   }).join('');
 
-  let summary = '';
-  if (losers.length === 0) {
-    summary = `<p style="margin:0 0 18px; color:#22c55e; font-size:14px;"><strong>Toda a equipa cumpriu hoje.</strong> Sem débitos.</p>`;
-  } else if (winners.length === 0) {
-    summary = `<p style="margin:0 0 18px; color:#eab308; font-size:14px;"><strong>Ninguém cumpriu hoje.</strong> Sem débitos (todos falharam).</p>`;
-  } else {
-    const loserNames = losers.map(l => l.firstName).join(', ');
-    const winnerNames = winners.map(w => w.firstName).join(', ');
-    summary = `<p style="margin:0 0 18px; color:#444; font-size:14px;"><strong>${loserNames}</strong> não cumpriu(ram). <strong>${winnerNames}</strong> recebe(m) €50 de cada um.</p>`;
-  }
+  const headlineColor = hit ? '#22c55e' : '#ef4444';
 
-  return `<!doctype html><html><body style="font-family:-apple-system,BlinkMacSystemFont,sans-serif; max-width:560px; margin:0 auto; padding:24px; color:#1a1a1a;">
-    <h2 style="margin:0 0 4px; font-size:18px;">DMs do dia · ${dateStr}</h2>
-    <p style="margin:0 0 20px; color:#888; font-size:13px;">Objetivo: ${target} DMs por pessoa. Falhar = €50 para cada teammate que cumpriu.</p>
-    ${summary}
-    <table style="width:100%; border-collapse:collapse; background:#fafafa; border-radius:8px; overflow:hidden; font-size:14px;">
-      <thead><tr style="background:#f0f0f0;">
-        <th style="padding:10px 14px; text-align:left; font-size:11px; letter-spacing:0.08em; color:#666; text-transform:uppercase;">Pessoa</th>
-        <th style="padding:10px 14px; text-align:left; font-size:11px; letter-spacing:0.08em; color:#666; text-transform:uppercase;">Estado</th>
-        <th style="padding:10px 14px; text-align:right; font-size:11px; letter-spacing:0.08em; color:#666; text-transform:uppercase;">€50/dia</th>
-      </tr></thead>
-      <tbody>${rows}</tbody>
+  const html = `<div style="font-family: -apple-system, BlinkMacSystemFont, 'Inter', sans-serif; color: #f5f5f5; background: #0a0a0a; padding: 32px 28px; max-width: 640px;">
+    <div style="font-size: 9px; color: #B11E2F; font-weight: 700; letter-spacing: 0.18em; text-transform: uppercase;">● End of Day · ${escape(operator.firstName)}</div>
+    <h1 style="font-size: 36px; font-weight: 700; margin: 8px 0 4px; color: ${headlineColor}; letter-spacing: -0.02em;">${myRow.touchesSent} <span style="color: #555; font-size: 24px; font-weight: 500;">/ ${target}</span> <span style="font-size: 20px; color: #aaa; font-weight: 600;">touches</span></h1>
+    <p style="font-size: 13px; color: #888; margin: 0;">${dateStr} · Lisboa</p>
+
+    <div style="margin-top: 22px; padding: 18px 22px; background: ${hit ? 'rgba(34,197,94,0.06)' : losers.length === 0 ? 'rgba(255,255,255,0.03)' : 'rgba(239,68,68,0.06)'}; border: 1px solid ${hit ? 'rgba(34,197,94,0.25)' : losers.length === 0 ? 'rgba(255,255,255,0.08)' : 'rgba(239,68,68,0.25)'}; border-radius: 10px;">
+      <div style="font-size: 10px; color: #888; letter-spacing: 0.14em; text-transform: uppercase; margin-bottom: 6px;">€50 hoje</div>
+      ${verdictHtml}
+    </div>
+
+    <h2 style="font-size: 12px; color: #888; letter-spacing: 0.16em; text-transform: uppercase; margin: 32px 0 14px;">Métricas de hoje</h2>
+    <table style="width: 100%; border-collapse: separate; border-spacing: 0;">${gridRows.join('')}</table>
+
+    <h2 style="font-size: 12px; color: #888; letter-spacing: 0.16em; text-transform: uppercase; margin: 32px 0 10px;">Scoreboard da equipa</h2>
+    <table style="width: 100%; border-collapse: collapse; background: #0f0f0f; border-radius: 8px; overflow: hidden;">
+      <thead>
+        <tr style="background: rgba(255,255,255,0.03);">
+          <th style="padding: 10px 14px; text-align: left; font-size: 10px; letter-spacing: 0.14em; color: #666; text-transform: uppercase; font-weight: 600;">Pessoa</th>
+          <th style="padding: 10px 14px; text-align: left; font-size: 10px; letter-spacing: 0.14em; color: #666; text-transform: uppercase; font-weight: 600;">Estado</th>
+          <th style="padding: 10px 14px; text-align: right; font-size: 10px; letter-spacing: 0.14em; color: #666; text-transform: uppercase; font-weight: 600;">€50</th>
+        </tr>
+      </thead>
+      <tbody>${scoreboardRows}</tbody>
     </table>
-    <p style="margin:20px 0 0; color:#999; font-size:11px;">Relatório automático · Second Layer Hub · podes consultar o scoreboard em qualquer altura em hub.secondlayerhq.com/equipa</p>
-  </body></html>`;
+
+    <p style="margin-top: 32px;"><a href="${HUB_BASE}/equipa" style="display: inline-block; padding: 10px 18px; background: #B11E2F; color: #fff; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 13px;">Abrir scoreboard</a></p>
+    <p style="font-size: 11px; color: #555; margin-top: 24px;">Objetivo: ${target} outreach touches por pessoa por dia (Mon-Fri). Touch = creator único contactado por DM e/ou email no dia. Falhar = €50 para cada teammate que cumpriu.</p>
+  </div>`;
+
+  return { subject, text, html };
 }
 
-function buildScoreboardText(scoreboard, target) {
-  const lines = [];
-  lines.push(`DMs do dia · ${todayLisbonStr()}`);
-  lines.push(`Objetivo: ${target} DMs por pessoa. Falhar = €50 para cada teammate que cumpriu.`);
-  lines.push('');
-  for (const r of scoreboard) {
-    const status = r.missedGoal ? `Falhou (${r.dmsSent}/${target})` : `OK (${r.dmsSent})`;
-    const debt = r.totalOwedEur > 0 ? ` · deve €${r.totalOwedEur}`
-      : r.totalEarnedEur > 0 ? ` · recebe €${r.totalEarnedEur}`
-      : '';
-    lines.push(`- ${r.firstName}: ${status}${debt}`);
-  }
-  return lines.join('\n');
-}
-
-async function sendReportEmail(recipients, html, text) {
+async function sendEmail(to, subject, text, html) {
   const apiKey = process.env.RESEND_API_KEY;
   if (!apiKey) {
-    console.warn('[daily-dm-report] RESEND_API_KEY missing — would send to:', recipients);
+    console.warn(`[daily-dm-report] RESEND_API_KEY missing — would send to ${to}`);
     return { sent: false, reason: 'no-api-key' };
   }
-  const subject = `Scoreboard de DMs · ${todayLisbonStr()}`;
   const res = await fetch('https://api.resend.com/emails', {
     method: 'POST',
     headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({
       from: 'Second Layer Hub <hub@informallabs.com>',
-      to: recipients,
+      to: [to],
       subject,
       text,
       html,
@@ -129,22 +260,45 @@ export async function GET(request) {
   }
   try {
     const target = Number(process.env.DAILY_DM_TARGET) || 30;
-    const scoreboard = await getDailyScoreboard({ target });
-    if (scoreboard.length === 0) {
-      return NextResponse.json({ ok: true, sent: false, reason: 'no-activity' });
+    const scoreboardRaw = await getDailyScoreboard({ target });
+
+    // Always make sure both operators appear on the scoreboard, even if
+    // they did zero outreach today. Without this, an inactive operator
+    // doesn't get the "you missed by 30" reminder — which is the whole
+    // point of the email.
+    const scoreboard = OPERATORS.map(op => {
+      const found = findRowFor(scoreboardRaw, op.firstName);
+      return found || zeroRow(op.firstName);
+    });
+    // Re-derive the €50 split with the synthetic-zero rows included.
+    const winners = scoreboard.filter(r => !r.missedGoal);
+    const losers = scoreboard.filter(r => r.missedGoal);
+    for (const r of scoreboard) {
+      r.target = target;
+      r.totalOwedEur = r.missedGoal ? winners.length * 50 : 0;
+      r.totalEarnedEur = !r.missedGoal ? losers.length * 50 : 0;
     }
 
-    const recipients = await listTeamEmails();
-    if (recipients.length === 0) {
-      return NextResponse.json({ ok: true, sent: false, reason: 'no-recipients' });
+    const perOperator = [];
+    for (const op of OPERATORS) {
+      const myRow = findRowFor(scoreboard, op.firstName) || zeroRow(op.firstName);
+      const { subject, text, html } = buildOperatorEmail(op, myRow, scoreboard, target);
+      try {
+        const result = await sendEmail(op.email, subject, text, html);
+        perOperator.push({ email: op.email, ...result, touches: myRow.touchesSent, missed: myRow.missedGoal });
+      } catch (err) {
+        console.error(`[daily-dm-report] send to ${op.email} failed:`, err.message);
+        perOperator.push({ email: op.email, sent: false, error: err.message });
+      }
     }
 
-    const html = buildScoreboardHtml(scoreboard, target);
-    const text = buildScoreboardText(scoreboard, target);
-    const result = await sendReportEmail(recipients, html, text);
-    return NextResponse.json({ ok: true, ...result, recipients: recipients.length, scoreboard });
+    return NextResponse.json({ ok: true, target, perOperator, scoreboard });
   } catch (err) {
     console.error('[daily-dm-report] error:', err.message);
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
+}
+
+function escape(s) {
+  return String(s || '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 }
