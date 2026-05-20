@@ -114,8 +114,18 @@ export default function AuditQueuePage() {
               ? { ...row, status: 'failed', auditError: data.error || `HTTP ${r.status}` }
               : row));
           } else {
-            const products = data.ecosystem_audit?.products_found?.length || 0;
-            const communities = data.ecosystem_audit?.existing_communities?.length || 0;
+            // The audit JSON nests products under `ecosystem_map`, not at
+            // the top level. The persisted server-side diagnostic was
+            // computing `products_returned` correctly from that path,
+            // but this worker was reading the wrong level and always
+            // showing 0 on the bulk-audit page even when the audit
+            // succeeded with multiple products. Now: read from
+            // `ecosystem_map.products_found`. Defensive `?? top-level`
+            // fallback in case the response shape ever flattens.
+            const products = data.ecosystem_audit?.ecosystem_map?.products_found?.length
+              ?? data.ecosystem_audit?.products_found?.length ?? 0;
+            const communities = data.ecosystem_audit?.ecosystem_map?.existing_communities?.length
+              ?? data.ecosystem_audit?.existing_communities?.length ?? 0;
             // Capture URL count from diagnostics so a "0 produtos" result
             // can be interpreted at a glance — was it data scarcity (only
             // 1 URL inspected) or a real "creator has no products" finding?

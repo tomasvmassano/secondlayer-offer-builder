@@ -140,8 +140,14 @@ export default function BulkImportPage() {
               ? { ...row, auditStatus: 'failed', auditError: data.error || `HTTP ${r.status}` }
               : row));
           } else {
-            const products = data.ecosystem_audit?.products_found?.length || 0;
-            const communities = data.ecosystem_audit?.existing_communities?.length || 0;
+            // products live under ecosystem_map (nested), not at the top
+            // level. Old code read the wrong path and always showed 0
+            // even when the audit succeeded. Defensive fallback to the
+            // flat path in case the response shape ever changes.
+            const products = data.ecosystem_audit?.ecosystem_map?.products_found?.length
+              ?? data.ecosystem_audit?.products_found?.length ?? 0;
+            const communities = data.ecosystem_audit?.ecosystem_map?.existing_communities?.length
+              ?? data.ecosystem_audit?.existing_communities?.length ?? 0;
             const urlsInspected = data._diagnostics?.final_urls_inspected || 0;
             setParsedRows(prev => prev.map(row => row.creatorId === creatorId
               ? { ...row, auditStatus: 'done', auditCounts: { products, communities, urlsInspected } }
