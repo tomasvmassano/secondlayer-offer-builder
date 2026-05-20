@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { appendSignature } from '../../lib/operatorSignature';
 
 export async function POST(request) {
   const apiKey = process.env.ANTHROPIC_API_KEY;
@@ -175,6 +176,13 @@ Rules:
         if (shrunk) out = shrunk;
         else overflow = { length: out.length, cap: DM_HARD_CAP };
       }
+      // Email rewrites get the operator's contact card appended. DMs never
+      // do — Instagram has no signature concept and the 1000-char cap
+      // can't afford the extra lines. The signature helper is a no-op when
+      // the sender isn't on the hardcoded operator list.
+      if (!isDmRewrite) {
+        out = appendSignature(out, senderName);
+      }
       return NextResponse.json({ rewritten: out, ...(overflow ? { dm_overflow: overflow } : {}) });
     }
 
@@ -198,9 +206,15 @@ Rules:
       else dmOverflow = { length: rewrittenDm.length, cap: DM_HARD_CAP };
     }
 
+    // Signature goes on the email body only. The DM stays sig-less because
+    // Instagram doesn't render signatures and the 1000-char cap is already
+    // tight. appendSignature is a no-op if the sender isn't on the
+    // hardcoded operator list, so unknown senders pass through unchanged.
+    const rewrittenBodyWithSig = appendSignature(rewrittenBody, senderName);
+
     return NextResponse.json({
       rewritten: rewrittenDm,
-      rewrittenEmail: { subject: rewrittenSubject, body: rewrittenBody },
+      rewrittenEmail: { subject: rewrittenSubject, body: rewrittenBodyWithSig },
       ...(dmOverflow ? { dm_overflow: dmOverflow } : {}),
     });
   } catch (err) {

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { loadSkills, formatReferences } from '../../lib/skills';
+import { appendSignature } from '../../lib/operatorSignature';
 
 // ─────────────────────────────────────────────────────────────────
 // DM WRITER — template-aware system prompts (A / B / C × PT / EN / ES).
@@ -1096,9 +1097,12 @@ ${stageInstruction} Follow the output format exactly. ZERO em dashes.`;
       result.inputs = parsedInputs;
       result.dm = extract('DM', 'COMMENT_T3');
       result.comment_t3 = extract('COMMENT_T3', 'EMAIL_DAY1_SUBJECT');
+      // Email gets the operator's contact card appended (name + email +
+      // website). DMs never do — Instagram doesn't render signatures and
+      // the 1000-char cap can't afford the lines.
       result.email_day1 = {
         subject: extract('EMAIL_DAY1_SUBJECT', 'EMAIL_DAY1'),
-        body: extract('EMAIL_DAY1', 'EMAIL_DAY7_SUBJECT'),
+        body: appendSignature(extract('EMAIL_DAY1', 'EMAIL_DAY7_SUBJECT'), senderName),
       };
 
       // Instagram silently truncates DMs over 1000 chars. The system prompt
@@ -1158,12 +1162,12 @@ Rules:
     } else if (stage === 'followup_7') {
       result.email_day7 = {
         subject: extract('EMAIL_DAY7_SUBJECT', 'EMAIL_DAY7'),
-        body: extract('EMAIL_DAY7', 'EMAIL_DAY14_SUBJECT'),
+        body: appendSignature(extract('EMAIL_DAY7', 'EMAIL_DAY14_SUBJECT'), senderName),
       };
     } else if (stage === 'followup_14') {
       result.email_day14 = {
         subject: extract('EMAIL_DAY14_SUBJECT', 'EMAIL_DAY14'),
-        body: extract('EMAIL_DAY14', ''),
+        body: appendSignature(extract('EMAIL_DAY14', ''), senderName),
       };
     }
 
