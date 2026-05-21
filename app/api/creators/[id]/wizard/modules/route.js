@@ -122,6 +122,15 @@ consumption. They derive from modules + the locked CP2 weekly_rhythm.
 
 1. **Grounded in a concrete creator advantage** — each module's linked_unique_elements array MUST include the index of at least one Phase 3 uniqueness element (those marked usable_in_modules=true preferred). If a module can't cite a specific creator advantage, it's generic and shouldn't exist.
 
+   This is a HARD schema requirement, not a suggestion:
+     - The array must be present on every module.
+     - The array must have at least one integer.
+     - An empty array (`linked_unique_elements: []`) FAILS validation.
+     - A missing field FAILS validation.
+     - "Cite" means index — pick the [N] number that appears in the PHASE 3 UNIQUENESS ELEMENTS block of the user message. If you cite [3] and [7], output `"linked_unique_elements": [3, 7]`.
+     - If the same element is the strongest link for two modules, you may cite it twice (once per module). Citation is not exclusive.
+     - If NO element in the supplied list seems to fit, pick the closest faithful index anyway. Empty arrays are never acceptable.
+
 2. **In creator voice** — match the creator_voice_summary. Reuse Phase 3 vocabulary verbatim where it fits. Same banned words as CP2: no "Unlock", "Discover", "Transform" verbs. No 3-adjective stacks. No "this isn't just X, it's Y".
 
 3. **Mapped to a delivery format** — pick the format that actually fits, not the most impressive-sounding. A weekly thread is community_ritual, not "doc". A 90-min Zoom is live_call.
@@ -199,7 +208,7 @@ Return ONLY a JSON object. No prose, no markdown.
       "description": "string (≤300 chars, 1-2 sentences on what this module IS)",
       "transformation_delivered": "string (≤200 chars, specific outcome)",
       "format": "live_call" | "recorded_module" | "doc" | "template" | "community_ritual",
-      "linked_unique_elements": [<integer index>, ...],  // 0-based, ≥1 required
+      "linked_unique_elements": [0, 3],  // 0-based indices into PHASE 3 UNIQUENESS ELEMENTS. MUST be a non-empty array. Example shown; pick real indices.
       "delivery_cadence": "string (≤80 chars, when/how often)"
     },
     ...
@@ -224,6 +233,26 @@ async function runModules(apiKey, creator, retryCount = 0, extraInstruction = nu
 
   const elements = uniqueness?.unique_elements || [];
   const usableCount = elements.length;
+
+  // Hard precondition. The schema requires every module to cite ≥1 Phase 3
+  // uniqueness element. With zero elements available the LLM has no indices
+  // to cite, the validator fails 6 times (once per module), and the retry
+  // loop spins until it gives up — surfacing a cryptic "Schema validation
+  // failed" wall instead of telling the operator what's actually missing.
+  //
+  // Fail fast with a single clear error pointing at the prerequisite step.
+  if (usableCount === 0) {
+    return {
+      error: 'A extração de Uniqueness (Fase 3) ainda não foi corrida — sem elementos para citar, os módulos não podem ser gerados. Corre o passo de Uniqueness primeiro.',
+      errors: [
+        'meta.uniqueness_extraction.unique_elements: empty — every module must cite ≥1 element by index, but no elements exist yet',
+        'Required step: run the Uniqueness Extraction (Phase 3) for this creator before generating modules (CP3)',
+      ],
+      raw: null,
+      retries: 0,
+      missing_prerequisite: 'uniqueness_extraction',
+    };
+  }
 
   // Build the Phase 3 elements block with indices the model can cite
   const elementsBlock = elements.map((e, i) =>
