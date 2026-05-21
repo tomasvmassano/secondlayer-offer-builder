@@ -175,7 +175,7 @@ const MessageCard = ({ label, type, content, accent, children }) => {
 // empty (creator hasn't been through dm-writer yet) the profile still
 // opens, the copy step is just skipped, and the label flips to a subtle
 // "↗ Ver perfil · sem DM" so the operator knows what's missing.
-const OpenProfileButton = ({ profileUrl, platformLabel, dmText }) => {
+const OpenProfileButton = ({ profileUrl, platformLabel, dmText, alreadySent, onMarkSent }) => {
   const [copied, setCopied] = useState(false);
   if (!profileUrl) return null;
   const hasText = !!(dmText && dmText.trim());
@@ -185,6 +185,13 @@ const OpenProfileButton = ({ profileUrl, platformLabel, dmText }) => {
         setCopied(true);
         setTimeout(() => setCopied(false), 2200);
       }).catch(() => {/* silent — the profile still opens */});
+    }
+    // Auto-mark "DM sent" on first click only. First-stamp-wins keeps the
+    // dm-reminders cron anchor (dmSentAt) stable across repeat clicks.
+    // The undo path is the existing Sent chip in the DM tab — operator can
+    // un-mark there if they clicked but didn't actually send.
+    if (!alreadySent && typeof onMarkSent === 'function') {
+      onMarkSent();
     }
   };
   return (
@@ -1412,6 +1419,8 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
                     profileUrl={profileUrl}
                     platformLabel={platformLabel}
                     dmText={creator.dmSequence?.dm || ''}
+                    alreadySent={!!creator.outreach?.dmSentAt}
+                    onMarkSent={() => markOutreach('dm')}
                   />
                 );
               })()}
@@ -1435,11 +1444,18 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
                 if (subject) params.set('su', subject);
                 if (body) params.set('body', body);
                 const gmailUrl = `https://mail.google.com/mail/?${params.toString()}`;
+                // Auto-mark "Email sent" on first click only. Same first-
+                // stamp-wins logic as the Ver perfil button — repeat clicks
+                // don't overwrite emailSentAt, so the reminders cron anchor
+                // stays accurate. Undo path: existing Sent chip in the DM
+                // tab can flip the timestamp off.
+                const alreadySent = !!creator.outreach?.emailSentAt;
                 return (
                   <a
                     href={gmailUrl}
                     target="_blank"
                     rel="noopener noreferrer"
+                    onClick={() => { if (!alreadySent) markOutreach('email'); }}
                     title={day1 ? `Abrir Gmail · Day 1 pré-preenchido (${creator.contactEmail})` : `Abrir Gmail · ${creator.contactEmail}`}
                     style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", padding: "3px 10px", borderRadius: 4, background: "rgba(34,197,94,0.1)", color: "#22c55e", border: "1px solid rgba(34,197,94,0.25)", cursor: "pointer", fontFamily: "inherit", textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 4 }}
                   >
