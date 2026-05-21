@@ -125,9 +125,9 @@ consumption. They derive from modules + the locked CP2 weekly_rhythm.
    This is a HARD schema requirement, not a suggestion:
      - The array must be present on every module.
      - The array must have at least one integer.
-     - An empty array (`linked_unique_elements: []`) FAILS validation.
+     - An empty array (linked_unique_elements: []) FAILS validation.
      - A missing field FAILS validation.
-     - "Cite" means index — pick the [N] number that appears in the PHASE 3 UNIQUENESS ELEMENTS block of the user message. If you cite [3] and [7], output `"linked_unique_elements": [3, 7]`.
+     - "Cite" means index — pick the [N] number that appears in the PHASE 3 UNIQUENESS ELEMENTS block of the user message. If you cite [3] and [7], output linked_unique_elements: [3, 7].
      - If the same element is the strongest link for two modules, you may cite it twice (once per module). Citation is not exclusive.
      - If NO element in the supplied list seems to fit, pick the closest faithful index anyway. Empty arrays are never acceptable.
 
