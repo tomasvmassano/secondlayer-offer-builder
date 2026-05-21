@@ -353,6 +353,19 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
   const [dmError, setDmError] = useState(null);
   const [dmTemplate, setDmTemplate] = useState("A");
   const [dmNotes, setDmNotes] = useState("");
+  // Operator can override the auto-detected language per generation. Defaults
+  // to creator.primaryLanguage when available, otherwise PT (the team's home
+  // market). Sent as `language` in the dm-writer POST body — server-side this
+  // overrides the creator.primaryLanguage fallback that previously used to
+  // win silently. Keyed off creator.id so navigating between creators
+  // re-syncs to each one's own primaryLanguage.
+  const [dmLanguage, setDmLanguage] = useState("pt");
+  useEffect(() => {
+    if (creator?.primaryLanguage) {
+      const lang = String(creator.primaryLanguage).toLowerCase();
+      setDmLanguage(lang === 'en' || lang === 'es' ? lang : 'pt');
+    }
+  }, [creator?.id, creator?.primaryLanguage]);
   const [dmInputs, setDmInputs] = useState({});
   // Signed-in operator's display name (Tomás / Raúl) — used as the DM signer
   // so the message goes out under whoever's actually generating it. Fetched
@@ -526,6 +539,9 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
           stage,
           template: dmTemplate,
           senderName,
+          // Explicit operator-chosen language wins over the creator's
+          // primaryLanguage. dm-writer treats this as the source of truth.
+          language: dmLanguage,
           inputs: {
             primeiro_nome: dmInputs.primeiro_nome || "",
           },
@@ -569,7 +585,7 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
       await patchCreator({ dmSequence: merged });
       if (data.inputs) setDmInputs({ _filled: true, ...data.inputs });
     } catch (e) { setDmError(e.message); } finally { setDmLoading(false); }
-  }, [creator, dmTemplate, dmInputs, dmNotes, senderName, patchCreator]);
+  }, [creator, dmTemplate, dmInputs, dmNotes, dmLanguage, senderName, patchCreator]);
 
   // — DM Reply handler —
   const handleReply = useCallback(async () => {
@@ -1833,10 +1849,21 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
               </div>
             ) : (
             <div>
-              <div className="sl-grid-3" style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12, marginBottom: 16 }}>
+              <div className="sl-grid-4" style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 12, marginBottom: 16 }}>
                 <div>
                   <label style={{ display: "block", fontSize: 10, fontWeight: 600, color: "#555", marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.05em" }}>Primeiro Nome</label>
                   <input type="text" style={inputStyle} placeholder="Ex: Mariana" value={dmInputs.primeiro_nome || ""} onChange={e => setDmInputs(p => ({ ...p, primeiro_nome: e.target.value }))} />
+                </div>
+                <div>
+                  <label style={{ display: "block", fontSize: 10, fontWeight: 600, color: "#555", marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.05em" }}>Idioma</label>
+                  <select style={inputStyle} value={dmLanguage} onChange={e => setDmLanguage(e.target.value)}>
+                    <option value="pt">Português (PT)</option>
+                    <option value="en">English (EN)</option>
+                    <option value="es">Español (ES)</option>
+                  </select>
+                  {creator?.primaryLanguage && dmLanguage !== String(creator.primaryLanguage).toLowerCase() && (
+                    <div style={{ fontSize: 9, color: "#eab308", marginTop: 6, lineHeight: 1.4 }}>A audiência principal está em <strong>{String(creator.primaryLanguage).toUpperCase()}</strong>.</div>
+                  )}
                 </div>
                 <div>
                   <label style={{ display: "block", fontSize: 10, fontWeight: 600, color: "#555", marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.05em" }}>Template</label>
