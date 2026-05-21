@@ -5,9 +5,15 @@ import { getDailyScoreboard } from '../../../lib/teamStats';
 // End-of-day report — per-operator email with the day's outreach
 // metrics + €50 accountability rule.
 //
-// Scheduled at 22:55 UTC weekdays (vercel.json). Mon-Fri only —
-// `55 22 * * 1-5` enforces weekdays. Sundays/Saturdays the team
-// isn't expected to do outreach, so no email.
+// Scheduled at 03:00 UTC Tue-Sat (vercel.json: "0 3 * * 2-6"), which
+// is 04:00 Lisbon during DST and 03:00 Lisbon in winter — close
+// enough to "around 4am" for both halves of the year. Reporting on
+// the previous Lisbon day means late-night outreach (DMs sent after
+// midnight, which used to land in the wrong bucket) now correctly
+// counts toward the day the operator was actually working.
+//
+// Tue-Sat schedule = report on Mon-Fri activity. Sunday/Monday no
+// email (no Sunday work day to report on).
 //
 // Two design changes vs the previous version (2026-05-20):
 //   1. Recipients come from the hardcoded OPERATORS list, not
@@ -45,12 +51,17 @@ function checkCronAuth(request) {
   return auth === `Bearer ${expected}`;
 }
 
-function todayLisbonStr() {
+// Returns the Lisbon-local long date string for "yesterday" — i.e. the
+// calendar day BEFORE the moment of call. The EOD cron fires at 04:00
+// Lisbon and reports on the previous day; the email subject + headline
+// need to surface that date, not today's.
+function yesterdayLisbonStr() {
+  const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000);
   const fmt = new Intl.DateTimeFormat('pt-PT', {
     timeZone: 'Europe/Lisbon',
     weekday: 'long', day: '2-digit', month: 'long', year: 'numeric',
   });
-  return fmt.format(new Date());
+  return fmt.format(yesterday);
 }
 
 // Find the row that belongs to a specific operator. canonicalKey() in
@@ -93,7 +104,7 @@ function zeroRow(firstName) {
 // ── Email body builders ──
 
 function buildOperatorEmail(operator, myRow, scoreboard, target) {
-  const dateStr = todayLisbonStr();
+  const dateStr = yesterdayLisbonStr();
   const winners = scoreboard.filter(r => !r.missedGoal);
   const losers = scoreboard.filter(r => r.missedGoal);
   const hit = !myRow.missedGoal;
@@ -109,8 +120,8 @@ function buildOperatorEmail(operator, myRow, scoreboard, target) {
   let verdictText;
   let verdictHtml;
   if (losers.length === 0) {
-    verdictText = `Toda a equipa cumpriu. Ninguém deve €50 hoje.`;
-    verdictHtml = `<p style="margin: 0; color: #22c55e; font-size: 14px; font-weight: 600;">Toda a equipa cumpriu. Ninguém deve €50 hoje.</p>`;
+    verdictText = `Toda a equipa cumpriu. Ninguém deve €50.`;
+    verdictHtml = `<p style="margin: 0; color: #22c55e; font-size: 14px; font-weight: 600;">Toda a equipa cumpriu. Ninguém deve €50.</p>`;
   } else if (winners.length === 0) {
     verdictText = `Ninguém cumpriu o objetivo de ${target}. Sem €50 a transferir.`;
     verdictHtml = `<p style="margin: 0; color: #eab308; font-size: 14px; font-weight: 600;">Ninguém cumpriu o objetivo de ${target}. Sem €50 a transferir.</p>`;
@@ -137,14 +148,14 @@ function buildOperatorEmail(operator, myRow, scoreboard, target) {
     : '';
 
   const metricGrid = [
-    { label: 'Outreach touches', value: `${myRow.touchesSent} / ${target}`, accent: hit ? '#22c55e' : '#ef4444', hint: 'Creators únicos contactados hoje · meta diária' },
+    { label: 'Outreach touches', value: `${myRow.touchesSent} / ${target}`, accent: hit ? '#22c55e' : '#ef4444', hint: 'Creators únicos contactados · meta diária' },
     { label: 'DMs enviadas', value: myRow.dmsSent, hint: 'Mensagens Instagram enviadas' },
     { label: 'Emails enviados', value: myRow.emailsSent, hint: 'Emails Day 1 enviados' },
     { label: 'Follow-ups feitos', value: `${myRow.followUpsDone}${followUpsSplit}`, hint: 'Soft nudge / value drop / último toque marcados' },
-    { label: 'Respostas', value: `${myRow.repliesReceived}${repliesSplit}`, accent: myRow.repliesReceived > 0 ? '#22c55e' : null, hint: 'Creators que responderam hoje' },
+    { label: 'Respostas', value: `${myRow.repliesReceived}${repliesSplit}`, accent: myRow.repliesReceived > 0 ? '#22c55e' : null, hint: 'Creators que responderam' },
     { label: 'Reply rate', value: `${myRow.replyRate}%`, hint: `DM ${myRow.dmReplyRate}% · Email ${myRow.emailReplyRate}%` },
-    { label: 'Creators adicionados', value: myRow.creatorsAdded, hint: 'Novos creators que entraram no CRM hoje' },
-    { label: 'Signed', value: myRow.signed, accent: myRow.signed > 0 ? '#22c55e' : null, hint: 'Deals fechados hoje' },
+    { label: 'Creators adicionados', value: myRow.creatorsAdded, hint: 'Novos creators que entraram no CRM' },
+    { label: 'Signed', value: myRow.signed, accent: myRow.signed > 0 ? '#22c55e' : null, hint: 'Deals fechados' },
   ];
 
   // ── Plain text ──
@@ -154,7 +165,7 @@ function buildOperatorEmail(operator, myRow, scoreboard, target) {
   textLines.push(`${myRow.touchesSent}/${target} touches · ${hit ? 'CUMPRIU ✓' : 'FALHOU (deficit ' + deficit + ')'}`);
   textLines.push(verdictText);
   textLines.push('');
-  textLines.push('── Métricas de hoje ──');
+  textLines.push(`── Métricas de ${dateStr} ──`);
   for (const m of metricGrid) {
     textLines.push(`${m.label}: ${m.value}${m.hint ? '  (' + m.hint + ')' : ''}`);
   }
@@ -204,11 +215,11 @@ function buildOperatorEmail(operator, myRow, scoreboard, target) {
     <p style="font-size: 13px; color: #888; margin: 0;">${dateStr} · Lisboa</p>
 
     <div style="margin-top: 22px; padding: 18px 22px; background: ${hit ? 'rgba(34,197,94,0.06)' : losers.length === 0 ? 'rgba(255,255,255,0.03)' : 'rgba(239,68,68,0.06)'}; border: 1px solid ${hit ? 'rgba(34,197,94,0.25)' : losers.length === 0 ? 'rgba(255,255,255,0.08)' : 'rgba(239,68,68,0.25)'}; border-radius: 10px;">
-      <div style="font-size: 10px; color: #888; letter-spacing: 0.14em; text-transform: uppercase; margin-bottom: 6px;">€50 hoje</div>
+      <div style="font-size: 10px; color: #888; letter-spacing: 0.14em; text-transform: uppercase; margin-bottom: 6px;">€50</div>
       ${verdictHtml}
     </div>
 
-    <h2 style="font-size: 12px; color: #888; letter-spacing: 0.16em; text-transform: uppercase; margin: 32px 0 14px;">Métricas de hoje</h2>
+    <h2 style="font-size: 12px; color: #888; letter-spacing: 0.16em; text-transform: uppercase; margin: 32px 0 14px;">Métricas de ${escape(dateStr)}</h2>
     <table style="width: 100%; border-collapse: separate; border-spacing: 0;">${gridRows.join('')}</table>
 
     <h2 style="font-size: 12px; color: #888; letter-spacing: 0.16em; text-transform: uppercase; margin: 32px 0 10px;">Scoreboard da equipa</h2>
@@ -224,7 +235,7 @@ function buildOperatorEmail(operator, myRow, scoreboard, target) {
     </table>
 
     <p style="margin-top: 32px;"><a href="${HUB_BASE}/equipa" style="display: inline-block; padding: 10px 18px; background: #B11E2F; color: #fff; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 13px;">Abrir scoreboard</a></p>
-    <p style="font-size: 11px; color: #555; margin-top: 24px;">Objetivo: ${target} outreach touches por pessoa por dia (Mon-Fri). Touch = creator único contactado por DM e/ou email no dia. Falhar = €50 para cada teammate que cumpriu.</p>
+    <p style="font-size: 11px; color: #555; margin-top: 24px;">Objetivo: ${target} outreach touches por pessoa por dia (Seg-Sex). Touch = creator único contactado por DM e/ou email no dia. Falhar = €50 para cada teammate que cumpriu. Relatório enviado às 04:00 Lisboa para incluir DMs enviadas tarde.</p>
   </div>`;
 
   return { subject, text, html };
@@ -260,7 +271,11 @@ export async function GET(request) {
   }
   try {
     const target = Number(process.env.DAILY_DM_TARGET) || 30;
-    const scoreboardRaw = await getDailyScoreboard({ target });
+    // 'yesterday' window — the cron fires at 04:00 Lisbon and reports on
+    // the previous day's outreach. Without this, late-night DMs (the
+    // exact reason we moved the cron to 4am) would land in today's
+    // window with no other activity to compare against.
+    const scoreboardRaw = await getDailyScoreboard({ target, windowKey: 'yesterday' });
 
     // Always make sure both operators appear on the scoreboard, even if
     // they did zero outreach today. Without this, an inactive operator

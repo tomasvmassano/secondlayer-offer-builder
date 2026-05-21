@@ -59,6 +59,16 @@ function windowStart(windowKey, now = new Date()) {
   if (windowKey === 'today') {
     return Date.UTC(y, m - 1, d) - lisbonOffsetMs(now);
   }
+  if (windowKey === 'yesterday') {
+    // Start of the Lisbon day BEFORE the one containing `now`. Used by the
+    // 4am EOD cron — when the cron fires at Friday 04:00 Lisbon, "yesterday"
+    // means Thursday 00:00 Lisbon. Combined with the (already-existing)
+    // open-ended inWindow() check, this captures Thursday's full day PLUS
+    // any post-midnight overflow from Friday 00:00–04:00, which is the
+    // whole point of moving the EOD cron later: late-night DMs count
+    // toward yesterday's scoreboard.
+    return Date.UTC(y, m - 1, d - 1) - lisbonOffsetMs(now);
+  }
   if (windowKey === 'week') {
     // Monday-start week. Compute the day-of-week of the Lisbon-local date.
     const tmp = new Date(Date.UTC(y, m - 1, d));
@@ -248,11 +258,16 @@ export async function getTeamStats({ window = 'today', now = new Date() } = {}) 
  * `owesEach` (the €50 split: missed people owe to those who hit the goal,
  * split evenly).
  *
- * @param {number} target  - DM goal per person (default 30)
- * @param {Date}   now     - clock override
+ * @param {number} target     - DM goal per person (default 30)
+ * @param {Date}   now        - clock override
+ * @param {string} windowKey  - 'today' (legacy default) or 'yesterday'.
+ *                              The EOD cron now fires at 04:00 Lisbon and
+ *                              passes 'yesterday' so late-night DMs sent
+ *                              after midnight still count toward the day
+ *                              the operator considers "yesterday".
  */
-export async function getDailyScoreboard({ target = 30, now = new Date() } = {}) {
-  const rows = await getTeamStats({ window: 'today', now });
+export async function getDailyScoreboard({ target = 30, now = new Date(), windowKey = 'today' } = {}) {
+  const rows = await getTeamStats({ window: windowKey, now });
   // Daily target gates on `touchesSent` (unique creators contacted via DM
   // and/or email) instead of `dmsSent`. Sending DM + email to the same
   // creator counts as ONE touch — the operator can't game the rule by
