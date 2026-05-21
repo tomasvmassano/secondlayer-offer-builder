@@ -462,14 +462,52 @@ export async function scrapeMultiplePlatforms(instagramUrl, tiktokUrl, youtubeUr
     bioLinksEmail = result.email || null;
   }
 
-  // Email priority: explicit Instagram public business email > aggregator
-  // page email > regex over IG bio text. First hit wins. All sources are
-  // already-fetched data — no new API calls.
-  const contactEmail = igData?.publicEmail
+  // Email priority. Cheapest-first cascade. Steps 1-6 use already-fetched
+  // data and add zero latency. Step 7 fetches the externalUrl when it's a
+  // non-aggregator personal site — adds at most one 10s HTTP request, only
+  // fires when nothing earlier matched. Expanded 2026-05-21 because
+  // operators were manually finding emails the original cascade skipped.
+  //
+  //   1. IG explicit business/public email     (canonical, when set)
+  //   2. Aggregator-page email                  (Linktree etc, when scraped)
+  //   3. IG bio regex
+  //   4. TikTok bio regex                       (NEW)
+  //   5. YouTube channel description regex      (NEW)
+  //   6. Bio-link titles regex                  (NEW)
+  //   7. External URL fetch — mailto: anchors   (NEW — personal sites)
+  //      first, then visible-text regex
+  //
+  // First non-null hit wins. extractEmail() handles obfuscated forms
+  // ("name [at] domain dot com") so this catches more than a vanilla regex.
+  const bioLinksText = (bioLinks || [])
+    .map(l => `${l.title || ''} ${l.url || ''}`)
+    .join(' ');
+  let contactEmail = igData?.publicEmail
     || igData?.businessEmail
     || bioLinksEmail
     || extractEmail(bio)
+    || extractEmail(tkData?.bio || '')
+    || extractEmail(ytData?.channelDescription || '')
+    || extractEmail(bioLinksText)
     || null;
+
+  // Personal-site fallback. Only fires when we have an externalUrl that
+  // ISN'T a known bio-link aggregator (those were already handled by
+  // scrapeBioLinks at step 2). One HTTP request, soft-fails on timeout.
+  // Scope is deliberately narrow — chasing emails across every external
+  // URL would blow the scrape budget on creators who already have one.
+  if (!contactEmail && externalUrl) {
+    const aggregatorHosts = ['linktr.ee', 'linktree.com', 'beacons.ai', 'stan.store', 'carrd.co', 'taplink.cc', 'allmylinks.com', 'linkin.bio', 'bio.link', 'linkr.bio'];
+    const isAggregator = aggregatorHosts.some(d => externalUrl.toLowerCase().includes(d));
+    if (!isAggregator) {
+      try {
+        const { findEmailOnUrl } = await import('./urlPreview.js');
+        contactEmail = await findEmailOnUrl(externalUrl);
+      } catch {
+        // dynamic import failed (shouldn't, but stay quiet) — leave email null
+      }
+    }
+  }
 
   const profile = {
     name,

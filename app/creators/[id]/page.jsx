@@ -220,6 +220,142 @@ const OpenProfileButton = ({ profileUrl, platformLabel, dmText }) => {
   );
 };
 
+// Editable contact-email row. Two modes:
+//   - "view"  → renders the existing chip (address + mailto + Gmail compose
+//               + Copy) plus a small pencil icon that flips into edit mode.
+//   - "edit"  → a focused input + Save/Cancel buttons. Blur on the input
+//               also saves to dedupe accidental clicks. Empty save clears
+//               the field.
+//
+// Empty-state: when creator.contactEmail is null, the parent passes
+// initialEmpty=true and we render a subtle "+ Adicionar email
+// manualmente" button that expands to the edit input on click. Same
+// component handles both branches so the layout stays consistent
+// regardless of whether the scrape surfaced an email or the operator
+// is pasting one in by hand.
+//
+// patchCreator is passed in (rather than imported) so this component
+// stays parent-agnostic and the same instance can edit any creator
+// without a separate handler per creator.
+const EditableContactEmail = ({ creator, patchCreator }) => {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(creator?.contactEmail || '');
+  const [saving, setSaving] = useState(false);
+  const inputRef = useRef(null);
+  useEffect(() => {
+    // Keep the draft in sync when navigating between creators.
+    setDraft(creator?.contactEmail || '');
+    setEditing(false);
+  }, [creator?.id, creator?.contactEmail]);
+  useEffect(() => {
+    if (editing && inputRef.current) inputRef.current.focus();
+  }, [editing]);
+
+  const save = async () => {
+    const next = String(draft || '').trim().toLowerCase();
+    if (next === (creator?.contactEmail || '')) {
+      setEditing(false);
+      return;
+    }
+    setSaving(true);
+    try {
+      await patchCreator({ contactEmail: next || null });
+    } finally {
+      setSaving(false);
+      setEditing(false);
+    }
+  };
+
+  // Empty + not editing → compact "add email" placeholder.
+  if (!creator?.contactEmail && !editing) {
+    return (
+      <button
+        onClick={() => setEditing(true)}
+        style={{ marginTop: 8, padding: "6px 10px", background: "rgba(255,255,255,0.02)", border: "1px dashed rgba(255,255,255,0.10)", borderRadius: 6, color: "#666", fontSize: 11, cursor: "pointer", fontFamily: "inherit", width: "100%", textAlign: "left" }}
+      >
+        + Adicionar email manualmente
+      </button>
+    );
+  }
+
+  // Edit mode (either from empty or from "edit existing").
+  if (editing) {
+    return (
+      <div style={{ marginTop: 8, display: "flex", alignItems: "center", gap: 8, padding: "6px 10px", background: "rgba(34,197,94,0.06)", border: "1px solid rgba(34,197,94,0.30)", borderRadius: 6 }}>
+        <span style={{ fontSize: 9, fontWeight: 700, color: "#22c55e", letterSpacing: "0.10em", textTransform: "uppercase" }}>Email</span>
+        <input
+          ref={inputRef}
+          type="email"
+          value={draft}
+          onChange={e => setDraft(e.target.value)}
+          onKeyDown={e => {
+            if (e.key === 'Enter') { e.preventDefault(); save(); }
+            if (e.key === 'Escape') { setDraft(creator?.contactEmail || ''); setEditing(false); }
+          }}
+          placeholder="nome@dominio.com"
+          autoComplete="off"
+          style={{ flex: 1, fontSize: 12, padding: "4px 6px", border: "1px solid rgba(34,197,94,0.3)", background: "rgba(0,0,0,0.3)", color: "#f5f5f5", borderRadius: 4, fontFamily: "'JetBrains Mono', ui-monospace, monospace", outline: "none" }}
+        />
+        <button
+          onClick={save}
+          disabled={saving}
+          style={{ padding: "2px 10px", borderRadius: 4, border: "1px solid rgba(34,197,94,0.45)", background: saving ? "transparent" : "rgba(34,197,94,0.15)", color: "#22c55e", fontSize: 9, fontWeight: 700, cursor: saving ? "wait" : "pointer", fontFamily: "inherit" }}
+        >
+          {saving ? "..." : "Guardar"}
+        </button>
+        <button
+          onClick={() => { setDraft(creator?.contactEmail || ''); setEditing(false); }}
+          style={{ padding: "2px 8px", borderRadius: 4, border: "1px solid rgba(255,255,255,0.10)", background: "transparent", color: "#888", fontSize: 9, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}
+        >
+          Cancelar
+        </button>
+      </div>
+    );
+  }
+
+  // View mode — same chip as before, with an extra ✏ Edit button on the right.
+  const day1 = creator.dmSequence?.email_day1;
+  const subject = day1?.subject?.trim() || '';
+  const body = day1?.body?.trim() || '';
+  const params = new URLSearchParams({
+    view: 'cm',
+    fs: '1',
+    to: creator.contactEmail,
+  });
+  if (subject) params.set('su', subject);
+  if (body) params.set('body', body);
+  const gmailUrl = `https://mail.google.com/mail/?${params.toString()}`;
+  return (
+    <div style={{ marginTop: 8, display: "flex", alignItems: "center", gap: 8, padding: "6px 10px", background: "rgba(34,197,94,0.06)", border: "1px solid rgba(34,197,94,0.20)", borderRadius: 6 }}>
+      <span style={{ fontSize: 9, fontWeight: 700, color: "#22c55e", letterSpacing: "0.10em", textTransform: "uppercase" }}>Email</span>
+      <a href={`mailto:${creator.contactEmail}`} style={{ fontSize: 12, color: "#22c55e", textDecoration: "none", fontFamily: "'JetBrains Mono', ui-monospace, monospace" }}>{creator.contactEmail}</a>
+      <a
+        href={gmailUrl}
+        target="_blank"
+        rel="noopener noreferrer"
+        title={day1 ? "Open Gmail compose · Day 1 pre-filled" : "Open Gmail compose"}
+        style={{ marginLeft: "auto", padding: "2px 8px", borderRadius: 4, border: "1px solid rgba(34,197,94,0.35)", background: "rgba(34,197,94,0.10)", color: "#22c55e", fontSize: 9, fontWeight: 700, textDecoration: "none", fontFamily: "inherit", letterSpacing: "0.04em" }}
+      >
+        ✉ Gmail{day1 ? " · Day 1" : ""}
+      </a>
+      <button
+        onClick={() => navigator.clipboard.writeText(creator.contactEmail)}
+        title="Copy email"
+        style={{ padding: "2px 8px", borderRadius: 4, border: "1px solid rgba(34,197,94,0.25)", background: "transparent", color: "#22c55e", fontSize: 9, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}
+      >
+        Copy
+      </button>
+      <button
+        onClick={() => setEditing(true)}
+        title="Editar email"
+        style={{ padding: "2px 8px", borderRadius: 4, border: "1px solid rgba(255,255,255,0.10)", background: "transparent", color: "#888", fontSize: 9, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}
+      >
+        ✏ Edit
+      </button>
+    </div>
+  );
+};
+
 const PendingEmailCard = ({ label, hint, loading, onClick }) => (
   <div style={{ padding: "16px 18px", borderRadius: 8, background: "transparent", border: "1px dashed rgba(255,255,255,0.08)", marginBottom: 10 }}>
     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
@@ -1418,54 +1554,15 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
           {igData && (
             <div style={{ marginBottom: 24 }}>
               <h3 style={sectionTitleStyle}>Instagram {igData.url && <a href={igData.url} target="_blank" rel="noopener noreferrer" style={{ fontSize: 10, color: "#7A0E18", textDecoration: "none", marginLeft: 8, fontWeight: 400, textTransform: "none", letterSpacing: 0 }}>Ver perfil</a>}</h3>
-              {(creator.bio || creator.externalUrl || creator.contactEmail) && (
-                <div style={{ marginBottom: 12, padding: "12px 14px", background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.04)", borderRadius: 8 }}>
-                  {creator.bio && <p style={{ fontSize: 12, color: "#bbb", margin: 0, lineHeight: 1.6, whiteSpace: "pre-wrap" }}>{creator.bio}</p>}
-                  {creator.externalUrl && <a href={creator.externalUrl.startsWith("http") ? creator.externalUrl : "https://" + creator.externalUrl} target="_blank" rel="noopener noreferrer" style={{ display: "block", marginTop: 6, fontSize: 11, color: "#7A0E18", textDecoration: "none" }}>{creator.externalUrl}</a>}
-                  {creator.contactEmail && (() => {
-                    // Build a Gmail compose URL that mirrors the "Ver perfil" IG
-                    // flow — one click jumps straight to a draft. When the
-                    // creator already has a generated Day 1 email in their
-                    // dmSequence, we pre-fill subject + body so the operator
-                    // can review, tweak, and send without round-tripping
-                    // through the CRM DM tab. Falls back to just-the-recipient
-                    // for creators that haven't been through dm-writer yet.
-                    const day1 = creator.dmSequence?.email_day1;
-                    const subject = day1?.subject?.trim() || '';
-                    const body = day1?.body?.trim() || '';
-                    const params = new URLSearchParams({
-                      view: 'cm',
-                      fs: '1',
-                      to: creator.contactEmail,
-                    });
-                    if (subject) params.set('su', subject);
-                    if (body) params.set('body', body);
-                    const gmailUrl = `https://mail.google.com/mail/?${params.toString()}`;
-                    return (
-                      <div style={{ marginTop: 8, display: "flex", alignItems: "center", gap: 8, padding: "6px 10px", background: "rgba(34,197,94,0.06)", border: "1px solid rgba(34,197,94,0.20)", borderRadius: 6 }}>
-                        <span style={{ fontSize: 9, fontWeight: 700, color: "#22c55e", letterSpacing: "0.10em", textTransform: "uppercase" }}>Email</span>
-                        <a href={`mailto:${creator.contactEmail}`} style={{ fontSize: 12, color: "#22c55e", textDecoration: "none", fontFamily: "'JetBrains Mono', ui-monospace, monospace" }}>{creator.contactEmail}</a>
-                        <a
-                          href={gmailUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          title={day1 ? "Open Gmail compose · Day 1 pre-filled" : "Open Gmail compose"}
-                          style={{ marginLeft: "auto", padding: "2px 8px", borderRadius: 4, border: "1px solid rgba(34,197,94,0.35)", background: "rgba(34,197,94,0.10)", color: "#22c55e", fontSize: 9, fontWeight: 700, textDecoration: "none", fontFamily: "inherit", letterSpacing: "0.04em" }}
-                        >
-                          ✉ Gmail{day1 ? " · Day 1" : ""}
-                        </a>
-                        <button
-                          onClick={() => navigator.clipboard.writeText(creator.contactEmail)}
-                          title="Copy email"
-                          style={{ padding: "2px 8px", borderRadius: 4, border: "1px solid rgba(34,197,94,0.25)", background: "transparent", color: "#22c55e", fontSize: 9, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}
-                        >
-                          Copy
-                        </button>
-                      </div>
-                    );
-                  })()}
-                </div>
-              )}
+              {/* Bio + external link + editable email card. Always renders for
+                  IG-scraped creators so the "+ Adicionar email manualmente"
+                  affordance is visible even when bio/externalUrl are empty —
+                  letting the operator paste an address they found by hand. */}
+              <div style={{ marginBottom: 12, padding: "12px 14px", background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.04)", borderRadius: 8 }}>
+                {creator.bio && <p style={{ fontSize: 12, color: "#bbb", margin: 0, lineHeight: 1.6, whiteSpace: "pre-wrap" }}>{creator.bio}</p>}
+                {creator.externalUrl && <a href={creator.externalUrl.startsWith("http") ? creator.externalUrl : "https://" + creator.externalUrl} target="_blank" rel="noopener noreferrer" style={{ display: "block", marginTop: 6, fontSize: 11, color: "#7A0E18", textDecoration: "none" }}>{creator.externalUrl}</a>}
+                <EditableContactEmail creator={creator} patchCreator={patchCreator} />
+              </div>
               {/* IG multi-link bio — Instagram's native "Links" feature, up to 5
                   titled links per profile. Captured on every scrape; falls back
                   silently if the actor didn't return any (some accounts have

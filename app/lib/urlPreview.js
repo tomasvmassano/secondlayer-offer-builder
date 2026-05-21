@@ -162,6 +162,63 @@ function extractPriceHints(text) {
   return hits;
 }
 
+// Extract the first plausible contact email from raw HTML. Mailto anchors
+// come first because they're explicit, then falls back to a regex over the
+// visible text (covers creators who paste "hi@domain.com" as text rather
+// than as a clickable link). Rejects common boilerplate addresses that
+// show up on marketing footers (info@instagram, noreply@*, etc.).
+function findEmailInHtml(html) {
+  if (!html) return null;
+  // Step 1: mailto: anchors — the canonical signal that this address is
+  // intended as a contact point.
+  const mailtoMatch = html.match(/href=["']mailto:([^"'?#]+)/i);
+  if (mailtoMatch) {
+    const candidate = String(mailtoMatch[1]).toLowerCase().trim();
+    if (candidate && !/^(noreply|no-reply|donotreply|info@(instagram|meta|facebook)|press@(meta|facebook)|support@meta|abuse@)/i.test(candidate)) {
+      return candidate;
+    }
+  }
+  // Step 2: visible-text regex. Strip tags first so we don't grab garbage
+  // out of script blocks (analytics IDs sometimes look like emails).
+  const text = htmlToText(html);
+  const m = text.match(/[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}/i);
+  if (!m) return null;
+  const email = m[0].toLowerCase();
+  if (/^(noreply|no-reply|donotreply|info@(instagram|meta|facebook)|press@(meta|facebook)|support@meta|abuse@|example@|test@|sentry@|dev@example|admin@example)/i.test(email)) {
+    return null;
+  }
+  return email;
+}
+
+/**
+ * Lightweight email lookup on a single URL. Same fetch + 10s timeout as
+ * fetchUrlPreview but cheaper because it only returns the email — no
+ * pricing extraction, no link discovery. Used by the scrape pipeline as a
+ * final fallback when the in-data cascade (IG bio, TikTok bio, YouTube
+ * description, bio-link titles) didn't surface an address.
+ *
+ * Soft-fail: any fetch error returns null so the caller can move on.
+ */
+export async function findEmailOnUrl(url) {
+  if (!url || !/^https?:\/\//i.test(url)) return null;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+  try {
+    const res = await fetch(url, {
+      headers: BROWSER_HEADERS,
+      redirect: 'follow',
+      signal: controller.signal,
+    });
+    clearTimeout(timer);
+    if (!res.ok) return null;
+    const html = await res.text();
+    return findEmailInHtml(html);
+  } catch {
+    clearTimeout(timer);
+    return null;
+  }
+}
+
 /**
  * Fetch one URL and return a structured preview. Soft-fail: any error
  * (timeout, 4xx, 5xx, dns) returns an object with { error } instead of
