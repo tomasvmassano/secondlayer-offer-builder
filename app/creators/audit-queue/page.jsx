@@ -35,6 +35,11 @@ export default function AuditQueuePage() {
   const [loadError, setLoadError] = useState("");
   const [running, setRunning] = useState(false);
   const [includeCold, setIncludeCold] = useState(false);
+  // "Adicionado por" filter — mirrors the chip on /creators (CRM list).
+  // null = no filter (all operators); a string value matches against the
+  // row's addedByFirstName (already canonicalised via normalizeOperatorName
+  // in the summary-index pipeline, so "Tomas" → "Tomás" etc. collapse).
+  const [filterAddedBy, setFilterAddedBy] = useState(null);
   const [allCreators, setAllCreators] = useState([]); // unfiltered, for toggle
   // Selection lives outside the row records so toggling the cold filter
   // doesn't wipe the operator's picks. Set of creator IDs.
@@ -70,6 +75,11 @@ export default function AuditQueuePage() {
           pipelineStatus: c.pipelineStatus || 'prospect',
           hasAudit: !!c.offer?.internal_metadata?.ecosystem_audit,
           createdAt: c.createdAt,
+          // Operator who added the creator. The summary-index pipeline
+          // already canonicalises this via normalizeOperatorName(), so
+          // "Tomas"/"Tomás" collapse to the same string before reaching
+          // here. Used by the "Adicionado por" filter chip below.
+          addedByFirstName: c.addedBy?.firstName || null,
           status: null,
           auditCounts: null,
           auditError: null,
@@ -88,13 +98,15 @@ export default function AuditQueuePage() {
 
   // Filter to creators that need an audit. Cold deals excluded by default
   // (the audit informs offer-building, dead deals don't need it). Already
-  // audited rows are always excluded.
+  // audited rows are always excluded. "Adicionado por" filter is opt-in —
+  // null means show all operators.
   useEffect(() => {
     const filtered = allCreators
       .filter(c => !c.hasAudit)
-      .filter(c => includeCold || c.pipelineStatus !== 'cold');
+      .filter(c => includeCold || c.pipelineStatus !== 'cold')
+      .filter(c => !filterAddedBy || c.addedByFirstName === filterAddedBy);
     setCreators(filtered);
-  }, [allCreators, includeCold]);
+  }, [allCreators, includeCold, filterAddedBy]);
 
   // Audit worker — single-flight, paced. Same logic as bulk-import,
   // updates rows by creatorId so a refetch mid-run doesn't drift.
@@ -263,7 +275,7 @@ export default function AuditQueuePage() {
             </div>
 
             {/* Toggle: include cold */}
-            <label style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 16px", background: "#141414", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 10, marginBottom: 20, cursor: running ? "not-allowed" : "pointer", opacity: running ? 0.7 : 1 }}>
+            <label style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 16px", background: "#141414", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 10, marginBottom: 12, cursor: running ? "not-allowed" : "pointer", opacity: running ? 0.7 : 1 }}>
               <input
                 type="checkbox"
                 checked={includeCold}
@@ -276,6 +288,63 @@ export default function AuditQueuePage() {
                 <div style={{ fontSize: 11, color: "#888", marginTop: 2 }}>Por defeito, deals marcados como cold ficam de fora — não há motivo para auditar uma conversa morta.</div>
               </div>
             </label>
+
+            {/* Filter: Adicionado por.
+                Mirrors the chip on /creators (CRM list). The dropdown
+                options are derived from the data (not hardcoded) so any
+                operator who has actually added creators shows up. Hidden
+                when there's only one operator or none — there's no point
+                showing a one-item filter. */}
+            {(() => {
+              const operatorOptions = Array.from(new Set(
+                allCreators.map(c => c.addedByFirstName).filter(Boolean)
+              )).sort();
+              if (operatorOptions.length < 2) return null;
+              const active = !!filterAddedBy;
+              return (
+                <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 8, marginBottom: 20 }}>
+                  <span style={{ fontSize: 9, fontWeight: 700, color: "#555", letterSpacing: "0.10em", textTransform: "uppercase", marginRight: 4 }}>Filtros</span>
+                  <label style={{
+                    display: "inline-flex", alignItems: "center", gap: 6,
+                    padding: "4px 4px 4px 10px",
+                    borderRadius: 4,
+                    border: `1px solid ${active ? "rgba(177,30,47,0.4)" : "rgba(255,255,255,0.08)"}`,
+                    background: active ? "rgba(177,30,47,0.06)" : "transparent",
+                    fontSize: 11, fontFamily: "inherit",
+                    cursor: running ? "not-allowed" : "pointer",
+                    opacity: running ? 0.7 : 1,
+                  }}>
+                    <span style={{ fontSize: 10, color: active ? "#B11E2F" : "#666", fontWeight: 600 }}>Adicionado por:</span>
+                    <select
+                      value={filterAddedBy || ''}
+                      disabled={running}
+                      onChange={e => setFilterAddedBy(e.target.value || null)}
+                      style={{
+                        background: "transparent", border: "none", outline: "none",
+                        color: active ? "#f5f5f5" : "#888",
+                        fontSize: 11, fontWeight: 600, fontFamily: "inherit",
+                        padding: "2px 4px", cursor: "pointer",
+                        appearance: "none", WebkitAppearance: "none",
+                      }}
+                    >
+                      <option value="" style={{ background: "#141414" }}>Todos</option>
+                      {operatorOptions.map(opt => (
+                        <option key={opt} value={opt} style={{ background: "#141414" }}>{opt}</option>
+                      ))}
+                    </select>
+                  </label>
+                  {active && (
+                    <button
+                      onClick={() => setFilterAddedBy(null)}
+                      disabled={running}
+                      style={{ fontSize: 10, padding: "3px 8px", border: "1px solid rgba(255,255,255,0.06)", background: "transparent", color: "#666", borderRadius: 4, cursor: running ? "not-allowed" : "pointer", fontFamily: "inherit" }}
+                    >
+                      Limpar
+                    </button>
+                  )}
+                </div>
+              );
+            })()}
 
             {/* Action bar */}
             {total === 0 ? (
