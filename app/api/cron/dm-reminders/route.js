@@ -5,16 +5,32 @@ import { listCreators, getCreator, updateCreator } from '../../../lib/creators';
 // fetch full records only for prospects that haven't replied.
 export const maxDuration = 60;
 
-// Per-operator routing (2026-05-20). Each operator gets their OWN digest
-// covering only the creators they added. Creators with no addedBy.email
-// (legacy / ambiguous) go to BOTH so we never silently drop them — that
-// forces the operator to explicitly assign an owner.
+// Per-operator routing. Each operator gets their OWN digest covering only
+// the creators they added. Creators where the addedBy actor can't be mapped
+// to a known operator (genuinely orphaned imports) go to BOTH so they never
+// silently drop — forces an explicit owner assignment.
 //
-// Email keys MUST be lowercased to match creator.addedBy.email.toLowerCase().
+// Resolution is by firstName because creator.addedBy is shaped as
+// { userId, firstName, at } — there is NO `.email` field on addedBy. The
+// previous version of this code keyed on addedBy.email and so EVERY creator
+// fell into the "no owner" bucket. Fix 2026-05-23: canonicalise the
+// firstName (lowercase + strip diacritics) and look up via FIRSTNAME_TO_EMAIL.
 const OPERATORS = [
   { email: 'tomas@informallabs.com', firstName: 'Tomás' },
   { email: 'raul@informallabs.com',  firstName: 'Raul'  },
 ];
+// Lowercase + diacritics stripped, mirrors canonicalKey() in lib/teamStats so
+// "Tomás" and "Tomas" both resolve correctly regardless of which form the
+// scrape pipeline stamped onto addedBy.firstName.
+function canonicaliseName(s) {
+  if (!s) return '';
+  return String(s).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').trim();
+}
+const FIRSTNAME_TO_EMAIL = OPERATORS.reduce((acc, op) => {
+  acc[canonicaliseName(op.firstName)] = op.email;
+  return acc;
+}, {});
+
 const HUB_BASE = 'https://hub.secondlayerhq.com';
 
 // Outreach cadence — days since the initial DM was sent.
@@ -66,10 +82,17 @@ export async function GET(request) {
     const out = c.outreach || {};
     if (out.repliedAt) continue;                                  // engaged → skip
 
-    // Owner attribution — addedBy.email (lowercased) is the routing key.
-    // null means "no owner": such creators get included in every operator's
+    // Owner attribution — map addedBy.firstName to a known operator email.
+    // addedBy shape is { userId, firstName, at }, no .email field. We try
+    // dmSentBy.firstName as a fallback (set when the operator marked the DM
+    // as sent), and finally addedBy.firstName. null means the actor doesn't
+    // match any hardcoded operator — those creators land in every operator's
     // digest so they don't silently fall through the cracks.
-    const ownerEmail = c.addedBy?.email ? String(c.addedBy.email).toLowerCase() : null;
+    const actorName = c.outreach?.dmSentBy?.firstName
+      || c.outreach?.emailSentBy?.firstName
+      || c.addedBy?.firstName
+      || '';
+    const ownerEmail = FIRSTNAME_TO_EMAIL[canonicaliseName(actorName)] || null;
 
     // The "first contact" anchor: explicit outreach.dmSentAt wins, else fall
     // back to dmSequence.generatedAt (the user usually sends within minutes of

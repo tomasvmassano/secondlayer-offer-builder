@@ -258,16 +258,50 @@ export async function getTeamStats({ window = 'today', now = new Date() } = {}) 
  * `owesEach` (the €50 split: missed people owe to those who hit the goal,
  * split evenly).
  *
+ * Weekend exemption (added 2026-05-23): when the reported day is a Saturday
+ * or Sunday in Lisbon time, the 30/day rule doesn't apply. Every row has
+ * missedGoal=false, €50 amounts zeroed, and a new `isWeekend` flag set.
+ * Callers can read isWeekend to render a "weekend — no target" banner
+ * instead of "0/30 falhou". The EOD cron schedule (Tue-Sat) already only
+ * reports on Mon-Fri so this mostly matters for the team dashboard
+ * showing "today" on Saturday/Sunday.
+ *
  * @param {number} target     - DM goal per person (default 30)
  * @param {Date}   now        - clock override
  * @param {string} windowKey  - 'today' (legacy default) or 'yesterday'.
- *                              The EOD cron now fires at 04:00 Lisbon and
- *                              passes 'yesterday' so late-night DMs sent
- *                              after midnight still count toward the day
- *                              the operator considers "yesterday".
  */
 export async function getDailyScoreboard({ target = 30, now = new Date(), windowKey = 'today' } = {}) {
   const rows = await getTeamStats({ window: windowKey, now });
+
+  // Compute the calendar day this scoreboard refers to in Lisbon timezone,
+  // then check if it's a weekend. For windowKey='yesterday' we look at the
+  // day BEFORE now; otherwise we use now itself. Saturday=6, Sunday=0.
+  const refDate = windowKey === 'yesterday'
+    ? new Date(now.getTime() - 24 * 60 * 60 * 1000)
+    : now;
+  const lisbonWeekday = new Intl.DateTimeFormat('en-US', {
+    timeZone: TIMEZONE,
+    weekday: 'short',
+  }).format(refDate);
+  const isWeekend = lisbonWeekday === 'Sat' || lisbonWeekday === 'Sun';
+
+  if (isWeekend) {
+    // Weekend rest day — no 30/day rule, no €50, no "falhou" labels.
+    // touchesSent / dmsSent / etc. still flow through honestly so the
+    // operator can see whatever activity happened, just without
+    // accountability framing.
+    return rows.map(r => ({
+      ...r,
+      target,
+      missedGoal: false,
+      owesEachWinnerEur: 0,
+      earnsFromEachLoserEur: 0,
+      totalOwedEur: 0,
+      totalEarnedEur: 0,
+      isWeekend: true,
+    }));
+  }
+
   // Daily target gates on `touchesSent` (unique creators contacted via DM
   // and/or email) instead of `dmsSent`. Sending DM + email to the same
   // creator counts as ONE touch — the operator can't game the rule by
@@ -282,6 +316,7 @@ export async function getDailyScoreboard({ target = 30, now = new Date(), window
     earnsFromEachLoserEur: r.touchesSent >= target && losers.length > 0 ? 50 : 0,
     totalOwedEur: r.touchesSent < target ? winners.length * 50 : 0,
     totalEarnedEur: r.touchesSent >= target ? losers.length * 50 : 0,
+    isWeekend: false,
   }));
 }
 
