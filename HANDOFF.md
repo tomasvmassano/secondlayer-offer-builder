@@ -1,288 +1,438 @@
-# HANDOFF — Second Layer Hub Audit
-Phase 1 of cleanup. Read-only. No code has been changed.
+# Second Layer Hub — Handoff Document
+
+> **What this is, what it does, and how it makes the team productive.**
+> Last updated 2026-05-24. Replaces the May 12 code-audit version.
 
 ---
 
-## 🚨 Security flags (read first)
+## 1. One-sentence summary
 
-Three issues that should be addressed before any deletion work — they're independent of cleanup and live in production today.
+Second Layer Hub is the team's creator-acquisition operating system: it scrapes creators, runs LLM-powered ecosystem audits, generates personalised outreach (DMs + 3 follow-up emails in PT/EN/ES), builds full offers + pitch decks + launch plans, automates daily reminders + EOD reports, and tracks the 30-touches-per-day accountability game between operators.
 
-1. **Auth middleware is off by default.** `middleware.js:79` short-circuits when `AUTH_ENABLED !== 'true'`. If the env var is unset or misspelled, *every* `/api/*` route is publicly callable, including:
-   - `POST /api/creators` (spends Apify + Claude money per call)
-   - `POST /api/discovery` (bulk Apify spend)
-   - `POST /api/offers`, `DELETE /api/offers` (the DELETE clears the entire offers Redis key)
-   - `POST /api/dm-writer`, `/api/generate`, `/api/launch-generate` (Claude spend)
-   - `PATCH/DELETE /api/creators/[id]`
-   None of these have per-route auth guards — they trust the middleware.
-
-2. **Cron secret is optional.** `app/api/cron/autopilot-discovery/route.js` and `app/api/cron/dm-reminders/route.js` both use:
-   ```js
-   if (cronSecret && authHeader !== `Bearer ${cronSecret}`) return 401
-   ```
-   If `CRON_SECRET` is empty, the guard is skipped entirely. Both crons trigger Apify scrapes / Claude calls / email sends. They should fail closed, not open.
-
-3. **`/api/proxy-image` is allowlisted (good).** The proxy enforces a hardcoded domain whitelist (Instagram, TikTok, YouTube, Apify CDNs). Not an open proxy.
-
-Otherwise no hardcoded secrets and no exposed keys in code.
+Live at **https://hub.secondlayerhq.com**. Repo: `tomasvmassano/secondlayer-offer-builder` on GitHub. Vercel project: `secondlayer-hub`.
 
 ---
 
-## Executive summary — what this tool actually does today
+## 2. The operator's day (the 60-second tour)
 
-Second Layer Hub is a CRM + content-generation tool for outreach to creators. Operator workflow:
+**Morning (08:00 Lisbon).** An email lands in your inbox titled `[Second Layer] Os teus reminders · X críticos · Y soft nudges`. It lists only **your** creators (Tomás or Raul, routed by who added them). Each card has a `↗ Instagram` button, an `↗ Abrir no Hub` button, a copy-paste DM follow-up text in the right language, and the matching Day 7 / Day 14 email body when one was pre-generated.
 
-1. **Find creators** — either manually via "+ Adicionar Creator", in bulk via "↑ Bulk Import" (new), or automatically via the daily autopilot-discovery cron seeded from existing creators' "related profiles".
-2. **Lean scrape** — Apify Instagram-only + a no-tools Claude call to infer niche, audience, top-post themes. Deal Score computed. D-tier auto-filtered during bulk import.
-3. **DM + email outreach** — `/api/dm-writer` generates one DM + T+3 comment + 3 follow-up emails (Day 1 / 7 / 14) in one Claude call.
-4. **Daily reminders** — `/api/cron/dm-reminders` (08:00 Lisbon) scans prospects, categorises by days-since-DM (3 / 7 / 14 / 21+ auto-cold), emails the digest to `tomas@ + raul@informallabs.com`.
-5. **Creator engages** → operator clicks **↻ Full Scrape** to pull TikTok + YouTube + bio-link products + web-search competitor analysis.
-6. **Offer + Pitch** — A-O Hormozi offer generated via `/api/generate` → parsed into the 11-slide pitch deck at `/pitch?id=X`. Pitch toolbar exports PDF / PPTX / **Plano de Lançamento PDF** (8-page Lia-style sent between calls).
-7. **Closed deal** — `pipelineStatus: 'signed'` flips the creator page to a Workspace view (kickoff form at `/onboarding/[token]`, kickoff brief PDF, launch asset generation via `/api/launch-generate`).
+**Daytime work — three loops in parallel.**
 
-Three user-facing things stitch the whole experience:
-- `/` (Hub landing) → links to **/creators** and **/pipeline** only.
-- `/creators` (the CRM list + filters + Bulk Import).
-- `/creators/[id]` (the per-creator detail with tabs: DM, Offer, Pitch, etc.).
+1. **Outreach loop.** Open `/creators`, filter by "Por contactar" tab. For each new creator: click `↗ Ver perfil` in the header → DM auto-copies to clipboard + IG profile opens → follow → message → paste → send. The click also auto-marks `dmSentAt`. If they have a `contactEmail`, click `✉ Email` for one-click Gmail compose with the Day 1 body pre-filled (subject + signature included).
 
-Bug-tracking + ticketing lives at **/support** (fully wired). Team admin at **/admin/team** (auth-gated when middleware is on).
+2. **Replies loop.** When a creator replies, mark them via the DM tab. The system records which channel they replied through (DM vs email) so the dashboard can show per-channel conversion. The Reply handler classifies the response into Hormozi's 4 BLAME BUCKETS and suggests a brand-voiced response.
+
+3. **Offer-building loop.** For warm creators, run the 4-checkpoint wizard inside the creator detail page:
+   - **CP1** Strategic frame (role, tension, dominant transformation)
+   - **CP2** Core offer (community name, central promise, weekly rhythm)
+   - **Phase 3** Uniqueness extraction (the defensibility chain — *required before CP3*)
+   - **CP3** Modules + weekly_formats + library (4-8 modules grounded in uniqueness elements)
+   - **CP4** Value stack + pricing
+
+   Then open `/pitch?creatorId=X` for an 11-slide editable deck. Export as PDF, PPTX, or generate the 8-page Launch Plan PDF (Lia-style sent between calls).
+
+**Evening (04:00 Lisbon Tue-Sat).** The EOD email arrives. Subject reads `[Second Layer] EOD · Tomás · X/30 touches · OK | falta Y`. Body shows:
+- Headline `X / 30 touches` in green or red
+- €50 verdict box ("Cumpriste, recebes €50 de Raul" / "Falhaste por 8, deves €50 ao Tomás")
+- 8-cell metric grid (touches, DMs, emails, follow-ups with DM/email split, replies with channel split, reply rate, creators added, signed)
+- Team scoreboard
+- "Abrir scoreboard" CTA to `/equipa`
+
+Weekends: no EOD email, no €50 penalty (Tue-Sat cron, Mon-Fri reports).
 
 ---
 
-## Feature inventory
+## 3. What it does for the team (productivity multipliers)
 
-### Pages (14)
-
-| Route | Status | Notes |
+| Manual time | With the Hub | Notes |
 |---|---|---|
-| `/` | ✅ Active | Landing, two doors: CRM + Pipeline |
-| `/creators` | ✅ Active | Main CRM list, Discovery queue, Add/Import |
-| `/creators/[id]` | ✅ Active | Detail page with DM, Offer, Pitch, Launch tabs. Switches to Workspace when signed. |
-| `/creators/import` | ✅ Active | New bulk-import page |
-| `/pipeline` | ✅ Active | Post-close board (signed creators only) |
-| `/pitch` | ✅ Active | 11-slide editable deck (reads `?id=X`) |
-| `/onboarding/[token]` | ✅ Active | 30-field post-close intake form |
-| `/support` | ✅ Active | Tickets CRUD |
-| `/admin/team` | ✅ Active | Auth-gated team allowlist mgmt |
-| `/signin` | ✅ Active | Magic link auth |
-| `/dashboard` | 💀 Stranded | Listed past offers from the LEGACY `/api/offers`. Linked **only** from `/offer-builder` and `/offer/[id]`. Not on root nav. |
-| `/dm-writer` | 💀 Stranded | Standalone DM tool. **No inbound links anywhere.** Pre-CRM relic. |
-| `/offer-builder` | 💀 Stranded | Standalone Hormozi offer tool that predates the creator-centric flow. Not on root nav. Uses `/api/scrape` (web-search-based) + `/api/offers`. Same job done better inside `/creators/[id]` Offer tab. |
-| `/offer/[id]` | 💀 Stranded | Public-ish offer share page. Backed by legacy `/api/offers/[id]`. No inbound links. |
+| ~10 min to research + write a cold DM | ~30s click `Gerar DM` | 8 system prompts (3 templates × 3 languages), audit-aware, voice-locked. Includes T+3 comment + Day 1 email. |
+| ~5 min to look up IG handle + open profile + write follow-up | 1 click `↗ Ver perfil` | Copies the right pre-canned follow-up DM to clipboard + opens profile in new tab + auto-marks `dmSentAt`. |
+| ~3 min to write + send personalised cold email | 1 click `✉ Email · Day 1` | Opens Gmail compose with `to:` + subject + body + signature pre-filled. |
+| ~1 hr to research creator's product ecosystem manually | ~45s `Ecosystem Audit` | Deterministic scraping (Stan/Linktree IIFE eval) + 3 web searches + per-URL HTML preview with pricing-link follow + LLM cross-reference. |
+| Bulk import 50 creators ≈ all afternoon | Walk-away worker | Paced 25s/audit to respect Anthropic 30K TPM. Tab open, come back when done. |
+| ~hours to design a pitch deck | 60s generate + edit inline | 11 slides, every label editable, 3-language localised, exports PDF + PPTX. |
+| ~hours of templating a launch roadmap | 1 click `Plano de Lançamento PDF` | 8-page Lia-style PDF with phase goals derived from audience size, 3 funnel phases × 3 columns, 60-day week-by-week table. |
+| Manual €50 reconciliation | Automatic in EOD email | First-stamp-wins on `dmSentAt`, weekend-exempt, per-operator split. |
+| "Who hasn't replied in 3 days?" mental tracking | Daily 08:00 digest | Auto-buckets day 3 / 7 / 14, auto-colds at 21, dedupes per milestone. |
 
-**Note on `/creators/[id]/workspace/`:** This is **not a route** — there's no `page.jsx`. It's a folder holding `WorkspaceDashboard.jsx` + `KickoffSection.jsx` that the parent creator page imports when `pipelineStatus === 'signed'`. Active component dir, not a route.
+**Concrete daily savings** for an operator doing 30 touches/day: ~3-4 hours of clerical work absorbed by the tool. That's not bandwidth for more touches — it's bandwidth for higher-quality calls + actual creator relationships.
 
-### API routes (34)
+---
 
-| Route | Status | Callers |
-|---|---|---|
-| `POST /api/creators` | ✅ Active | `creators/import`, `lib/CreatorSelector.jsx` |
-| `GET/PATCH/DELETE /api/creators/[id]` | ✅ Active | `creators/[id]`, `pipeline`, `pitch` |
-| `POST /api/creators/[id]/full-scrape` | ✅ Active | `creators/[id]` (new "↻ Full Scrape" button) |
-| `POST /api/discovery` + autopilot/runs/seeds/[id] | ✅ Active | `creators` page |
-| `POST /api/dm-writer` | ✅ Active | `creators/[id]` (DM tab) |
-| `POST /api/dm-reply` | ✅ Active | `creators/[id]` (reply handler) |
-| `POST /api/dm-rewrite` | ✅ Active | `creators/[id]` (rewrite button) |
-| `POST /api/generate` | ✅ Active | `creators/[id]` (offer gen) + `/offer-builder` (legacy) |
-| `POST /api/launch-generate` | ✅ Active | `creators/[id]` (workspace assets) |
-| `GET /api/launch-plan/[creatorId]/pdf` | ✅ Active | `pitch` toolbar button |
-| `GET /api/kickoff/[creatorId]/brief` | ✅ Active | `creators/[id]/workspace/KickoffSection.jsx` (verified via component) |
-| `POST /api/onboarding/[token]` + `/complete` | ✅ Active | `onboarding/[token]` |
-| `POST /api/export-pptx` | ✅ Active | `pitch` toolbar |
-| `POST /api/translate-audience` | ✅ Active | `pitch` page |
-| `GET /api/proxy-image` | ✅ Active | 4 pages (avatar rendering) |
-| `GET /api/cron/autopilot-discovery` | ⚠️ Active | Vercel cron 05:00 UTC — guard optional (see security) |
-| `GET /api/cron/dm-reminders` | ⚠️ Active | Vercel cron 07:00 UTC — guard optional |
-| `GET/POST /api/admin/team` | ✅ Active | `/admin/team` page |
-| `GET /api/auth/me` + `/request-link` + `/verify` + `/signout` | ✅ Active | Magic-link flow |
-| `GET/POST /api/tickets` + `/[id]` | ✅ Active | `/support` page |
-| `POST /api/scrape` | 💀 Stranded | Web-search-based scraper. **Only caller is `/offer-builder/page.jsx`** (legacy). Different engine from `/api/creators` (Apify-based). |
-| `POST/GET/DELETE /api/offers` + `/[id]` | 💀 Stranded | Legacy offer store. Used by `/dashboard`, `/offer-builder`, `/offer/[id]` (all stranded). |
-| `GET /api/test-ig` | 💀 Dead | Hard-coded test against `@_andre.teixeira`. No callers. Dev relic. |
-| `GET /api/debug-apify` | 💀 Dead | Debug endpoint, no callers. Dev relic. |
+## 4. The pages you'll actually use
 
-### Lib (`app/lib/*` — 16 files)
-
-| File | Status | Dead exports |
-|---|---|---|
-| `apify.js` | ⚠️ | **`scrapeCreator`** has zero callers. Everything else used. |
-| `auth.js` | ⚠️ | `verifySessionJWT`, `getSessionTokenFromRequest`, `COOKIE_NAME_EXPORT` only used internally — could be private. |
-| `creators.js` | ✅ | All 7 exports used |
-| `dealScore.js` | ⚠️ | **`getNichePricing`** never called externally (data is inlined in `calculateDealScore`) |
-| `discovery.js` (30K) | ✅ | All exports referenced. Big but clean. |
-| `language.js` | ⚠️ | **`languageLabel`**, **`languageBreakdown`** unused |
-| `magicLink.js` | ✅ | Both exports used |
-| `rateLimit.js` | ✅ | Both exports used |
-| `revenue.js` | ⚠️ | **`calculateEngagementMultiplier`**, **`DEFAULT_LAUNCH_MULTIPLIER`** only used internally. **`detectNichePricing`** — `pitch/page.jsx` redefines the same logic locally instead of importing. |
-| `skills.js` | ✅ | All exports used |
-| `systemPrompt.js` | ⚠️ | **`getOfferSystemPrompt`** never imported — `creators/[id]/page.jsx` and `offer-builder/page.jsx` both import `OFFER_SYSTEM_PROMPT` (raw constant) instead. The function is a dead wrapper. |
-| `tickets.js` | ✅ | All used |
-| `users.js` | ✅ | All 10 exports used |
-| `welcomeEmail.js` | ✅ | Used by `/api/creators/[id]` PATCH on "signed" |
-| `sendMagicLinkEmail.js` | ✅ | Used by `/api/auth/request-link` |
-| `CreatorSelector.jsx` | ✅ | Imported by `/dm-writer` + `/offer-builder` (the stranded pages). Becomes dead once those are removed. |
-
-**Plus** `app/offer-builder/lib/db.js` + `app/offer-builder/lib/shared.jsx`:
-- `db.js` — used only by stranded `/api/offers` routes
-- `shared.jsx` — **alive and central**: `renderMd`, `parseOutput`, `extractAudience`, `Badge` are imported by `/creators/[id]`, `/pitch`, `/offer/[id]`, `/workspace`. Even though it lives under the legacy `offer-builder/` folder, its exports are the parser everything reads.
-
-### Skills (`app/knowledge/skills/` — 21 skills)
-
-Compiled bundle `skills-bundle.json` is 885KB. Compiler runs as `prebuild`.
-
-| Skill | Used by |
+| Route | What it is |
 |---|---|
-| `hundred-million-offers` | Offer (Section A-O) + launch-generate.leadMagnet |
-| `money-model` | Offer + launch-generate.salesPageCopy + churnPrevention |
-| `pricing-plays` | Offer + launch-generate.salesPageCopy + emailSequence |
-| `case-studies` | Offer (passed via `skills:` body to `/api/generate`) |
-| `closing` | Offer + dm-writer + dm-reply + launch-generate (2 assets) |
-| `hooks` | dm-writer + launch-generate (4 assets) |
-| `core-four` | dm-writer + launch-generate (2 assets) |
-| `lead-nurture` | dm-reply + launch-generate.onboardingFlow |
-| `launch-strategy` | launch-generate.launchTimeline |
-| `copywriting` | launch-generate.salesPageCopy |
-| `landing-page` | launch-generate.salesPageCopy |
-| `email-sequence` | launch-generate.emailSequence |
-| `ad-creative` + `ad-assembly` | launch-generate.adCreative |
-| `social-content` + `marketing-machine` | launch-generate.socialContent + communityActivation |
-| `contagious` + `storybrand-messaging` | launch-generate.communityActivation |
-| `hooked-ux` + `improve-retention` | launch-generate.onboardingFlow |
-| `churn-prevention` | launch-generate.churnPrevention |
+| `/` | Hub landing — two doors (CRM + Pipeline) |
+| `/creators` | The CRM list. 4 tabs: **Por contactar** · **Em outreach** · **Em contacto** · **Frios**. Filters: Adicionado por · Deal Score · Audit. "+ Adicionar Creator" + "↑ Bulk Import" entry points. |
+| `/creators/audit-queue` | Bulk ecosystem-audit page. Row selection, walk-away worker, "Adicionado por" filter so each operator sees only their creators. |
+| `/creators/import` | CSV-style bulk-import workflow. Niche + country per batch. Auto-audits during import. |
+| `/creators/[id]` | The per-creator detail page. Tabs: **Perfil** · **Audit** · **DM Writer** · **Oferta** · **Launch** · **Pitch**. Header carries the at-a-glance actions (Ver perfil + Email + score chips + language badge). |
+| `/pipeline` | Post-close board. Only `pipelineStatus === 'signed'` creators. |
+| `/pitch?creatorId=X` | 11-slide pitch deck. Inline editable. Exports PDF / PPTX / Launch Plan PDF. |
+| `/onboarding/[token]` | Public 30-field intake form (no auth). Sent to creators on close to gather kickoff info. |
+| `/equipa` | Team dashboard. Per-operator touchpoint stats, funnel breakdown, €50 month-to-date, streaks, weekend-exempt today view. |
+| `/support` | Tickets CRUD. Internal bug-tracking + feature requests. |
+| `/admin/team` | Allowlist management. Magic-link auth gate is mandatory across the whole hub. |
+| `/signin` | Magic-link auth. Email-only login + 6-digit code fallback. |
 
-**All 21 are active.** The earlier deferred set (`branding-bouquet`, `cfa-math`, `crazy-eight`, `fast-cash-play`, `offer-wrappers`, `lead-magnets`, `lead-getters`, `avatar-selection`, `scale`) is absent from disk and code — clean break already done.
-
-### Crons
-
-| Path | Schedule | Notes |
-|---|---|---|
-| `/api/cron/autopilot-discovery` | `0 5 * * *` (05:00 UTC) | Seed-based candidate scan + Resend digest |
-| `/api/cron/dm-reminders` | `0 7 * * *` (07:00 UTC ≈ 08:00 Lisbon) | New — daily follow-up digest |
+**Auth model.** The hub is **fully gated**. Middleware redirects to `/signin` for anyone not on the `team:emails` Redis set (seeded from `TEAM_EMAILS` env var). `/onboarding/[token]` is the only public route — needed for creators filling out the kickoff form. The AUTH_ENABLED feature flag was removed on 2026-05-19 — there's no "off" switch any more.
 
 ---
 
-## Mid-refactor / duplicate logic
+## 5. The outreach engine
 
-1. **Two scrape engines coexist.**
-   - **Modern path:** `/api/creators` POST → `scrapeLean` / `scrapeMultiplePlatforms` (Apify-based, lean by default, full on demand).
-   - **Legacy path:** `/api/scrape` POST → Claude + `web_search` tool, called only by `/offer-builder`. Different return shape, different cost profile (Sonnet+web_search ~$0.05+ per call), no Apify involvement.
-   The legacy path can go when `/offer-builder` goes.
+### DM Writer (`/api/dm-writer`)
 
-2. **Two offer-builder flows coexist.**
-   - **Modern:** Inside `/creators/[id]` → Offer tab → `/api/generate` with skills → A-O parsed offer → autoflows into `/pitch`.
-   - **Legacy:** `/offer-builder` page → `/api/scrape` → `/api/generate` → saves to `/api/offers` → renders at `/offer/[id]`. Self-contained, predates the creator-centric model. None of its UI is reachable from the hub today.
+3 templates × 3 languages = 9 system prompts. Operator picks the template and language from a dropdown in the DM tab. Sender's first name (Tomás / Raul) is sourced from the signed-in session.
 
-3. **`OFFER_SYSTEM_PROMPT` is imported as a raw constant in two places.** `creators/[id]/page.jsx` and `offer-builder/page.jsx` both import the constant directly, bypassing `getOfferSystemPrompt()`. The function-wrapper is a dead export. Either everyone migrates to the function (so skill-loading is centralised) or the wrapper goes.
+**Templates:**
+- **A — Second Layer (consultivo).** 3-block question-led DM, the question IS the close. No video CTA.
+- **B — Second Layer (parceria).** 7-block partnership pitch. Names the offer ("comunidade"), explicit video CTA, closes with "Faz sentido?".
+- **C — Day in the Life.** Placeholder, reuses A until the DOTL voice spec is defined.
 
-4. **`detectNichePricing` is defined twice.** Once in `app/lib/revenue.js` (exported, no callers), once inline in `app/pitch/page.jsx`. Same logic, drifted independently. Pick one.
+**Languages:**
+- **PT** — European Portuguese. "tu", never "você". No Brazilian terms.
+- **EN** — Natural English, contractions OK, no agency-speak.
+- **ES** — Castilian Spanish. "tú", never "vos" or "usted". Spain-market vocabulary.
 
-5. **`scrapeInstagram` vs `scrapeInstagramBasic` vs `scrapeLean`.** All three live and all three used (full vs basic vs lean-wrapper). Not technically duplicated — they're a tiered family — but worth documenting which Apify cost each one carries.
+**Hard constraints baked into every system prompt:**
+- Zero em/en dashes as punctuation
+- Zero AI-tell vocabulary (vibrant, foster, leverage, landscape, tapestry, intricate, garner, etc.)
+- Zero rule-of-three lists, negative parallelisms, persuasive authority tropes
+- Zero generic compliments or sycophancy
+- Operator notes section pinned at the TOP of the user message + reminder at the bottom (without this, the LLM treated notes as background metadata and ignored them)
 
-6. **Stale "outreach" tracking on legacy creators.** Pre-existing `dmSequence.generatedAt` is being used as a fallback anchor for the new reminders cron. If you ever rename `dmSequence` → `dm`, the cron's fallback breaks silently. Worth a tiny safeguard.
+**Output per call:** Cold DM + T+3 comment + Email Day 1 (with operator signature appended). Day 7 and Day 14 emails generate on-demand via separate stage flags so the operator only pays for what they'll actually send.
 
----
+**1000-character cap.** Instagram silently truncates DMs >1000 chars. Defense in depth:
+1. Prompt instructs the LLM to stay under 1000 (with order: cut Block 2 first, then tighten Block 3, never cut greeting or sign-off)
+2. Post-generation validator. If `dm.length > 1000`, a second minimal Claude call compresses it. If the compress also fails, the original ships with a `dm_overflow` field so the UI can warn.
+3. Live counter on the DM card in the UI: `874/1000` chip turns amber within 50 chars, red over the cap, with a red banner under the body.
 
-## Quick wins (safe deletions, no behaviour change)
+### DM Rewrite (`/api/dm-rewrite`)
 
-These have **zero callers anywhere**. Safe to delete with one commit each:
+Operator regenerates with a custom instruction ("emphasise the podcast", "tighten Block 2"). Two modes:
+- **Single** — rewrites one touchpoint
+- **Paired** — rewrites the Cold DM + Day 1 email together, applying the same feedback to both. Same observation, same pitch, same close.
 
-1. `app/api/test-ig/route.js` — hardcoded `@_andre.teixeira` test endpoint
-2. `app/api/debug-apify/route.js` — dev-only debug endpoint
-3. `scrapeCreator` export in `app/lib/apify.js` — orphan function
-4. `getNichePricing` export in `app/lib/dealScore.js` — orphan
-5. `languageLabel`, `languageBreakdown` exports in `app/lib/language.js` — orphan
-6. `calculateEngagementMultiplier`, `DEFAULT_LAUNCH_MULTIPLIER` exports in `app/lib/revenue.js` — only used internally, can become private
-7. `getOfferSystemPrompt` export in `app/lib/systemPrompt.js` — wrapper bypassed everywhere
-8. `verifySessionJWT`, `getSessionTokenFromRequest`, `COOKIE_NAME_EXPORT` in `app/lib/auth.js` — only used internally
-9. The pitch deck's three legacy state slots (`whatYouGet`, `buildOperate`, `recap` in `buildDefaultSlides`) — their slides were cut weeks ago and the state is now dead data hanging on the slides object. (~50 lines)
+Both modes enforce the 1000-char cap on the DM portion and append the operator's signature on email rewrites.
 
----
+### DM Reply (`/api/dm-reply`)
 
-## Proposed cleanup plan — ordered by risk
+Classifies an inbound creator reply using Hormozi's 4 BLAME BUCKETS (circumstances / other-people / self / genuine-question) plus positive / disqualify / handoff. Composes a Raul-voiced validate-then-transition response with a named close (Better-To-Start-When-Busy, Mechanic-Close, etc.). Brand-locked templates per language. The 4-block decision tree from `lead-nurture` skill is layered on top.
 
-### Phase A — Zero-risk deletions (no UX change)
+### Operator signatures
 
-1. Delete `/api/test-ig` and `/api/debug-apify` endpoints.
-2. Delete the 9 dead exports listed in "Quick wins" above. Each in its own commit.
-3. Strip the dead pitch-deck state slots (`whatYouGet`, `buildOperate`, `recap`) from `buildDefaultSlides`.
-
-**Estimated diff:** ~300 lines removed, no functional change.
-
-### Phase B — Security hardening (do BEFORE anything else if any of these are exposed today)
-
-4. Flip `middleware.js` to fail closed: if `AUTH_ENABLED` is anything but `'true'` AND production env, log a warning but apply a basic IP/origin allowlist OR require the cron secret on cron routes regardless.
-5. Make `CRON_SECRET` required, not optional. Routes 401 if env unset.
-6. Add a basic auth check to every POST/PATCH/DELETE `/api/creators*`, `/api/discovery*`, `/api/dm-*`, `/api/generate`, `/api/launch-generate`, `/api/offers*`, `/api/tickets*` — even just a single shared bearer if you don't want full session auth yet.
-
-These are independent of the cleanup itself but should not be left for "later" once the codebase is stable.
-
-### Phase C — Decide on the stranded legacy sub-app
-
-This is the biggest pile of dead-ish code and the one I want your input on. The block:
+Every outreach email gets a 3-line contact card appended automatically:
 
 ```
-/dashboard
-/dm-writer
-/offer-builder
-/offer/[id]
-/api/scrape
-/api/offers
-/api/offers/[id]
-app/offer-builder/lib/db.js
+Abraço,
+Tomás
+
+Tomás Massano
+tomas@informallabs.com
+secondlayerhq.com
 ```
 
-**Recommendation: kill it.** Reasoning:
-- None of it is on the hub navigation. New users would have to know the URLs.
-- Functionality is duplicated by the creator-centric flow inside `/creators/[id]`.
-- The legacy uses a different + more expensive scrape engine (`/api/scrape`'s web_search Claude calls vs `/api/creators`' Apify path).
-- Removing it lets us also delete `app/lib/CreatorSelector.jsx` (only used by stranded pages).
-
-**The catch:** `app/offer-builder/lib/shared.jsx` (`renderMd`, `parseOutput`, `extractAudience`) IS used by the modern app. The folder name is just historical. Suggest: **move `shared.jsx` to `app/lib/offerParser.jsx`** and delete the rest of `app/offer-builder/`. ~3000 lines gone.
-
-### Phase D — Plumbing fixes (low-risk, high-value)
-
-7. Decide on `getOfferSystemPrompt()` vs raw `OFFER_SYSTEM_PROMPT` import. If we want skills loaded centrally, migrate both callers to the function and delete the constant export. Otherwise delete the function.
-8. Pick one `detectNichePricing` — either export the one from `revenue.js` and delete the duplicate in `pitch/page.jsx`, or vice versa.
-9. Move `app/offer-builder/lib/shared.jsx` → `app/lib/offerParser.jsx` (rename + update ~6 imports).
-
-### Phase E — Build the missing referenced features (or remove the references)
-
-These are referenced in code but the destination doesn't exist:
-
-- **`/c/[token]` creator portal** — `middleware.js:95` whitelists it as public, but no page. Either build it or remove the middleware reference.
-- **`/privacy` page** — same: whitelisted in middleware, no page.
-- **`/admin/cases` UI** — mentioned in earlier work but never built. No middleware reference; can simply be marked "not planned" or scoped.
-
-### Phase F — Refactor opportunities (only after the above)
-
-10. `app/lib/discovery.js` is 30KB / 873 lines. Big but all exports are used. Worth splitting into `discovery/queue.js` + `discovery/runner.js` + `discovery/seeds.js` once the rest of the cleanup settles. Lower priority.
-11. The pitch deck's `buildDefaultSlides` builder is becoming a 200-line monolith. Could split per-slide into separate factories. Cosmetic, not urgent.
+Hardcoded in `lib/operatorSignature.js`. Lookup is firstName-based + diacritic-insensitive. **Never** appended to DMs (Instagram doesn't render signatures and the 1000-char cap can't afford the lines).
 
 ---
 
-## Open questions for you
+## 6. The offer engine
 
-I can't tell intent from the code alone on these. I need a yes/no per item before touching anything.
+### Ecosystem Audit (`/api/creators/[id]/ecosystem-audit`)
 
-1. **Kill the legacy sub-app** (`/dashboard`, `/dm-writer`, `/offer-builder`, `/offer/[id]`, `/api/scrape`, `/api/offers*`)? Recommendation is yes — they're not linked and the functionality is duplicated. If yes: any data in the Redis `offers:*` key worth migrating first?
+Single biggest LLM investment per creator. Combines deterministic scraping with web search to produce a complete picture of the creator's existing product ecosystem before the wizard runs.
 
-2. **The dead exports in `/lib`** — kill all of them, or do you want to keep some as "API surface" for future internal use? I default to deleting unused exports.
+**Pipeline:**
+1. **Deterministic aggregator scrapers** — Stan.store (3 paths: Nuxt IIFE eval via node:vm, legacy `__NEXT_DATA__`, regex fallback) + Linktree (`__NEXT_DATA__` JSON parse). Returns products with original currency intact (no USD→EUR conversion).
+2. **Server-side URL previews** (`lib/urlPreview.js`) for non-aggregator URLs. Fetches HTML, extracts title + description + price-hint regex matches, follows up to 2 discovered pricing links per primary URL (`/pricing`, `/plans`, `/checkout`, etc.) with strong/weak path scoring.
+3. **Web search** via Claude `web_search_20250305` tool, density-scaled: 0-2 URLs in scope → 3 searches, 3-4 → 1 search, 5+ → skip extra discovery to stay under token budget.
+4. **Cross-reference instructions** in the prompt: if a Stan.store ebook shows `5,29 €` in URL_PREVIEW priceHints, the LLM **must** stamp that price on the matching Linktree product instead of guessing.
 
-3. **`getOfferSystemPrompt()` vs `OFFER_SYSTEM_PROMPT` constant** — which pattern do you want to standardise on? The function is cleaner for centralised skill management; the constant is simpler for the two existing callers.
+**Output:**
+- `products_found[]` — name, price, currency (EUR/USD/GBP — original, never converted), format, tier, URL, transformation, operator-overridable `estimated_buyers` + `retire_on_launch`
+- `existing_communities[]` — same shape, with members + platform
+- `has_high_ticket` / `has_mid_ticket` / `has_recurring` booleans (derived from tiers)
+- `community_cannibalization_risk` — high/medium/low/none (drives downstream offer positioning)
+- `gaps_identified[]` — what's missing in the ecosystem that CP3 modules can fill
+- Diagnostics (URL previews, pre-discovered count, etc.) for operator override
 
-4. **`/c/[token]` creator portal** and **`/privacy` page** — finish them, or remove the middleware references and forget them?
+**Operator override** via `PATCH /api/creators/[id]/ecosystem-audit/patch`. The audit's LLM-generated and occasionally wrong (misses products, hallucinates wrong-creator results from name collisions, misclassifies tiers). Rather than forcing a full re-run, the operator edits the products array inline and the wizard reads from the same fields.
 
-5. **`/admin/cases` Skool case-studies management UI** — never built. Do you want it on the roadmap or kill the idea?
+### The 4-checkpoint wizard
 
-6. **Cron-secret enforcement** — make it required (cron routes 401 if env unset)? Recommendation is yes; the current optional guard is footgun-shaped.
+Each step writes into `creator.offer.internal_metadata` (operator-only context) and `creator.offer.client_facing_output` (what the pitch deck reads). Schemas + validators live in `app/lib/schemas/*`.
 
-7. **Auth-middleware default** — flip to fail-closed in production? Recommendation is yes; today a missing env var silently disables all protection.
+**CP1 — Strategic frame.** Synthesises Phase 1 (audit) + Phase 2 (archetype) + Phase 3 (uniqueness) into a single strategic position: `confirmed_role`, `dominant_transformation`, `positioning_tension`.
 
-8. **DM Reply auto-marking outreach.repliedAt** (shipped last commit) — there's a small edge case: if the reply was pasted but the operator didn't actually run the generator, `repliedAt` won't be set. The "Marcar respondeu" button covers it. Want me to also set `repliedAt` on any inbound text paste, or leave the explicit button as the source of truth?
+**CP2 — Core offer.** The community name, platform (Circle / Skool / etc.), central promise, From/To transformation, core mechanic, weekly rhythm, audience for/not-for, pricing tier. Phase 3 voice + vocabulary is reused verbatim.
+
+**CP3 — Modules + weekly_formats + library.** 4-8 modules grounded in the defensibility chain: every module MUST cite ≥1 Phase 3 uniqueness element by index (`linked_unique_elements: [0, 3]`). Schema validator enforces it. If `uniqueness_extraction.unique_elements` is empty, the route fails fast with a clear "run Phase 3 first" error instead of looping retries.
+
+**CP4 — Value stack + pricing.** Mechanism (acronym with one letter per word, each explained), 5-8 stack items (problem/solution/delivery/value each), total stacked value 5-10× actual price, unlocked bonuses.
+
+All 4 steps support PT / EN / ES via a `langHint` in the user message. Day labels are localised (SEG/TER/QUA for PT, MON/TUE/WED for EN, LUN/MAR/MIÉ for ES).
+
+### Pitch deck (`/pitch?creatorId=X`)
+
+11-slide editable deck rendered at 1920×1080, auto-scaled to viewport. Every label and number is inline-editable + persists to the creator record on blur. Strings are 3-language localised via a `pitchLang(en, pt, es)` helper. Reads exclusively from `creator.offer.client_facing_output` (operator-only metadata stays out).
+
+**Slides:**
+1. Cover (creator name + date in localised long form)
+2. Ecosystem (existing tier ladder, NEW community slotted in by price)
+3. Strategic context ("How this fits")
+4. The community (name + mechanic + 3 pricing tiers + weekly calendar grid)
+5. The method (mechanism acronym + letter cards + library entries)
+6. The value (problem/solution/delivery/value table + total stacked vs actual price)
+7. Audit (audience demographics + themes + For/Not For)
+8. Launch plan (3 phases: Validate / Launch / Scale, goals + assets)
+9. Projection (MRR or annual revenue depending on offer model)
+10. Proof (other communities in the same niche, members + price)
+11. Investment structure
+
+**Exports:**
+- **PDF** via `html2canvas` capture
+- **PPTX** via `pptxgenjs`, native PowerPoint slides matching the same visual language
+- **Launch Plan PDF** via `jspdf` — separate 8-page asset with funnel phases, week-by-week table, deliverables quadrants
 
 ---
 
-## What I have NOT changed
+## 7. Automation (the crons)
 
-Nothing. This is a read-only audit. Waiting for your green light on each section above before any file moves.
+Two Vercel crons, registered from `vercel.json`. Both **require** the GitHub integration to be working — CLI-deployed prods don't re-register crons.
 
-The next commit, when you approve, will be the smallest possible: probably Phase A.1 (delete the two debug endpoints) so we have a clean test of the cleanup workflow before doing larger surgery.
+### Morning reminders — `dm-reminders` (07:00 UTC daily)
+
+For every active prospect (not signed, not cold, hasn't replied):
+- Compute days since first DM (`outreach.dmSentAt` or `dmSequence.generatedAt`)
+- Bucket into Soft Nudge (day 3) / Value Drop (day 7) / Último Toque (day 14)
+- Auto-cold at day 21 — moves `pipelineStatus = 'cold'`, stops further reminders
+- Dedupe via `outreach.remindersSent.followUpN` — each milestone fires at most once
+- Also flags `noDm` (creators in CRM ≥1 day with no outreach yet)
+
+**Per-operator routing.** Each creator's `addedBy.firstName` is mapped to an operator email via `FIRSTNAME_TO_EMAIL`. Tomás's creators ship to `tomas@`, Raul's to `raul@`. Unrecognised actor names → both operators get the row with a `⚠ SEM OWNER` badge.
+
+**Rich card rendering.** Each due-bucket creator shows:
+- `↗ Instagram` button + `↗ Abrir no Hub` button
+- Copy-paste DM follow-up text in the creator's language, signed with the operator's first name
+- The pre-generated Day 7 / Day 14 email (subject + body) when `dmSequence.email_day7` / `email_day14` exists
+
+### EOD report — `daily-dm-report` (03:00 UTC Tue-Sat ≈ 04:00 Lisbon DST)
+
+**Why 4am.** Late-night DM sessions (operator working past midnight) used to land in the wrong day's bucket. New schedule fires after the operator's day actually ends. Uses `'yesterday'` window (`lib/teamStats.js`) so the scoreboard reflects yesterday's calendar day **plus** any post-midnight overflow into today.
+
+**Per-operator personalised email.** Subject `[Second Layer] EOD · Tomás · X/30 touches · OK | falta Y`. Body covers:
+- Headline `X / 30` in green or red
+- €50 verdict box (cumpriu / falhou / nobody hit / everyone hit)
+- 8-cell metric grid: touches (the unique-creator counter, NOT raw DMs), DMs, emails, follow-ups split DM/email, replies split DM/email, reply rate, creators added, signed
+- Team scoreboard table
+
+**Recipients are hardcoded** in `OPERATORS` (Tomás + Raul). The old version depended on `listTeamEmails()` reading Redis; when the set was empty AND `TEAM_EMAILS` wasn't set, the cron silently sent nothing.
+
+**Weekend exemption.** `getDailyScoreboard()` checks the reference Lisbon day. Saturdays and Sundays return every row with `missedGoal: false` and €50 zeroed. The cron schedule is Tue-Sat (no Sun/Mon fires), so this mostly matters for the `/equipa` dashboard showing "today" on a Saturday — no red "0/30 falhou" bars on rest days.
+
+---
+
+## 8. The 30-touches-per-day game
+
+The team's core accountability rule, codified in the system:
+
+**Daily target:** 30 outreach touches per operator per weekday. A "touch" = a unique creator contacted via DM AND/OR email on that day. Sending DM + email to the same creator = 1 touch (not 2). Prevents gaming.
+
+**Penalty:** Miss the target → pay **€50 to each teammate who hit it**, split evenly. Hit it while a teammate missed → earn €50 from each.
+
+**Weekend rule:** No target, no penalty. Mon-Fri only.
+
+**Tracking.** Auto-marked when the operator clicks `↗ Ver perfil` (DM) or `✉ Email` in the creator header. First-stamp-wins keeps the cron anchor stable. The Sent chip in the DM tab is still there for un-marking if you clicked but didn't actually send.
+
+**Live scoreboard** on `/equipa`. Today / Week / Month / All windows. Funnel breakdown (added → DM → reply → call agreed → call held → signed) with conversion rates per stage. €50 month-to-date tally. Streak counter (consecutive weekdays at goal).
+
+---
+
+## 9. Architecture (for engineers)
+
+### Stack
+- **Next.js 14 App Router** on Vercel (Hobby plan — 2 crons max, 60s/120s function timeouts)
+- **Upstash Redis** for persistence (creator records + sorted-set index `creators:index`)
+- **Apify actors** for scraping:
+  - `apify~instagram-scraper`
+  - `clockworks~tiktok-profile-scraper`
+  - `streamers~youtube-channel-scraper`
+  - `ahmed_jasarevic~linktree-beacons-bio-email-scraper-extract-leads`
+  - `louisdeconinck~instagram-bot-detector`
+- **Claude Sonnet 4** (`claude-sonnet-4-20250514`) + `web_search_20250305` tool for all LLM work
+- **Resend** for transactional email (magic links, welcome, reminders, EOD)
+- **JOSE** for JWT cookies (magic-link auth)
+
+### Storage model
+- `creator:{id}` — full record (JSON in Redis)
+- `creators:index` — sorted set of summary objects keyed by createdAt (for fast list queries)
+- `user:{id}` + `user:byEmail:{email}` — magic-link sessions
+- `team:emails` — allowlist set (bootstrapped from `TEAM_EMAILS` env var)
+- `ticket:{id}` + `tickets:index` — support tickets
+
+### Lazy-backfill pattern
+Used throughout `lib/creators.js` for migrations. When `getCreator()` reads a record:
+1. Check for missing fields (e.g. `addedBy`, `primaryLanguage`, `outreach.repliedChannel`)
+2. Backfill in-memory with safe defaults
+3. Persist the migrated record so the next read is clean
+
+Same pattern for `addedBy` (legacy → Tomás), `primaryLanguage` (null → 'en'), and `outreach.followUps[]` array (channel-tagged).
+
+### Summary-index denormalisation
+The creators list endpoint reads from the sorted set, not full records. Summary shape includes `addedByFirstName` (canonicalised via `normalizeOperatorName`), `dealScore`, `hasEcosystemAudit`, `outreach` snapshot fields. Adding a new filter to the CRM = add to summary projection in `lib/creators.js`.
+
+### Prompt caching
+Anthropic `cache_control: { type: 'ephemeral' }` is set on every system prompt + reference material block. Cache key is per (template, language) for DM writer, per (creator, checkpoint) for the wizard. 30K TPM rate-limit retry with 65s backoff. Single retry on 429.
+
+### Build + deploy
+- `git push origin main` → Vercel auto-deploy (when GitHub integration is connected)
+- CLI fallback: `cd <worktree> && vercel deploy --prod --yes` — **but CLI deploys don't register cron jobs**. Only Git-source production deployments do.
+- Production aliases: `hub.secondlayerhq.com` + `secondlayer-hub.vercel.app` + `secondlayer-hub-git-main-tomasvmassanos-projects.vercel.app`
+
+---
+
+## 10. Operations
+
+### Environment variables (Vercel production)
+
+Critical:
+- `ANTHROPIC_API_KEY` — all Claude calls
+- `APIFY_TOKEN` — all scraping
+- `UPSTASH_REDIS_REST_URL` + `UPSTASH_REDIS_REST_TOKEN` — storage
+- `RESEND_API_KEY` — magic links, welcome, reminders, EOD
+- `JWT_SECRET` — session cookies
+- `CRON_SECRET` — Bearer auth on `/api/cron/*` routes (set, but route fails open if missing — see security flags below)
+- `TEAM_EMAILS` — comma-separated allowlist seed (`tomas@informallabs.com,raul@informallabs.com`)
+- `DAILY_DM_TARGET` — defaults to 30 if unset
+
+### Cron schedule (`vercel.json`)
+```json
+{
+  "crons": [
+    { "path": "/api/cron/dm-reminders",    "schedule": "0 7 * * *" },
+    { "path": "/api/cron/daily-dm-report", "schedule": "0 3 * * 2-6" }
+  ]
+}
+```
+
+### Common gotchas
+
+1. **GitHub repo name mismatch.** The repo was renamed from `secondlayer-hub` to `secondlayer-offer-builder`. If Vercel's Git connection still points at the old name, pushes succeed (GitHub auto-redirects) but **webhooks fail silently** — no auto-deploy AND no cron registration. Fix: Vercel Settings → Git → Disconnect → Connect to the renamed repo.
+
+2. **CLI deploys don't register crons.** Cron jobs only get registered from Git-source production deployments. After every disconnect/reconnect, the next Git push re-registers them. Confirm in Vercel Settings → Cron Jobs.
+
+3. **Auth failure on cron endpoints.** The route reads `CRON_SECRET` and only enforces if set. If the env var is empty, anyone can hit the endpoint. Set it.
+
+4. **Anthropic 30K TPM.** Bulk audits + import workers are paced at 25s/row to stay under. Single-creator paths handle 429 with a 65s backoff + one retry.
+
+5. **Vercel Hobby plan limit.** 2 crons max. Adding a third = upgrade or merge functionality.
+
+### Investigation playbook
+
+When something seems broken:
+- **Email not arriving** → check Resend dashboard for the actual send + `vercel logs` for the cron invocation. Most likely cause: GitHub webhook is dead so crons aren't firing.
+- **Audit returns 0 products** → check `creator.offer.internal_metadata.ecosystem_audit_diagnostics.url_previews[]` in the audit tab's "Ver detalhe" toggle. Tells you which URLs returned what HTML.
+- **DM regen ignoring notes** → fixed 2026-05-23, notes block is now hoisted to the top of the user message. If still seeing it, the request didn't include the field.
+- **Creator showing wrong language** → check `creator.primaryLanguage`. The language badge on the creator detail page cycles PT → EN → ES → PT on click.
+- **EOD email missing operator's row** → the cron uses synthetic zero-rows for any operator missing from the scoreboard. If still missing, check the `OPERATORS` array in `daily-dm-report/route.js`.
+
+---
+
+## 11. What's still manual
+
+Honest list of gaps:
+
+1. **DM Template C (Day in the Life)** — placeholder using Template A's prompt until the voice spec is defined.
+2. **Welcome email signatures** — the welcome email fires when `pipelineStatus → 'signed'` but doesn't carry the per-operator signature.
+3. **Onboarding page i18n** — uses `t(pt, en, es)` with EN-fallback for Spanish, but actual ES translations of the 30-field form copy haven't been filled in.
+4. **Pitch deck Launch Plan PDF** — most ES translations fall back to EN. PT and EN are complete; ES is partial.
+5. **`/api/cron/autopilot-discovery`** — designed but no longer in `vercel.json` (slot used by EOD report). Can be re-enabled if the team wants automated lead discovery again.
+6. **Editable contactEmail** — works via the IG section card, but there's no "set email manually on a creator with no IG card" path.
+7. **Operator signing UI** — the only path to mark a creator as signed was the "Fechar Deal" button, which was removed from the header on 2026-05-20 in favour of `↗ Ver perfil`. To mark signed today: PATCH the creator record directly or add it back to the Kickoff section UI (one-line change).
+8. **Cron auth fail-open** — `CRON_SECRET` is optional. Should fail closed when the env var isn't set.
+
+---
+
+## 12. Recent shipped (last 2 weeks)
+
+In rough order, newest first:
+
+- **2026-05-24** Bulk-audit page: "Adicionado por" filter chip
+- **2026-05-23** Reminder ownership fixed (was reading non-existent `addedBy.email`, now keys on firstName)
+- **2026-05-23** Weekend exemption on €50 + missedGoal logic
+- **2026-05-22** EOD moved to 04:00 Lisbon Tue-Sat, uses 'yesterday' window
+- **2026-05-22** Vercel GitHub integration reconnected (repo rename mismatch was killing auto-deploys + cron registrations)
+- **2026-05-22** DM Writer language dropdown (PT / EN / ES override)
+- **2026-05-21** Operator email signatures (Tomás Massano + Raúl, hardcoded in `lib/operatorSignature.js`)
+- **2026-05-21** Operator notes hoisted to top of dm-writer user message + system-prompt priority directive
+- **2026-05-21** "Ver perfil" merges DM-copy + profile-open into one click
+- **2026-05-21** Auto-mark sent on header button clicks (first-stamp-wins)
+- **2026-05-21** Email auto-discovery cascade widened: TikTok bio, YouTube description, bio-link titles, external-URL fetch with mailto: anchors + visible-text regex
+- **2026-05-21** Editable contactEmail on creator detail page
+- **2026-05-20** Gmail compose button (Day 1 pre-filled when available)
+- **2026-05-20** 1000-character DM cap end-to-end (prompt + post-validate + live counter)
+- **2026-05-20** "Ver perfil" replaces "Fechar Deal" in the header
+- **2026-05-20** Per-operator reminders + new EOD format (rebuilt from a single-team-digest model)
+- **2026-05-20** Spanish (Castilian) language support end-to-end
+- **2026-05-19** Currency tracking — original currency (USD/EUR/GBP) preserved instead of fake-converted to EUR
+- **2026-05-19** Server-side URL previews + pricing-link follow + cross-reference instructions
+- **2026-05-19** Deterministic Linktree scraper (`__NEXT_DATA__` JSON parse)
+- **2026-05-18** Auth gate made mandatory (AUTH_ENABLED feature flag removed)
+- **2026-05-18** Channel-aware reply tracking (`repliedChannel`, `followUps[].channel`)
+- **2026-05-18** Tab restructure: "Novos" → "Por contactar" + "Em outreach"
+- **2026-05-17** Bulk audit page (`/creators/audit-queue`)
+- **2026-05-17** Auto-audit during bulk import
+- **2026-05-16** 8 team-stats metrics (pipeline coverage, CAC, touchpoints/close, show-up rate, loss reasons, follow-up effectiveness, pipeline velocity, win-rate trajectory)
+- **2026-05-15** Mobile responsiveness pass (`.sl-grid-N` classes stack to 1 column under 768px)
+
+---
+
+## 13. Where to look for things
+
+| Want to change... | Look in |
+|---|---|
+| The DM writer prompts | `app/api/dm-writer/route.js` — search `DM_A_PT` / `DM_B_PT` / `DM_A_EN` etc. SHARED_RULES at top covers anti-AI rules + 1000-char cap + operator-notes priority. |
+| The reminder email layout | `app/api/cron/dm-reminders/route.js` — `sendDigest()` function. Card rendering in `fmtCardHtml`. |
+| The EOD email layout | `app/api/cron/daily-dm-report/route.js` — `buildOperatorEmail()`. |
+| The pitch deck slides | `app/pitch/page.jsx`. Pitch strings via the `pitchLang(en, pt, es)` helper near the top of `PitchPageContent`. |
+| Operator signatures | `app/lib/operatorSignature.js`. One-line edit per operator. |
+| The 4-checkpoint wizard | `app/api/creators/[id]/wizard/{strategic-frame,core-offer,modules,value-stack}/route.js`. Schemas in `app/lib/schemas/`. |
+| The ecosystem audit prompt | `app/api/creators/[id]/ecosystem-audit/route.js`. Aggregator scrapers in `app/lib/aggregatorScrapers.js`. URL previews in `app/lib/urlPreview.js`. |
+| Team-stats math | `app/lib/teamStats.js` — `getTeamStats`, `getDailyScoreboard`, `getFunnels`, `getStreaks`. Window logic in `windowStart()`. |
+| The CRM list filters | `app/creators/page.jsx`. `FilterDropdown` component at the bottom. |
+| Magic-link auth | `app/lib/auth.js` + `app/lib/magicLink.js` + `app/api/auth/*`. Middleware in `middleware.js`. |
+| Cron schedule | `vercel.json`. Re-register requires a Git-source deploy. |
+
+---
+
+## 14. One-line install / dev
+
+```bash
+git clone https://github.com/tomasvmassano/secondlayer-offer-builder.git
+cd secondlayer-offer-builder
+npm install
+cp .env.example .env.local   # fill in the 6 critical env vars
+npm run dev
+```
+
+App boots at `http://localhost:3000`. Without Redis env vars, in-memory fallback runs (data wiped on restart — fine for dev). Without Apify token, scrape calls error gracefully. Without Anthropic key, LLM calls 500.
+
+Magic-link emails go to console.log when `RESEND_API_KEY` is missing — copy the link from the terminal to "log in" locally.
+
+---
+
+## 15. Contact + ownership
+
+- **Founder + primary operator:** Tomás Massano · tomas@informallabs.com
+- **Outreach operator:** Raúl · raul@informallabs.com
+- **Repo:** https://github.com/tomasvmassano/secondlayer-offer-builder
+- **Production:** https://hub.secondlayerhq.com
+- **Vercel project:** `tomasvmassanos-projects/secondlayer-hub` (Hobby plan)
+- **Support tickets:** filed at `/support` inside the hub
+
+Bugs go to `/support`. Code changes go through the worktree workflow in `.claude/worktrees/` with conventional commits.
