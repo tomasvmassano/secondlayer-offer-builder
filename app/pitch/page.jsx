@@ -302,7 +302,9 @@ function StyledKeyword({ text, keyword, italicStyle }) {
 // INLINE EDITABLE FIELD
 // ─────────────────────────────────────────────────────────────────
 
-function Editable({ value, onChange, style, multiline = false }) {
+function Editable({ value, onChange, style, multiline = false, placeholder = '' }) {
+  const displayValue = value || '';
+  const isEmpty = !displayValue;
   return (
     <span
       contentEditable
@@ -321,10 +323,11 @@ function Editable({ value, onChange, style, multiline = false }) {
         padding: "2px 4px",
         borderRadius: 4,
         cursor: "text",
+        ...(isEmpty ? { color: "#555", fontStyle: "italic" } : {}),
         ...style,
       }}
     >
-      {value}
+      {displayValue || placeholder}
     </span>
   );
 }
@@ -1219,16 +1222,35 @@ function PitchPageContent() {
                 });
               })()}
             </div>
-            {/* RIGHT · big italic-serif quote — visceral impact */}
+            {/* RIGHT · big italic-serif quote — visceral impact.
+                Both lines are now inline-editable. Default for [0] falls
+                back to the strategic role explanation when the ecosystem
+                impact array hasn't been populated by the wizard yet. */}
             <div>
               <p style={{ ...italicSerif, fontSize: 36, color: "#f5f5f5", lineHeight: 1.35, margin: 0 }}>
-                "{slides.businessContext.ecosystemImpact[0] || slides.businessContext.roleExplanation}"
+                "<Editable
+                  value={slides.businessContext.ecosystemImpact[0] || slides.businessContext.roleExplanation}
+                  onChange={v => {
+                    const next = [...(slides.businessContext.ecosystemImpact || [])];
+                    next[0] = v;
+                    updateSlide('businessContext', 'ecosystemImpact', next);
+                  }}
+                  multiline
+                  placeholder="Frase principal sobre o impacto no ecossistema..."
+                />"
               </p>
-              {slides.businessContext.ecosystemImpact.length > 1 && (
-                <p style={{ ...italicSerif, fontSize: 18, color: "#888", lineHeight: 1.5, margin: "28px 0 0" }}>
-                  {slides.businessContext.ecosystemImpact[1]}
-                </p>
-              )}
+              <p style={{ ...italicSerif, fontSize: 18, color: "#888", lineHeight: 1.5, margin: "28px 0 0" }}>
+                <Editable
+                  value={slides.businessContext.ecosystemImpact[1] || ''}
+                  onChange={v => {
+                    const next = [...(slides.businessContext.ecosystemImpact || [])];
+                    next[1] = v;
+                    updateSlide('businessContext', 'ecosystemImpact', next);
+                  }}
+                  multiline
+                  placeholder="Linha secundária (opcional)..."
+                />
+              </p>
             </div>
           </div>
         </div>
@@ -1471,12 +1493,17 @@ function PitchPageContent() {
           </div>
 
           {/* CP1 segment description — strategic header line above the stats.
-              Only renders when the wizard's strategic_frame has produced it. */}
-          {slides.audience.segmentDescription && (
-            <div style={{ marginTop: 20, fontSize: 20, color: "#D9D9D9", lineHeight: 1.5, maxWidth: 920 }}>
-              {slides.audience.segmentDescription}
-            </div>
-          )}
+              Always rendered now so the operator can edit/add it inline.
+              Default comes from the wizard's strategic_frame; falls back to
+              an empty placeholder when missing. */}
+          <div style={{ marginTop: 20, fontSize: 20, color: "#D9D9D9", lineHeight: 1.5, maxWidth: 920 }}>
+            <Editable
+              value={slides.audience.segmentDescription || ''}
+              onChange={v => updateSlide('audience', 'segmentDescription', v)}
+              multiline
+              placeholder="Descrição estratégica da audiência (ex: Mulheres portuguesas 30-50 anos...)"
+            />
+          </div>
 
           {/* Stat strip — full-width 4-card row */}
           <div style={{ marginTop: 36, display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 18 }}>
@@ -1484,23 +1511,52 @@ function PitchPageContent() {
               <div style={{ fontSize: 16, fontWeight: 600, color: "#B11E2F", letterSpacing: "0.22em", textTransform: "uppercase", marginBottom: 14 }}>
                 <EditableLabel slot="slide7.totalAudienceLabel" default={pitchLang('Total audience', 'Audiência total', 'Audiencia total')} overrides={slides.labelOverrides} onChange={updateLabel} />
               </div>
-              <div style={{ fontSize: 64, fontWeight: 700, letterSpacing: "-0.03em", lineHeight: 1, color: "#f5f5f5" }}>{formatFollowers(audience)}</div>
+              {/* Audience number: defaults to formatted projection state,
+                  overridable inline (the override is a plain string so the
+                  operator can type "150K", "1.2M", etc.). The projection
+                  math still uses the raw `audience` state — display + math
+                  decoupled so editing the display doesn't break the chart. */}
+              <div style={{ fontSize: 64, fontWeight: 700, letterSpacing: "-0.03em", lineHeight: 1, color: "#f5f5f5" }}>
+                <Editable
+                  value={slides.audience.audienceDisplay || formatFollowers(audience)}
+                  onChange={v => updateSlide('audience', 'audienceDisplay', v)}
+                />
+              </div>
             </div>
             <div style={{ padding: "28px 32px", background: "rgba(15,15,15,0.78)", border: "1px solid #1F1F1F", borderRadius: 14 }}>
               <div style={{ fontSize: 16, fontWeight: 600, color: "#8A8A8A", letterSpacing: "0.22em", textTransform: "uppercase", marginBottom: 14 }}>
                 <EditableLabel slot="slide7.platformLabel" default={pitchLang('Platform', 'Plataforma', 'Plataforma')} overrides={slides.labelOverrides} onChange={updateLabel} />
               </div>
-              <div style={{ fontSize: 40, fontWeight: 600, letterSpacing: "-0.02em", lineHeight: 1, color: "#f5f5f5" }}>{creator?.primaryPlatform || 'Instagram'}</div>
+              <div style={{ fontSize: 40, fontWeight: 600, letterSpacing: "-0.02em", lineHeight: 1, color: "#f5f5f5" }}>
+                <Editable
+                  value={slides.audience.platformDisplay || creator?.primaryPlatform || 'Instagram'}
+                  onChange={v => updateSlide('audience', 'platformDisplay', v)}
+                />
+              </div>
             </div>
             <div style={{ padding: "28px 32px", background: "rgba(15,15,15,0.78)", border: "1px solid #1F1F1F", borderRadius: 14 }}>
-              <div style={{ fontSize: 16, fontWeight: 600, color: "#8A8A8A", letterSpacing: "0.22em", textTransform: "uppercase", marginBottom: 14 }}>Engagement</div>
-              <div style={{ fontSize: 64, fontWeight: 700, letterSpacing: "-0.03em", lineHeight: 1, color: "#f5f5f5" }}>{creator?.engagement || '—'}</div>
+              <div style={{ fontSize: 16, fontWeight: 600, color: "#8A8A8A", letterSpacing: "0.22em", textTransform: "uppercase", marginBottom: 14 }}>
+                <EditableLabel slot="slide7.engagementLabelHeader" default="Engagement" overrides={slides.labelOverrides} onChange={updateLabel} />
+              </div>
+              <div style={{ fontSize: 64, fontWeight: 700, letterSpacing: "-0.03em", lineHeight: 1, color: "#f5f5f5" }}>
+                <Editable
+                  value={slides.audience.engagementDisplay || creator?.engagement || ''}
+                  onChange={v => updateSlide('audience', 'engagementDisplay', v)}
+                  placeholder="—"
+                />
+              </div>
             </div>
             <div style={{ padding: "28px 32px", background: "rgba(15,15,15,0.78)", border: "1px solid #1F1F1F", borderRadius: 14 }}>
               <div style={{ fontSize: 16, fontWeight: 600, color: "#8A8A8A", letterSpacing: "0.22em", textTransform: "uppercase", marginBottom: 14 }}>
                 <EditableLabel slot="slide7.nicheLabel" default={pitchLang('Niche', 'Nicho', 'Nicho')} overrides={slides.labelOverrides} onChange={updateLabel} />
               </div>
-              <div style={{ fontSize: 32, fontWeight: 600, letterSpacing: "-0.02em", lineHeight: 1.1, color: "#f5f5f5" }}>{creator?.niche || '—'}</div>
+              <div style={{ fontSize: 32, fontWeight: 600, letterSpacing: "-0.02em", lineHeight: 1.1, color: "#f5f5f5" }}>
+                <Editable
+                  value={slides.audience.nicheDisplay || creator?.niche || ''}
+                  onChange={v => updateSlide('audience', 'nicheDisplay', v)}
+                  placeholder="—"
+                />
+              </div>
             </div>
           </div>
 
@@ -1537,7 +1593,17 @@ function PitchPageContent() {
                           </div>
                         )}
                       </div>
-                      <div style={{ fontSize: 19, fontWeight: 600, color: "#f5f5f5", lineHeight: 1.3, letterSpacing: "-0.005em" }}>{p.topic}</div>
+                      <div style={{ fontSize: 19, fontWeight: 600, color: "#f5f5f5", lineHeight: 1.3, letterSpacing: "-0.005em" }}>
+                        <Editable
+                          value={(slides.audience.themeOverrides && slides.audience.themeOverrides[i]) || p.topic}
+                          onChange={v => {
+                            const next = { ...(slides.audience.themeOverrides || {}) };
+                            next[i] = v;
+                            updateSlide('audience', 'themeOverrides', next);
+                          }}
+                          multiline
+                        />
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -1546,42 +1612,96 @@ function PitchPageContent() {
           })()}
 
           {/* CP2 audience_fit — who this is exactly FOR / NOT FOR.
-              Renders only when the wizard has produced at least one column.
-              Two-column block; preserved-language. */}
-          {(slides.audience.audienceForList.length > 0 || slides.audience.audienceNotForList.length > 0) && (
-            <div style={{ marginTop: 22, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 18 }}>
-              {slides.audience.audienceForList.length > 0 && (
-                <div style={{ padding: "26px 30px", background: "rgba(15,15,15,0.78)", border: "1px solid rgba(177,30,47,0.45)", borderRadius: 14 }}>
-                  <div style={{ fontSize: 12, fontWeight: 600, color: "#B11E2F", letterSpacing: "0.22em", textTransform: "uppercase", marginBottom: 14 }}>
-                    <EditableLabel slot="slide7.forLabel" default={pitchLang('For', 'Para quem é', 'Para quién es')} overrides={slides.labelOverrides} onChange={updateLabel} />
-                  </div>
-                  <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 10 }}>
-                    {slides.audience.audienceForList.map((s, i) => (
-                      <li key={i} style={{ display: "flex", gap: 12, fontSize: 17, color: "#D9D9D9", lineHeight: 1.45 }}>
-                        <span style={{ color: "#B11E2F", flexShrink: 0, fontWeight: 700 }}>→</span>
-                        <span>{s}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-              {slides.audience.audienceNotForList.length > 0 && (
-                <div style={{ padding: "26px 30px", background: "rgba(15,15,15,0.78)", border: "1px solid #1F1F1F", borderRadius: 14 }}>
-                  <div style={{ fontSize: 12, fontWeight: 600, color: "#8A8A8A", letterSpacing: "0.22em", textTransform: "uppercase", marginBottom: 14 }}>
-                    <EditableLabel slot="slide7.notForLabel" default={pitchLang('Not for', 'Não é para', 'No es para')} overrides={slides.labelOverrides} onChange={updateLabel} />
-                  </div>
-                  <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 10 }}>
-                    {slides.audience.audienceNotForList.map((s, i) => (
-                      <li key={i} style={{ display: "flex", gap: 12, fontSize: 17, color: "#9E9E9E", lineHeight: 1.45 }}>
-                        <span style={{ color: "#666", flexShrink: 0 }}>✕</span>
-                        <span>{s}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
+              Always rendered now so the operator can add bullets even when
+              the wizard didn't produce them. Each item is inline-editable;
+              "+ Adicionar" appends an empty editable row; clicking ✕ on a
+              row removes it. */}
+          <div style={{ marginTop: 22, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 18 }}>
+            <div style={{ padding: "26px 30px", background: "rgba(15,15,15,0.78)", border: "1px solid rgba(177,30,47,0.45)", borderRadius: 14 }}>
+              <div style={{ fontSize: 12, fontWeight: 600, color: "#B11E2F", letterSpacing: "0.22em", textTransform: "uppercase", marginBottom: 14 }}>
+                <EditableLabel slot="slide7.forLabel" default={pitchLang('For', 'Para quem é', 'Para quién es')} overrides={slides.labelOverrides} onChange={updateLabel} />
+              </div>
+              <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 10 }}>
+                {(slides.audience.audienceForList || []).map((s, i) => (
+                  <li key={i} style={{ display: "flex", gap: 12, fontSize: 17, color: "#D9D9D9", lineHeight: 1.45, alignItems: "baseline" }}>
+                    <span style={{ color: "#B11E2F", flexShrink: 0, fontWeight: 700 }}>→</span>
+                    <span style={{ flex: 1 }}>
+                      <Editable
+                        value={s}
+                        onChange={v => {
+                          const next = [...(slides.audience.audienceForList || [])];
+                          next[i] = v;
+                          updateSlide('audience', 'audienceForList', next);
+                        }}
+                        multiline
+                        placeholder="Quem se encaixa..."
+                      />
+                    </span>
+                    <button
+                      onClick={() => {
+                        const next = [...(slides.audience.audienceForList || [])];
+                        next.splice(i, 1);
+                        updateSlide('audience', 'audienceForList', next);
+                      }}
+                      title="Remover"
+                      style={{ flexShrink: 0, background: "transparent", border: "none", color: "#444", cursor: "pointer", fontSize: 14, padding: "0 4px" }}
+                    >✕</button>
+                  </li>
+                ))}
+                <li>
+                  <button
+                    onClick={() => {
+                      const next = [...(slides.audience.audienceForList || []), ''];
+                      updateSlide('audience', 'audienceForList', next);
+                    }}
+                    style={{ background: "transparent", border: "1px dashed rgba(177,30,47,0.3)", color: "#B11E2F", padding: "6px 12px", borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}
+                  >+ Adicionar</button>
+                </li>
+              </ul>
             </div>
-          )}
+            <div style={{ padding: "26px 30px", background: "rgba(15,15,15,0.78)", border: "1px solid #1F1F1F", borderRadius: 14 }}>
+              <div style={{ fontSize: 12, fontWeight: 600, color: "#8A8A8A", letterSpacing: "0.22em", textTransform: "uppercase", marginBottom: 14 }}>
+                <EditableLabel slot="slide7.notForLabel" default={pitchLang('Not for', 'Não é para', 'No es para')} overrides={slides.labelOverrides} onChange={updateLabel} />
+              </div>
+              <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 10 }}>
+                {(slides.audience.audienceNotForList || []).map((s, i) => (
+                  <li key={i} style={{ display: "flex", gap: 12, fontSize: 17, color: "#9E9E9E", lineHeight: 1.45, alignItems: "baseline" }}>
+                    <span style={{ color: "#666", flexShrink: 0 }}>✕</span>
+                    <span style={{ flex: 1 }}>
+                      <Editable
+                        value={s}
+                        onChange={v => {
+                          const next = [...(slides.audience.audienceNotForList || [])];
+                          next[i] = v;
+                          updateSlide('audience', 'audienceNotForList', next);
+                        }}
+                        multiline
+                        placeholder="Quem não se encaixa..."
+                      />
+                    </span>
+                    <button
+                      onClick={() => {
+                        const next = [...(slides.audience.audienceNotForList || [])];
+                        next.splice(i, 1);
+                        updateSlide('audience', 'audienceNotForList', next);
+                      }}
+                      title="Remover"
+                      style={{ flexShrink: 0, background: "transparent", border: "none", color: "#444", cursor: "pointer", fontSize: 14, padding: "0 4px" }}
+                    >✕</button>
+                  </li>
+                ))}
+                <li>
+                  <button
+                    onClick={() => {
+                      const next = [...(slides.audience.audienceNotForList || []), ''];
+                      updateSlide('audience', 'audienceNotForList', next);
+                    }}
+                    style={{ background: "transparent", border: "1px dashed rgba(255,255,255,0.1)", color: "#888", padding: "6px 12px", borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}
+                  >+ Adicionar</button>
+                </li>
+              </ul>
+            </div>
+          </div>
         </div>
       </Slide>
 
