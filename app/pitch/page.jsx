@@ -2075,6 +2075,78 @@ function deriveWeeklyFormatsFromModules(modules, lang) {
     }));
 }
 
+// Auto-derive a credible value_stack from CP3 modules when CP4 (value-stack
+// checkpoint) hasn't been run yet. Without this, the pitch slide renders
+// literal `[Problema 1]/[Solução]/[Entrega]/€[X]` placeholders that ship to
+// the creator in the PDF — looks broken on a creator-facing deck.
+//
+// Mapping per module:
+//   problem      → "Sem X" framing of the module's transformation_delivered
+//   solution     → module.name
+//   delivery     → friendly label for module.format
+//   dollarValue  → a chunk of the total Hormozi 5-10× budget split across
+//                  modules. Total budget = recPrice * 8 (mid of the 5-10×
+//                  band the CP4 prompt enforces). Each module gets a roughly
+//                  equal share, rounded to a clean euro amount.
+//
+// Returns empty array when modules is empty so the calling code can fall
+// through to its own placeholder set (we'd rather show literal placeholders
+// than zero rows).
+function deriveValueStackFromModules(modules, recPrice, cur, lang) {
+  if (!Array.isArray(modules) || modules.length === 0) return [];
+  const FORMAT_LABELS_EN = {
+    live_call:        'Live coaching',
+    recorded_module:  'Recorded module',
+    doc:              'Playbook',
+    template:         'Template pack',
+    community_ritual: 'Community ritual',
+  };
+  const FORMAT_LABELS_PT = {
+    live_call:        'Coaching ao vivo',
+    recorded_module:  'Módulo gravado',
+    doc:              'Playbook',
+    template:         'Pack de templates',
+    community_ritual: 'Ritual de comunidade',
+  };
+  const FORMAT_LABELS_ES = {
+    live_call:        'Coaching en vivo',
+    recorded_module:  'Módulo grabado',
+    doc:              'Playbook',
+    template:         'Pack de plantillas',
+    community_ritual: 'Ritual de comunidad',
+  };
+  const labels = lang === 'en' ? FORMAT_LABELS_EN : lang === 'es' ? FORMAT_LABELS_ES : FORMAT_LABELS_PT;
+  // Total Hormozi budget. Use 8× actualPrice as a midpoint of the 5-10× band
+  // that CP4 enforces. Falls back to a sensible default when recPrice is
+  // missing so we never render `€NaN` cells.
+  const priceNum = Number(recPrice);
+  const totalBudget = Number.isFinite(priceNum) && priceNum > 0 ? priceNum * 8 : 800;
+  const items = modules.slice(0, 5);
+  // Roughly-equal split, rounded down to the nearest 5 so the values read as
+  // intentional ("€95") not algorithmic ("€97.20"). Remainder lands on the
+  // last item so the total adds up.
+  const baseShare = Math.max(20, Math.floor(totalBudget / items.length / 5) * 5);
+  const lastShare = Math.max(baseShare, totalBudget - baseShare * (items.length - 1));
+  return items.map((m, i) => {
+    const transformation = (m.transformation_delivered || m.description || '').trim();
+    // "Sem X" / "Without X" / "Sin X" — frame the problem as the absence of
+    // the transformation. Short, declarative, no AI-tells.
+    const problemPrefix = lang === 'en' ? 'Without' : lang === 'es' ? 'Sin' : 'Sem';
+    const problem = transformation
+      ? `${problemPrefix} ${transformation.slice(0, 110).replace(/\.$/, '')}`
+      : (lang === 'en' ? 'Missing structure' : lang === 'es' ? 'Falta estructura' : 'Sem estrutura');
+    const solution = m.name || (lang === 'en' ? '[Module]' : '[Módulo]');
+    const delivery = labels[m.format] || m.format || '';
+    const share = i === items.length - 1 ? lastShare : baseShare;
+    return {
+      problem,
+      solution,
+      delivery,
+      dollarValue: `${cur}${share}`,
+    };
+  });
+}
+
 // Auto-derive library from modules whose format ∈ {recorded_module, doc, template}.
 // Same fallback rationale as deriveWeeklyFormatsFromModules.
 function deriveLibraryFromModules(modules, lang) {
@@ -2311,7 +2383,11 @@ function buildDefaultSlides(creator) {
     system: {
       title: t('O Sistema · Conteúdo Semanal', 'The System · Weekly Content'),
       subtitle: t('O método que a tua comunidade consome todas as semanas.', 'The method your community consumes every week.'),
-      name: um.name || t('[The X.Y.Z. Method™]', '[The X.Y.Z. Method™]'),
+      // Mechanism name comes from CP4 (value-stack wizard). If CP4 hasn't
+      // been run yet, fall back to the community_name so the slide reads
+      // "O método que construímos para ti · Lia's Transformation Circle"
+      // instead of literal placeholder. Operator can still inline-edit.
+      name: um.name || c.primaryName || t('[The X.Y.Z. Method™]', '[The X.Y.Z. Method™]'),
       // Source priority: explicit CP3 weekly_formats/library → derived from
       // CP3 modules (for stale outputs that pre-date the schema bump) →
       // placeholder rows. The derive helpers walk the modules array and pick
@@ -2357,25 +2433,50 @@ function buildDefaultSlides(creator) {
       description: um.description || '',
     },
     // NEW: O Valor — Value Stack (problems → solutions → € values, Hormozi style).
-    // Auto-populated from parsed.valueStack.
-    valueStack: {
-      title: t('O Valor', 'The Value'),
-      subtitle: t('Cada coisa que recebes. Cada coisa tem um valor.', 'Every thing you get. Every thing has a value.'),
-      items: vs.items && vs.items.length > 0 ? vs.items : [
-        { problem: t('[Problema 1]', '[Problem 1]'), solution: t('[Solução]', '[Solution]'), delivery: t('[Entrega]', '[Delivery]'), dollarValue: `${cur}[X]` },
-        { problem: t('[Problema 2]', '[Problem 2]'), solution: t('[Solução]', '[Solution]'), delivery: t('[Entrega]', '[Delivery]'), dollarValue: `${cur}[X]` },
-        { problem: t('[Problema 3]', '[Problem 3]'), solution: t('[Solução]', '[Solution]'), delivery: t('[Entrega]', '[Delivery]'), dollarValue: `${cur}[X]` },
-        { problem: t('[Problema 4]', '[Problem 4]'), solution: t('[Solução]', '[Solution]'), delivery: t('[Entrega]', '[Delivery]'), dollarValue: `${cur}[X]` },
-        { problem: t('[Problema 5]', '[Problem 5]'), solution: t('[Solução]', '[Solution]'), delivery: t('[Entrega]', '[Delivery]'), dollarValue: `${cur}[X]` },
-      ],
-      total: vs.total || `${cur}[X ${t('total', 'total')}]`,
+    // Source priority:
+    //   1. CP4 value_stack.items (the wizard's authoritative output)
+    //   2. Derived from CP3 modules (so the slide isn't literal placeholders
+    //      before CP4 runs — derive a credible stack from the modules that
+    //      already exist)
+    //   3. Hard-coded placeholder rows (only when CP3 also empty)
+    // Same fallback ladder applies to .total.
+    valueStack: (() => {
+      const derived = deriveValueStackFromModules(cfo.modules, recPrice, cur, lang);
+      const items = vs.items && vs.items.length > 0
+        ? vs.items
+        : derived.length > 0
+          ? derived
+          : [
+              { problem: t('[Problema 1]', '[Problem 1]'), solution: t('[Solução]', '[Solution]'), delivery: t('[Entrega]', '[Delivery]'), dollarValue: `${cur}[X]` },
+              { problem: t('[Problema 2]', '[Problem 2]'), solution: t('[Solução]', '[Solution]'), delivery: t('[Entrega]', '[Delivery]'), dollarValue: `${cur}[X]` },
+              { problem: t('[Problema 3]', '[Problem 3]'), solution: t('[Solução]', '[Solution]'), delivery: t('[Entrega]', '[Delivery]'), dollarValue: `${cur}[X]` },
+              { problem: t('[Problema 4]', '[Problem 4]'), solution: t('[Solução]', '[Solution]'), delivery: t('[Entrega]', '[Delivery]'), dollarValue: `${cur}[X]` },
+              { problem: t('[Problema 5]', '[Problem 5]'), solution: t('[Solução]', '[Solution]'), delivery: t('[Entrega]', '[Delivery]'), dollarValue: `${cur}[X]` },
+            ];
+      // total: prefer CP4's value, else sum up the derived items, else placeholder.
+      let total = vs.total;
+      if (!total && derived.length > 0) {
+        const sum = derived.reduce((acc, it) => {
+          const n = parseFloat(String(it.dollarValue || '').replace(/[^0-9.]/g, ''));
+          return acc + (Number.isFinite(n) ? n : 0);
+        }, 0);
+        if (sum > 0) total = `${cur}${sum.toLocaleString(lang === 'en' ? 'en-US' : 'pt-PT')}`;
+      }
+      if (!total) total = `${cur}[X ${t('total', 'total')}]`;
       // Preço Real follows the offer page: creator.revenuePrice is the single
-      // source of truth set on the offer tab. Falls back to the LLM-parsed value
-      // then to a placeholder.
-      actualPrice: recPrice
+      // source of truth set on the offer tab. Falls back to the LLM-parsed
+      // value then to a placeholder.
+      const actualPrice = recPrice
         ? (lang === 'en' ? `${cur}${recPrice}/mo` : `${cur}${recPrice}/mês`)
-        : (vs.actualPrice || (lang === 'en' ? `${cur}[X]/mo` : `${cur}[X]/mês`)),
-    },
+        : (vs.actualPrice || (lang === 'en' ? `${cur}[X]/mo` : `${cur}[X]/mês`));
+      return {
+        title: t('O Valor', 'The Value'),
+        subtitle: t('Cada coisa que recebes. Cada coisa tem um valor.', 'Every thing you get. Every thing has a value.'),
+        items,
+        total,
+        actualPrice,
+      };
+    })(),
     // Slide 7 — Audience. The existing rendering kept (stat strip + theme
     // strip), and now augmented with the wizard's audience-fit data when
     // available: CP1 audience_segment (description + demographics_anchor)
