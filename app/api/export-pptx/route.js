@@ -187,8 +187,11 @@ export async function POST(request) {
 
     // ═══════════════════════════════════════════════
     // SLIDE 3: WHAT YOU GET
+    // Removed from the pitch page in the wizard refactor — slides.whatYouGet
+    // is no longer populated. Skip the slide entirely when the section is
+    // missing so the export doesn't crash. The deck just has one fewer page.
     // ═══════════════════════════════════════════════
-    {
+    if (slides.whatYouGet?.hero) {
       const s = newSlide();
       s.addText(slides.whatYouGet.hero, {
         x: 0.8, y: 0.6, w: W - 1.6, h: 1.5,
@@ -304,8 +307,9 @@ export async function POST(request) {
 
     // ═══════════════════════════════════════════════
     // SLIDE 5: BUILD + OPERATE
+    // Stale — also removed from pitch page. Same guard as SLIDE 3.
     // ═══════════════════════════════════════════════
-    {
+    if (slides.buildOperate?.title) {
       const s = newSlide();
       s.addText(slides.buildOperate.title, {
         x: 0.8, y: 0.5, w: W - 1.6, h: 0.8,
@@ -532,8 +536,9 @@ export async function POST(request) {
 
     // ═══════════════════════════════════════════════
     // SLIDE 9: RECAP
+    // Stale — also removed from pitch page. Same guard as SLIDE 3 / SLIDE 5.
     // ═══════════════════════════════════════════════
-    {
+    if (slides.recap?.title) {
       const s = newSlide();
       s.addText(slides.recap.title, {
         x: 0.8, y: 0.6, w: W - 1.6, h: 0.8,
