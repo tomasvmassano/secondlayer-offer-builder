@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getCreator, updateCreator } from '../../../../../lib/creators';
 import { validateCoreOffer, VALID_PRICING_TIERS, TIER_PRICE_HINTS } from '../../../../../lib/schemas/coreOffer';
 import { readCheckpointProgress } from '../../../../../lib/offerSchema';
+import { OPERATOR_INSTRUCTIONS_RULE, formatInstructionsBlock, formatInstructionsReminder } from '../../../../../lib/operatorInstructions';
 
 // ~$0.04 per call. Sonnet only, no web_search. Bigger output than CP1
 // (community name, mechanic, pricing all in one) so max_tokens is higher.
@@ -290,7 +291,9 @@ The seven high-tier fields (cannibalisation_check, qualification_filter, mechani
   "quantified_transformation": "string | null  (REQUIRED at high tier)",
   "format_justification":      "string | null  (REQUIRED at high tier)",
   "ladder_coherence":          "string | null  (REQUIRED at high tier)"
-}`;
+}
+
+${OPERATOR_INSTRUCTIONS_RULE}`;
 
 async function runCoreOffer(apiKey, creator, pricingTier, pricingModelOverride = null, retryCount = 0, extraInstruction = null) {
   const meta = creator.offer?.internal_metadata || {};
@@ -404,7 +407,7 @@ Pick pricing_model and target_price that fit this tier AND the confirmed_role.`)
 
   const userMessage = `Generate the core offer for this creator. Match the creator_voice_summary tone exactly. Reuse Phase 3 vocabulary when possible.
 
-${langHint}
+${formatInstructionsBlock(extraInstruction)}${langHint}
 
 ${creatorBlock}
 
@@ -418,7 +421,7 @@ ${uniquenessBlock}
 
 ${tierLine}
 
-${extraInstruction ? `## ADDITIONAL INSTRUCTION\n${extraInstruction}\n\n` : ''}Return ONLY the JSON object per the schema in the system prompt.`;
+Return ONLY the JSON object per the schema in the system prompt.${formatInstructionsReminder(extraInstruction)}`;
 
   const resp = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',

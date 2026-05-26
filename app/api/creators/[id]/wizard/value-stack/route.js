@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getCreator, updateCreator } from '../../../../../lib/creators';
 import { validateValueStack } from '../../../../../lib/schemas/valueStack';
 import { readCheckpointProgress } from '../../../../../lib/offerSchema';
+import { OPERATOR_INSTRUCTIONS_RULE, formatInstructionsBlock, formatInstructionsReminder } from '../../../../../lib/operatorInstructions';
 
 // Largest output of any CP — mechanism + value stack + pricing tiers + bonuses.
 // ~$0.08-0.12 / call. max_tokens scaled up to 5000.
@@ -229,7 +230,9 @@ Return ONLY a JSON object with all four pieces. No prose, no markdown fences.
   "value_stack": { items: [...], total: "...", actualPrice: "..." },
   "pricing_tiers": [...],
   "unlocked_bonuses": [...]
-}`;
+}
+
+${OPERATOR_INSTRUCTIONS_RULE}`;
 
 async function runValueStack(apiKey, creator, retryCount = 0, extraInstruction = null) {
   const meta = creator.offer?.internal_metadata || {};
@@ -312,7 +315,7 @@ ${elements || '(none)'}`;
 
   const userMessage = `Build the value stack + pricing for this offer. Each CP3 module typically becomes one stack item. value_stack.total MUST be 5-10× value_stack.actualPrice (use the creator's currency from CP2 target_price). mechanism.letters MUST have one entry per letter of mechanism.name.
 
-${langHint}
+${formatInstructionsBlock(extraInstruction)}${langHint}
 
 ${frameBlock}
 
@@ -326,7 +329,7 @@ ${archetypeBlock}
 
 ${uniquenessBlock}
 
-${extraInstruction ? `## ADDITIONAL INSTRUCTION\n${extraInstruction}\n\n` : ''}Return ONLY the JSON object per the schema in the system prompt.`;
+Return ONLY the JSON object per the schema in the system prompt.${formatInstructionsReminder(extraInstruction)}`;
 
   const resp = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',

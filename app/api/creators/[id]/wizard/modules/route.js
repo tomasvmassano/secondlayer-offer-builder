@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getCreator, updateCreator } from '../../../../../lib/creators';
 import { validateModules } from '../../../../../lib/schemas/modules';
 import { readCheckpointProgress } from '../../../../../lib/offerSchema';
+import { OPERATOR_INSTRUCTIONS_RULE, formatInstructionsBlock, formatInstructionsReminder } from '../../../../../lib/operatorInstructions';
 
 // ~$0.05-0.08 per call. Sonnet only. 4-8 modules, each with description +
 // transformation + format + linked elements + cadence — larger output than
@@ -221,7 +222,9 @@ Return ONLY a JSON object. No prose, no markdown.
     { "name": "...", "format": "Masterclass", "desc": "..." },
     ...   // 3-6 entries
   ]
-}`;
+}
+
+${OPERATOR_INSTRUCTIONS_RULE}`;
 
 async function runModules(apiKey, creator, retryCount = 0, extraInstruction = null) {
   const meta = creator.offer?.internal_metadata || {};
@@ -303,7 +306,7 @@ CREATOR VOICE: ${uniqueness?.creator_voice_summary || '(none)'}`;
 
   const userMessage = `Design 4-8 modules for this offer plus the weekly_formats + library arrays that derive from them. Every module must link to ≥1 Phase 3 uniqueness element by its [index] number.
 
-${langHint}
+${formatInstructionsBlock(extraInstruction)}${langHint}
 
 ${frameBlock}
 
@@ -315,7 +318,7 @@ ${auditGaps}
 
 ${uniquenessBlock}
 
-${extraInstruction ? `## ADDITIONAL INSTRUCTION\n${extraInstruction}\n\n` : ''}Return ONLY the JSON object per the schema in the system prompt.`;
+Return ONLY the JSON object per the schema in the system prompt.${formatInstructionsReminder(extraInstruction)}`;
 
   const resp = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',

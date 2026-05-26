@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getCreator, updateCreator } from '../../../../../lib/creators';
 import { validateStrategicFrame, VALID_CONFIRMED_ROLES } from '../../../../../lib/schemas/strategicFrame';
 import { readCheckpointProgress } from '../../../../../lib/offerSchema';
+import { OPERATOR_INSTRUCTIONS_RULE, formatInstructionsBlock, formatInstructionsReminder } from '../../../../../lib/operatorInstructions';
 
 // Pure Sonnet 4 call (no web_search) — fast (~10-20s), ~$0.02.
 // CP1 has no external lookups; everything it needs is in Phases 1-3.
@@ -188,7 +189,9 @@ Return ONLY a JSON object matching this schema. No prose, no markdown, no commen
   "rationale": ["string", ...],                        // 3-5 bullets
   "differentiation_from_existing": "string or null",   // required when cannibalization_risk ∈ {high, medium}; null otherwise
   "ecosystem_impact": ["string", ...]                  // 3-5 bullets, ≤320 chars each, money-anchored
-}`;
+}
+
+${OPERATOR_INSTRUCTIONS_RULE}`;
 
 async function runStrategicFrame(apiKey, creator, retryCount = 0, extraInstruction = null) {
   const meta = creator.offer?.internal_metadata || {};
@@ -290,7 +293,7 @@ Audience: ${audienceLine}`;
 
   const userMessage = `Synthesise the three internal analyses below into the strategic frame for this creator's new offer.
 
-${langHint}
+${formatInstructionsBlock(extraInstruction)}${langHint}
 
 ${creatorBlock}
 
@@ -300,7 +303,7 @@ ${archetypeBlock}
 
 ${uniquenessBlock}
 
-${extraInstruction ? `## ADDITIONAL INSTRUCTION\n${extraInstruction}\n\n` : ''}Return ONLY the JSON object per the schema in the system prompt.`;
+Return ONLY the JSON object per the schema in the system prompt.${formatInstructionsReminder(extraInstruction)}`;
 
   const resp = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',

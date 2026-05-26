@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getCreator, updateCreator } from '../../../../../lib/creators';
 import { validateSalesCopy } from '../../../../../lib/schemas/salesCopy';
 import { readCheckpointProgress } from '../../../../../lib/offerSchema';
+import { OPERATOR_INSTRUCTIONS_RULE, formatInstructionsBlock, formatInstructionsReminder } from '../../../../../lib/operatorInstructions';
 
 // Final checkpoint. Many output strings, voice-heavy. ~$0.10-0.15 / call.
 export const maxDuration = 120;
@@ -194,7 +195,9 @@ Return ONLY a JSON object. No prose, no markdown fences.
   "objections": [ { "objection": "...", "rebuttal": "..." }, ... ],
   "faq": [ { "q": "...", "a": "..." }, ... ],
   "social_proof_line": "string or null"
-}`;
+}
+
+${OPERATOR_INSTRUCTIONS_RULE}`;
 
 async function runSalesCopy(apiKey, creator, retryCount = 0, extraInstruction = null) {
   const meta = creator.offer?.internal_metadata || {};
@@ -268,7 +271,7 @@ ${elements || '(none)'}`;
 
   const userMessage = `Write the final sales copy for this offer. Match creator voice precisely. Reuse Phase 3 vocabulary verbatim. The audience has read the rest of the pitch — this is the polish that closes them.
 
-${frameBlock}
+${formatInstructionsBlock(extraInstruction)}${frameBlock}
 
 ${offerBlock}
 
@@ -280,7 +283,7 @@ ${archetypeBlock}
 
 ${uniquenessBlock}
 
-${extraInstruction ? `## ADDITIONAL INSTRUCTION\n${extraInstruction}\n\n` : ''}Return ONLY the JSON object per the schema in the system prompt.`;
+Return ONLY the JSON object per the schema in the system prompt.${formatInstructionsReminder(extraInstruction)}`;
 
   const resp = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
