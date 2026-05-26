@@ -329,6 +329,81 @@ function Editable({ value, onChange, style, multiline = false }) {
   );
 }
 
+// EditableLabel — wraps any label/header/eyebrow text in inline editing.
+//
+// Designed for the dozens of strings that used to be hardcoded via
+// pitchLang(en, pt, es) directly inside JSX. Those strings had no operator
+// override path — to change "O Método" to "A Receita Lia Faria™" the
+// operator had to ask an engineer to update the source code. Now: click
+// the text, retype, blur. Persists into creator.pitch.labelOverrides
+// keyed by a stable slot ID.
+//
+// Props:
+//   slot     — unique key, e.g. "slide5.title". Stable across creators so
+//              the same override doesn't bleed between two creators (it
+//              doesn't — every creator has their own pitch state).
+//   default  — fallback text shown when no override exists. Usually a
+//              pitchLang() call so the language default still works.
+//   overrides — the labelOverrides object from slides state. Optional;
+//              omitting it shows the default and disables editing.
+//   onChange — (slot, newValue) => void. Wired to updateLabel().
+//   as       — HTML element to render. Defaults to span so it stays inline.
+//              Pass "div", "h1", etc. when the semantic structure matters.
+//   style    — inline style merged on top of the editing baseline.
+//   multiline — when true, Enter inserts a newline instead of blurring.
+//   placeholder — shown grayed when both default and override are empty.
+function EditableLabel({
+  slot,
+  default: defaultValue,
+  overrides,
+  onChange,
+  as = 'span',
+  style = {},
+  multiline = false,
+  placeholder = '',
+}) {
+  const Tag = as;
+  const overrideValue = overrides && overrides[slot] !== undefined ? overrides[slot] : null;
+  const display = overrideValue !== null ? overrideValue : (defaultValue || '');
+  const isPlaceholder = !display && placeholder;
+  const editable = typeof onChange === 'function';
+  const handleBlur = (e) => {
+    if (!editable) return;
+    const next = e.currentTarget.textContent;
+    // Trim trailing whitespace only; preserve interior newlines for multiline.
+    const trimmed = next.replace(/\s+$/, '');
+    // Don't bother persisting when the value matches the default — keeps
+    // labelOverrides small + lets a future language switch flip back to
+    // the (new-language) default cleanly.
+    if (trimmed === (defaultValue || '')) {
+      onChange(slot, undefined); // sentinel — clears the override
+    } else {
+      onChange(slot, trimmed);
+    }
+  };
+  return (
+    <Tag
+      contentEditable={editable}
+      suppressContentEditableWarning
+      onBlur={handleBlur}
+      onKeyDown={(e) => {
+        if (!multiline && e.key === 'Enter') {
+          e.preventDefault();
+          e.currentTarget.blur();
+        }
+      }}
+      style={{
+        outline: 'none',
+        cursor: editable ? 'text' : 'default',
+        ...style,
+        ...(isPlaceholder ? { color: '#555' } : {}),
+      }}
+    >
+      {display || placeholder}
+    </Tag>
+  );
+}
+
 // ─────────────────────────────────────────────────────────────────
 // MAIN CONTENT
 // ─────────────────────────────────────────────────────────────────
@@ -532,6 +607,25 @@ function PitchPageContent() {
 
   const updateSlide = (slideKey, field, value) => {
     setSlides(prev => ({ ...prev, [slideKey]: { ...prev[slideKey], [field]: value } }));
+  };
+
+  // Edit any label/header/eyebrow text. Persists to creator.pitch via the
+  // existing slides state shape (autosaves to the creator record on blur,
+  // same as updateSlide). Pass undefined as value to CLEAR an override —
+  // the label then falls back to its localised default again. Used by
+  // EditableLabel.handleBlur to keep the overrides map small when the
+  // operator types the default back in.
+  const updateLabel = (slot, value) => {
+    setSlides(prev => {
+      const current = prev?.labelOverrides || {};
+      const next = { ...current };
+      if (value === undefined || value === null) {
+        delete next[slot];
+      } else {
+        next[slot] = value;
+      }
+      return { ...prev, labelOverrides: next };
+    });
   };
 
   const updateScenarioParam = (scenarioKey, param, value) => {
@@ -1026,7 +1120,7 @@ function PitchPageContent() {
       }>
         <div style={{ flex: 1, display: "flex", flexDirection: "column", width: "100%" }}>
           <div style={{ fontSize: 18, fontWeight: 600, color: "#B11E2F", letterSpacing: "0.28em", textTransform: "uppercase" }}>
-            {pitchLang('Ecosystem', 'Ecossistema', 'Ecosistema')}
+            <EditableLabel slot="slide3.eyebrow" default={pitchLang('Ecosystem', 'Ecossistema', 'Ecosistema')} overrides={slides.labelOverrides} onChange={updateLabel} />
           </div>
           <div style={{ height: 18 }} />
           <h1 style={{ fontSize: 72, fontWeight: 800, margin: 0, lineHeight: 1.0, letterSpacing: "-0.03em", color: "#f5f5f5" }}>
@@ -1153,7 +1247,7 @@ function PitchPageContent() {
       }>
         <div style={{ flex: 1, display: "flex", flexDirection: "column", width: "100%" }}>
           <div style={{ fontSize: 18, fontWeight: 600, color: "#B11E2F", letterSpacing: "0.28em", textTransform: "uppercase" }}>
-            {pitchLang('The community', 'A comunidade', 'La comunidad')}
+            <EditableLabel slot="slide4.eyebrow" default={pitchLang('The community', 'A comunidade', 'La comunidad')} overrides={slides.labelOverrides} onChange={updateLabel} />
           </div>
           <div style={{ height: 22 }} />
           <div style={{ display: "grid", gridTemplateColumns: "1.4fr 1fr", gap: 36, alignItems: "start" }}>
@@ -1223,11 +1317,11 @@ function PitchPageContent() {
       }>
         <div style={{ flex: 1, display: "flex", flexDirection: "column", width: "100%" }}>
           <div style={{ fontSize: 18, fontWeight: 600, color: "#B11E2F", letterSpacing: "0.28em", textTransform: "uppercase" }}>
-            {pitchLang('The method', 'O método', 'El método')}
+            <EditableLabel slot="slide5.eyebrow" default={pitchLang('The method', 'O método', 'El método')} overrides={slides.labelOverrides} onChange={updateLabel} />
           </div>
           <div style={{ height: 14 }} />
           <h2 style={{ fontSize: 24, fontWeight: 500, color: "#9E9E9E", margin: 0, letterSpacing: "0.02em" }}>
-            {pitchLang('The method we built for you', 'O método que construímos para ti', 'El método que construimos para ti')}
+            <EditableLabel slot="slide5.subtitle" default={pitchLang('The method we built for you', 'O método que construímos para ti', 'El método que construimos para ti')} overrides={slides.labelOverrides} onChange={updateLabel} />
           </h2>
 
           {/* Huge mechanism acronym — center hero */}
@@ -1263,7 +1357,7 @@ function PitchPageContent() {
       }>
         <div style={{ flex: 1, display: "flex", flexDirection: "column", width: "100%" }}>
           <div style={{ fontSize: 18, fontWeight: 600, color: "#B11E2F", letterSpacing: "0.28em", textTransform: "uppercase" }}>
-            {pitchLang('The value', 'O valor', 'El valor')}
+            <EditableLabel slot="slide6.eyebrow" default={pitchLang('The value', 'O valor', 'El valor')} overrides={slides.labelOverrides} onChange={updateLabel} />
           </div>
           <div style={{ height: 18 }} />
           <h1 style={{ fontSize: 88, fontWeight: 800, margin: 0, lineHeight: 1.0, letterSpacing: "-0.03em", color: "#f5f5f5" }}>
@@ -1294,10 +1388,10 @@ function PitchPageContent() {
                 <table style={{ width: "100%", borderCollapse: "collapse" }}>
                   <thead>
                     <tr style={{ background: "rgba(177,30,47,0.08)" }}>
-                      <th style={{ padding: "14px 18px", textAlign: "left", fontSize: 11, fontWeight: 700, color: "#B11E2F", letterSpacing: "0.18em", textTransform: "uppercase", borderBottom: "1px solid #1F1F1F" }}>{pitchLang('Problem', 'Problema', 'Problema')}</th>
-                      <th style={{ padding: "14px 18px", textAlign: "left", fontSize: 11, fontWeight: 700, color: "#B11E2F", letterSpacing: "0.18em", textTransform: "uppercase", borderBottom: "1px solid #1F1F1F" }}>{pitchLang('Solution', 'Solução', 'Solución')}</th>
-                      <th style={{ padding: "14px 18px", textAlign: "left", fontSize: 11, fontWeight: 700, color: "#B11E2F", letterSpacing: "0.18em", textTransform: "uppercase", borderBottom: "1px solid #1F1F1F" }}>{pitchLang('Delivery', 'Entrega', 'Entrega')}</th>
-                      <th style={{ padding: "14px 18px", textAlign: "right", fontSize: 11, fontWeight: 700, color: "#B11E2F", letterSpacing: "0.18em", textTransform: "uppercase", borderBottom: "1px solid #1F1F1F", fontFamily: "'JetBrains Mono', ui-monospace, monospace" }}>{pitchLang('Value', 'Valor', 'Valor')}</th>
+                      <th style={{ padding: "14px 18px", textAlign: "left", fontSize: 11, fontWeight: 700, color: "#B11E2F", letterSpacing: "0.18em", textTransform: "uppercase", borderBottom: "1px solid #1F1F1F" }}><EditableLabel slot="slide6.col.problem" default={pitchLang('Problem', 'Problema', 'Problema')} overrides={slides.labelOverrides} onChange={updateLabel} /></th>
+                      <th style={{ padding: "14px 18px", textAlign: "left", fontSize: 11, fontWeight: 700, color: "#B11E2F", letterSpacing: "0.18em", textTransform: "uppercase", borderBottom: "1px solid #1F1F1F" }}><EditableLabel slot="slide6.col.solution" default={pitchLang('Solution', 'Solução', 'Solución')} overrides={slides.labelOverrides} onChange={updateLabel} /></th>
+                      <th style={{ padding: "14px 18px", textAlign: "left", fontSize: 11, fontWeight: 700, color: "#B11E2F", letterSpacing: "0.18em", textTransform: "uppercase", borderBottom: "1px solid #1F1F1F" }}><EditableLabel slot="slide6.col.delivery" default={pitchLang('Delivery', 'Entrega', 'Entrega')} overrides={slides.labelOverrides} onChange={updateLabel} /></th>
+                      <th style={{ padding: "14px 18px", textAlign: "right", fontSize: 11, fontWeight: 700, color: "#B11E2F", letterSpacing: "0.18em", textTransform: "uppercase", borderBottom: "1px solid #1F1F1F", fontFamily: "'JetBrains Mono', ui-monospace, monospace" }}><EditableLabel slot="slide6.col.value" default={pitchLang('Value', 'Valor', 'Valor')} overrides={slides.labelOverrides} onChange={updateLabel} /></th>
                     </tr>
                   </thead>
                   <tbody>
@@ -1339,7 +1433,7 @@ function PitchPageContent() {
           <div style={{ marginTop: 28, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24 }}>
             <div style={{ padding: "26px 32px", background: "rgba(15,15,15,0.78)", border: "1px solid #1F1F1F", borderRadius: 12 }}>
               <div style={{ fontSize: 12, fontWeight: 600, color: "#888", letterSpacing: "0.18em", textTransform: "uppercase", marginBottom: 8 }}>
-                {pitchLang('Total stacked value', 'Valor total empilhado', 'Valor total apilado')}
+                <EditableLabel slot="slide6.totalLabel" default={pitchLang('Total stacked value', 'Valor total empilhado', 'Valor total apilado')} overrides={slides.labelOverrides} onChange={updateLabel} />
               </div>
               <div style={{ fontSize: 48, fontWeight: 800, color: "#1F8A4C", letterSpacing: "-0.03em", fontFamily: "'JetBrains Mono', ui-monospace, monospace" }}>
                 <Editable value={localizePriceString(slides.valueStack.total, creator?.primaryLanguage)} onChange={v => updateSlide('valueStack', 'total', v)} />
@@ -1347,7 +1441,7 @@ function PitchPageContent() {
             </div>
             <div style={{ padding: "26px 32px", background: "rgba(177,30,47,0.08)", border: "1px solid rgba(177,30,47,0.4)", borderRadius: 12 }}>
               <div style={{ fontSize: 12, fontWeight: 600, color: "#B11E2F", letterSpacing: "0.18em", textTransform: "uppercase", marginBottom: 8 }}>
-                {pitchLang('Actual price', 'Preço real', 'Precio real')}
+                <EditableLabel slot="slide6.priceLabel" default={pitchLang('Actual price', 'Preço real', 'Precio real')} overrides={slides.labelOverrides} onChange={updateLabel} />
               </div>
               <div style={{ ...italicSerif, fontSize: 64, color: "#f5f5f5", letterSpacing: "-0.02em", lineHeight: 1 }}>
                 <Editable value={localizePriceString(slides.valueStack.actualPrice, creator?.primaryLanguage)} onChange={v => updateSlide('valueStack', 'actualPrice', v)} />
@@ -1365,7 +1459,7 @@ function PitchPageContent() {
           {/* Eyebrow + headline */}
           <div>
             <div style={{ fontSize: 18, fontWeight: 600, color: "#B11E2F", letterSpacing: "0.28em", textTransform: "uppercase" }}>
-              {pitchLang('Audit', 'Auditoria', 'Auditoría')}
+              <EditableLabel slot="slide7.eyebrow" default={pitchLang('Audit', 'Auditoria', 'Auditoría')} overrides={slides.labelOverrides} onChange={updateLabel} />
             </div>
             <div style={{ height: 18 }} />
             <h1 style={{ fontSize: 78, fontWeight: 800, margin: 0, lineHeight: 1.0, letterSpacing: "-0.03em", color: "#f5f5f5" }}>
@@ -1388,13 +1482,13 @@ function PitchPageContent() {
           <div style={{ marginTop: 36, display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 18 }}>
             <div style={{ padding: "28px 32px", background: "rgba(15,15,15,0.78)", border: "1px solid rgba(177,30,47,0.55)", borderRadius: 14 }}>
               <div style={{ fontSize: 16, fontWeight: 600, color: "#B11E2F", letterSpacing: "0.22em", textTransform: "uppercase", marginBottom: 14 }}>
-                {pitchLang('Total audience', 'Audiência total', 'Audiencia total')}
+                <EditableLabel slot="slide7.totalAudienceLabel" default={pitchLang('Total audience', 'Audiência total', 'Audiencia total')} overrides={slides.labelOverrides} onChange={updateLabel} />
               </div>
               <div style={{ fontSize: 64, fontWeight: 700, letterSpacing: "-0.03em", lineHeight: 1, color: "#f5f5f5" }}>{formatFollowers(audience)}</div>
             </div>
             <div style={{ padding: "28px 32px", background: "rgba(15,15,15,0.78)", border: "1px solid #1F1F1F", borderRadius: 14 }}>
               <div style={{ fontSize: 16, fontWeight: 600, color: "#8A8A8A", letterSpacing: "0.22em", textTransform: "uppercase", marginBottom: 14 }}>
-                {pitchLang('Platform', 'Plataforma', 'Plataforma')}
+                <EditableLabel slot="slide7.platformLabel" default={pitchLang('Platform', 'Plataforma', 'Plataforma')} overrides={slides.labelOverrides} onChange={updateLabel} />
               </div>
               <div style={{ fontSize: 40, fontWeight: 600, letterSpacing: "-0.02em", lineHeight: 1, color: "#f5f5f5" }}>{creator?.primaryPlatform || 'Instagram'}</div>
             </div>
@@ -1404,7 +1498,7 @@ function PitchPageContent() {
             </div>
             <div style={{ padding: "28px 32px", background: "rgba(15,15,15,0.78)", border: "1px solid #1F1F1F", borderRadius: 14 }}>
               <div style={{ fontSize: 16, fontWeight: 600, color: "#8A8A8A", letterSpacing: "0.22em", textTransform: "uppercase", marginBottom: 14 }}>
-                {pitchLang('Niche', 'Nicho', 'Nicho')}
+                <EditableLabel slot="slide7.nicheLabel" default={pitchLang('Niche', 'Nicho', 'Nicho')} overrides={slides.labelOverrides} onChange={updateLabel} />
               </div>
               <div style={{ fontSize: 32, fontWeight: 600, letterSpacing: "-0.02em", lineHeight: 1.1, color: "#f5f5f5" }}>{creator?.niche || '—'}</div>
             </div>
@@ -1428,7 +1522,7 @@ function PitchPageContent() {
             return (
               <div style={{ marginTop: 22, padding: "26px 36px", background: "rgba(15,15,15,0.78)", border: "1px solid rgba(177,30,47,0.4)", borderRadius: 14 }}>
                 <div style={{ fontSize: 12, fontWeight: 600, color: "#B11E2F", letterSpacing: "0.22em", textTransform: "uppercase", marginBottom: 16 }}>
-                  {pitchLang('Themes that resonate most', 'Temas que mais ressoam', 'Temas que más resuenan')}
+                  <EditableLabel slot="slide7.themesEyebrow" default={pitchLang('Themes that resonate most', 'Temas que mais ressoam', 'Temas que más resuenan')} overrides={slides.labelOverrides} onChange={updateLabel} />
                 </div>
                 <div style={{ display: "grid", gridTemplateColumns: `repeat(${ranked.length}, 1fr)`, gap: 18 }}>
                   {ranked.map((p, i) => (
@@ -1459,7 +1553,7 @@ function PitchPageContent() {
               {slides.audience.audienceForList.length > 0 && (
                 <div style={{ padding: "26px 30px", background: "rgba(15,15,15,0.78)", border: "1px solid rgba(177,30,47,0.45)", borderRadius: 14 }}>
                   <div style={{ fontSize: 12, fontWeight: 600, color: "#B11E2F", letterSpacing: "0.22em", textTransform: "uppercase", marginBottom: 14 }}>
-                    {pitchLang('For', 'Para quem é', 'Para quién es')}
+                    <EditableLabel slot="slide7.forLabel" default={pitchLang('For', 'Para quem é', 'Para quién es')} overrides={slides.labelOverrides} onChange={updateLabel} />
                   </div>
                   <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 10 }}>
                     {slides.audience.audienceForList.map((s, i) => (
@@ -1474,7 +1568,7 @@ function PitchPageContent() {
               {slides.audience.audienceNotForList.length > 0 && (
                 <div style={{ padding: "26px 30px", background: "rgba(15,15,15,0.78)", border: "1px solid #1F1F1F", borderRadius: 14 }}>
                   <div style={{ fontSize: 12, fontWeight: 600, color: "#8A8A8A", letterSpacing: "0.22em", textTransform: "uppercase", marginBottom: 14 }}>
-                    {pitchLang('Not for', 'Não é para', 'No es para')}
+                    <EditableLabel slot="slide7.notForLabel" default={pitchLang('Not for', 'Não é para', 'No es para')} overrides={slides.labelOverrides} onChange={updateLabel} />
                   </div>
                   <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 10 }}>
                     {slides.audience.audienceNotForList.map((s, i) => (
@@ -1497,7 +1591,7 @@ function PitchPageContent() {
       }>
         <div style={{ flex: 1, display: "flex", flexDirection: "column", width: "100%" }}>
           <div style={{ fontSize: 18, fontWeight: 600, color: "#B11E2F", letterSpacing: "0.28em", textTransform: "uppercase" }}>
-            {pitchLang('Launch plan', 'Plano de lançamento', 'Plan de lanzamiento')}
+            <EditableLabel slot="slide8.eyebrow" default={pitchLang('Launch plan', 'Plano de lançamento', 'Plan de lanzamiento')} overrides={slides.labelOverrides} onChange={updateLabel} />
           </div>
           <div style={{ height: 28 }} />
           <h1 style={{ fontSize: 88, fontWeight: 800, margin: 0, lineHeight: 1.0, letterSpacing: "-0.03em", color: "#f5f5f5" }}>
@@ -1515,9 +1609,9 @@ function PitchPageContent() {
                 {/* Top row: phase label LEFT + days pill RIGHT (Lia-style) */}
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14, position: "relative", gap: 12 }}>
                   <div style={{ fontSize: 16, fontWeight: 600, color: "#B11E2F", letterSpacing: "0.22em", textTransform: "uppercase" }}>
-                    {i === 0 ? pitchLang('Validate', 'Validar', 'Validar')
-                    : i === 1 ? pitchLang('Launch', 'Lançar', 'Lanzar')
-                              : pitchLang('Scale', 'Escalar', 'Escalar')}
+                    {i === 0 ? <EditableLabel slot="slide8.phase1" default={pitchLang('Validate', 'Validar', 'Validar')} overrides={slides.labelOverrides} onChange={updateLabel} />
+                    : i === 1 ? <EditableLabel slot="slide8.phase2" default={pitchLang('Launch', 'Lançar', 'Lanzar')} overrides={slides.labelOverrides} onChange={updateLabel} />
+                              : <EditableLabel slot="slide8.phase3" default={pitchLang('Scale', 'Escalar', 'Escalar')} overrides={slides.labelOverrides} onChange={updateLabel} />}
                   </div>
                   {phase.days && (
                     <div style={{ padding: "6px 12px", border: "1px solid rgba(177,30,47,0.6)", background: "rgba(177,30,47,0.10)", borderRadius: 8, fontFamily: "'JetBrains Mono', ui-monospace, monospace", fontSize: 12, fontWeight: 700, color: "#f5f5f5", letterSpacing: "0.12em", whiteSpace: "nowrap" }}>
@@ -1563,7 +1657,7 @@ function PitchPageContent() {
                 {phase.goal && (
                   <div style={{ marginTop: "auto", padding: "14px 18px", border: "1px solid rgba(177,30,47,0.55)", background: "rgba(177,30,47,0.08)", borderRadius: 10, position: "relative" }}>
                     <div style={{ fontSize: 11, fontWeight: 700, color: "#B11E2F", letterSpacing: "0.22em", textTransform: "uppercase", marginBottom: 4 }}>
-                      {pitchLang('Goal', 'Meta', 'Meta')}
+                      <EditableLabel slot="slide8.goalLabel" default={pitchLang('Goal', 'Meta', 'Meta')} overrides={slides.labelOverrides} onChange={updateLabel} />
                     </div>
                     <div style={{ fontSize: 17, fontWeight: 600, color: "#f5f5f5", lineHeight: 1.35 }}>
                       <Editable value={phase.goal} onChange={v => {
@@ -1591,7 +1685,7 @@ function PitchPageContent() {
       }>
         <div style={{ flex: 1, display: "flex", flexDirection: "column", width: "100%" }}>
           <div style={{ fontSize: 18, fontWeight: 600, color: "#B11E2F", letterSpacing: "0.28em", textTransform: "uppercase" }}>
-            {pitchLang('Projection', 'Projecção', 'Proyección')}
+            <EditableLabel slot="slide9.eyebrow" default={pitchLang('Projection', 'Projecção', 'Proyección')} overrides={slides.labelOverrides} onChange={updateLabel} />
           </div>
           <div style={{ height: 14 }} />
           <h1 style={{ fontSize: 68, fontWeight: 800, margin: 0, lineHeight: 1.0, letterSpacing: "-0.03em", color: "#f5f5f5" }}>
@@ -1615,19 +1709,19 @@ function PitchPageContent() {
                 <div style={{ marginTop: 32, padding: "36px 44px", background: "rgba(122,14,24,0.08)", border: "1px solid rgba(122,14,24,0.55)", borderRadius: 14, display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 40 }}>
                   <div>
                     <div style={{ fontSize: 16, fontWeight: 600, color: "#B11E2F", letterSpacing: "0.22em", textTransform: "uppercase", marginBottom: 14 }}>
-                      {pitchLang('Annual revenue · moderate', 'Receita anual · cenário moderado', 'Ingresos anuales · escenario moderado')}
+                      <EditableLabel slot="slide9.annualRevenueLabel" default={pitchLang('Annual revenue · moderate', 'Receita anual · cenário moderado', 'Ingresos anuales · escenario moderado')} overrides={slides.labelOverrides} onChange={updateLabel} />
                     </div>
                     <div style={{ lineHeight: 0.9, letterSpacing: "-0.02em" }}>
                       <span style={{ ...italicSerif, fontSize: 124, fontWeight: 400, color: "#B11E2F" }}>{formatEuro(annual)}</span>
-                      <span style={{ fontSize: 38, color: "#8A8A8A", fontWeight: 500, marginLeft: 4 }}>/{pitchLang('yr', 'ano', 'año')}</span>
+                      <span style={{ fontSize: 38, color: "#8A8A8A", fontWeight: 500, marginLeft: 4 }}>/<EditableLabel slot="slide9.yrUnit" default={pitchLang('yr', 'ano', 'año')} overrides={slides.labelOverrides} onChange={updateLabel} /></span>
                     </div>
                   </div>
                   <div style={{ textAlign: "right" }}>
                     <div style={{ fontSize: 16, fontWeight: 600, color: "#8A8A8A", letterSpacing: "0.22em", textTransform: "uppercase", marginBottom: 10, whiteSpace: "nowrap" }}>
-                      {pitchLang(`Per launch × ${offerProjection.launchesPerYear}/yr`, `Por lançamento × ${offerProjection.launchesPerYear}/ano`, `Por lanzamiento × ${offerProjection.launchesPerYear}/año`)}
+                      <EditableLabel slot="slide9.perLaunchLabel" default={pitchLang(`Per launch × ${offerProjection.launchesPerYear}/yr`, `Por lançamento × ${offerProjection.launchesPerYear}/ano`, `Por lanzamiento × ${offerProjection.launchesPerYear}/año`)} overrides={slides.labelOverrides} onChange={updateLabel} />
                     </div>
                     <div style={{ fontSize: 38, fontWeight: 600, letterSpacing: "-0.01em", color: "#f5f5f5" }}>{formatEuro(perLaunch)}</div>
-                    <div style={{ fontSize: 12, color: "#666", marginTop: 4 }}>{offerProjection.firstLaunchBuyers} {pitchLang('buyers/launch', 'compradores/lançamento', 'compradores/lanzamiento')}</div>
+                    <div style={{ fontSize: 12, color: "#666", marginTop: 4 }}>{offerProjection.firstLaunchBuyers} <EditableLabel slot="slide9.buyersLabel" default={pitchLang('buyers/launch', 'compradores/lançamento', 'compradores/lanzamiento')} overrides={slides.labelOverrides} onChange={updateLabel} /></div>
                   </div>
                 </div>
               );
@@ -1640,12 +1734,12 @@ function PitchPageContent() {
                   </div>
                   <div style={{ lineHeight: 0.9, letterSpacing: "-0.02em" }}>
                     <span style={{ ...italicSerif, fontSize: 124, fontWeight: 400, color: "#B11E2F" }}>{formatEuro(moderateSteadyMRR)}</span>
-                    <span style={{ fontSize: 38, color: "#8A8A8A", fontWeight: 500, marginLeft: 4 }}>/{pitchLang('mo', 'mês', 'mes')}</span>
+                    <span style={{ fontSize: 38, color: "#8A8A8A", fontWeight: 500, marginLeft: 4 }}>/<EditableLabel slot="slide9.moUnit" default={pitchLang('mo', 'mês', 'mes')} overrides={slides.labelOverrides} onChange={updateLabel} /></span>
                   </div>
                 </div>
                 <div style={{ textAlign: "right" }}>
                   <div style={{ fontSize: 16, fontWeight: 600, color: "#8A8A8A", letterSpacing: "0.22em", textTransform: "uppercase", marginBottom: 10, whiteSpace: "nowrap" }}>
-                    {pitchLang('Cumulative · Year 1', 'Receita acumulada · Ano 1', 'Ingresos acumulados · Año 1')}
+                    <EditableLabel slot="slide9.cumulativeLabel" default={pitchLang('Cumulative · Year 1', 'Receita acumulada · Ano 1', 'Ingresos acumulados · Año 1')} overrides={slides.labelOverrides} onChange={updateLabel} />
                   </div>
                   <div style={{ fontSize: 38, fontWeight: 600, letterSpacing: "-0.01em", color: "#f5f5f5" }}>{formatEuro(moderateCumulative)}</div>
                 </div>
@@ -1664,14 +1758,14 @@ function PitchPageContent() {
                 <div style={{ display: "flex", alignItems: "center", gap: 28, flex: 1 }}>
                   <div>
                     <div style={{ fontSize: 10, fontWeight: 600, color: "#888", letterSpacing: "0.16em", textTransform: "uppercase", marginBottom: 4 }}>
-                      {pitchLang('Ecosystem today (annual)', 'Ecossistema hoje (anual)', 'Ecosistema hoy (anual)')}
+                      <EditableLabel slot="slide9.ecosystemTodayLabel" default={pitchLang('Ecosystem today (annual)', 'Ecossistema hoje (anual)', 'Ecosistema hoy (anual)')} overrides={slides.labelOverrides} onChange={updateLabel} />
                     </div>
                     <div style={{ fontSize: 30, fontWeight: 700, color: "#888", letterSpacing: "-0.01em" }}>{formatEuro(eco.headline.statusQuoAnnual)}</div>
                   </div>
                   <div style={{ fontSize: 32, color: "#444", fontWeight: 300 }}>→</div>
                   <div>
                     <div style={{ fontSize: 10, fontWeight: 600, color: "#22c55e", letterSpacing: "0.16em", textTransform: "uppercase", marginBottom: 4 }}>
-                      {pitchLang('With new offer', 'Com nova oferta', 'Con nueva oferta')}
+                      <EditableLabel slot="slide9.withNewOfferLabel" default={pitchLang('With new offer', 'Com nova oferta', 'Con nueva oferta')} overrides={slides.labelOverrides} onChange={updateLabel} />
                     </div>
                     <div style={{ fontSize: 36, fontWeight: 700, color: "#22c55e", letterSpacing: "-0.01em" }}>{formatEuro(eco.headline.withNewOfferAnnual)}</div>
                   </div>
@@ -1729,10 +1823,10 @@ function PitchPageContent() {
                   <Editable value={slides.numbers.assumptionsTitle} onChange={v => updateSlide('numbers', 'assumptionsTitle', v)} />
                 </div>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-                  <LabelInput label={pitchLang('Audience', 'Audiência', 'Audiencia')} value={audience} onChange={setAudience} type="number" />
-                  <LabelInput label={pitchLang('Price (€/mo)', 'Preço (€/mês)', 'Precio (€/mes)')} value={price} onChange={setPrice} type="number" />
-                  <LabelInput label={pitchLang('Engagement rate', 'Taxa de engagement', 'Tasa de engagement')} value={engagement} onChange={setEngagement} type="number" step="0.1" suffix="%" />
-                  <LabelInput label={pitchLang('Monthly churn', 'Saídas mensais', 'Churn mensual')} value={scenarios.moderado.churn * 100} onChange={v => updateScenarioParam('moderado', 'churn', v / 100)} type="number" step="0.5" suffix="%" />
+                  <LabelInput label={<EditableLabel slot="slide9.audienceLabel" default={pitchLang('Audience', 'Audiência', 'Audiencia')} overrides={slides.labelOverrides} onChange={updateLabel} />} value={audience} onChange={setAudience} type="number" />
+                  <LabelInput label={<EditableLabel slot="slide9.inputPriceLabel" default={pitchLang('Price (€/mo)', 'Preço (€/mês)', 'Precio (€/mes)')} overrides={slides.labelOverrides} onChange={updateLabel} />} value={price} onChange={setPrice} type="number" />
+                  <LabelInput label={<EditableLabel slot="slide9.engagementLabel" default={pitchLang('Engagement rate', 'Taxa de engagement', 'Tasa de engagement')} overrides={slides.labelOverrides} onChange={updateLabel} />} value={engagement} onChange={setEngagement} type="number" step="0.1" suffix="%" />
+                  <LabelInput label={<EditableLabel slot="slide9.churnLabel" default={pitchLang('Monthly churn', 'Saídas mensais', 'Churn mensual')} overrides={slides.labelOverrides} onChange={updateLabel} />} value={scenarios.moderado.churn * 100} onChange={v => updateScenarioParam('moderado', 'churn', v / 100)} type="number" step="0.5" suffix="%" />
                 </div>
               </div>
             </div>
@@ -1750,7 +1844,7 @@ function PitchPageContent() {
       }>
         <div style={{ flex: 1, display: "flex", flexDirection: "column", width: "100%" }}>
           <div style={{ fontSize: 18, fontWeight: 600, color: "#B11E2F", letterSpacing: "0.28em", textTransform: "uppercase" }}>
-            {pitchLang('Proof', 'Prova', 'Prueba')}
+            <EditableLabel slot="slide10.eyebrow" default={pitchLang('Proof', 'Prova', 'Prueba')} overrides={slides.labelOverrides} onChange={updateLabel} />
           </div>
           <div style={{ height: 18 }} />
           <h1 style={{ fontSize: 88, fontWeight: 800, margin: 0, lineHeight: 1.0, letterSpacing: "-0.03em", color: "#f5f5f5" }}>
@@ -1792,7 +1886,7 @@ function PitchPageContent() {
                 </h3>
                 <div style={{ marginTop: 20, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, fontFamily: "'JetBrains Mono', ui-monospace, monospace" }}>
                   <div>
-                    <div style={{ fontSize: 10, color: "#666", letterSpacing: "0.16em", textTransform: "uppercase" }}>{pitchLang('Members', 'Membros', 'Miembros')}</div>
+                    <div style={{ fontSize: 10, color: "#666", letterSpacing: "0.16em", textTransform: "uppercase" }}><EditableLabel slot="slide10.membersLabel" default={pitchLang('Members', 'Membros', 'Miembros')} overrides={slides.labelOverrides} onChange={updateLabel} /></div>
                     <div style={{ fontSize: 20, color: "#f5f5f5", fontWeight: 600 }}>
                       <Editable value={localizePriceString(c.members, creator?.primaryLanguage)} onChange={v => {
                         const next = [...slides.cases.items]; next[i] = { ...c, members: v };
@@ -1801,7 +1895,7 @@ function PitchPageContent() {
                     </div>
                   </div>
                   <div>
-                    <div style={{ fontSize: 10, color: "#666", letterSpacing: "0.16em", textTransform: "uppercase" }}>{pitchLang('Price', 'Preço', 'Precio')}</div>
+                    <div style={{ fontSize: 10, color: "#666", letterSpacing: "0.16em", textTransform: "uppercase" }}><EditableLabel slot="slide10.priceLabel" default={pitchLang('Price', 'Preço', 'Precio')} overrides={slides.labelOverrides} onChange={updateLabel} /></div>
                     <div style={{ fontSize: 20, color: "#f5f5f5", fontWeight: 600 }}>
                       <Editable value={localizePriceString(c.price, creator?.primaryLanguage)} onChange={v => {
                         const next = [...slides.cases.items]; next[i] = { ...c, price: v };
@@ -1856,7 +1950,7 @@ function PitchPageContent() {
         }>
           <div style={{ flex: 1, display: "flex", flexDirection: "column", width: "100%" }}>
             <div style={{ fontSize: 18, fontWeight: 600, color: "#B11E2F", letterSpacing: "0.28em", textTransform: "uppercase" }}>
-              {pitchLang('Investment structure', 'Estrutura de investimento', 'Estructura de inversión')}
+              <EditableLabel slot="slide11.eyebrow" default={pitchLang('Investment structure', 'Estrutura de investimento', 'Estructura de inversión')} overrides={slides.labelOverrides} onChange={updateLabel} />
             </div>
             <div style={{ height: 18 }} />
             <h1 style={{ ...italicSerif, fontSize: 88, margin: 0, lineHeight: 1.0, color: "#B11E2F", marginBottom: 36 }}>
@@ -2266,6 +2360,11 @@ function buildDefaultSlides(creator) {
       ]);
 
   return {
+    // labelOverrides — operator-typed overrides for any label/header/eyebrow
+    // that defaults to a pitchLang() value. Keyed by slot ID (e.g.
+    // "slide5.title"). EditableLabel reads from here; updateLabel() writes.
+    // Stays empty by default so the first render uses language defaults.
+    labelOverrides: {},
     cover: {
       title: creator?.name || 'Creator',
       subtitle: t('Proposta de Parceria', 'Partnership Proposal'),
