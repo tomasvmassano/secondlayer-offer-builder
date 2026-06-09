@@ -571,6 +571,10 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
   const [offerLoading, setOfferLoading] = useState(false);
   const [offerError, setOfferError] = useState(null);
   const [offerTab, setOfferTab] = useState("offer");
+  // Controls the PivotTierModal — operator-triggered "regenerate the
+  // entire offer at a new tier" workflow. Shown via a button on the
+  // Oferta tab. Closed by default; only opens on explicit click.
+  const [pivotModalOpen, setPivotModalOpen] = useState(false);
   const [offerStep, setOfferStep] = useState(0);
 
   useEffect(() => { Promise.resolve(paramsPromise).then(setParams); }, [paramsPromise]);
@@ -2264,6 +2268,35 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
 
         {/* ════════════ OFERTA TAB ════════════ */}
         {tab === "oferta" && (<>
+          {/* "Mudar tier" — operator-triggered cascade regeneration. Only
+              shown when CP2 is locked (i.e., there's an existing offer
+              to pivot). Hidden during initial generation since there's
+              nothing to convert yet. */}
+          {(() => {
+            const prog = readCheckpointProgress(creator?.offer?.internal_metadata);
+            if (!prog.locked[2]) return null;
+            return (
+              <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 14 }}>
+                <button
+                  onClick={() => setPivotModalOpen(true)}
+                  title="Regenera CP2-CP4 com um novo pricing tier. Mantém o frame estratégico de CP1, apaga o resto."
+                  style={{
+                    padding: "8px 14px",
+                    background: "rgba(122,14,24,0.08)",
+                    color: "#B11E2F",
+                    border: "1px solid rgba(122,14,24,0.35)",
+                    borderRadius: 6,
+                    fontSize: 11,
+                    fontWeight: 700,
+                    letterSpacing: "0.06em",
+                    cursor: "pointer",
+                    fontFamily: "inherit",
+                  }}
+                >↻ Mudar tier · Regenerar oferta</button>
+              </div>
+            );
+          })()}
+
           {/* Top-level view switch — sits ABOVE the wizard panels so the
               operator can flip between the offer-generation flow and the
               revenue projection without scrolling. Blind Spot Audit +
@@ -2740,6 +2773,20 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
               );
             })()}
           </>)}{/* end offerTab === "revenue" */}
+
+          {/* PivotTierModal — rendered as a portal-style overlay; gated on
+              pivotModalOpen so it doesn't blow up the DOM when closed. */}
+          {pivotModalOpen && (
+            <PivotTierModal
+              creator={creator}
+              onClose={() => setPivotModalOpen(false)}
+              onComplete={(fresh) => {
+                if (fresh) setCreator(fresh);
+                // Keep modal open so operator sees the "Concluído" state;
+                // they close it manually via the Concluído button.
+              }}
+            />
+          )}
         </>)}
 
         {/* ════════════ LAUNCH TAB ════════════ */}
@@ -6714,6 +6761,294 @@ function ResumoPanel({ creator, patchCreator }) {
 
       <div style={{ textAlign: "center", padding: "12px 0 24px", color: "#444", fontSize: 11 }}>
         Tudo nesta página é editável. Os edits gravam automaticamente para usares em screen-share durante chamadas.
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────
+// PivotTierModal — one-click "regenerate the whole offer at a new tier"
+//
+// Workflow: operator generated a high-ticket offer, wants to pivot to
+// low-ticket recurring (or any other tier/model combo). Rather than:
+//   1. Unlock CP2 manually
+//   2. Change the tier dropdown
+//   3. Regenerate CP2
+//   4. Lock CP2
+//   5. Regenerate CP3
+//   6. Lock CP3
+//   7. Regenerate CP4
+//   8. Lock CP4
+// ...this modal does all 7 steps automatically in sequence with live
+// progress. ~2-3 minutes total, 4 Claude calls.
+//
+// Behaviour:
+//   - Wipes all CP2-4 client_facing_output via the existing unlock
+//     cascade (the cleanest reset path — it's the same code the wizard
+//     uses for any unlock).
+//   - Forces the operator-chosen pricing_tier + pricing_model on the
+//     CP2 regeneration. The new tier becomes the binding constraint.
+//   - Optional "porquê" textarea feeds into the operatorInstructions
+//     priority block on each CP (same priority handling the wizard's
+//     regen flow uses).
+//   - Locks each CP as it completes so the next can run.
+//
+// Implementation note: client-driven orchestration. Each step is one
+// fetch to an existing endpoint (no new backend code). Lives in the
+// browser tab — closing the tab mid-cascade leaves a half-pivoted
+// state, but the operator can resume manually via the wizard panels
+// since each CP's state is persisted as soon as it completes.
+function PivotTierModal({ creator, onClose, onComplete }) {
+  const [tier, setTier] = useState(creator?.offer?.client_facing_output?.pricing_tier || 'low_ticket');
+  const [model, setModel] = useState(creator?.offer?.client_facing_output?.pricing_model || 'monthly');
+  const [instruction, setInstruction] = useState('');
+  const [running, setRunning] = useState(false);
+  const [steps, setSteps] = useState([
+    { id: 'unlock',   label: 'Reset CP2-4',         status: 'pending' },
+    { id: 'cp2',      label: 'CP2 · Core Offer',     status: 'pending' },
+    { id: 'lock2',    label: 'Lock CP2',             status: 'pending' },
+    { id: 'cp3',      label: 'CP3 · Modules',        status: 'pending' },
+    { id: 'lock3',    label: 'Lock CP3',             status: 'pending' },
+    { id: 'cp4',      label: 'CP4 · Value Stack',    status: 'pending' },
+    { id: 'lock4',    label: 'Lock CP4',             status: 'pending' },
+  ]);
+  const [error, setError] = useState(null);
+
+  const TIER_OPTIONS = [
+    { value: 'low_ticket',  label: 'Low ticket (€19-49/mês)' },
+    { value: 'mid_ticket',  label: 'Mid ticket (€97-297/mês)' },
+    { value: 'high_ticket', label: 'High ticket (€500+/mês)' },
+  ];
+  const MODEL_OPTIONS = [
+    { value: 'monthly',  label: 'Subscrição mensal (recurring)' },
+    { value: 'annual',   label: 'Subscrição anual' },
+    { value: 'one_time', label: 'One-time (paga uma vez)' },
+    { value: 'hybrid',   label: 'Híbrido (inicial + recurring)' },
+  ];
+
+  const updateStep = (id, status, errMsg) => {
+    setSteps(prev => prev.map(s => s.id === id ? { ...s, status, error: errMsg } : s));
+  };
+
+  const run = async () => {
+    if (running) return;
+    setRunning(true);
+    setError(null);
+    const cid = creator.id;
+    // Common body for each CP — instruction always sent (empty when unset
+    // which is fine; the operatorInstructions block is a no-op then).
+    const cpBody = (extras = {}) => ({ instruction: instruction.trim() || null, ...extras });
+
+    try {
+      // Step 1: Unlock CP2 → cascade-invalidates CP3-4.
+      updateStep('unlock', 'running');
+      const unlockRes = await fetch(`/api/creators/${cid}/wizard/checkpoint/2/unlock`, { method: 'POST' });
+      if (!unlockRes.ok) throw new Error(`Unlock failed (${unlockRes.status})`);
+      updateStep('unlock', 'done');
+
+      // Step 2: Regenerate CP2 with the new tier + model + instruction.
+      updateStep('cp2', 'running');
+      const cp2Res = await fetch(`/api/creators/${cid}/wizard/core-offer`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(cpBody({ pricing_tier: tier, pricing_model_override: model })),
+      });
+      const cp2Data = await cp2Res.json();
+      if (!cp2Res.ok) throw new Error(cp2Data.error || `CP2 failed (${cp2Res.status})`);
+      updateStep('cp2', 'done');
+
+      // Step 3: Lock CP2 (gate for CP3).
+      updateStep('lock2', 'running');
+      const lock2Res = await fetch(`/api/creators/${cid}/wizard/checkpoint/2/lock`, { method: 'POST' });
+      if (!lock2Res.ok) throw new Error(`Lock CP2 failed (${lock2Res.status})`);
+      updateStep('lock2', 'done');
+
+      // Step 4: Regenerate CP3 (modules).
+      updateStep('cp3', 'running');
+      const cp3Res = await fetch(`/api/creators/${cid}/wizard/modules`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(cpBody()),
+      });
+      const cp3Data = await cp3Res.json();
+      if (!cp3Res.ok) throw new Error(cp3Data.error || `CP3 failed (${cp3Res.status})`);
+      updateStep('cp3', 'done');
+
+      // Step 5: Lock CP3.
+      updateStep('lock3', 'running');
+      const lock3Res = await fetch(`/api/creators/${cid}/wizard/checkpoint/3/lock`, { method: 'POST' });
+      if (!lock3Res.ok) throw new Error(`Lock CP3 failed (${lock3Res.status})`);
+      updateStep('lock3', 'done');
+
+      // Step 6: Regenerate CP4 (value stack).
+      updateStep('cp4', 'running');
+      const cp4Res = await fetch(`/api/creators/${cid}/wizard/value-stack`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(cpBody()),
+      });
+      const cp4Data = await cp4Res.json();
+      if (!cp4Res.ok) throw new Error(cp4Data.error || `CP4 failed (${cp4Res.status})`);
+      updateStep('cp4', 'done');
+
+      // Step 7: Lock CP4.
+      updateStep('lock4', 'running');
+      const lock4Res = await fetch(`/api/creators/${cid}/wizard/checkpoint/4/lock`, { method: 'POST' });
+      if (!lock4Res.ok) throw new Error(`Lock CP4 failed (${lock4Res.status})`);
+      updateStep('lock4', 'done');
+
+      // All done — pull the fresh creator record so the page re-renders
+      // with the new offer.
+      const fresh = await fetch(`/api/creators/${cid}`).then(r => r.json());
+      onComplete?.(fresh);
+    } catch (err) {
+      // Mark the currently-running step as failed so the operator can see
+      // exactly where it broke.
+      setSteps(prev => prev.map(s => s.status === 'running' ? { ...s, status: 'failed', error: err.message } : s));
+      setError(err.message);
+    } finally {
+      setRunning(false);
+    }
+  };
+
+  return (
+    <div
+      onClick={() => !running && onClose?.()}
+      style={{
+        position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        zIndex: 1000, padding: 20,
+      }}
+    >
+      <div
+        onClick={e => e.stopPropagation()}
+        style={{
+          maxWidth: 560, width: '100%', maxHeight: '90vh', overflowY: 'auto',
+          background: '#0f0f0f', border: '1px solid rgba(255,255,255,0.08)',
+          borderRadius: 14, padding: '32px 36px', color: '#f5f5f5',
+        }}
+      >
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 6 }}>
+          <h2 style={{ fontSize: 22, fontWeight: 700, margin: 0, letterSpacing: '-0.01em' }}>Mudar tier da oferta</h2>
+          {!running && (
+            <button onClick={onClose} style={{ background: 'transparent', border: 'none', color: '#555', cursor: 'pointer', fontSize: 18, padding: 0 }}>✕</button>
+          )}
+        </div>
+        <p style={{ fontSize: 12, color: '#888', marginTop: 0, marginBottom: 24, lineHeight: 1.55 }}>
+          Regenera CP2 → CP3 → CP4 com o novo tier. Apaga modules, value stack e pricing antigos (mantém apenas o frame estratégico de CP1). ~2-3 minutos. Não fecha esta janela durante o processo.
+        </p>
+
+        {!running && !error && (
+          <>
+            <div style={{ marginBottom: 16 }}>
+              <label style={{ display: 'block', fontSize: 10, fontWeight: 700, color: '#7A0E18', letterSpacing: '0.14em', textTransform: 'uppercase', marginBottom: 6 }}>Novo tier</label>
+              <select
+                value={tier}
+                onChange={e => setTier(e.target.value)}
+                style={{ width: '100%', padding: '10px 12px', background: '#1a1a1a', color: '#f5f5f5', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 6, fontSize: 13, fontFamily: 'inherit' }}
+              >
+                {TIER_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+              </select>
+            </div>
+
+            <div style={{ marginBottom: 16 }}>
+              <label style={{ display: 'block', fontSize: 10, fontWeight: 700, color: '#7A0E18', letterSpacing: '0.14em', textTransform: 'uppercase', marginBottom: 6 }}>Modelo de pricing</label>
+              <select
+                value={model}
+                onChange={e => setModel(e.target.value)}
+                style={{ width: '100%', padding: '10px 12px', background: '#1a1a1a', color: '#f5f5f5', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 6, fontSize: 13, fontFamily: 'inherit' }}
+              >
+                {MODEL_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+              </select>
+            </div>
+
+            <div style={{ marginBottom: 24 }}>
+              <label style={{ display: 'block', fontSize: 10, fontWeight: 700, color: '#7A0E18', letterSpacing: '0.14em', textTransform: 'uppercase', marginBottom: 6 }}>Porquê <span style={{ color: '#555', fontWeight: 500 }}>(opcional, mas recomendado)</span></label>
+              <textarea
+                value={instruction}
+                onChange={e => setInstruction(e.target.value)}
+                placeholder="ex: Creator quer preço mais baixo porque audiência é maioritariamente estudantes; modules devem ser mais comunidade e menos 1-on-1"
+                rows={4}
+                style={{ width: '100%', padding: '10px 12px', background: '#1a1a1a', color: '#f5f5f5', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 6, fontSize: 13, fontFamily: 'inherit', resize: 'vertical', lineHeight: 1.5 }}
+              />
+              <p style={{ fontSize: 11, color: '#666', marginTop: 6, lineHeight: 1.4 }}>Esta instrução vai como direção operacional no topo do prompt de cada CP — o LLM aplica-a literalmente.</p>
+            </div>
+
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+              <button
+                onClick={onClose}
+                style={{ padding: '10px 18px', background: 'transparent', color: '#888', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}
+              >Cancelar</button>
+              <button
+                onClick={run}
+                style={{ padding: '10px 18px', background: '#7A0E18', color: '#fff', border: '1px solid #7A0E18', borderRadius: 6, fontSize: 12, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}
+              >↻ Regenerar tudo</button>
+            </div>
+          </>
+        )}
+
+        {(running || steps.some(s => s.status !== 'pending')) && (
+          <div style={{ marginTop: 8 }}>
+            <div style={{ fontSize: 10, fontWeight: 700, color: '#7A0E18', letterSpacing: '0.14em', textTransform: 'uppercase', marginBottom: 14 }}>Progresso</div>
+            <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {steps.map(s => {
+                const isDone = s.status === 'done';
+                const isRunning = s.status === 'running';
+                const isFailed = s.status === 'failed';
+                const isPending = s.status === 'pending';
+                const dotColor = isDone ? '#22c55e' : isRunning ? '#eab308' : isFailed ? '#ef4444' : '#333';
+                return (
+                  <li key={s.id} style={{ display: 'flex', alignItems: 'center', gap: 12, fontSize: 12, color: isPending ? '#555' : '#ccc' }}>
+                    <span style={{ width: 10, height: 10, borderRadius: '50%', background: dotColor, flexShrink: 0, ...(isRunning ? { animation: 'pulse 1.2s ease-in-out infinite' } : {}) }} />
+                    <span style={{ flex: 1, fontWeight: isRunning ? 600 : 400 }}>{s.label}</span>
+                    {isDone && <span style={{ color: '#22c55e', fontSize: 11 }}>✓</span>}
+                    {isRunning && <span style={{ color: '#eab308', fontSize: 11 }}>a correr…</span>}
+                    {isFailed && <span style={{ color: '#ef4444', fontSize: 11 }}>falhou</span>}
+                  </li>
+                );
+              })}
+            </ul>
+
+            {error && (
+              <div style={{ marginTop: 18, padding: '12px 14px', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.25)', borderRadius: 6, fontSize: 12, color: '#ef4444', lineHeight: 1.5 }}>
+                Erro: {error}
+                <div style={{ marginTop: 6, fontSize: 11, color: '#888' }}>
+                  Estado parcial guardado. Podes continuar manualmente pelo wizard ou tentar de novo.
+                </div>
+              </div>
+            )}
+
+            {error && (
+              <div style={{ marginTop: 14, display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+                <button
+                  onClick={onClose}
+                  style={{ padding: '10px 18px', background: 'transparent', color: '#888', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}
+                >Fechar</button>
+              </div>
+            )}
+
+            {!running && !error && steps.every(s => s.status === 'done') && (
+              <div style={{ marginTop: 18 }}>
+                <div style={{ padding: '12px 14px', background: 'rgba(34,197,94,0.08)', border: '1px solid rgba(34,197,94,0.3)', borderRadius: 6, fontSize: 12, color: '#22c55e', lineHeight: 1.5, marginBottom: 12 }}>
+                  Oferta regenerada com sucesso ao novo tier. Vai ao tab Resumo para ver o resultado.
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                  <button
+                    onClick={onClose}
+                    style={{ padding: '10px 18px', background: '#22c55e', color: '#0a0a0a', border: '1px solid #22c55e', borderRadius: 6, fontSize: 12, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}
+                  >Concluído</button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        <style jsx>{`
+          @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50%      { opacity: 0.3; }
+          }
+        `}</style>
       </div>
     </div>
   );
