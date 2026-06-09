@@ -1233,6 +1233,12 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
   // launch-assets tool. The system prompt was also trimmed (sections N+O dropped).
   const OFFER_TABS = [
     { key: "offer", label: "Grand Slam Offer" },
+    // "Resumo" — scrollable read+edit view of the entire client_facing_output.
+    // Operator's screen-share surface during sales calls: instead of flipping
+    // to the pitch deck, scroll this page to walk the creator through the
+    // offer. Every field inline-editable so last-minute polish doesn't
+    // require unlocking a wizard checkpoint.
+    { key: "resumo", label: "Resumo" },
     { key: "revenue", label: "Revenue Projector" },
   ];
 
@@ -2396,6 +2402,17 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
             </div>
           )}
           </>)}{/* end offerTab === "offer" */}
+
+          {/* ─── Resumo view ───────────────────────────────────────────────
+              Scrollable read+edit surface used during sales-call screen
+              shares. Renders the entire client_facing_output (community
+              name, transformation, mechanism, modules, value stack,
+              pricing, bonuses, audience fit) as one editable page so the
+              operator can polish copy mid-call without opening the pitch
+              deck or unlocking a wizard checkpoint. */}
+          {offerTab === "resumo" && (
+            <ResumoPanel creator={creator} patchCreator={patchCreator} />
+          )}
 
           {/* ─── Revenue Projector view ─────────────────────────────────────
               Top-level sibling to the offer-generation flow. Reads price
@@ -6197,6 +6214,507 @@ function OfferSummaryCard({ creator }) {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────
+// ResumoPanel — operator's screen-share surface during sales calls.
+//
+// Renders the complete client_facing_output in one scrollable view, with
+// every text field inline-editable + persisted via patchCreator. Used
+// during the Loom → meeting flow: instead of flipping to the pitch deck,
+// the operator stays on /creators/[id] and scrolls this single page.
+//
+// Mental model: this is NOT the wizard (the wizard generates content).
+// This is the "preview + polish" surface where the operator can tweak
+// a sentence right before a screen-share. Edits write directly to
+// creator.offer.client_facing_output; the wizard's lock state isn't
+// affected (operator can keep editing even on locked checkpoints).
+//
+// Data path: same readOfferState pipeline as OfferSummaryCard so
+// legacy offers (markdown-parsed) render too.
+// ─────────────────────────────────────────────────────────────────
+function ResumoPanel({ creator, patchCreator }) {
+  const { client_facing_output: c } = readOfferState(creator);
+  const cfo = creator?.offer?.client_facing_output || {};
+
+  // Empty state — neither wizard nor legacy markdown has populated content yet.
+  if (!c.community_name && !c.central_promise && (!c.modules || c.modules.length === 0) && !c.value_stack) {
+    return (
+      <div style={{ padding: 60, textAlign: "center", color: "#666", background: "#141414", border: "1px dashed rgba(255,255,255,0.06)", borderRadius: 10 }}>
+        <p style={{ fontSize: 14, color: "#888", marginBottom: 8 }}>A oferta ainda não foi gerada.</p>
+        <p style={{ fontSize: 12, color: "#555", marginBottom: 0 }}>Vai ao tab <strong style={{ color: "#888" }}>Grand Slam Offer</strong> e corre o wizard (CP1 → CP5).</p>
+      </div>
+    );
+  }
+
+  // Top-level patch helper. All updates write to client_facing_output and
+  // preserve the rest of the offer object (internal_metadata, raw, etc.).
+  const patchCfo = (partial) => {
+    const next = { ...cfo, ...partial };
+    patchCreator({ offer: { ...creator.offer, client_facing_output: next } });
+  };
+
+  // Save a single top-level field. Skips when value unchanged so blur
+  // events on read-only renders don't trigger spurious PATCH calls.
+  const saveField = (field) => (value) => {
+    const current = cfo[field];
+    const normalized = typeof value === 'string' ? value : value;
+    if ((current || '') === (normalized || '')) return;
+    patchCfo({ [field]: normalized });
+  };
+
+  // Save a nested object field (e.g. transformation.from).
+  const saveNested = (parentField, childField) => (value) => {
+    const parent = cfo[parentField] || {};
+    if ((parent[childField] || '') === (value || '')) return;
+    patchCfo({ [parentField]: { ...parent, [childField]: value } });
+  };
+
+  // Save an item field inside an array (e.g. modules[i].name).
+  const saveArrayItem = (arrayField, index, childField) => (value) => {
+    const arr = cfo[arrayField] || [];
+    if (!arr[index]) return;
+    if ((arr[index][childField] || '') === (value || '')) return;
+    const next = [...arr];
+    next[index] = { ...next[index], [childField]: value };
+    patchCfo({ [arrayField]: next });
+  };
+
+  // Save a primitive (string) at array[index]. Used for weekly_rhythm,
+  // unlocked_bonuses, audience_fit.for, audience_fit.not_for.
+  const saveArrayString = (arrayField, index) => (value) => {
+    const arr = cfo[arrayField] || [];
+    if ((arr[index] || '') === (value || '')) return;
+    const next = [...arr];
+    next[index] = value;
+    patchCfo({ [arrayField]: next });
+  };
+  // Same but for audience_fit.{for,not_for}.
+  const saveAudienceFitArray = (subField, index) => (value) => {
+    const af = cfo.audience_fit || { for: [], not_for: [] };
+    const arr = af[subField] || [];
+    if ((arr[index] || '') === (value || '')) return;
+    const next = [...arr];
+    next[index] = value;
+    patchCfo({ audience_fit: { ...af, [subField]: next } });
+  };
+  // Same but for mechanism.letters[i].{word,explanation}.
+  const saveMechanismLetter = (index, childField) => (value) => {
+    const mech = cfo.mechanism || {};
+    const letters = mech.letters || [];
+    if (!letters[index]) return;
+    if ((letters[index][childField] || '') === (value || '')) return;
+    const nextLetters = [...letters];
+    nextLetters[index] = { ...nextLetters[index], [childField]: value };
+    patchCfo({ mechanism: { ...mech, letters: nextLetters } });
+  };
+  // Save value_stack.items[i].{problem,solution,delivery,dollarValue}.
+  const saveValueStackItem = (index, childField) => (value) => {
+    const vs = cfo.value_stack || {};
+    const items = vs.items || [];
+    if (!items[index]) return;
+    if ((items[index][childField] || '') === (value || '')) return;
+    const nextItems = [...items];
+    nextItems[index] = { ...nextItems[index], [childField]: value };
+    patchCfo({ value_stack: { ...vs, items: nextItems } });
+  };
+  const saveValueStackField = (field) => (value) => {
+    const vs = cfo.value_stack || {};
+    if ((vs[field] || '') === (value || '')) return;
+    patchCfo({ value_stack: { ...vs, [field]: value } });
+  };
+
+  // ── Array add / remove helpers ──
+  const addToArray = (arrayField, blank) => () => {
+    const arr = cfo[arrayField] || [];
+    patchCfo({ [arrayField]: [...arr, blank] });
+  };
+  const removeFromArray = (arrayField, index) => () => {
+    const arr = cfo[arrayField] || [];
+    patchCfo({ [arrayField]: arr.filter((_, i) => i !== index) });
+  };
+  const addAudienceFit = (subField) => () => {
+    const af = cfo.audience_fit || { for: [], not_for: [] };
+    const arr = af[subField] || [];
+    patchCfo({ audience_fit: { ...af, [subField]: [...arr, ''] } });
+  };
+  const removeAudienceFit = (subField, index) => () => {
+    const af = cfo.audience_fit || { for: [], not_for: [] };
+    const arr = af[subField] || [];
+    patchCfo({ audience_fit: { ...af, [subField]: arr.filter((_, i) => i !== index) } });
+  };
+
+  // Inline editable text. Mirrors the pitch deck's <Editable> contract so
+  // the operator gets identical UX: click → type → blur to save. Empty
+  // values show an italic gray placeholder so "click to add" affordance
+  // is obvious during a screen-share.
+  const Inline = ({ value, onChange, placeholder, multiline, style }) => {
+    const isEmpty = !value;
+    return (
+      <span
+        contentEditable
+        suppressContentEditableWarning
+        onBlur={(e) => onChange(e.currentTarget.textContent)}
+        onKeyDown={(e) => {
+          if (!multiline && e.key === 'Enter') {
+            e.preventDefault();
+            e.currentTarget.blur();
+          }
+        }}
+        style={{
+          outline: "none",
+          cursor: "text",
+          ...(isEmpty ? { color: "#555", fontStyle: "italic" } : {}),
+          ...style,
+        }}
+      >
+        {value || placeholder || ''}
+      </span>
+    );
+  };
+
+  // Eyebrow chip used as a section label.
+  const Eyebrow = ({ children }) => (
+    <div style={{ fontSize: 10, fontWeight: 700, color: "#7A0E18", letterSpacing: "0.16em", textTransform: "uppercase", marginBottom: 10 }}>{children}</div>
+  );
+
+  // Section card wrapper — consistent padding + border around each block.
+  const Section = ({ children, style }) => (
+    <section style={{ padding: "20px 24px", background: "#0f0f0f", border: "1px solid rgba(255,255,255,0.05)", borderRadius: 12, ...style }}>
+      {children}
+    </section>
+  );
+
+  // Small × button for removing an item from an array.
+  const RemoveBtn = ({ onClick }) => (
+    <button
+      onClick={onClick}
+      title="Remover"
+      style={{ flexShrink: 0, background: "transparent", border: "none", color: "#444", cursor: "pointer", fontSize: 14, padding: "0 4px", marginLeft: 6 }}
+    >✕</button>
+  );
+
+  // Dashed "+ Adicionar" button matching the pitch deck pattern.
+  const AddBtn = ({ onClick, label = "+ Adicionar", muted }) => (
+    <button
+      onClick={onClick}
+      style={{
+        background: "transparent",
+        border: `1px dashed ${muted ? "rgba(255,255,255,0.1)" : "rgba(122,14,24,0.3)"}`,
+        color: muted ? "#888" : "#7A0E18",
+        padding: "6px 12px",
+        borderRadius: 6,
+        fontSize: 11,
+        fontWeight: 600,
+        cursor: "pointer",
+        fontFamily: "inherit",
+        letterSpacing: "0.04em",
+      }}
+    >{label}</button>
+  );
+
+  return (
+    <div style={{ maxWidth: 900, margin: "0 auto", display: "flex", flexDirection: "column", gap: 18 }}>
+      {/* ── 1. Header — community + central promise ── */}
+      <Section>
+        <Eyebrow>Comunidade</Eyebrow>
+        <div style={{ fontSize: 36, fontWeight: 700, color: "#f5f5f5", fontFamily: "'Instrument Serif', Georgia, serif", letterSpacing: "-0.01em", lineHeight: 1.1, marginBottom: 12 }}>
+          <Inline
+            value={cfo.community_name}
+            onChange={saveField('community_name')}
+            placeholder="Nome da comunidade…"
+          />
+        </div>
+        <div style={{ fontSize: 18, color: "#D9D9D9", lineHeight: 1.5 }}>
+          <Inline
+            value={cfo.central_promise}
+            onChange={saveField('central_promise')}
+            placeholder="A promessa central. O que muda na vida deles depois desta comunidade?"
+            multiline
+          />
+        </div>
+        <div style={{ display: "flex", gap: 6, marginTop: 14, flexWrap: "wrap" }}>
+          {cfo.platform && (
+            <span style={{ fontSize: 10, fontWeight: 700, color: "#3b82f6", padding: "3px 10px", borderRadius: 4, background: "rgba(59,130,246,0.08)", border: "1px solid rgba(59,130,246,0.25)", letterSpacing: "0.06em", textTransform: "uppercase" }}>
+              <Inline value={cfo.platform} onChange={saveField('platform')} placeholder="Plataforma" />
+            </span>
+          )}
+          {cfo.target_price && (
+            <span style={{ fontSize: 10, fontWeight: 700, color: "#22c55e", padding: "3px 10px", borderRadius: 4, background: "rgba(34,197,94,0.08)", border: "1px solid rgba(34,197,94,0.25)", letterSpacing: "0.06em" }}>
+              <Inline value={cfo.target_price} onChange={saveField('target_price')} placeholder="Preço" />
+            </span>
+          )}
+          {cfo.pricing_tier && (
+            <span style={{ fontSize: 10, fontWeight: 700, color: "#888", padding: "3px 10px", borderRadius: 4, background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)", letterSpacing: "0.06em", textTransform: "uppercase" }}>
+              <Inline value={cfo.pricing_tier} onChange={saveField('pricing_tier')} placeholder="Tier" />
+            </span>
+          )}
+        </div>
+      </Section>
+
+      {/* ── 2. Transformation — from / to / timeframe ── */}
+      <Section>
+        <Eyebrow>Transformação</Eyebrow>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr auto 1fr", gap: 16, alignItems: "start" }}>
+          <div>
+            <div style={{ fontSize: 9, fontWeight: 700, color: "#ef4444", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 6 }}>De</div>
+            <div style={{ fontSize: 15, color: "#D9D9D9", lineHeight: 1.5 }}>
+              <Inline
+                value={cfo.transformation?.from}
+                onChange={saveNested('transformation', 'from')}
+                placeholder="Onde estão hoje…"
+                multiline
+              />
+            </div>
+          </div>
+          <div style={{ alignSelf: "center", color: "#444", fontSize: 24 }}>→</div>
+          <div>
+            <div style={{ fontSize: 9, fontWeight: 700, color: "#22c55e", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 6 }}>Para</div>
+            <div style={{ fontSize: 15, color: "#D9D9D9", lineHeight: 1.5 }}>
+              <Inline
+                value={cfo.transformation?.to}
+                onChange={saveNested('transformation', 'to')}
+                placeholder="Onde chegam depois…"
+                multiline
+              />
+            </div>
+          </div>
+        </div>
+        <div style={{ marginTop: 14, fontSize: 12, color: "#888" }}>
+          Tempo: <Inline
+            value={cfo.transformation?.timeframe}
+            onChange={saveNested('transformation', 'timeframe')}
+            placeholder="ex: 90 dias"
+            style={{ color: "#f5f5f5", fontWeight: 600 }}
+          />
+        </div>
+      </Section>
+
+      {/* ── 3. Audience Fit — for / not for ── */}
+      <Section>
+        <Eyebrow>Audiência</Eyebrow>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 18 }}>
+          <div>
+            <div style={{ fontSize: 9, fontWeight: 700, color: "#7A0E18", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 10 }}>Para quem é</div>
+            <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 8 }}>
+              {(cfo.audience_fit?.for || []).map((s, i) => (
+                <li key={i} style={{ display: "flex", gap: 10, fontSize: 13, color: "#D9D9D9", lineHeight: 1.45, alignItems: "baseline" }}>
+                  <span style={{ color: "#7A0E18", flexShrink: 0, fontWeight: 700 }}>→</span>
+                  <span style={{ flex: 1 }}>
+                    <Inline value={s} onChange={saveAudienceFitArray('for', i)} placeholder="Quem se encaixa…" multiline />
+                  </span>
+                  <RemoveBtn onClick={removeAudienceFit('for', i)} />
+                </li>
+              ))}
+              <li><AddBtn onClick={addAudienceFit('for')} /></li>
+            </ul>
+          </div>
+          <div>
+            <div style={{ fontSize: 9, fontWeight: 700, color: "#888", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 10 }}>Não é para</div>
+            <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 8 }}>
+              {(cfo.audience_fit?.not_for || []).map((s, i) => (
+                <li key={i} style={{ display: "flex", gap: 10, fontSize: 13, color: "#9E9E9E", lineHeight: 1.45, alignItems: "baseline" }}>
+                  <span style={{ color: "#666", flexShrink: 0 }}>✕</span>
+                  <span style={{ flex: 1 }}>
+                    <Inline value={s} onChange={saveAudienceFitArray('not_for', i)} placeholder="Quem não se encaixa…" multiline />
+                  </span>
+                  <RemoveBtn onClick={removeAudienceFit('not_for', i)} />
+                </li>
+              ))}
+              <li><AddBtn onClick={addAudienceFit('not_for')} muted /></li>
+            </ul>
+          </div>
+        </div>
+      </Section>
+
+      {/* ── 4. Core mechanic + weekly rhythm ── */}
+      <Section>
+        <Eyebrow>O Mecanismo Central</Eyebrow>
+        <div style={{ fontSize: 15, color: "#D9D9D9", lineHeight: 1.55, marginBottom: 18 }}>
+          <Inline
+            value={cfo.core_mechanic}
+            onChange={saveField('core_mechanic')}
+            placeholder="Como é que esta comunidade funciona semana a semana?"
+            multiline
+          />
+        </div>
+        <div style={{ fontSize: 9, fontWeight: 700, color: "#7A0E18", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 10 }}>Ritmo semanal</div>
+        <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 8 }}>
+          {(cfo.weekly_rhythm || []).map((r, i) => (
+            <li key={i} style={{ display: "flex", gap: 10, fontSize: 13, color: "#D9D9D9", lineHeight: 1.45, alignItems: "baseline" }}>
+              <span style={{ color: "#7A0E18", flexShrink: 0, fontWeight: 700 }}>·</span>
+              <span style={{ flex: 1 }}>
+                <Inline value={r} onChange={saveArrayString('weekly_rhythm', i)} placeholder="Dia · Atividade" />
+              </span>
+              <RemoveBtn onClick={removeFromArray('weekly_rhythm', i)} />
+            </li>
+          ))}
+          <li><AddBtn onClick={addToArray('weekly_rhythm', '')} /></li>
+        </ul>
+      </Section>
+
+      {/* ── 5. Mechanism (named acronym) ── */}
+      {cfo.mechanism && (
+        <Section>
+          <Eyebrow>O Método</Eyebrow>
+          <div style={{ fontSize: 28, fontWeight: 700, color: "#f5f5f5", fontFamily: "'Instrument Serif', Georgia, serif", marginBottom: 18, letterSpacing: "-0.01em" }}>
+            <Inline
+              value={cfo.mechanism.name}
+              onChange={(v) => { const m = cfo.mechanism || {}; patchCfo({ mechanism: { ...m, name: v } }); }}
+              placeholder="Nome do método…"
+            />
+          </div>
+          {Array.isArray(cfo.mechanism.letters) && cfo.mechanism.letters.length > 0 && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+              {cfo.mechanism.letters.map((l, i) => (
+                <div key={i} style={{ padding: "12px 14px", background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.04)", borderRadius: 8, display: "grid", gridTemplateColumns: "60px 1fr", gap: 14, alignItems: "start" }}>
+                  <div style={{ fontSize: 32, fontWeight: 800, color: "#7A0E18", fontFamily: "'Instrument Serif', Georgia, serif", lineHeight: 1 }}>{l.letter || (cfo.mechanism.name || '')[i] || '?'}</div>
+                  <div>
+                    <div style={{ fontSize: 15, fontWeight: 700, color: "#f5f5f5", marginBottom: 4 }}>
+                      <Inline value={l.word} onChange={saveMechanismLetter(i, 'word')} placeholder="Palavra…" />
+                    </div>
+                    <div style={{ fontSize: 13, color: "#D9D9D9", lineHeight: 1.45 }}>
+                      <Inline value={l.explanation} onChange={saveMechanismLetter(i, 'explanation')} placeholder="Explicação curta…" multiline />
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </Section>
+      )}
+
+      {/* ── 6. Modules ── */}
+      {Array.isArray(cfo.modules) && cfo.modules.length > 0 && (
+        <Section>
+          <Eyebrow>Módulos · {cfo.modules.length}</Eyebrow>
+          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            {cfo.modules.map((m, i) => (
+              <div key={i} style={{ padding: "14px 16px", background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.04)", borderRadius: 8 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 12, marginBottom: 8 }}>
+                  <div style={{ fontSize: 16, fontWeight: 700, color: "#f5f5f5", flex: 1 }}>
+                    <Inline value={m.name} onChange={saveArrayItem('modules', i, 'name')} placeholder="Nome do módulo…" />
+                  </div>
+                  <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
+                    <span style={{ fontSize: 9, fontWeight: 700, color: "#888", padding: "2px 8px", borderRadius: 3, background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)", letterSpacing: "0.06em" }}>
+                      <Inline value={m.format} onChange={saveArrayItem('modules', i, 'format')} placeholder="formato" />
+                    </span>
+                  </div>
+                </div>
+                <div style={{ fontSize: 13, color: "#D9D9D9", lineHeight: 1.5, marginBottom: 6 }}>
+                  <Inline value={m.description} onChange={saveArrayItem('modules', i, 'description')} placeholder="O que é este módulo?" multiline />
+                </div>
+                {m.transformation_delivered !== undefined && (
+                  <div style={{ fontSize: 12, color: "#22c55e", lineHeight: 1.4, marginBottom: 4 }}>
+                    → <Inline value={m.transformation_delivered} onChange={saveArrayItem('modules', i, 'transformation_delivered')} placeholder="O outcome específico que entrega…" />
+                  </div>
+                )}
+                {m.delivery_cadence !== undefined && (
+                  <div style={{ fontSize: 11, color: "#666", letterSpacing: "0.04em" }}>
+                    Cadência: <Inline value={m.delivery_cadence} onChange={saveArrayItem('modules', i, 'delivery_cadence')} placeholder="ex: Quartas 18:00, semanal" style={{ color: "#aaa" }} />
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </Section>
+      )}
+
+      {/* ── 7. Value Stack ── */}
+      {cfo.value_stack && Array.isArray(cfo.value_stack.items) && cfo.value_stack.items.length > 0 && (
+        <Section>
+          <Eyebrow>Stack de Valor</Eyebrow>
+          <table style={{ width: "100%", borderCollapse: "collapse" }}>
+            <thead>
+              <tr>
+                <th style={{ textAlign: "left", fontSize: 9, fontWeight: 700, color: "#7A0E18", letterSpacing: "0.14em", textTransform: "uppercase", padding: "0 8px 8px", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>Problema</th>
+                <th style={{ textAlign: "left", fontSize: 9, fontWeight: 700, color: "#7A0E18", letterSpacing: "0.14em", textTransform: "uppercase", padding: "0 8px 8px", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>Solução</th>
+                <th style={{ textAlign: "left", fontSize: 9, fontWeight: 700, color: "#7A0E18", letterSpacing: "0.14em", textTransform: "uppercase", padding: "0 8px 8px", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>Entrega</th>
+                <th style={{ textAlign: "right", fontSize: 9, fontWeight: 700, color: "#7A0E18", letterSpacing: "0.14em", textTransform: "uppercase", padding: "0 8px 8px", borderBottom: "1px solid rgba(255,255,255,0.06)", fontFamily: "'JetBrains Mono', ui-monospace, monospace" }}>Valor</th>
+              </tr>
+            </thead>
+            <tbody>
+              {cfo.value_stack.items.map((it, i) => (
+                <tr key={i}>
+                  <td style={{ padding: "10px 8px", fontSize: 13, color: "#D9D9D9", lineHeight: 1.45, borderBottom: "1px solid rgba(255,255,255,0.04)", verticalAlign: "top" }}>
+                    <Inline value={it.problem} onChange={saveValueStackItem(i, 'problem')} placeholder="Problema…" multiline />
+                  </td>
+                  <td style={{ padding: "10px 8px", fontSize: 13, color: "#D9D9D9", lineHeight: 1.45, borderBottom: "1px solid rgba(255,255,255,0.04)", verticalAlign: "top" }}>
+                    <Inline value={it.solution} onChange={saveValueStackItem(i, 'solution')} placeholder="Solução…" multiline />
+                  </td>
+                  <td style={{ padding: "10px 8px", fontSize: 13, color: "#aaa", lineHeight: 1.45, borderBottom: "1px solid rgba(255,255,255,0.04)", verticalAlign: "top" }}>
+                    <Inline value={it.delivery} onChange={saveValueStackItem(i, 'delivery')} placeholder="Como é entregue…" multiline />
+                  </td>
+                  <td style={{ padding: "10px 8px", fontSize: 13, fontWeight: 700, color: "#22c55e", textAlign: "right", borderBottom: "1px solid rgba(255,255,255,0.04)", fontFamily: "'JetBrains Mono', ui-monospace, monospace", verticalAlign: "top" }}>
+                    <Inline value={it.dollarValue} onChange={saveValueStackItem(i, 'dollarValue')} placeholder="€X" />
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <div style={{ marginTop: 16, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+            <div style={{ padding: "14px 16px", background: "rgba(34,197,94,0.06)", border: "1px solid rgba(34,197,94,0.25)", borderRadius: 8 }}>
+              <div style={{ fontSize: 9, fontWeight: 700, color: "#22c55e", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 4 }}>Valor total empilhado</div>
+              <div style={{ fontSize: 22, fontWeight: 700, color: "#22c55e", fontFamily: "'Instrument Serif', Georgia, serif" }}>
+                <Inline value={cfo.value_stack.total} onChange={saveValueStackField('total')} placeholder="€X total" />
+              </div>
+            </div>
+            <div style={{ padding: "14px 16px", background: "rgba(122,14,24,0.06)", border: "1px solid rgba(122,14,24,0.3)", borderRadius: 8 }}>
+              <div style={{ fontSize: 9, fontWeight: 700, color: "#7A0E18", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 4 }}>Preço real</div>
+              <div style={{ fontSize: 22, fontWeight: 700, color: "#f5f5f5", fontFamily: "'Instrument Serif', Georgia, serif" }}>
+                <Inline value={cfo.value_stack.actualPrice} onChange={saveValueStackField('actualPrice')} placeholder="€X/mês" />
+              </div>
+            </div>
+          </div>
+        </Section>
+      )}
+
+      {/* ── 8. Pricing Tiers ── */}
+      {Array.isArray(cfo.pricing_tiers) && cfo.pricing_tiers.length > 0 && (
+        <Section>
+          <Eyebrow>Tiers de Preço</Eyebrow>
+          <div style={{ display: "grid", gridTemplateColumns: `repeat(${Math.min(cfo.pricing_tiers.length, 3)}, 1fr)`, gap: 12 }}>
+            {cfo.pricing_tiers.map((t, i) => (
+              <div key={i} style={{ padding: "14px 16px", background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.05)", borderRadius: 8 }}>
+                <div style={{ fontSize: 9, fontWeight: 700, color: "#7A0E18", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 6 }}>
+                  <Inline value={t.name} onChange={saveArrayItem('pricing_tiers', i, 'name')} placeholder="Nome do tier" />
+                </div>
+                <div style={{ fontSize: 22, fontWeight: 700, color: "#f5f5f5", fontFamily: "'Instrument Serif', Georgia, serif", marginBottom: 6 }}>
+                  <Inline value={t.price} onChange={saveArrayItem('pricing_tiers', i, 'price')} placeholder="€X" />
+                </div>
+                <div style={{ fontSize: 11, color: "#888", lineHeight: 1.45 }}>
+                  <Inline value={t.note} onChange={saveArrayItem('pricing_tiers', i, 'note')} placeholder="Nota (ex: 2 meses grátis)" multiline />
+                </div>
+              </div>
+            ))}
+          </div>
+        </Section>
+      )}
+
+      {/* ── 9. Unlocked Bonuses ── */}
+      {Array.isArray(cfo.unlocked_bonuses) && cfo.unlocked_bonuses.length > 0 && (
+        <Section>
+          <Eyebrow>Bónus Desbloqueados</Eyebrow>
+          <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 8 }}>
+            {cfo.unlocked_bonuses.map((b, i) => (
+              <li key={i} style={{ display: "flex", gap: 10, fontSize: 13, color: "#D9D9D9", lineHeight: 1.5, alignItems: "baseline" }}>
+                <span style={{ color: "#22c55e", flexShrink: 0, fontWeight: 700 }}>★</span>
+                <span style={{ flex: 1 }}>
+                  <Inline value={b} onChange={saveArrayString('unlocked_bonuses', i)} placeholder="Bónus…" multiline />
+                </span>
+                <RemoveBtn onClick={removeFromArray('unlocked_bonuses', i)} />
+              </li>
+            ))}
+            <li><AddBtn onClick={addToArray('unlocked_bonuses', '')} /></li>
+          </ul>
+        </Section>
+      )}
+
+      <div style={{ textAlign: "center", padding: "12px 0 24px", color: "#444", fontSize: 11 }}>
+        Tudo nesta página é editável. Os edits gravam automaticamente para usares em screen-share durante chamadas.
+      </div>
     </div>
   );
 }
