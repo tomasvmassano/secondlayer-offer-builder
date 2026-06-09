@@ -363,6 +363,31 @@ const EditableContactEmail = ({ creator, patchCreator }) => {
   );
 };
 
+// Small action button rendered BETWEEN CP panels in the wizard area.
+// Click → opens the RegenCascadeModal targeting the appropriate CP.
+// Visually subdued so the operator's eye goes to the panel content
+// first, the action second.
+const CascadeRegenButton = ({ label, onClick }) => (
+  <div style={{ display: "flex", justifyContent: "flex-end", marginTop: -12, marginBottom: 16 }}>
+    <button
+      onClick={onClick}
+      title="Regenera este checkpoint e todos os seguintes em cascata"
+      style={{
+        padding: "6px 12px",
+        background: "rgba(122,14,24,0.05)",
+        color: "#888",
+        border: "1px dashed rgba(122,14,24,0.25)",
+        borderRadius: 5,
+        fontSize: 10,
+        fontWeight: 600,
+        letterSpacing: "0.06em",
+        cursor: "pointer",
+        fontFamily: "inherit",
+      }}
+    >{label}</button>
+  </div>
+);
+
 const PendingEmailCard = ({ label, hint, loading, onClick }) => (
   <div style={{ padding: "16px 18px", borderRadius: 8, background: "transparent", border: "1px dashed rgba(255,255,255,0.08)", marginBottom: 10 }}>
     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
@@ -575,6 +600,11 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
   // entire offer at a new tier" workflow. Shown via a button on the
   // Oferta tab. Closed by default; only opens on explicit click.
   const [pivotModalOpen, setPivotModalOpen] = useState(false);
+  // Controls the generic cascade-regen modal (RegenCascadeModal).
+  // When non-null, the modal opens and regenerates CP[cascadeFromCp]
+  // through CP4. Used by the per-CP "Regenerate from here" buttons and
+  // the "Reset all" action (which sets it to 1).
+  const [cascadeFromCp, setCascadeFromCp] = useState(null);
   const [offerStep, setOfferStep] = useState(0);
 
   useEffect(() => { Promise.resolve(paramsPromise).then(setParams); }, [paramsPromise]);
@@ -2268,23 +2298,45 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
 
         {/* ════════════ OFERTA TAB ════════════ */}
         {tab === "oferta" && (<>
-          {/* "Mudar tier" — operator-triggered cascade regeneration. Only
-              shown when CP2 is locked (i.e., there's an existing offer
-              to pivot). Hidden during initial generation since there's
-              nothing to convert yet. */}
+          {/* Top action row — "Mudar tier" (tier pivot) + "Reset tudo"
+              (nuke CP1-CP4 and regenerate from scratch). Only rendered
+              when at least CP1 is locked (i.e., there's something to
+              regenerate or pivot). */}
           {(() => {
             const prog = readCheckpointProgress(creator?.offer?.internal_metadata);
-            if (!prog.locked[2]) return null;
+            if (!prog.locked[1]) return null;
             return (
-              <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 14 }}>
+              <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginBottom: 14, flexWrap: "wrap" }}>
+                {prog.locked[2] && (
+                  <button
+                    onClick={() => setPivotModalOpen(true)}
+                    title="Regenera CP2-CP4 com um novo pricing tier. Mantém o frame estratégico de CP1, apaga o resto."
+                    style={{
+                      padding: "8px 14px",
+                      background: "rgba(122,14,24,0.08)",
+                      color: "#B11E2F",
+                      border: "1px solid rgba(122,14,24,0.35)",
+                      borderRadius: 6,
+                      fontSize: 11,
+                      fontWeight: 700,
+                      letterSpacing: "0.06em",
+                      cursor: "pointer",
+                      fontFamily: "inherit",
+                    }}
+                  >↻ Mudar tier · Regenerar oferta</button>
+                )}
                 <button
-                  onClick={() => setPivotModalOpen(true)}
-                  title="Regenera CP2-CP4 com um novo pricing tier. Mantém o frame estratégico de CP1, apaga o resto."
+                  onClick={() => {
+                    if (window.confirm('Tens a certeza? Vai apagar TODOS os CPs (CP1-CP4) e regenerar do zero. Edits inline são perdidos.')) {
+                      setCascadeFromCp(1);
+                    }
+                  }}
+                  title="Apaga CP1-CP4 e regenera tudo do zero. Mantém apenas Phase 1 (audit), Phase 2 (archetype) e Phase 3 (uniqueness)."
                   style={{
                     padding: "8px 14px",
-                    background: "rgba(122,14,24,0.08)",
-                    color: "#B11E2F",
-                    border: "1px solid rgba(122,14,24,0.35)",
+                    background: "transparent",
+                    color: "#888",
+                    border: "1px solid rgba(239,68,68,0.25)",
                     borderRadius: 6,
                     fontSize: 11,
                     fontWeight: 700,
@@ -2292,7 +2344,7 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
                     cursor: "pointer",
                     fontFamily: "inherit",
                   }}
-                >↻ Mudar tier · Regenerar oferta</button>
+                >⚠ Reset tudo</button>
               </div>
             );
           })()}
@@ -2322,20 +2374,19 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
           </div>
 
           {offerTab === "offer" && (<>
-          {/* Phase 4 · 5-Checkpoint Wizard.
-              Stitches Phase 1+2+3 internal_metadata into the actual offer
-              (client_facing_output). The stepper shows lock state; the active
-              checkpoint expands below it. CP panels are stubs for now —
-              individual CPs ship in follow-up commits. */}
+          {/* Phase 4 · 4-Checkpoint Wizard (CP5 disconnected).
+              ALL CP panels render simultaneously so the operator can see
+              everything generated so far and regenerate any specific CP.
+              Each panel self-renders its locked / current / blocked state
+              based on progress.locked[N], so no per-CP dispatch is needed.
+              Previous behaviour: only prog.current rendered, the rest
+              disappeared from view as the wizard advanced. */}
           <WizardStepper creator={creator} />
-          {/* Active checkpoint panel — dispatched on progress.current.
-              Each CP commit replaces its stub with the real component.
-              CP1 (Strategic Frame) is built; CP2-5 are still stubs. */}
           {(() => {
             const prog = readCheckpointProgress(creator?.offer?.internal_metadata);
-            const cp = CHECKPOINTS.find(c => c.id === prog.current) || CHECKPOINTS[0];
-            if (prog.current === 1) {
-              return (
+            return (
+              <>
+                {/* CP1 · Strategic Frame */}
                 <StrategicFramePanel
                   creator={creator}
                   setCreator={setCreator}
@@ -2346,10 +2397,17 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
                   diag={frameDiag}
                   setDiag={setFrameDiag}
                 />
-              );
-            }
-            if (prog.current === 2) {
-              return (
+                {/* "↻ Regenerate from here" — only meaningful when CP1 is
+                    locked. Triggers cascade from CP1 (which is effectively
+                    a full reset: CP1 + CP2 + CP3 + CP4). */}
+                {prog.locked[1] && (
+                  <CascadeRegenButton
+                    label="↻ Regenerar a partir de CP1"
+                    onClick={() => setCascadeFromCp(1)}
+                  />
+                )}
+
+                {/* CP2 · Core Offer */}
                 <CoreOfferPanel
                   creator={creator}
                   setCreator={setCreator}
@@ -2360,10 +2418,14 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
                   diag={coreOfferDiag}
                   setDiag={setCoreOfferDiag}
                 />
-              );
-            }
-            if (prog.current === 3) {
-              return (
+                {prog.locked[2] && (
+                  <CascadeRegenButton
+                    label="↻ Regenerar a partir de CP2"
+                    onClick={() => setCascadeFromCp(2)}
+                  />
+                )}
+
+                {/* CP3 · Modules */}
                 <ModulesPanel
                   creator={creator}
                   setCreator={setCreator}
@@ -2374,10 +2436,14 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
                   diag={modulesDiag}
                   setDiag={setModulesDiag}
                 />
-              );
-            }
-            if (prog.current === 4) {
-              return (
+                {prog.locked[3] && (
+                  <CascadeRegenButton
+                    label="↻ Regenerar a partir de CP3"
+                    onClick={() => setCascadeFromCp(3)}
+                  />
+                )}
+
+                {/* CP4 · Value Stack */}
                 <ValueStackPanel
                   creator={creator}
                   setCreator={setCreator}
@@ -2388,15 +2454,14 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
                   diag={stackDiag}
                   setDiag={setStackDiag}
                 />
-              );
-            }
-            // CP5 dispatch deliberately removed — see app/lib/offerSchema.js
-            // header note. SalesCopyPanel is preserved at the bottom of this
-            // file for the future launch-assets tool. If prog.current somehow
-            // lands at 5 (legacy creator), fall through to the stub which
-            // reads "Not yet implemented" — acceptable until cascade-unlock
-            // brings it back to 4.
-            return <CheckpointStubPanel checkpoint={cp} />;
+                {prog.locked[4] && (
+                  <CascadeRegenButton
+                    label="↻ Regenerar CP4"
+                    onClick={() => setCascadeFromCp(4)}
+                  />
+                )}
+              </>
+            );
           })()}
 
           {/* The legacy 5-step manual form was removed. The Phase 4 wizard
@@ -2775,15 +2840,32 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
           </>)}{/* end offerTab === "revenue" */}
 
           {/* PivotTierModal — rendered as a portal-style overlay; gated on
-              pivotModalOpen so it doesn't blow up the DOM when closed. */}
+              pivotModalOpen so it doesn't blow up the DOM when closed.
+              mode='tier' = the existing pricing-tier pivot flow. */}
           {pivotModalOpen && (
             <PivotTierModal
               creator={creator}
+              mode="tier"
               onClose={() => setPivotModalOpen(false)}
               onComplete={(fresh) => {
                 if (fresh) setCreator(fresh);
                 // Keep modal open so operator sees the "Concluído" state;
                 // they close it manually via the Concluído button.
+              }}
+            />
+          )}
+
+          {/* Generic cascade-regen modal — same component, different mode.
+              cascadeFromCp = 1 → "reset" mode (big warning + regen all 4 CPs)
+              cascadeFromCp ∈ {2,3,4} → "cascade" mode (regen from N to 4) */}
+          {cascadeFromCp != null && (
+            <PivotTierModal
+              creator={creator}
+              mode={cascadeFromCp === 1 ? 'reset' : 'cascade'}
+              fromCpId={cascadeFromCp}
+              onClose={() => setCascadeFromCp(null)}
+              onComplete={(fresh) => {
+                if (fresh) setCreator(fresh);
               }}
             />
           )}
@@ -6798,21 +6880,44 @@ function ResumoPanel({ creator, patchCreator }) {
 // browser tab — closing the tab mid-cascade leaves a half-pivoted
 // state, but the operator can resume manually via the wizard panels
 // since each CP's state is persisted as soon as it completes.
-function PivotTierModal({ creator, onClose, onComplete }) {
+// RegenCascadeModal — generic version of the tier pivot.
+//
+// `mode` controls the variant:
+//   'tier'    — original tier-pivot flow: CP2 dropdowns + cascade to CP4
+//   'cascade' — regenerate from CP[fromCpId] onwards. No tier dropdowns.
+//               Just an instruction textarea.
+//   'reset'   — same as cascade with fromCpId=1. Big warning at top.
+//
+// fromCpId (1-4) is the lowest CP that gets unlocked + regenerated.
+// Everything from that CP through CP4 cascades.
+//
+// PivotTierModal name kept as the export so existing callers (Mudar tier
+// button on the Oferta tab) still resolve. New callers from the per-CP
+// "Regenerate from here" buttons pass mode='cascade' with the right id.
+function PivotTierModal({ creator, onClose, onComplete, mode = 'tier', fromCpId = 2 }) {
   const [tier, setTier] = useState(creator?.offer?.client_facing_output?.pricing_tier || 'low_ticket');
   const [model, setModel] = useState(creator?.offer?.client_facing_output?.pricing_model || 'monthly');
   const [instruction, setInstruction] = useState('');
   const [running, setRunning] = useState(false);
-  const [steps, setSteps] = useState([
-    { id: 'unlock',   label: 'Reset CP2-4',         status: 'pending' },
-    { id: 'cp2',      label: 'CP2 · Core Offer',     status: 'pending' },
-    { id: 'lock2',    label: 'Lock CP2',             status: 'pending' },
-    { id: 'cp3',      label: 'CP3 · Modules',        status: 'pending' },
-    { id: 'lock3',    label: 'Lock CP3',             status: 'pending' },
-    { id: 'cp4',      label: 'CP4 · Value Stack',    status: 'pending' },
-    { id: 'lock4',    label: 'Lock CP4',             status: 'pending' },
-  ]);
   const [error, setError] = useState(null);
+
+  // Effective start point. tier mode is locked to CP2; cascade + reset use
+  // the prop directly. Clamp to 1-4 so a bad caller can't blow up.
+  const startCp = mode === 'tier' ? 2 : Math.max(1, Math.min(4, fromCpId || 2));
+
+  // Step list depends on where we start. Each CP contributes 2 steps
+  // (regen + lock). The initial unlock cascades down so it's a single
+  // entry regardless of how many CPs follow.
+  const initialSteps = () => {
+    const out = [{ id: 'unlock', label: `Reset CP${startCp}-4`, status: 'pending' }];
+    const labels = { 1: 'CP1 · Strategic Frame', 2: 'CP2 · Core Offer', 3: 'CP3 · Modules', 4: 'CP4 · Value Stack' };
+    for (let i = startCp; i <= 4; i++) {
+      out.push({ id: `cp${i}`, label: labels[i], status: 'pending' });
+      out.push({ id: `lock${i}`, label: `Lock CP${i}`, status: 'pending' });
+    }
+    return out;
+  };
+  const [steps, setSteps] = useState(initialSteps);
 
   const TIER_OPTIONS = [
     { value: 'low_ticket',  label: 'Low ticket (€19-49/mês)' },
@@ -6830,6 +6935,20 @@ function PivotTierModal({ creator, onClose, onComplete }) {
     setSteps(prev => prev.map(s => s.id === id ? { ...s, status, error: errMsg } : s));
   };
 
+  // Per-CP endpoint mapping — keeps the cascade loop generic.
+  const CP_ROUTES = {
+    1: 'strategic-frame',
+    2: 'core-offer',
+    3: 'modules',
+    4: 'value-stack',
+  };
+  const CP_LABELS_FULL = {
+    1: 'CP1 · Strategic Frame',
+    2: 'CP2 · Core Offer',
+    3: 'CP3 · Modules',
+    4: 'CP4 · Value Stack',
+  };
+
   const run = async () => {
     if (running) return;
     setRunning(true);
@@ -6840,62 +6959,37 @@ function PivotTierModal({ creator, onClose, onComplete }) {
     const cpBody = (extras = {}) => ({ instruction: instruction.trim() || null, ...extras });
 
     try {
-      // Step 1: Unlock CP2 → cascade-invalidates CP3-4.
+      // Step 1: Unlock startCp → cascade-invalidates all downstream CPs.
       updateStep('unlock', 'running');
-      const unlockRes = await fetch(`/api/creators/${cid}/wizard/checkpoint/2/unlock`, { method: 'POST' });
+      const unlockRes = await fetch(`/api/creators/${cid}/wizard/checkpoint/${startCp}/unlock`, { method: 'POST' });
       if (!unlockRes.ok) throw new Error(`Unlock failed (${unlockRes.status})`);
       updateStep('unlock', 'done');
 
-      // Step 2: Regenerate CP2 with the new tier + model + instruction.
-      updateStep('cp2', 'running');
-      const cp2Res = await fetch(`/api/creators/${cid}/wizard/core-offer`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(cpBody({ pricing_tier: tier, pricing_model_override: model })),
-      });
-      const cp2Data = await cp2Res.json();
-      if (!cp2Res.ok) throw new Error(cp2Data.error || `CP2 failed (${cp2Res.status})`);
-      updateStep('cp2', 'done');
+      // Loop through each CP from startCp to 4: regenerate, then lock.
+      // CP2 alone receives the tier/model override (only meaningful field
+      // for that CP); CP1, CP3, CP4 only take the operator instruction.
+      for (let cp = startCp; cp <= 4; cp++) {
+        const route = CP_ROUTES[cp];
+        const isCp2 = cp === 2;
 
-      // Step 3: Lock CP2 (gate for CP3).
-      updateStep('lock2', 'running');
-      const lock2Res = await fetch(`/api/creators/${cid}/wizard/checkpoint/2/lock`, { method: 'POST' });
-      if (!lock2Res.ok) throw new Error(`Lock CP2 failed (${lock2Res.status})`);
-      updateStep('lock2', 'done');
+        updateStep(`cp${cp}`, 'running');
+        const body = isCp2 && mode === 'tier'
+          ? cpBody({ pricing_tier: tier, pricing_model_override: model })
+          : cpBody();
+        const regenRes = await fetch(`/api/creators/${cid}/wizard/${route}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        });
+        const regenData = await regenRes.json();
+        if (!regenRes.ok) throw new Error(regenData.error || `${CP_LABELS_FULL[cp]} failed (${regenRes.status})`);
+        updateStep(`cp${cp}`, 'done');
 
-      // Step 4: Regenerate CP3 (modules).
-      updateStep('cp3', 'running');
-      const cp3Res = await fetch(`/api/creators/${cid}/wizard/modules`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(cpBody()),
-      });
-      const cp3Data = await cp3Res.json();
-      if (!cp3Res.ok) throw new Error(cp3Data.error || `CP3 failed (${cp3Res.status})`);
-      updateStep('cp3', 'done');
-
-      // Step 5: Lock CP3.
-      updateStep('lock3', 'running');
-      const lock3Res = await fetch(`/api/creators/${cid}/wizard/checkpoint/3/lock`, { method: 'POST' });
-      if (!lock3Res.ok) throw new Error(`Lock CP3 failed (${lock3Res.status})`);
-      updateStep('lock3', 'done');
-
-      // Step 6: Regenerate CP4 (value stack).
-      updateStep('cp4', 'running');
-      const cp4Res = await fetch(`/api/creators/${cid}/wizard/value-stack`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(cpBody()),
-      });
-      const cp4Data = await cp4Res.json();
-      if (!cp4Res.ok) throw new Error(cp4Data.error || `CP4 failed (${cp4Res.status})`);
-      updateStep('cp4', 'done');
-
-      // Step 7: Lock CP4.
-      updateStep('lock4', 'running');
-      const lock4Res = await fetch(`/api/creators/${cid}/wizard/checkpoint/4/lock`, { method: 'POST' });
-      if (!lock4Res.ok) throw new Error(`Lock CP4 failed (${lock4Res.status})`);
-      updateStep('lock4', 'done');
+        updateStep(`lock${cp}`, 'running');
+        const lockRes = await fetch(`/api/creators/${cid}/wizard/checkpoint/${cp}/lock`, { method: 'POST' });
+        if (!lockRes.ok) throw new Error(`Lock CP${cp} failed (${lockRes.status})`);
+        updateStep(`lock${cp}`, 'done');
+      }
 
       // All done — pull the fresh creator record so the page re-renders
       // with the new offer.
@@ -6929,38 +7023,57 @@ function PivotTierModal({ creator, onClose, onComplete }) {
         }}
       >
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 6 }}>
-          <h2 style={{ fontSize: 22, fontWeight: 700, margin: 0, letterSpacing: '-0.01em' }}>Mudar tier da oferta</h2>
+          <h2 style={{ fontSize: 22, fontWeight: 700, margin: 0, letterSpacing: '-0.01em' }}>
+            {mode === 'tier'
+              ? 'Mudar tier da oferta'
+              : mode === 'reset'
+              ? 'Reset completo da oferta'
+              : `Regenerar a partir de CP${startCp}`}
+          </h2>
           {!running && (
             <button onClick={onClose} style={{ background: 'transparent', border: 'none', color: '#555', cursor: 'pointer', fontSize: 18, padding: 0 }}>✕</button>
           )}
         </div>
         <p style={{ fontSize: 12, color: '#888', marginTop: 0, marginBottom: 24, lineHeight: 1.55 }}>
-          Regenera CP2 → CP3 → CP4 com o novo tier. Apaga modules, value stack e pricing antigos (mantém apenas o frame estratégico de CP1). ~2-3 minutos. Não fecha esta janela durante o processo.
+          {mode === 'tier'
+            ? 'Regenera CP2 → CP3 → CP4 com o novo tier. Apaga modules, value stack e pricing antigos (mantém apenas o frame estratégico de CP1). ~2-3 minutos. Não feches esta janela durante o processo.'
+            : mode === 'reset'
+            ? 'Apaga TUDO (CP1, CP2, CP3, CP4) e regenera do zero. Mantém apenas Phase 1 (audit), Phase 2 (archetype) e Phase 3 (uniqueness). ~3-4 minutos. Não feches esta janela durante o processo.'
+            : `Regenera CP${startCp}${startCp < 4 ? ' até CP4' : ''} em cascata. ${startCp > 1 ? `Mantém intactos CP1${startCp > 2 ? '/CP2' : ''}${startCp > 3 ? '/CP3' : ''}.` : ''} ~${Math.max(1, (5 - startCp))} minutos. Não feches esta janela durante o processo.`}
         </p>
+        {mode === 'reset' && !running && (
+          <div style={{ padding: '10px 14px', background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.25)', borderRadius: 6, marginBottom: 18, fontSize: 12, color: '#ef4444', lineHeight: 1.5 }}>
+            ⚠ Esta ação não tem undo. Todos os edits inline e overrides de campos vão ser substituídos por geração nova.
+          </div>
+        )}
 
         {!running && !error && (
           <>
-            <div style={{ marginBottom: 16 }}>
-              <label style={{ display: 'block', fontSize: 10, fontWeight: 700, color: '#7A0E18', letterSpacing: '0.14em', textTransform: 'uppercase', marginBottom: 6 }}>Novo tier</label>
-              <select
-                value={tier}
-                onChange={e => setTier(e.target.value)}
-                style={{ width: '100%', padding: '10px 12px', background: '#1a1a1a', color: '#f5f5f5', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 6, fontSize: 13, fontFamily: 'inherit' }}
-              >
-                {TIER_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-              </select>
-            </div>
+            {mode === 'tier' && (
+              <>
+                <div style={{ marginBottom: 16 }}>
+                  <label style={{ display: 'block', fontSize: 10, fontWeight: 700, color: '#7A0E18', letterSpacing: '0.14em', textTransform: 'uppercase', marginBottom: 6 }}>Novo tier</label>
+                  <select
+                    value={tier}
+                    onChange={e => setTier(e.target.value)}
+                    style={{ width: '100%', padding: '10px 12px', background: '#1a1a1a', color: '#f5f5f5', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 6, fontSize: 13, fontFamily: 'inherit' }}
+                  >
+                    {TIER_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                  </select>
+                </div>
 
-            <div style={{ marginBottom: 16 }}>
-              <label style={{ display: 'block', fontSize: 10, fontWeight: 700, color: '#7A0E18', letterSpacing: '0.14em', textTransform: 'uppercase', marginBottom: 6 }}>Modelo de pricing</label>
-              <select
-                value={model}
-                onChange={e => setModel(e.target.value)}
-                style={{ width: '100%', padding: '10px 12px', background: '#1a1a1a', color: '#f5f5f5', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 6, fontSize: 13, fontFamily: 'inherit' }}
-              >
-                {MODEL_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-              </select>
-            </div>
+                <div style={{ marginBottom: 16 }}>
+                  <label style={{ display: 'block', fontSize: 10, fontWeight: 700, color: '#7A0E18', letterSpacing: '0.14em', textTransform: 'uppercase', marginBottom: 6 }}>Modelo de pricing</label>
+                  <select
+                    value={model}
+                    onChange={e => setModel(e.target.value)}
+                    style={{ width: '100%', padding: '10px 12px', background: '#1a1a1a', color: '#f5f5f5', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 6, fontSize: 13, fontFamily: 'inherit' }}
+                  >
+                    {MODEL_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                  </select>
+                </div>
+              </>
+            )}
 
             <div style={{ marginBottom: 24 }}>
               <label style={{ display: 'block', fontSize: 10, fontWeight: 700, color: '#7A0E18', letterSpacing: '0.14em', textTransform: 'uppercase', marginBottom: 6 }}>Porquê <span style={{ color: '#555', fontWeight: 500 }}>(opcional, mas recomendado)</span></label>
