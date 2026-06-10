@@ -552,6 +552,9 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
   const [engagementRate, setEngagementRate] = useState(null);
   const [revenueLaunches, setRevenueLaunches] = useState(null);   // one-time only
   const [revenuePaymentPlan, setRevenuePaymentPlan] = useState(false);
+  // hybrid only: initial one-time fee paid up-front in addition to the
+  // recurring monthly. revenuePrice continues to hold the monthly tail.
+  const [revenueInitialFee, setRevenueInitialFee] = useState(null);
   // Hydrate revenue inputs from creator record on load (single source of truth)
   useEffect(() => {
     if (!creator) return;
@@ -560,6 +563,7 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
     if (engagementRate == null && creator.revenueEngagement != null) setEngagementRate(creator.revenueEngagement);
     if (revenueLaunches == null && creator.revenueLaunches != null) setRevenueLaunches(creator.revenueLaunches);
     if (creator.revenuePaymentPlan != null) setRevenuePaymentPlan(!!creator.revenuePaymentPlan);
+    if (revenueInitialFee == null && creator.revenueInitialFee != null) setRevenueInitialFee(creator.revenueInitialFee);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [creator?.id]);
   // Debounced save-back so the Pitch deck reads the same numbers
@@ -572,6 +576,7 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
       payload.revenueCommission = revenueCommission;
       if (revenueLaunches != null) payload.revenueLaunches = revenueLaunches;
       payload.revenuePaymentPlan = revenuePaymentPlan;
+      if (revenueInitialFee != null) payload.revenueInitialFee = revenueInitialFee;
       fetch(`/api/creators/${params.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
@@ -579,7 +584,7 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
       }).catch(() => {});
     }, 800);
     return () => clearTimeout(handle);
-  }, [revenuePrice, revenueCommission, engagementRate, revenueLaunches, revenuePaymentPlan, params?.id, creator?.id]);
+  }, [revenuePrice, revenueCommission, engagementRate, revenueLaunches, revenuePaymentPlan, revenueInitialFee, params?.id, creator?.id]);
   const [findingSimilar, setFindingSimilar] = useState(false);
   const [similarResult, setSimilarResult] = useState("");
 
@@ -2565,6 +2570,25 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
               // Tier bucket from CP2 pricing_tier × the operator's current price slider.
               // Without this, mid/high recurring offers project as if they were low-ticket.
               const tierBucket = classifyTierBucket(cfo.pricing_tier, price, cfo.pricing_model);
+              // Pricing model drives UI shape:
+              //   monthly / annual → current MRR view
+              //   one_time         → per-launch cohort hero, single price input
+              //   hybrid           → both: initial fee slider + monthly slider,
+              //                      hero shows per-launch + steady MRR combined
+              const pricingModel = cfo.pricing_model || 'monthly';
+              const isHybrid   = pricingModel === 'hybrid';
+              const isOneTime  = pricingModel === 'one_time';
+              const isRecurring = !isHybrid && !isOneTime;
+              // Operator can also override the initial fee for hybrid. Reads
+              // the persisted value first, then falls back to a parsed value
+              // from cfo.target_price, then to 0.
+              const cfoInitialMatch = cfo.target_price ? String(cfo.target_price).match(/^[€$]?\s*(\d[\d.,]*)/) : null;
+              const cfoInitialFee = cfoInitialMatch ? parseInt(cfoInitialMatch[1].replace(/[.,]/g, ''), 10) : 0;
+              const initialFee = revenueInitialFee ?? creator.revenueInitialFee ?? cfoInitialFee;
+              // Tier conversion cap for the moderate scenario — surfaced
+              // in the UI chip so the operator can see WHY the projection
+              // numbers look the way they do.
+              const moderateCap = TIER_CONVERSION_CAP[tierBucket]?.moderado ?? null;
               const calcSteady = (s) => sharedCalcMRR({ audience: primaryF, price, engagementRate: eng, scenario: s, scenarioKey: s.key, tierBucket, paymentPlan: revenuePaymentPlan });
               const calcClients = (s) => calcSteady(s).activeMembers;
               const engMultiplier = sharedCalcMRR({ audience: primaryF, price, engagementRate: eng, scenario: scenarios[1], scenarioKey: 'moderado', tierBucket }).engMultiplier;
@@ -2573,27 +2597,77 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
               const modClients = modSteady.activeMembers;
               const modRevenue = modSteady.monthlyRevenue;
 
+              // Hero label + secondary line shift with pricing model:
+              // recurring → MRR, one_time → annual cohort, hybrid → combined MRR + per-launch slug.
+              const heroLabel = isOneTime ? "Estimated Annual Revenue (cohort)"
+                : isHybrid ? "Estimated Monthly Recurring + Launches"
+                : "Estimated Monthly Recurring Revenue";
+              const heroSubUnit = isOneTime ? "/year" : isHybrid ? "/mês recorrente" : "/mês";
+              // Price-input label switches too. For one_time the slider drives
+              // the launch price (single payment). For hybrid the slider still
+              // drives the monthly tail and the initial fee gets its own row.
+              const priceInputLabel = isOneTime ? "Launch Price" : isHybrid ? "Monthly Recurring" : "Monthly Price";
+              const priceSliderMax  = isOneTime ? 5000 : 1500;
               return (
                 <div style={{ padding: 20, background: "#141414", border: "1px solid rgba(255,255,255,0.04)", borderRadius: 10 }}>
                   <div style={{ textAlign: "center", padding: "28px 20px 24px", marginBottom: 20, background: "#0a0a0a", borderRadius: 8, border: "1px solid rgba(255,255,255,0.04)" }}>
-                    <div style={{ fontSize: 9, fontWeight: 600, color: "#555", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 4 }}>Estimated Monthly Recurring Revenue</div>
+                    <div style={{ fontSize: 9, fontWeight: 600, color: "#555", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 4 }}>{heroLabel}</div>
                     <div style={{ fontSize: 42, fontWeight: 200, color: "#7A0E18", letterSpacing: "-0.03em", lineHeight: 1.1 }}>{fmt(modRevenue)}</div>
-                    <div style={{ fontSize: 11, color: "#444", marginTop: 6 }}>/mês · {modClients} active clients · {creator.primaryPlatform} {primaryF.toLocaleString()} followers · {eng.toFixed(2)}% eng</div>
+                    <div style={{ fontSize: 11, color: "#444", marginTop: 6 }}>{heroSubUnit} · {modClients} active clients · {creator.primaryPlatform} {primaryF.toLocaleString()} followers · {eng.toFixed(2)}% eng</div>
+                    {/* Tier chip explains WHY numbers are smaller for high-ticket
+                        offers: the conversion cap drops from 5% (low) to 0.3% (premium). */}
+                    {moderateCap != null && (
+                      <div style={{ display: "inline-flex", marginTop: 12, gap: 6, alignItems: "center", padding: "4px 10px", borderRadius: 999, background: "rgba(122,14,24,0.08)", border: "1px solid rgba(122,14,24,0.2)" }}>
+                        <span style={{ fontSize: 9, fontWeight: 700, color: "#7A0E18", letterSpacing: "0.1em", textTransform: "uppercase" }}>{tierBucket} ticket</span>
+                        <span style={{ fontSize: 9, color: "#888", letterSpacing: "0.04em" }}>· cap {(moderateCap * 100).toFixed(2)}% of followers</span>
+                        <span style={{ fontSize: 9, color: "#555" }}>· {pricingModel}</span>
+                      </div>
+                    )}
                   </div>
 
                   {/* Inputs: Price, Engagement, Commission */}
                   <div style={{ padding: "16px 18px", marginBottom: 20, background: "#0a0a0a", borderRadius: 8, border: "1px solid rgba(255,255,255,0.04)" }}>
-                    {/* Monthly Price */}
+                    {/* Hybrid only: initial one-time fee paid up-front,
+                        rendered ABOVE the recurring slider so the operator
+                        sees the up-front payment first. */}
+                    {isHybrid && (
+                      <div style={{ marginBottom: 14 }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+                          <span style={{ fontSize: 10, fontWeight: 600, color: "#555", letterSpacing: "0.05em", textTransform: "uppercase" }}>Initial Fee (up-front)</span>
+                          <span style={{ fontSize: 14, fontWeight: 700, color: "#f5f5f5" }}>{fmt(initialFee)}</span>
+                        </div>
+                        <input type="range" min={0} max={5000} step={10} value={initialFee}
+                          onChange={e => setRevenueInitialFee(Number(e.target.value))}
+                          style={{ width: "100%", height: 4, appearance: "none", background: "#222", borderRadius: 2, outline: "none", cursor: "pointer", accentColor: "#7A0E18" }} />
+                      </div>
+                    )}
+
+                    {/* Price slider — label / range adapt to pricing model. */}
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
                       <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                        <span style={{ fontSize: 10, fontWeight: 600, color: "#555", letterSpacing: "0.05em", textTransform: "uppercase" }}>Monthly Price</span>
+                        <span style={{ fontSize: 10, fontWeight: 600, color: "#555", letterSpacing: "0.05em", textTransform: "uppercase" }}>{priceInputLabel}</span>
                         {price === defaultPrice && <span style={{ fontSize: 8, fontWeight: 600, color: "#7A0E18", letterSpacing: "0.06em", padding: "1px 5px", borderRadius: 2, border: "1px solid rgba(122,14,24,0.2)", textTransform: "uppercase" }}>{priceSource}</span>}
                       </div>
                       <span style={{ fontSize: 14, fontWeight: 700, color: "#f5f5f5" }}>{fmt(price)}</span>
                     </div>
-                    <input type="range" min={5} max={1500} step={1} value={price}
+                    <input type="range" min={5} max={priceSliderMax} step={1} value={price}
                       onChange={e => setRevenuePrice(Number(e.target.value))}
                       style={{ width: "100%", height: 4, appearance: "none", background: "#222", borderRadius: 2, outline: "none", cursor: "pointer", accentColor: "#7A0E18" }} />
+
+                    {/* Hybrid: surface combined Year-1 take so the operator
+                        sees BOTH revenue streams at a glance. */}
+                    {isHybrid && (() => {
+                      const launchesPerYear = revenueLaunches ?? (tierBucket === 'low' ? 6 : tierBucket === 'mid' ? 3 : tierBucket === 'high' ? 2 : 1);
+                      const annualUpFront = modClients * initialFee * launchesPerYear;
+                      const annualRecurring = modClients * price * 12;
+                      const combined = annualUpFront + annualRecurring;
+                      return (
+                        <div style={{ marginTop: 12, padding: "10px 12px", background: "rgba(122,14,24,0.04)", borderRadius: 6, border: "1px solid rgba(122,14,24,0.1)", fontSize: 11, color: "#888" }}>
+                          Year 1 combined: <strong style={{ color: "#f5f5f5" }}>{fmt(combined)}</strong>
+                          <span style={{ color: "#555" }}> · {fmt(annualUpFront)} up-front + {fmt(annualRecurring)} recurring</span>
+                        </div>
+                      );
+                    })()}
 
                     {/* Engagement Rate */}
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 14, marginBottom: 6 }}>
@@ -2757,6 +2831,9 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
                       target_price: cfo.target_price || `€${price}/mo`,
                       launches_per_year: revenueLaunches ?? cfo.launches_per_year,
                       payment_plan_available: revenuePaymentPlan,
+                      // hybrid: operator can override the initial fee in the
+                      // projector independently of CP2's target_price string.
+                      ...(isHybrid && initialFee != null ? { initial_fee_override: initialFee, recurring_override: price } : {}),
                     };
                     const ecoByScenario = scenarios.map(s => projectEcosystemRevenue({
                       creator: { ...creator, engagement: String(eng) },

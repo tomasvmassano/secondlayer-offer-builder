@@ -1028,7 +1028,7 @@ function PitchPageContent() {
       `}</style>
 
       {/* SLIDE 1: COVER — logo + centered subtitle + cinematic orb */}
-      <Slide num={1} total={11} hidePageMark decor={
+      <Slide num={1} total={12} hidePageMark decor={
         <>
           <div className="cover-orb" />
           <div className="aurora red"  style={{ left: -200, top: -200, width: 700, height: 700 }} />
@@ -1068,7 +1068,7 @@ function PitchPageContent() {
       </Slide>
 
       {/* SLIDE 2: CORE PROMISE — waveform + aurora */}
-      <Slide num={2} total={11} decor={
+      <Slide num={2} total={12} decor={
         <>
           <div className="aurora red" style={{ right: -300, top: "30%", width: 900, height: 900 }} />
           <svg className="promise-wave" viewBox="0 0 1920 1080" preserveAspectRatio="none">
@@ -1107,18 +1107,57 @@ function PitchPageContent() {
         </div>
       </Slide>
 
-      {/* ════════════ SLIDE 3 · MAPA DO ECOSSISTEMA — two variants ════════════
+      {/* ════════════ SLIDE 3 · ESSENCE ════════════
+          Creator-specific one-line description of what the offer IS. Sits
+          between the company-wide "core promise" (slide 2) and the
+          ecosystem map (slide 4). Default text pulls from CP2's
+          central_promise so fresh wizard outputs render content; operator
+          can rewrite inline. Caption shows community name + timeframe
+          for quick context. */}
+      <Slide num={3} total={12} decor={
+        <>
+          <div className="aurora red" style={{ left: "50%", top: "50%", transform: "translate(-50%,-50%)", width: 900, height: 900, opacity: 0.3 }} />
+          <div className="cin-tag"><span className="red-dot" />A oferta · 03</div>
+        </>
+      }>
+        <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", width: "100%", padding: "0 120px", textAlign: "center" }}>
+          <div style={{ fontSize: 18, fontWeight: 600, color: "#B11E2F", letterSpacing: "0.28em", textTransform: "uppercase", marginBottom: 48 }}>
+            <Editable
+              value={slides.essence.eyebrow}
+              onChange={v => updateSlide('essence', 'eyebrow', v)}
+            />
+          </div>
+          <p style={{ ...italicSerif, fontSize: 68, color: "#f5f5f5", lineHeight: 1.2, margin: 0, maxWidth: 1500, letterSpacing: "-0.01em" }}>
+            <Editable
+              value={slides.essence.description}
+              onChange={v => updateSlide('essence', 'description', v)}
+              multiline
+              placeholder="Uma frase a descrever a oferta — o que é, para quem, qual a transformação."
+            />
+          </p>
+          <div style={{ width: 96, height: 4, background: "#B11E2F", border: "none", margin: "48px auto 28px" }} />
+          <div style={{ fontSize: 14, color: "#888", letterSpacing: "0.18em", textTransform: "uppercase", fontWeight: 600, fontFamily: "'JetBrains Mono', ui-monospace, monospace" }}>
+            <Editable
+              value={slides.essence.caption}
+              onChange={v => updateSlide('essence', 'caption', v)}
+              placeholder="Nome · prazo"
+            />
+          </div>
+        </div>
+      </Slide>
+
+      {/* ════════════ SLIDE 4 · MAPA DO ECOSSISTEMA — two variants ════════════
           User asked for 2 fresh designs matching the slide 1/2 aesthetic
           (sparse, big serif, breathing room). Pick a winner, delete the
           other in a follow-up commit.
-            3A · O Trio          — Frontend / Novo / Backend triptych
-            3B · Lista + Citação — Slim tier list left + big impact quote right
+            4A · O Trio          — Frontend / Novo / Backend triptych
+            4B · Lista + Citação — Slim tier list left + big impact quote right
           Both pull from CP1.ecosystem_impact (first bullet → quote) and
           slides.businessContext.products. Prices are <Editable> so the
           operator can correct any misread the audit produced. */}
 
-      {/* SLIDE 3 · MAPA DO ECOSSISTEMA — Lista + Citação (slim tier list + big impact quote) */}
-      <Slide num={3} total={11} decor={
+      {/* SLIDE 4 · MAPA DO ECOSSISTEMA — Lista + Citação (slim tier list + big impact quote) */}
+      <Slide num={4} total={12} decor={
         <div className="aurora red" style={{ left: -200, top: "30%", width: 700, height: 700, opacity: 0.28 }} />
       }>
         <div style={{ flex: 1, display: "flex", flexDirection: "column", width: "100%" }}>
@@ -1264,7 +1303,7 @@ function PitchPageContent() {
             4B · Asymmetric       — name+mechanic left, pricing right, calendar bottom */}
 
       {/* SLIDE 4 · A TUA COMUNIDADE — Asymmetric (name+mechanic left, pricing right, calendar bottom) */}
-      <Slide num={4} total={11} decor={
+      <Slide num={5} total={12} decor={
         <div className="aurora red" style={{ right: -250, top: "20%", width: 700, height: 700, opacity: 0.28 }} />
       }>
         <div style={{ flex: 1, display: "flex", flexDirection: "column", width: "100%" }}>
@@ -1334,7 +1373,7 @@ function PitchPageContent() {
             5B · Library Hero     — mechanism small as eyebrow, library cards big */}
 
       {/* SLIDE 5 · O SISTEMA — Mechanism Hero */}
-      <Slide num={5} total={11} decor={
+      <Slide num={6} total={12} decor={
         <div className="aurora deep" style={{ left: "50%", top: "50%", transform: "translate(-50%,-50%)", width: 900, height: 900, opacity: 0.35 }} />
       }>
         <div style={{ flex: 1, display: "flex", flexDirection: "column", width: "100%" }}>
@@ -1374,7 +1413,7 @@ function PitchPageContent() {
       </Slide>
 
       {/* SLIDE 6: O VALOR — Hormozi value stack */}
-      <Slide num={6} total={11} decor={
+      <Slide num={7} total={12} decor={
         <div className="aurora red" style={{ left: -200, top: -100, width: 700, height: 700, opacity: 0.35 }} />
       }>
         <div style={{ flex: 1, display: "flex", flexDirection: "column", width: "100%" }}>
@@ -1474,7 +1513,7 @@ function PitchPageContent() {
       </Slide>
 
       {/* SLIDE 7: AUDIENCE — aurora + dot grid */}
-      <Slide num={7} total={11} decor={
+      <Slide num={8} total={12} decor={
         <div className="aurora red" style={{ left: -200, top: -100, width: 600, height: 600, opacity: 0.3 }} />
       }>
         <div style={{ flex: 1, display: "flex", flexDirection: "column", width: "100%" }}>
@@ -1706,7 +1745,7 @@ function PitchPageContent() {
       </Slide>
 
       {/* SLIDE 8: LAUNCH — phases with assets, aurora */}
-      <Slide num={8} total={11} decor={
+      <Slide num={9} total={12} decor={
         <div className="aurora red" style={{ left: "30%", top: -200, width: 700, height: 700, opacity: 0.3 }} />
       }>
         <div style={{ flex: 1, display: "flex", flexDirection: "column", width: "100%" }}>
@@ -1797,7 +1836,7 @@ function PitchPageContent() {
       </Slide>
 
       {/* SLIDE 9: NUMBERS — dual aurora */}
-      <Slide num={9} total={11} decor={
+      <Slide num={10} total={12} decor={
         <>
           <div className="aurora red"  style={{ right: 0, top: -200, width: 800, height: 800, opacity: 0.4 }} />
           <div className="aurora deep" style={{ left: -100, bottom: -200, width: 700, height: 700 }} />
@@ -1959,7 +1998,7 @@ function PitchPageContent() {
       </Slide>
 
       {/* SLIDE 10: CASOS SIMILARES — proof slide */}
-      <Slide num={10} total={11} decor={
+      <Slide num={11} total={12} decor={
         <div className="aurora red" style={{ left: "50%", top: -150, width: 700, height: 700, opacity: 0.3, transform: "translateX(-50%)" }} />
       }>
         <div style={{ flex: 1, display: "flex", flexDirection: "column", width: "100%" }}>
@@ -2062,7 +2101,7 @@ function PitchPageContent() {
 
       {/* SLIDE 11 (OPTIONAL): INVESTIMENTO — aurora + receipt */}
       {showInvestimento && (
-        <Slide num={11} total={11} decor={
+        <Slide num={12} total={12} decor={
           <>
             <div className="aurora red"  style={{ right: -200, top: -100, width: 700, height: 700, opacity: 0.35 }} />
             <div className="aurora deep" style={{ left: -200, bottom: -100, width: 700, height: 700 }} />
@@ -2453,31 +2492,84 @@ function buildDefaultSlides(creator) {
 
   // When parsed tiers are missing, derive sensible defaults from the offer's
   // recommended monthly price (extracted by the offer-generation pipeline).
-  //   T1 monthly:           €P/mês
-  //   T2 annual prepay:     €(P × 10)/ano  (= 2 months free vs 12 × P)
-  //   T3 anchor (premium):  €(P × 5)/mês   (1-on-1 + masterclasses)
+  // Tier shape switches by pricing_model:
+  //   recurring → Monthly / Annual / Founders Circle (with /mês suffix)
+  //   one_time  → Standard / Early Bird / Premium    (flat prices, no suffix)
+  //   hybrid    → Setup + Monthly composite labels
   // Currency: EN creators get $ + USD; PT creators get € + EUR.
   const cur = lang === 'en' ? '$' : '€';
   const recPrice = Number(creator?.revenuePrice) || null;
-  const fallbackTiers = recPrice
-    ? (lang === 'en' ? [
-        { name: 'Monthly',         price: `${cur}${recPrice}/mo`,         note: 'Recommended' },
-        { name: 'Annual Prepay',   price: `${cur}${recPrice * 10}/yr`,    note: '2 months free' },
-        { name: 'Founders Circle', price: `${cur}${recPrice * 5}/mo`,     note: '1-on-1 + masterclasses' },
-      ] : [
-        { name: 'Mensal',          price: `${cur}${recPrice}/mês`,        note: 'Recomendado' },
-        { name: 'Anual',           price: `${cur}${recPrice * 10}/ano`,   note: '2 meses grátis' },
-        { name: 'Founders Circle', price: `${cur}${recPrice * 5}/mês`,    note: '1-on-1 + masterclasses' },
-      ])
-    : (lang === 'en' ? [
-        { name: 'Monthly',         price: `${cur}[X]/mo`,  note: 'Recommended' },
-        { name: 'Annual Prepay',   price: `${cur}[X]/yr`,  note: '2 months free' },
-        { name: 'Founders Circle', price: `${cur}[X]/mo`,  note: '1-on-1 + masterclasses' },
-      ] : [
-        { name: 'Mensal',          price: `${cur}[X]/mês`, note: 'Recomendado' },
-        { name: 'Anual',           price: `${cur}[X]/ano`, note: '2 meses grátis' },
-        { name: 'Founders Circle', price: `${cur}[X]/mês`, note: '1-on-1 + masterclasses' },
-      ]);
+  const initFee  = Number(creator?.revenueInitialFee) || null;
+  const pmodel   = cfo.pricing_model || 'monthly';
+  const isOT = pmodel === 'one_time';
+  const isHyb = pmodel === 'hybrid';
+  let fallbackTiers;
+  if (isOT) {
+    // One-time: flat prices, no monthly suffix. Premium = 3× anchor.
+    fallbackTiers = recPrice
+      ? (lang === 'en' ? [
+          { name: 'Standard',   price: `${cur}${recPrice}`,                note: 'Recommended' },
+          { name: 'Early Bird', price: `${cur}${Math.round(recPrice * 0.8)}`, note: '20% off' },
+          { name: 'Premium',    price: `${cur}${recPrice * 3}`,            note: '1-on-1 included' },
+        ] : [
+          { name: 'Standard',   price: `${cur}${recPrice}`,                note: 'Recomendado' },
+          { name: 'Early Bird', price: `${cur}${Math.round(recPrice * 0.8)}`, note: '20% desconto' },
+          { name: 'Premium',    price: `${cur}${recPrice * 3}`,            note: '1-on-1 incluído' },
+        ])
+      : (lang === 'en' ? [
+          { name: 'Standard',   price: `${cur}[X]`, note: 'Recommended' },
+          { name: 'Early Bird', price: `${cur}[X]`, note: '20% off' },
+          { name: 'Premium',    price: `${cur}[X]`, note: '1-on-1 included' },
+        ] : [
+          { name: 'Standard',   price: `${cur}[X]`, note: 'Recomendado' },
+          { name: 'Early Bird', price: `${cur}[X]`, note: '20% desconto' },
+          { name: 'Premium',    price: `${cur}[X]`, note: '1-on-1 incluído' },
+        ]);
+  } else if (isHyb) {
+    // Hybrid: each tier shows up-front + monthly. Founders pays a higher
+    // setup with the same monthly to anchor commitment.
+    const i = initFee || (recPrice ? recPrice * 5 : null);
+    fallbackTiers = recPrice
+      ? (lang === 'en' ? [
+          { name: 'Starter',         price: `${cur}${i}+${cur}${recPrice}/mo`,           note: 'Recommended' },
+          { name: 'Annual Prepay',   price: `${cur}${i}+${cur}${recPrice * 10}/yr`,      note: '2 months free' },
+          { name: 'Founders Circle', price: `${cur}${i ? i * 2 : ''}+${cur}${recPrice}/mo`, note: '1-on-1 + masterclasses' },
+        ] : [
+          { name: 'Inicial',         price: `${cur}${i}+${cur}${recPrice}/mês`,          note: 'Recomendado' },
+          { name: 'Anual',           price: `${cur}${i}+${cur}${recPrice * 10}/ano`,     note: '2 meses grátis' },
+          { name: 'Founders Circle', price: `${cur}${i ? i * 2 : ''}+${cur}${recPrice}/mês`, note: '1-on-1 + masterclasses' },
+        ])
+      : (lang === 'en' ? [
+          { name: 'Starter',         price: `${cur}[X]+${cur}[Y]/mo`, note: 'Recommended' },
+          { name: 'Annual Prepay',   price: `${cur}[X]+${cur}[Y]/yr`, note: '2 months free' },
+          { name: 'Founders Circle', price: `${cur}[X]+${cur}[Y]/mo`, note: '1-on-1 + masterclasses' },
+        ] : [
+          { name: 'Inicial',         price: `${cur}[X]+${cur}[Y]/mês`, note: 'Recomendado' },
+          { name: 'Anual',           price: `${cur}[X]+${cur}[Y]/ano`, note: '2 meses grátis' },
+          { name: 'Founders Circle', price: `${cur}[X]+${cur}[Y]/mês`, note: '1-on-1 + masterclasses' },
+        ]);
+  } else {
+    // Recurring (monthly/annual) — original shape.
+    fallbackTiers = recPrice
+      ? (lang === 'en' ? [
+          { name: 'Monthly',         price: `${cur}${recPrice}/mo`,         note: 'Recommended' },
+          { name: 'Annual Prepay',   price: `${cur}${recPrice * 10}/yr`,    note: '2 months free' },
+          { name: 'Founders Circle', price: `${cur}${recPrice * 5}/mo`,     note: '1-on-1 + masterclasses' },
+        ] : [
+          { name: 'Mensal',          price: `${cur}${recPrice}/mês`,        note: 'Recomendado' },
+          { name: 'Anual',           price: `${cur}${recPrice * 10}/ano`,   note: '2 meses grátis' },
+          { name: 'Founders Circle', price: `${cur}${recPrice * 5}/mês`,    note: '1-on-1 + masterclasses' },
+        ])
+      : (lang === 'en' ? [
+          { name: 'Monthly',         price: `${cur}[X]/mo`,  note: 'Recommended' },
+          { name: 'Annual Prepay',   price: `${cur}[X]/yr`,  note: '2 months free' },
+          { name: 'Founders Circle', price: `${cur}[X]/mo`,  note: '1-on-1 + masterclasses' },
+        ] : [
+          { name: 'Mensal',          price: `${cur}[X]/mês`, note: 'Recomendado' },
+          { name: 'Anual',           price: `${cur}[X]/ano`, note: '2 meses grátis' },
+          { name: 'Founders Circle', price: `${cur}[X]/mês`, note: '1-on-1 + masterclasses' },
+        ]);
+  }
 
   return {
     // labelOverrides — operator-typed overrides for any label/header/eyebrow
@@ -2499,6 +2591,19 @@ function buildDefaultSlides(creator) {
         'Tu continuas a ser a cara. Nós tratamos do resto.',
         'You stay the face. We handle the rest.'
       ),
+    },
+    // Slide 3 — Essence. One-line creator-specific description of THE offer
+    // we're building. Sits between the company-wide core promise (slide 2)
+    // and the ecosystem map (slide 4). Default text pulls from CP2's
+    // central_promise so freshly-wizard'd offers have content out of the
+    // box; operator can override inline. Caption defaults to the community
+    // name + transformation timeframe for context.
+    essence: {
+      eyebrow: t('A oferta', 'The offer', 'La oferta'),
+      description: cfo.central_promise || '',
+      caption: cfo.community_name && cfo.transformation?.timeframe
+        ? `${cfo.community_name} · ${cfo.transformation.timeframe}`
+        : (cfo.community_name || ''),
     },
     // Slide 3 — Business Context. Replaces the old generic diagnosis slide.
     // Two render variants based on whether the creator has an existing
