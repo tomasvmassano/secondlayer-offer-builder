@@ -248,6 +248,186 @@ const CASES = {
       url: 'https://www.justinwelsh.me',
     },
   ],
+  // ────────── NICHE-SPECIFIC BUCKETS ──────────
+  // The 4 buckets above cover generic creator-economy positioning. The
+  // buckets below match concrete niches where the LLM-finder would
+  // otherwise have to guess. URLs verified via npm run audit:cases.
+  finance_investing: [
+    {
+      name: 'Contrarian Thinking · Codie Sanchez',
+      niche: 'Wealth / Investing',
+      members: '200,000+ subscribers',
+      members_pt: '200.000+ subscritores',
+      price: '$49/mo premium',
+      price_en: '$49/mo premium',
+      revenue_type: 'mrr',
+      revenue_value: '~$500K+ MRR',
+      trajectory: { pt: 'Newsletter desde 2020 · 200K+ subscritores · curso $5K em escala', en: 'Newsletter since 2020 · 200K+ subscribers · $5K course at scale' },
+      resume: { pt: 'Newsletter sobre comprar pequenos negócios + curso premium. Foco em wealth real, não conteúdo financeiro tradicional.', en: 'Newsletter on buying small businesses + premium course. Focus on real wealth, not generic finance content.' },
+      why: { pt: 'Mesma audiência (mulheres que querem riqueza fora do salário). Founder forte com conteúdo concreto, não teórico.', en: 'Same audience (women who want wealth outside salary). Strong founder with concrete content, not theory.' },
+      url: 'https://contrarianthinking.co',
+    },
+    {
+      name: 'BiggerPockets Pro · Brandon Turner',
+      niche: 'Real Estate',
+      members: '3M+ members',
+      members_pt: '3M+ membros',
+      price: '$99/yr Pro',
+      price_en: '$99/yr Pro',
+      revenue_type: 'mrr',
+      revenue_value: '~$15M+ ARR',
+      trajectory: { pt: 'Fundado 2004 · maior comunidade real-estate dos EUA · 3M+ membros hoje', en: 'Founded 2004 · largest US real-estate community · 3M+ members today' },
+      resume: { pt: 'Plataforma de educação + ferramentas + comunidade para investidores imobiliários. Modelo freemium → Pro.', en: 'Education + tools + community platform for real-estate investors. Freemium → Pro model.' },
+      why: { pt: 'Referência mundial. Mostra que niche real-estate sustenta comunidade de 7-figures.', en: 'Global reference. Shows real-estate niche can sustain 7-figure community.' },
+      url: 'https://www.biggerpockets.com',
+    },
+    {
+      name: 'The Money With Katie Show · Katie Gatti Tassin',
+      niche: 'Personal Finance',
+      members: '100K+ subscribers',
+      members_pt: '100K+ subscritores',
+      price: '— (free + book)',
+      price_en: '— (free + book)',
+      revenue_type: 'one_time',
+      revenue_value: 'Best-seller author',
+      trajectory: { pt: 'Newsletter 2020 · podcast Morning Brew · livro 2024 · 100K+ subscritores', en: 'Newsletter 2020 · Morning Brew podcast · book 2024 · 100K+ subscribers' },
+      resume: { pt: 'Newsletter sobre wealth para mulheres + podcast + livro. Voz forte, audiência ultra-engajada.', en: 'Newsletter on wealth for women + podcast + book. Strong voice, ultra-engaged audience.' },
+      why: { pt: 'Founder-led no nicho de women wealth. Modelo conteúdo livre → premium curso/livro.', en: 'Founder-led in women-wealth niche. Free content → premium course/book model.' },
+      url: 'https://moneywithkatie.com',
+    },
+  ],
+  fitness_wellness: [
+    {
+      name: 'Sweat App · Kayla Itsines',
+      niche: 'Fitness · Women',
+      members: '2M+ paying users',
+      members_pt: '2M+ utilizadores pagos',
+      price: '$19.99/mo',
+      price_en: '$19.99/mo',
+      revenue_type: 'mrr',
+      revenue_value: '~$80M+ ARR',
+      trajectory: { pt: 'PDFs BBG 2014 · app Sweat 2017 · $400M valuation 2021', en: 'BBG PDFs 2014 · Sweat app 2017 · $400M valuation 2021' },
+      resume: { pt: 'App de fitness para mulheres com workouts guiados + comunidade global. Founder-led puro.', en: 'Women\'s fitness app with guided workouts + global community. Pure founder-led.' },
+      why: { pt: 'Provou que fitness para mulher sustenta MRR de 8 figures. Mesmo formato mensal.', en: 'Proved women\'s fitness sustains 8-figure MRR. Same monthly format.' },
+      url: 'https://www.sweat.com',
+    },
+    {
+      name: 'Future · 1-on-1 Coaching',
+      niche: 'Fitness · 1-on-1',
+      members: '50,000+ members',
+      members_pt: '50.000+ membros',
+      price: '$199/mo',
+      price_en: '$199/mo',
+      revenue_type: 'mrr',
+      revenue_value: '~$10M+ MRR',
+      trajectory: { pt: 'Lançado 2019 · $75M Series C 2021 · 50K+ membros pagantes', en: 'Launched 2019 · $75M Series C 2021 · 50K+ paying members' },
+      resume: { pt: 'App de personal training 1-on-1 via mensagens. Mid-ticket recorrente.', en: 'App for 1-on-1 personal training via messaging. Mid-ticket recurring.' },
+      why: { pt: 'Validação de mid-ticket recorrente em fitness. Mostra ceiling alto se a entrega for personalizada.', en: 'Mid-ticket recurring validation in fitness. Shows high ceiling when delivery is personal.' },
+      url: 'https://www.future.co',
+    },
+    {
+      name: 'MadFit Studio · Maddie Lymburner',
+      niche: 'Fitness · YouTuber',
+      members: '8M+ subscribers',
+      members_pt: '8M+ subscritores',
+      price: '$9.99/mo app',
+      price_en: '$9.99/mo app',
+      revenue_type: 'mrr',
+      revenue_value: '~$1M+ MRR',
+      trajectory: { pt: 'YouTube 2017 · app 2020 · 8M+ subscritores · app 100K+ pagantes', en: 'YouTube 2017 · app 2020 · 8M+ subscribers · app 100K+ paying' },
+      resume: { pt: 'YouTuber de fitness em casa que monetiza via app premium + parcerias.', en: 'At-home fitness YouTuber monetizing via premium app + partnerships.' },
+      why: { pt: 'Modelo solo creator → app. Mostra como audiência IG/YouTube converte em MRR.', en: 'Solo creator → app model. Shows how IG/YouTube audience converts to MRR.' },
+      url: 'https://www.youtube.com/@MadFit',
+    },
+  ],
+  food_chef: [
+    {
+      name: 'Joshua Weissman · Patreon',
+      niche: 'Food · YouTuber',
+      members: '10,000+ patrons',
+      members_pt: '10.000+ patrons',
+      price: '$5/mo',
+      price_en: '$5/mo',
+      revenue_type: 'mrr',
+      revenue_value: '~$50K MRR Patreon',
+      trajectory: { pt: 'YouTube 2018 · 10M+ subs · livro best-seller 2021 · Patreon 10K+', en: 'YouTube 2018 · 10M+ subs · best-seller book 2021 · 10K+ Patreon' },
+      resume: { pt: 'Chef YouTuber com membership Patreon para bonus content + livro físico.', en: 'Chef YouTuber with Patreon membership for bonus content + physical book.' },
+      why: { pt: 'Low-tier high-volume continuity em food. Mostra que $5/mo escala se audience for grande.', en: 'Low-tier high-volume continuity in food. Shows $5/mo scales with large audience.' },
+      url: 'https://www.patreon.com/joshuaweissman',
+    },
+    {
+      name: 'Sorted Food · Sidekick App',
+      niche: 'Food · App',
+      members: '100,000+ paying',
+      members_pt: '100.000+ pagantes',
+      price: '$5.99/mo',
+      price_en: '$5.99/mo',
+      revenue_type: 'mrr',
+      revenue_value: '~$500K+ MRR',
+      trajectory: { pt: 'YouTube 2010 · app Sidekick 2020 · 100K+ utilizadores pagantes', en: 'YouTube 2010 · Sidekick app 2020 · 100K+ paying users' },
+      resume: { pt: 'Chef team com app premium que organiza meal-planning + grocery lists. Founder-led mas com equipa.', en: 'Chef team with premium app for meal-planning + grocery lists. Founder-led with team.' },
+      why: { pt: 'YouTube grátis → app pago. Modelo de conversão direta validado em food.', en: 'Free YouTube → paid app. Validated direct-conversion model in food.' },
+      url: 'https://www.sortedfood.com',
+    },
+    {
+      name: 'America\'s Test Kitchen · ATK Online',
+      niche: 'Food · Education',
+      members: '500,000+ members',
+      members_pt: '500.000+ membros',
+      price: '$39.95/yr',
+      price_en: '$39.95/yr',
+      revenue_type: 'mrr',
+      revenue_value: '~$20M+ ARR',
+      trajectory: { pt: 'TV show 1993 · digital subscription 2010 · 500K+ membros pagantes hoje', en: 'TV show 1993 · digital subscription 2010 · 500K+ paying members today' },
+      resume: { pt: 'Receitas + reviews + técnicas com subscription anual. Modelo institucional.', en: 'Recipes + reviews + technique with annual subscription. Institutional model.' },
+      why: { pt: 'Annual prepay model em food. Útil como referência para tier "anual" do creator.', en: 'Annual prepay model in food. Useful as reference for creator\'s "annual" tier.' },
+      url: 'https://www.americastestkitchen.com',
+    },
+  ],
+  beauty_skincare: [
+    {
+      name: 'Skin Rocks · Caroline Hirons',
+      niche: 'Skincare · Expert',
+      members: '300K+ app users',
+      members_pt: '300K+ utilizadores app',
+      price: '£2.99/mo',
+      price_en: '$3.99/mo',
+      revenue_type: 'mrr',
+      revenue_value: '~£500K+ MRR',
+      trajectory: { pt: 'Blogger 2010 · livro best-seller 2020 · app Skin Rocks 2021', en: 'Blogger 2010 · best-seller book 2020 · Skin Rocks app 2021' },
+      resume: { pt: 'App de skincare com recomendações personalizadas + comunidade de expert.', en: 'Skincare app with personal recommendations + expert community.' },
+      why: { pt: 'Expert-led com app pago. Mostra que beauty sustenta low-tier MRR escalado.', en: 'Expert-led with paid app. Shows beauty sustains scaled low-tier MRR.' },
+      url: 'https://www.skinrocks.com',
+    },
+    {
+      name: 'Hyram\'s Skincare School',
+      niche: 'Skincare · Education',
+      members: '7M+ subscribers',
+      members_pt: '7M+ subscritores',
+      price: '— (free + product brand)',
+      price_en: '— (free + product brand)',
+      revenue_type: 'community',
+      revenue_value: 'Selfless skincare brand',
+      trajectory: { pt: 'TikTok 2020 · 7M+ subs YouTube · marca própria Selfless 2021', en: 'TikTok 2020 · 7M+ YouTube subs · own brand Selfless 2021' },
+      resume: { pt: 'Educador de skincare que escalou audience → marca de produtos.', en: 'Skincare educator who scaled audience → product brand.' },
+      why: { pt: 'Modelo audience-first → produto. Mostra que conteúdo grátis sustenta brand premium.', en: 'Audience-first → product model. Shows free content sustains premium brand.' },
+      url: 'https://www.youtube.com/@Hyram',
+    },
+    {
+      name: 'Mixed Makeup · Susan Yara',
+      niche: 'Skincare · Brand',
+      members: '1.5M+ subscribers',
+      members_pt: '1.5M+ subscritores',
+      price: '— (creator → brand Naturium)',
+      price_en: '— (creator → brand Naturium)',
+      revenue_type: 'one_time',
+      revenue_value: 'Naturium $355M exit',
+      trajectory: { pt: 'YouTube 2014 · marca Naturium 2019 · vendida E.l.f. por $355M 2023', en: 'YouTube 2014 · Naturium brand 2019 · sold to E.l.f. for $355M 2023' },
+      resume: { pt: 'Esteticista que construiu canal → brand de skincare → exit. Founder-led puro.', en: 'Esthetician who built channel → skincare brand → exit. Pure founder-led.' },
+      why: { pt: 'O modelo máximo. Mostra que creator-led em beauty pode terminar em 9-figure exit.', en: 'The peak model. Shows creator-led beauty can end in 9-figure exit.' },
+      url: 'https://www.naturium.com',
+    },
+  ],
 };
 
 // Revenue label by type — used at slide render time so we don't show
@@ -269,6 +449,7 @@ export function platformFromUrl(url) {
     const h = new URL(url).hostname.replace(/^www\./, '').toLowerCase();
     if (h.includes('skool.com'))      return { label: 'Skool',      color: '#FFA500' };
     if (h.includes('whop.com'))       return { label: 'Whop',       color: '#FF6B35' };
+    if (h.includes('youtube.com'))    return { label: 'YouTube',    color: '#FF0000' };
     if (h.includes('substack.com'))   return { label: 'Substack',   color: '#FF6719' };
     if (h.includes('circle.so'))      return { label: 'Circle',     color: '#5046E5' };
     if (h.includes('discord'))        return { label: 'Discord',    color: '#5865F2' };
@@ -321,9 +502,16 @@ export function pickCases(creator, lang = 'pt') {
 
   let bucket = archetype && CASES[archetype] ? CASES[archetype] : null;
   if (!bucket) {
-    if (/(ai|automation|tech|saas|builder|operator|indie)/.test(nicheRaw)) bucket = CASES.builder_operator;
-    else if (/(fitness|nutrition|coach|transform|health|wellness|habits)/.test(nicheRaw)) bucket = CASES.coach_transformation;
-    else if (/(product|education|teach|knowledge|learn|expert)/.test(nicheRaw)) bucket = CASES.expert_educator;
+    // Niche-keyword routing — specific niches before generic archetypes
+    // so a "real-estate woman investor" gets finance_investing not
+    // coach_transformation.
+    if (/(real.?estate|property|dubai|invest(ing|or|ments)|crypto|stocks?|trading|wealth|finance|money)/.test(nicheRaw)) bucket = CASES.finance_investing;
+    else if (/(fitness|workout|exercise|gym|training|bodybuild|yoga|pilates|crossfit|strength)/.test(nicheRaw)) bucket = CASES.fitness_wellness;
+    else if (/(food|chef|recipe|cook|cuisine|kitchen|bake|nutrition|meal|diet)/.test(nicheRaw)) bucket = CASES.food_chef;
+    else if (/(beauty|skincare|skin.?care|makeup|cosmetic|haircare|aesthetic)/.test(nicheRaw)) bucket = CASES.beauty_skincare;
+    else if (/(ai|automation|tech|saas|builder|operator|indie)/.test(nicheRaw)) bucket = CASES.builder_operator;
+    else if (/(coach|transform|health|wellness|habits|mindset|therapy|mental)/.test(nicheRaw)) bucket = CASES.coach_transformation;
+    else if (/(product|education|teach|knowledge|learn|expert|course)/.test(nicheRaw)) bucket = CASES.expert_educator;
   }
   if (!bucket) bucket = CASES.default;
 

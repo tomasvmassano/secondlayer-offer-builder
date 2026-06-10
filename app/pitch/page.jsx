@@ -430,6 +430,11 @@ function PitchPageContent() {
   const [loading, setLoading] = useState(true);
   const [showInvestimento, setShowInvestimento] = useState(false);
   const [exporting, setExporting] = useState(false);
+  // Case-study regeneration state. Lives at page level so the button on
+  // slide 10 can show progress / errors / verification report inline.
+  const [caseGenStatus, setCaseGenStatus] = useState('idle'); // idle | generating | success | error
+  const [caseGenError, setCaseGenError] = useState(null);
+  const [caseGenReport, setCaseGenReport] = useState(null);   // {verified_count, rejected, total_candidates}
 
   const [audience, setAudience] = useState(100000);
   const [price, setPrice] = useState(39);
@@ -636,6 +641,69 @@ function PitchPageContent() {
       ...prev,
       [scenarioKey]: { ...prev[scenarioKey], [param]: value },
     }));
+  };
+
+  // POST to /api/creators/[id]/case-studies/generate, refetch creator on
+  // success so the slide picks up cfo.cases. Server-side does URL+title
+  // verification and persists only verified cases.
+  const regenerateCases = async () => {
+    if (!creator?.id || caseGenStatus === 'generating') return;
+    setCaseGenStatus('generating');
+    setCaseGenError(null);
+    setCaseGenReport(null);
+    try {
+      const res = await fetch(`/api/creators/${creator.id}/case-studies/generate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ persist: true }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setCaseGenStatus('error');
+        setCaseGenError(data.error || `HTTP ${res.status}`);
+        return;
+      }
+      setCaseGenReport({
+        verified_count: data.verified_count ?? data.cases?.length ?? 0,
+        rejected: data.rejected || [],
+        total_candidates: data.total_candidates ?? 0,
+        cases: data.cases || [],
+      });
+      // Refetch creator so cfo.cases hydrates and buildDefaultSlides picks
+      // up the new cases. Force a slides rebuild by clearing the persisted
+      // pitch state on slides.cases so the new default re-derives.
+      const fresh = await fetch(`/api/creators/${creator.id}`).then(r => r.json()).catch(() => null);
+      if (fresh) {
+        setCreator(fresh);
+        // Nudge slides.cases.items to the fresh data immediately so the
+        // operator sees the result without a manual reload.
+        if (data.cases?.length > 0) {
+          setSlides(prev => prev ? ({
+            ...prev,
+            cases: {
+              ...prev.cases,
+              items: data.cases.slice(0, 3).map(c => ({
+                name: c.name,
+                niche: c.niche,
+                members: c.members,
+                price: c.price,
+                revenue_type: c.revenue_type || 'mrr',
+                revenue_value: c.revenue_value || '—',
+                revenue_label: (c.revenue_type === 'one_time') ? pitchLang('Lifetime revenue', 'Receita total', 'Receita total') : 'MRR',
+                trajectory: c.trajectory || '',
+                resume: c.resume,
+                why: c.why,
+                url: c.url,
+              })),
+            },
+          }) : prev);
+        }
+      }
+      setCaseGenStatus('success');
+    } catch (err) {
+      setCaseGenStatus('error');
+      setCaseGenError(err.message || String(err));
+    }
   };
 
   const exportPptx = async () => {
@@ -2008,7 +2076,45 @@ function PitchPageContent() {
       <Slide num={11} total={12} decor={
         <div className="aurora red" style={{ left: "50%", top: -150, width: 700, height: 700, opacity: 0.3, transform: "translateX(-50%)" }} />
       }>
-        <div style={{ flex: 1, display: "flex", flexDirection: "column", width: "100%" }}>
+        <div style={{ flex: 1, display: "flex", flexDirection: "column", width: "100%", position: "relative" }}>
+          {/* Operator-only chrome: regenerate cases button. Calls
+              /api/creators/[id]/case-studies/generate — LLM finds 3 real
+              niche-matched communities, server verifies URL + title before
+              persisting. .no-print so it doesn't appear in PDF/PPTX export. */}
+          <div className="no-print" style={{ position: "absolute", top: 0, right: 0, display: "flex", flexDirection: "column", gap: 8, alignItems: "flex-end", zIndex: 10 }}>
+            <button
+              onClick={regenerateCases}
+              disabled={caseGenStatus === 'generating'}
+              style={{
+                padding: "8px 14px", fontSize: 11, fontWeight: 700, letterSpacing: "0.14em", textTransform: "uppercase",
+                background: caseGenStatus === 'generating' ? "rgba(122,14,24,0.2)" : "rgba(122,14,24,0.85)",
+                color: "#f5f5f5", border: "1px solid #B11E2F", borderRadius: 6, cursor: caseGenStatus === 'generating' ? "wait" : "pointer",
+                fontFamily: "'JetBrains Mono', ui-monospace, monospace",
+              }}
+              title="Regenerate niche-matched case studies via LLM (verified against URL + title)"
+            >
+              {caseGenStatus === 'generating' ? pitchLang('Generating…', 'A gerar…', 'Generando…') : pitchLang('↻ Regenerate cases', '↻ Regenerar casos', '↻ Regenerar casos')}
+            </button>
+            {caseGenStatus === 'error' && (
+              <div style={{ maxWidth: 360, padding: "8px 12px", background: "rgba(122,14,24,0.18)", border: "1px solid #B11E2F", borderRadius: 6, fontSize: 11, color: "#f5b5bb", lineHeight: 1.4 }}>
+                {caseGenError}
+              </div>
+            )}
+            {caseGenStatus === 'success' && caseGenReport && (
+              <div style={{ maxWidth: 360, padding: "8px 12px", background: "rgba(31,138,76,0.12)", border: "1px solid rgba(31,138,76,0.35)", borderRadius: 6, fontSize: 11, color: "#cfead7", lineHeight: 1.4 }}>
+                <div style={{ fontWeight: 700, marginBottom: 4 }}>
+                  ✓ {caseGenReport.verified_count} {pitchLang('verified', 'verificados', 'verificados')} · {caseGenReport.rejected.length} {pitchLang('rejected', 'rejeitados', 'rechazados')}
+                </div>
+                {caseGenReport.rejected.length > 0 && (
+                  <div style={{ marginTop: 4, color: "#aaa", fontSize: 10, fontFamily: "'JetBrains Mono', ui-monospace, monospace" }}>
+                    {caseGenReport.rejected.slice(0, 3).map((r, i) => (
+                      <div key={i}>· {r.name}: {r.reason}</div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
           <div style={{ fontSize: 18, fontWeight: 600, color: "#B11E2F", letterSpacing: "0.28em", textTransform: "uppercase" }}>
             <EditableLabel slot="slide10.eyebrow" default={pitchLang('Proof', 'Prova', 'Prueba')} overrides={slides.labelOverrides} onChange={updateLabel} />
           </div>
