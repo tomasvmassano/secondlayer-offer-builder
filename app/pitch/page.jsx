@@ -1125,14 +1125,20 @@ function PitchPageContent() {
             <Editable
               value={slides.essence.eyebrow}
               onChange={v => updateSlide('essence', 'eyebrow', v)}
+              style={{ display: "block", textAlign: "center" }}
             />
           </div>
-          <p style={{ ...italicSerif, fontSize: 68, color: "#f5f5f5", lineHeight: 1.2, margin: 0, maxWidth: 1500, letterSpacing: "-0.01em" }}>
+          {/* Editable rendered as block so the multi-line quote text-aligns
+              centered (inline-block would left-justify wrapped lines inside
+              its own box). margin auto + maxWidth keeps the line length
+              readable; lineHeight 1.25 stops descender clipping. */}
+          <p style={{ ...italicSerif, fontSize: 60, color: "#f5f5f5", lineHeight: 1.25, margin: "0 auto", maxWidth: 1400, letterSpacing: "-0.01em", textAlign: "center" }}>
             <Editable
               value={slides.essence.description}
               onChange={v => updateSlide('essence', 'description', v)}
               multiline
               placeholder="Uma frase a descrever a oferta — o que é, para quem, qual a transformação."
+              style={{ display: "block", textAlign: "center", width: "100%" }}
             />
           </p>
           <div style={{ width: 96, height: 4, background: "#B11E2F", border: "none", margin: "48px auto 28px" }} />
@@ -1141,6 +1147,7 @@ function PitchPageContent() {
               value={slides.essence.caption}
               onChange={v => updateSlide('essence', 'caption', v)}
               placeholder="Nome · prazo"
+              style={{ display: "block", textAlign: "center" }}
             />
           </div>
         </div>
@@ -2421,6 +2428,108 @@ function deriveLibraryFromModules(modules, lang) {
 // DEFAULT SLIDES
 // ─────────────────────────────────────────────────────────────────
 
+// Slide 3 (essence) defaults to CP2's central_promise — but that field is
+// written in the OFFER'S marketing voice ("Join the inner circle…",
+// first-person creator). The deck speaks ABOUT the offer TO the creator, so:
+//   - strip CTA prefixes ("Join the", "Get access to", "Unlock", "Discover")
+//   - swap I/my/I'm → you/your/you're so the line reads as "the offer
+//     leverages YOUR deal flow, YOUR network…" instead of the creator
+//     narrating their own pitch
+//   - cap at ~240 chars so the slide doesn't get a wall of text
+// Operator can still inline-edit if the deterministic transform misses.
+function derivePitchEssence(promise, lang) {
+  if (!promise) return '';
+  let out = String(promise).trim();
+  // Strip CTA-style imperatives at the start.
+  if (lang === 'pt') {
+    out = out.replace(/^(Junta-te\s+(à|ao|aos|às)\s+|Acede\s+(à|ao)\s+|Descobre\s+(a|o)\s+|Entra\s+(na|no)\s+|Bem-vinda?\s+(à|ao)\s+)/i, '');
+  } else if (lang === 'es') {
+    out = out.replace(/^(Únete\s+(a|al)\s+|Accede\s+a\s+|Descubre\s+(la|el)\s+|Entra\s+a\s+|Bienvenida?\s+a\s+)/i, '');
+  } else {
+    out = out.replace(/^(Join\s+(the\s+)?|Get\s+(access\s+to\s+|inside\s+)?|Unlock\s+(the\s+)?|Discover\s+(the\s+)?|Welcome\s+to\s+(the\s+)?|Step\s+inside\s+(the\s+)?)/i, '');
+  }
+  // First letter capitalised after prefix removal.
+  out = out.charAt(0).toUpperCase() + out.slice(1);
+  // I/my/me/mine → you/your/you/yours. Order matters: longer matches first
+  // ("I'm" before "I"). Word-boundary so "Inner" / "minimum" survive.
+  if (lang === 'pt' || lang === 'es') {
+    // PT/ES typically use minha/meu/eu — swap to tua/teu/tu.
+    out = out
+      .replace(/\bminhas\b/g, 'tuas').replace(/\bMinhas\b/g, 'Tuas')
+      .replace(/\bminha\b/g, 'tua').replace(/\bMinha\b/g, 'Tua')
+      .replace(/\bmeus\b/g, 'teus').replace(/\bMeus\b/g, 'Teus')
+      .replace(/\bmeu\b/g, 'teu').replace(/\bMeu\b/g, 'Teu')
+      .replace(/\beu uso\b/gi, 'tu usas')
+      .replace(/\beu partilho\b/gi, 'tu partilhas')
+      .replace(/\beu vou\b/gi, 'tu vais');
+  } else {
+    out = out
+      .replace(/\bI'm\b/g, "you're").replace(/\bI've\b/g, "you've").replace(/\bI'll\b/g, "you'll").replace(/\bI'd\b/g, "you'd")
+      .replace(/\bmyself\b/g, 'yourself')
+      .replace(/\bmine\b/g, 'yours')
+      .replace(/\bmy\b/g, 'your').replace(/\bMy\b/g, 'Your')
+      .replace(/\bI use\b/gi, 'you use').replace(/\bI share\b/gi, 'you share').replace(/\bI help\b/gi, 'you help').replace(/\bI teach\b/gi, 'you teach').replace(/\bI run\b/gi, 'you run').replace(/\bI build\b/gi, 'you build').replace(/\bI generate\b/gi, 'you generate')
+      // Bare "I" — must come last; word-boundary catches it without breaking "Inner".
+      .replace(/\bI\b/g, 'you');
+  }
+  // Cap length. Try to cut at sentence boundary first; else hard cut.
+  if (out.length > 260) {
+    const slice = out.slice(0, 260);
+    const lastStop = Math.max(slice.lastIndexOf('. '), slice.lastIndexOf('— '));
+    out = lastStop > 120 ? slice.slice(0, lastStop + 1).trim() : slice.trim() + '…';
+  }
+  return out;
+}
+
+// Slide 5 (community.mechanic) defaults to CP2's core_mechanic — which often
+// includes a refund/guarantee sentence ("If you don't X within 6 months, full
+// refund.") and verbose qualifiers ("Every month, I share 2-3 exclusive deal
+// opportunities from my personal pipeline with full financial breakdowns").
+// The deck has a dedicated guarantee slot lower down; we don't want it
+// duplicated here. We also trim trailing hedging phrases so the bullets
+// land sharper. Operator can still inline-edit.
+function cleanCommunityMechanic(text, lang) {
+  if (!text) return '';
+  let out = String(text).trim();
+  // 1. Drop refund/guarantee sentences. We match common openings in 3 langs
+  //    and consume up to the next period.
+  const guaranteePatterns = [
+    /\.?\s*If you don't[^.]*\.\s*/gi,
+    /\.?\s*If you do not[^.]*\.\s*/gi,
+    /\.?\s*Full refund[^.]*\.\s*/gi,
+    /\.?\s*Money[- ]back\s+guarantee[^.]*\.\s*/gi,
+    /\.?\s*Guaranteed[^.]*\.\s*/gi,
+    /\.?\s*Se não[^.]*\.\s*/gi,
+    /\.?\s*Reembolso[^.]*\.\s*/gi,
+    /\.?\s*Garantia[^.]*\.\s*/gi,
+    /\.?\s*Si no[^.]*\.\s*/gi,
+    /\.?\s*Reembolso\s+completo[^.]*\.\s*/gi,
+    /\.?\s*Garantía[^.]*\.\s*/gi,
+  ];
+  guaranteePatterns.forEach(p => { out = out.replace(p, '. '); });
+  // 2. Compress verbose qualifiers like "with full financial breakdowns",
+  //    "from my personal pipeline", "with all the details" — the trailing
+  //    "with X" tails that hedge the offer.
+  out = out
+    .replace(/\s+with\s+full\s+financial\s+breakdowns?\.?/gi, '.')
+    .replace(/\s+with\s+all\s+the\s+details?\.?/gi, '.')
+    .replace(/\s+from\s+my\s+personal\s+pipeline\.?/gi, '.')
+    .replace(/\s+(?:where|that)\s+I\s+personally\s+[^.]+?(?=[.,])/gi, '')
+    .replace(/\s+com\s+todos\s+os\s+detalhes\.?/gi, '.')
+    .replace(/\s+do\s+meu\s+pipeline\s+pessoal\.?/gi, '.');
+  // 3. Collapse run-on spaces / periods from the deletes above.
+  out = out.replace(/\.{2,}/g, '.').replace(/\s+/g, ' ').replace(/\s+\./g, '.').trim();
+  // 4. Strip leading "Every month, I share 2-3" qualifier → bare claim.
+  //    "Every month, I share 2-3 exclusive X." → "Exclusive X."
+  out = out
+    .replace(/^Every\s+month,?\s+I\s+share\s+\d+(-\d+)?\s+/i, '')
+    .replace(/^Todos\s+os\s+meses,?\s+(eu\s+)?partilho\s+\d+(-\d+)?\s+/i, '')
+    .replace(/^Cada\s+mes,?\s+comparto\s+\d+(-\d+)?\s+/i, '');
+  // 5. Re-capitalise after a leading-phrase strip.
+  if (out.length > 0) out = out.charAt(0).toUpperCase() + out.slice(1);
+  return out;
+}
+
 function buildDefaultSlides(creator) {
   const name = firstName(creator?.name || 'Creator');
   // Build-time language code — 3-way. Helper signature is `t(pt, en, es)` for
@@ -2600,7 +2709,9 @@ function buildDefaultSlides(creator) {
     // name + transformation timeframe for context.
     essence: {
       eyebrow: t('A oferta', 'The offer', 'La oferta'),
-      description: cfo.central_promise || '',
+      // derivePitchEssence(): strips CTA prefix + flips I/my → you/your so the
+      // line reads as the deck talking ABOUT the offer to the creator.
+      description: derivePitchEssence(cfo.central_promise, lang),
       caption: cfo.community_name && cfo.transformation?.timeframe
         ? `${cfo.community_name} · ${cfo.transformation.timeframe}`
         : (cfo.community_name || ''),
@@ -2677,7 +2788,10 @@ function buildDefaultSlides(creator) {
       subtitle: t('Aqui está o que vamos construir para ti.', 'Here is what we will build for you.'),
       nameCandidate: c.primaryName || t('[Nome da Comunidade]', '[Community Name]'),
       platform: c.platform || 'Skool',
-      mechanic: c.mechanic || t(
+      // cleanCommunityMechanic(): drops refund/guarantee sentences (those
+      // live on a dedicated slide further down) + trims verbose qualifiers
+      // ("with full financial breakdowns", "from my personal pipeline").
+      mechanic: cleanCommunityMechanic(c.mechanic, lang) || t(
         '[1 evento ao vivo/semana + drops semanais + grupo privado para Q&A diário]',
         '[1 live event/week + weekly drops + private feed for daily Q&A]'
       ),
