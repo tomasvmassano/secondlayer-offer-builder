@@ -7,7 +7,8 @@
     "build:skills": "node scripts/build-skills.mjs",
     "prebuild": "npm run build:skills",
     "build": "next build",
-    "start": "next start"
+    "start": "next start",
+    "audit:cases": "node scripts/audit-cases-urls.mjs"
   },
   "dependencies": {
     "@upstash/ratelimit": "^2.0.8",

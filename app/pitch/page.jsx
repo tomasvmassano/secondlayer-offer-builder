@@ -5,7 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { SCENARIOS as SHARED_SCENARIOS, projectGrowth as sharedProjectGrowth, cumulativeRevenue as sharedCumulative, calculateSteadyMRR, calculateOfferRevenue, projectEcosystemRevenue } from "../lib/revenue";
 import { parseOutput } from "../lib/offerParser";
 import { readClientFacing, legacyParsedToOfferState } from "../lib/offerSchema";
-import { pickCases } from "../lib/casesDb";
+import { pickCases, platformFromUrl, caseInitials, caseAvatarColor } from "../lib/casesDb";
 
 // ─────────────────────────────────────────────────────────────────
 // PITCH DECK — 10 slides + optional slide 11 (Investimento)
@@ -2021,35 +2021,66 @@ function PitchPageContent() {
           </p>
 
           <div style={{ marginTop: 48, display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 24, flex: 1 }}>
-            {slides.cases.items.map((c, i) => (
+            {slides.cases.items.map((c, i) => {
+              const platform = platformFromUrl(c.url);
+              const initials = caseInitials(c.name);
+              const avatarColor = caseAvatarColor(c.name);
+              return (
               <div key={i} style={{ padding: 32, background: "rgba(15,15,15,0.85)", border: "1px solid #1F1F1F", borderRadius: 14, display: "flex", flexDirection: "column" }}>
-                <div style={{ fontFamily: "'JetBrains Mono', ui-monospace, monospace", fontSize: 11, color: "#B11E2F", letterSpacing: "0.16em", textTransform: "uppercase", marginBottom: 8 }}>
-                  <Editable value={c.niche} onChange={v => {
-                    const next = [...slides.cases.items]; next[i] = { ...c, niche: v };
-                    updateSlide('cases', 'items', next);
-                  }} />
-                </div>
-                <h3 style={{ fontSize: 32, fontWeight: 700, margin: 0, color: "#f5f5f5", letterSpacing: "-0.02em", display: "flex", alignItems: "center", gap: 10 }}>
-                  <span style={{ flex: 1 }}>
-                    <Editable value={c.name} onChange={v => {
-                      const next = [...slides.cases.items]; next[i] = { ...c, name: v };
+                {/* Top strip: niche tag + platform badge. Two-line layout: tag
+                    on top, badge below right. Badge only renders when URL maps
+                    to a known platform; personal-domain URLs stay clean. */}
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 14, gap: 8 }}>
+                  <div style={{ fontFamily: "'JetBrains Mono', ui-monospace, monospace", fontSize: 11, color: "#B11E2F", letterSpacing: "0.16em", textTransform: "uppercase" }}>
+                    <Editable value={c.niche} onChange={v => {
+                      const next = [...slides.cases.items]; next[i] = { ...c, niche: v };
                       updateSlide('cases', 'items', next);
                     }} />
-                  </span>
-                  {/* External link — curated DB ships verifiable URLs to the creator/community's
-                      main brand page. Operator can click during the live pitch to demonstrate proof. */}
-                  {c.url && (
-                    <a
-                      href={c.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      style={{ fontSize: 18, color: "#B11E2F", textDecoration: "none", padding: "4px 9px", borderRadius: 6, border: "1px solid rgba(177,30,47,0.4)", background: "rgba(177,30,47,0.06)", lineHeight: 1, flexShrink: 0 }}
-                      title={c.url}
-                    >
-                      ↗
-                    </a>
+                  </div>
+                  {platform && (
+                    <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "3px 8px", borderRadius: 999, background: `${platform.color}1A`, border: `1px solid ${platform.color}55` }}>
+                      <span style={{ width: 6, height: 6, borderRadius: "50%", background: platform.color }} />
+                      <span style={{ fontSize: 9, fontWeight: 700, color: platform.color, letterSpacing: "0.12em", textTransform: "uppercase" }}>{platform.label}</span>
+                    </div>
                   )}
-                </h3>
+                </div>
+                {/* Avatar + name row. Avatar circle holds initials of the
+                    creator, color hash-derived from the name (stable). */}
+                <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 4 }}>
+                  <div style={{ width: 44, height: 44, borderRadius: "50%", background: avatarColor, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 15, fontWeight: 700, color: "#f5f5f5", letterSpacing: "0.05em", flexShrink: 0, border: "1px solid rgba(255,255,255,0.08)" }}>
+                    {initials}
+                  </div>
+                  <h3 style={{ fontSize: 26, fontWeight: 700, margin: 0, color: "#f5f5f5", letterSpacing: "-0.02em", display: "flex", alignItems: "center", gap: 8, flex: 1, lineHeight: 1.15 }}>
+                    <span style={{ flex: 1 }}>
+                      <Editable value={c.name} onChange={v => {
+                        const next = [...slides.cases.items]; next[i] = { ...c, name: v };
+                        updateSlide('cases', 'items', next);
+                      }} />
+                    </span>
+                    {c.url && (
+                      <a
+                        href={c.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={{ fontSize: 16, color: "#B11E2F", textDecoration: "none", padding: "3px 7px", borderRadius: 6, border: "1px solid rgba(177,30,47,0.4)", background: "rgba(177,30,47,0.06)", lineHeight: 1, flexShrink: 0 }}
+                        title={c.url}
+                      >
+                        ↗
+                      </a>
+                    )}
+                  </h3>
+                </div>
+                {/* Trajectory — the "path, not just destination" line. Drives
+                    "it's been done before" framing. Falls back silently when
+                    the case row doesn't have one. */}
+                {c.trajectory && (
+                  <div style={{ marginTop: 8, paddingLeft: 56, fontFamily: "'JetBrains Mono', ui-monospace, monospace", fontSize: 11, color: "#888", letterSpacing: "0.02em", lineHeight: 1.5 }}>
+                    <Editable value={c.trajectory} onChange={v => {
+                      const next = [...slides.cases.items]; next[i] = { ...c, trajectory: v };
+                      updateSlide('cases', 'items', next);
+                    }} />
+                  </div>
+                )}
                 <div style={{ marginTop: 20, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, fontFamily: "'JetBrains Mono', ui-monospace, monospace" }}>
                   <div>
                     <div style={{ fontSize: 10, color: "#666", letterSpacing: "0.16em", textTransform: "uppercase" }}><EditableLabel slot="slide10.membersLabel" default={pitchLang('Members', 'Membros', 'Miembros')} overrides={slides.labelOverrides} onChange={updateLabel} /></div>
@@ -2097,10 +2128,19 @@ function PitchPageContent() {
                   }} multiline />
                 </p>
               </div>
-            ))}
+              );
+            })}
           </div>
 
-          <p style={{ marginTop: 28, fontSize: 22, color: "#f5f5f5", fontWeight: 600, textAlign: "center" }}>
+          {/* "Your version" line — the slide-bottom reframe from comparison
+              to recognition. Only renders when we could template a sensible
+              line (requires CP2 community_name + ideally CP1 audience). */}
+          {slides.cases.yourVersion && (
+            <p style={{ marginTop: 28, fontSize: 20, color: "#B11E2F", fontWeight: 600, textAlign: "center", letterSpacing: "-0.01em" }}>
+              <Editable value={slides.cases.yourVersion} onChange={v => updateSlide('cases', 'yourVersion', v)} multiline />
+            </p>
+          )}
+          <p style={{ marginTop: slides.cases.yourVersion ? 12 : 28, fontSize: 18, color: "#888", fontWeight: 400, textAlign: "center", fontStyle: "italic" }}>
             <Editable value={slides.cases.closer} onChange={v => updateSlide('cases', 'closer', v)} multiline />
           </p>
         </div>
@@ -2937,6 +2977,34 @@ function buildDefaultSlides(creator) {
     cases: {
       title: t('Casos similares', 'Similar Cases'),
       subtitle: t('Comunidades reais no Skool/Whop com este perfil. Dados públicos.', 'Real Skool/Whop communities with this profile. Public data.'),
+      // "Your version" template — the slide-bottom line that reframes the
+      // three case studies from comparison to recognition. Auto-built from
+      // CP1 audience_segment + CP2 community_name + creator first name when
+      // available; degrades to a clean fallback if data is missing.
+      yourVersion: (() => {
+        const fn = firstName(creator?.name);
+        const community = cfo.community_name || '';
+        const audSeg = frame?.audience_segment?.description || '';
+        // Pick the shortest descriptive fragment — "for X" — if the segment
+        // sentence reads "for [audience] who [...]". Cap at ~50 chars.
+        const audMatch = audSeg.match(/(?:for|para)\s+([^,.]{5,60})/i);
+        const audShort = audMatch ? audMatch[1].trim() : audSeg.split(/[,.]/)[0].trim();
+        if (community && audShort) {
+          return lang === 'en'
+            ? `Your version: ${community} — ${fn ? `${fn}'s ` : ''}community for ${audShort}.`
+            : lang === 'es'
+              ? `Tu versión: ${community} — ${fn ? `la comunidad de ${fn} ` : 'comunidad '}para ${audShort}.`
+              : `A tua versão: ${community} — ${fn ? `comunidade ${fn} ` : 'comunidade '}para ${audShort}.`;
+        }
+        if (community) {
+          return lang === 'en'
+            ? `Your version: ${community}.`
+            : lang === 'es'
+              ? `Tu versión: ${community}.`
+              : `A tua versão: ${community}.`;
+        }
+        return '';
+      })(),
       items: (() => {
         if (cases.length > 0) {
           // Legacy cases (LLM-generated, no revenue_type field) — assume MRR
@@ -2950,6 +3018,7 @@ function buildDefaultSlides(creator) {
             revenue_type: cs.revenue_type || 'mrr',
             revenue_value: cs.revenue_value || cs.mrr || '—',
             revenue_label: lang === 'en' ? 'MRR' : 'MRR',
+            trajectory: cs.trajectory || '',
             resume: cs.resume || t('[Resumo de 1 linha]', '[1-line resume]'),
             why: cs.why || t('[Porque é relevante para o criador]', '[Why this matters for the creator]'),
             url: cs.url || '',
