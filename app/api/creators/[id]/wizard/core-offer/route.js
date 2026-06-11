@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getCreator, updateCreator } from '../../../../../lib/creators';
 import { validateCoreOffer, VALID_PRICING_TIERS, TIER_PRICE_HINTS, revenuePriceMatchesTier } from '../../../../../lib/schemas/coreOffer';
+import { parseTargetPriceToStructured } from '../../../../../lib/currency';
 import { readCheckpointProgress } from '../../../../../lib/offerSchema';
 import { OPERATOR_INSTRUCTIONS_RULE, formatInstructionsBlock, formatInstructionsReminder } from '../../../../../lib/operatorInstructions';
 
@@ -81,29 +82,30 @@ export async function POST(request, { params }) {
     const existingMeta = existingOffer.internal_metadata || {};
     const existingClient = existingOffer.client_facing_output || {};
 
-    // Sync top-level revenuePrice (+ revenueInitialFee for hybrid) to the
-    // freshly-generated target_price. Without this, a stale price from a
-    // previous tier-mismatched run would persist on the creator record and
-    // get picked up as an override on the NEXT CP2 generation, re-creating
-    // the bug we just fixed by ignoring stale overrides at prompt time.
-    // The override-ignore logic is the runtime guard; this sync is the
-    // persistence-layer cleanup so the stale value goes away for good.
+    // Sync top-level revenuePrice (+ revenueInitialFee + revenuePriceCurrency)
+    // from the structured price object (or legacy parse of target_price for
+    // back-compat). Without this, a stale price from a previous tier-mismatched
+    // run would persist and get picked up as an override on the NEXT CP2 run.
+    //
+    // Source of truth: result.data.price (the structured field CP2 now emits).
+    // Fallback for models that didn't comply: parse target_price into structured
+    // form on the fly. Both paths produce the same shape.
     const priceUpdates = {};
-    const tp = String(result.data.target_price || '');
-    // Hybrid: "€2497 + €197/mo" → setup=2497, monthly=197.
-    // Monthly/annual: "€997/mo" → monthly=997.
-    // One-time: "€3497 one-time" → setup=3497 (used as the launch price).
-    const hybridMatch = tp.match(/[€$£]?\s*(\d[\d.,]*)\s*[+]\s*[€$£]?\s*(\d[\d.,]*)\s*\/(?:mo|mês|mes|month)/i);
-    const monthlyMatch = !hybridMatch && tp.match(/[€$£]?\s*(\d[\d.,]*)\s*\/(?:mo|mês|mes|month|yr|ano|year|año)/i);
-    const oneTimeMatch = !hybridMatch && !monthlyMatch && tp.match(/[€$£]?\s*(\d[\d.,]*)/);
-    const toNum = (s) => { const n = parseFloat(String(s).replace(/[.,]/g, '')); return Number.isFinite(n) ? n : null; };
-    if (hybridMatch) {
-      priceUpdates.revenueInitialFee = toNum(hybridMatch[1]);
-      priceUpdates.revenuePrice = toNum(hybridMatch[2]);
-    } else if (monthlyMatch) {
-      priceUpdates.revenuePrice = toNum(monthlyMatch[1]);
-    } else if (oneTimeMatch) {
-      priceUpdates.revenuePrice = toNum(oneTimeMatch[1]);
+    const structured = result.data.price && typeof result.data.price === 'object'
+      ? result.data.price
+      : parseTargetPriceToStructured(String(result.data.target_price || ''));
+    if (structured) {
+      if (Number.isFinite(structured.setup_amount) && structured.setup_amount > 0) {
+        priceUpdates.revenueInitialFee = structured.setup_amount;
+      }
+      if (Number.isFinite(structured.recurring_amount) && structured.recurring_amount > 0) {
+        priceUpdates.revenuePrice = structured.recurring_amount;
+      } else if (Number.isFinite(structured.one_time_amount) && structured.one_time_amount > 0) {
+        priceUpdates.revenuePrice = structured.one_time_amount;
+      }
+      if (structured.currency) {
+        priceUpdates.revenuePriceCurrency = structured.currency;
+      }
     }
 
     await updateCreator(id, {
@@ -118,6 +120,13 @@ export async function POST(request, { params }) {
           pricing_model: result.data.pricing_model,
           pricing_tier: result.data.pricing_tier,
           target_price: result.data.target_price,
+          // Structured price — the canonical source of truth. Slide 4 / 5 / 7
+          // and the projector all read this. target_price stays as a legacy
+          // freeform string for back-compat + LLM-friendly copy paths.
+          // Falls back to a parse of target_price if the model omitted it.
+          price: (result.data.price && typeof result.data.price === 'object')
+            ? result.data.price
+            : (parseTargetPriceToStructured(String(result.data.target_price || '')) || null),
           community_name: result.data.community_name,
           name_candidates: result.data.name_candidates,
           platform: result.data.platform,
@@ -216,6 +225,23 @@ A JSON object with these fields. EVERY string in creator voice.
    - mid + one-time: "€997 one-time"
    - high + hybrid: "€2497 + €197/mo"
 
+7. **price** — STRUCTURED price object — THIS IS THE CANONICAL SOURCE OF TRUTH that every downstream slide and the projector consume. Shape:
+       setup_amount:     number or null  (hybrid only — the up-front fee)
+       recurring_amount: number or null  (monthly/annual/hybrid — the recurring tail)
+       recurring_period: "month" | "quarter" | "year" | "week" | null  (required when recurring_amount > 0)
+       one_time_amount:  number or null  (one_time model only)
+       currency:         "EUR" | "USD" | "GBP" | "AED" | "CHF" | "BRL"
+
+   Coherence rules — match the pricing_model exactly:
+   - pricing_model="monthly" → recurring_amount > 0 AND recurring_period="month" (setup_amount = null, one_time_amount = null)
+   - pricing_model="annual" → recurring_amount > 0 AND recurring_period="year"
+   - pricing_model="one_time" → one_time_amount > 0 (everything else null)
+   - pricing_model="hybrid" → BOTH setup_amount > 0 AND recurring_amount > 0 (period required)
+
+   The structured object MUST agree with target_price. If target_price is "€2497 + €997/mo", then price = { setup_amount: 2497, recurring_amount: 997, recurring_period: "month", one_time_amount: null, currency: "EUR" }. Default to EUR currency unless the creator's bio/audience clearly anchors another (Dubai → AED, UK → GBP, US → USD).
+
+   IMPORTANT: Never invent "/quarter" or "/week" recurring periods unless the offer's transformation timeframe explicitly demands it. The default for recurring is "month".
+
 7. **community_name** — A specific, brand-able name for the community. Pull from Phase 3 vocabulary if a strong term exists. Avoid clichés (no "Academy", "Mastermind", "Inner Circle" unless those genuinely fit the creator).
 
 8. **name_candidates** — 2-4 ALTERNATE names operator can swap in. Each must be a distinct flavour (one descriptive, one metaphorical, one short-snappy, etc.) — not minor variants of the primary.
@@ -313,6 +339,13 @@ The seven high-tier fields (cannibalisation_check, qualification_filter, mechani
   "pricing_model": "one_time" | "monthly" | "annual" | "hybrid",
   "pricing_tier": "low" | "mid" | "high",
   "target_price": "string",
+  "price": {
+    "setup_amount":     "number | null",
+    "recurring_amount": "number | null",
+    "recurring_period": "month | quarter | year | week | null",
+    "one_time_amount":  "number | null",
+    "currency":         "EUR | USD | GBP | AED | CHF | BRL"
+  },
   "community_name": "string (max 60)",
   "name_candidates": ["...", "..."],
   "platform": "Skool" | "Whop" | "Circle" | "Discord",

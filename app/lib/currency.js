@@ -217,6 +217,163 @@ export function convertPriceString(s, targetCurrency, assumeFromCurrency = null)
   });
 }
 
+// Suffix per recurring period × language. Centralised so a structured
+// price with recurring_period="quarter" doesn't render as "/mo" on one
+// slide and "/quarter" on another.
+const PERIOD_SUFFIX = {
+  month:   { en: '/mo',     pt: '/mês',     es: '/mes',     fallback: '/mo' },
+  quarter: { en: '/quarter', pt: '/trimestre', es: '/trimestre', fallback: '/quarter' },
+  year:    { en: '/yr',     pt: '/ano',     es: '/año',     fallback: '/yr' },
+  week:    { en: '/wk',     pt: '/semana',  es: '/semana',  fallback: '/wk' },
+};
+
+function periodSuffix(period, lang) {
+  const row = PERIOD_SUFFIX[period];
+  if (!row) return '';
+  return row[lang] || row.fallback;
+}
+
+/**
+ * Canonical formatter for an offer's price. Every slide + the projector
+ * calls this; FX conversion happens here once. Replaces the three
+ * incompatible render paths that used to produce e.g.
+ *   "AED 2,497 + AED 997/quarter" (slide 4),
+ *   "AED 2,497/mo"                (slide 7),
+ *   "€2,497/mo"                   (slide 10)
+ * for the SAME offer.
+ *
+ * @param {object} price - structured price from cfo.price
+ *   { setup_amount, recurring_amount, recurring_period, one_time_amount, currency }
+ * @param {string} displayCurrency - target currency for render (e.g. 'AED')
+ * @param {string} lang - 'en' | 'pt' | 'es' for period suffix localisation
+ * @param {object} [opts]
+ *   opts.mode = 'full' | 'recurring_only' | 'setup_only' | 'one_time_only'
+ *   opts.dual = bool — append secondary currency in parens
+ * @returns {string} formatted price label
+ */
+export function formatOfferPrice(price, displayCurrency, lang = 'en', opts = {}) {
+  if (!price || typeof price !== 'object') return '';
+  const src = price.currency || 'EUR';
+  const dst = displayCurrency || src;
+  const mode = opts.mode || 'full';
+  const conv = (amt) => (amt == null ? null : convert(amt, src, dst));
+
+  const setup     = Number(price.setup_amount);
+  const recurring = Number(price.recurring_amount);
+  const oneTime   = Number(price.one_time_amount);
+  const period    = price.recurring_period;
+  const hasSetup     = Number.isFinite(setup)     && setup     > 0;
+  const hasRecurring = Number.isFinite(recurring) && recurring > 0;
+  const hasOneTime   = Number.isFinite(oneTime)   && oneTime   > 0;
+
+  const sfx = periodSuffix(period, lang);
+
+  // Build the label per mode.
+  if (mode === 'recurring_only' && hasRecurring) {
+    return `${formatAmount(conv(recurring), dst)}${sfx}`;
+  }
+  if (mode === 'setup_only' && hasSetup) {
+    return formatAmount(conv(setup), dst);
+  }
+  if (mode === 'one_time_only' && hasOneTime) {
+    return formatAmount(conv(oneTime), dst);
+  }
+  // mode === 'full' (default) — synthesise from whatever fields are set
+  if (hasSetup && hasRecurring) {
+    // Hybrid: "AED 9,162 + AED 3,659/mo"
+    return `${formatAmount(conv(setup), dst)} + ${formatAmount(conv(recurring), dst)}${sfx}`;
+  }
+  if (hasRecurring) {
+    return `${formatAmount(conv(recurring), dst)}${sfx}`;
+  }
+  if (hasOneTime) {
+    return formatAmount(conv(oneTime), dst);
+  }
+  if (hasSetup) {
+    // Setup-only is unusual — treat as one-time charge.
+    return formatAmount(conv(setup), dst);
+  }
+  return '';
+}
+
+/**
+ * Parse a legacy freeform target_price string into structured form. Used
+ * to upgrade old offers in-place when they're read but haven't been
+ * regenerated. Handles the common patterns the LLM emits:
+ *   "€2497 + €997/mo"        → hybrid setup + monthly
+ *   "€2497 + €997/quarter"   → hybrid setup + quarterly
+ *   "€997/mês"               → recurring monthly
+ *   "€1497/yr"               → recurring annual
+ *   "€3497 one-time"         → one-time
+ *   "$497"                   → one-time (no period)
+ *
+ * @param {string} s freeform string
+ * @param {string} [sourceCurrency] override; default detect from symbol or fallback EUR
+ * @returns {object|null} structured price object, or null if unparseable
+ */
+export function parseTargetPriceToStructured(s, sourceCurrency = null) {
+  if (typeof s !== 'string' || !s.trim()) return null;
+  const str = s.trim();
+
+  // Detect period from any unit suffix in the string.
+  const periodFromSuffix = (sfx) => {
+    if (!sfx) return null;
+    const sl = sfx.toLowerCase();
+    if (/(mês|mes|mo(nth)?|\/mo$)/.test(sl)) return 'month';
+    if (/(quarter|trimestre|trim|\/q$)/.test(sl)) return 'quarter';
+    if (/(ano|año|year|\/yr$)/.test(sl)) return 'year';
+    if (/(semana|week|wk|\/wk$)/.test(sl)) return 'week';
+    return null;
+  };
+
+  // Currency detection — prefer the FIRST currency token in the string.
+  const detectedCurrency = detectCurrencyInString(str) || sourceCurrency || 'EUR';
+
+  // Hybrid: "€2497 + €997/mo" / "€2497 setup + €997/mo"
+  const hybridRe = /(?:R\$|AED\s?|EUR\s?|USD\s?|GBP\s?|CHF\s?|BRL\s?|\$|€|£)\s?(\d[\d.,]*)\s*(?:setup\s*)?\+\s*(?:R\$|AED\s?|EUR\s?|USD\s?|GBP\s?|CHF\s?|BRL\s?|\$|€|£)\s?(\d[\d.,]*)\s*(\/\s*\w+|\s+\w+)?/i;
+  const hybridMatch = str.match(hybridRe);
+  if (hybridMatch) {
+    const setup = parseFloat(hybridMatch[1].replace(/[.,](?=\d{3}(?:\D|$))/g, ''));
+    const recurring = parseFloat(hybridMatch[2].replace(/[.,](?=\d{3}(?:\D|$))/g, ''));
+    return {
+      setup_amount: Number.isFinite(setup) ? setup : null,
+      recurring_amount: Number.isFinite(recurring) ? recurring : null,
+      recurring_period: periodFromSuffix(hybridMatch[3]) || 'month',
+      one_time_amount: null,
+      currency: detectedCurrency,
+    };
+  }
+
+  // Recurring: "€997/mo", "€1497/yr", "€100/quarter"
+  const recurringRe = /(?:R\$|AED\s?|EUR\s?|USD\s?|GBP\s?|CHF\s?|BRL\s?|\$|€|£)\s?(\d[\d.,]*)\s*\/\s*(\w+)/i;
+  const recurringMatch = str.match(recurringRe);
+  if (recurringMatch) {
+    const amt = parseFloat(recurringMatch[1].replace(/[.,](?=\d{3}(?:\D|$))/g, ''));
+    return {
+      setup_amount: null,
+      recurring_amount: Number.isFinite(amt) ? amt : null,
+      recurring_period: periodFromSuffix('/' + recurringMatch[2]) || 'month',
+      one_time_amount: null,
+      currency: detectedCurrency,
+    };
+  }
+
+  // One-time: "€3497 one-time", "$497"
+  const oneTimeRe = /(?:R\$|AED\s?|EUR\s?|USD\s?|GBP\s?|CHF\s?|BRL\s?|\$|€|£)\s?(\d[\d.,]*)/;
+  const oneTimeMatch = str.match(oneTimeRe);
+  if (oneTimeMatch) {
+    const amt = parseFloat(oneTimeMatch[1].replace(/[.,](?=\d{3}(?:\D|$))/g, ''));
+    return {
+      setup_amount: null,
+      recurring_amount: null,
+      recurring_period: null,
+      one_time_amount: Number.isFinite(amt) ? amt : null,
+      currency: detectedCurrency,
+    };
+  }
+  return null;
+}
+
 /**
  * Compose a hybrid pricing label: "$4,997 setup + $997/mo".
  * For the value-stack "actual price" block and any other spot that needs to

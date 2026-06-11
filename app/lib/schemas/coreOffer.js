@@ -205,6 +205,61 @@ export function validateCoreOffer(obj) {
     push('target_price', 'required non-empty string (e.g. "€297/mo", "€1497 one-time")');
   }
 
+  // Structured price — the canonical source of truth that every downstream
+  // render (slide 4 ecosystem, slide 5 community tiers, slide 7 value-stack
+  // actualPrice, slide 10 projection, projector hero) consumes. The freeform
+  // target_price string above is kept for back-compat + LLM-friendly copy.
+  //
+  // Without this, the pitch deck used to render the same offer three
+  // different ways: "AED 2,497 + AED 997/quarter" (hybrid quarterly with
+  // setup) on slide 4, "AED 2,497/mo" (setup dropped, period swapped) on
+  // slide 7, "€2,497/mo" (currency never converted) on slide 10. The
+  // structured object fixes the data model; render paths just consume it.
+  if (!obj.price || typeof obj.price !== 'object' || Array.isArray(obj.price)) {
+    push('price', 'required object { setup_amount, recurring_amount, recurring_period, one_time_amount, currency }');
+  } else {
+    const VALID_PERIODS = ['month', 'quarter', 'year', 'week'];
+    const VALID_CURRENCIES = ['EUR', 'USD', 'GBP', 'AED', 'CHF', 'BRL'];
+    const p = obj.price;
+    if (!VALID_CURRENCIES.includes(p.currency)) {
+      push('price.currency', `must be one of ${VALID_CURRENCIES.join('|')}`);
+    }
+    const setup     = Number(p.setup_amount);
+    const recurring = Number(p.recurring_amount);
+    const oneTime   = Number(p.one_time_amount);
+    const hasSetup     = Number.isFinite(setup)     && setup     > 0;
+    const hasRecurring = Number.isFinite(recurring) && recurring > 0;
+    const hasOneTime   = Number.isFinite(oneTime)   && oneTime   > 0;
+    // At least one amount must be set.
+    if (!hasSetup && !hasRecurring && !hasOneTime) {
+      push('price', 'at least one of setup_amount / recurring_amount / one_time_amount must be > 0');
+    }
+    // If recurring_amount is set, recurring_period is required.
+    if (hasRecurring && !VALID_PERIODS.includes(p.recurring_period)) {
+      push('price.recurring_period', `required when recurring_amount > 0; must be one of ${VALID_PERIODS.join('|')}`);
+    }
+    // Hybrid model coherence: setup + recurring should both be present.
+    if (obj.pricing_model === 'hybrid' && (!hasSetup || !hasRecurring)) {
+      push('price', 'pricing_model="hybrid" requires BOTH setup_amount > 0 AND recurring_amount > 0');
+    }
+    // One-time model coherence: one_time_amount should be set (or setup, since
+    // a one-time charge can also be called "setup" — accept either).
+    if (obj.pricing_model === 'one_time' && !hasOneTime && !hasSetup) {
+      push('price', 'pricing_model="one_time" requires one_time_amount > 0 (or setup_amount as one-time charge)');
+    }
+    // Monthly/annual model coherence.
+    if ((obj.pricing_model === 'monthly' || obj.pricing_model === 'annual') && !hasRecurring) {
+      push('price', `pricing_model="${obj.pricing_model}" requires recurring_amount > 0`);
+    }
+    // Period coherence with model.
+    if (obj.pricing_model === 'monthly' && hasRecurring && p.recurring_period !== 'month') {
+      push('price.recurring_period', `pricing_model="monthly" expects recurring_period="month" (got "${p.recurring_period}")`);
+    }
+    if (obj.pricing_model === 'annual' && hasRecurring && p.recurring_period !== 'year') {
+      push('price.recurring_period', `pricing_model="annual" expects recurring_period="year" (got "${p.recurring_period}")`);
+    }
+  }
+
   // Naming + platform.
   if (!isStr(obj.community_name)) {
     push('community_name', 'required non-empty string (operator can edit/swap to a name_candidate)');

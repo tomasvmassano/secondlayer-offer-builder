@@ -6,7 +6,7 @@ import { SCENARIOS as SHARED_SCENARIOS, projectGrowth as sharedProjectGrowth, cu
 import { parseOutput } from "../lib/offerParser";
 import { readClientFacing, legacyParsedToOfferState } from "../lib/offerSchema";
 import { pickCases, platformFromUrl, caseInitials, caseAvatarColor } from "../lib/casesDb";
-import { detectCurrency, currencySymbol, formatAmount, hybridPriceLabel, SECONDARY_CURRENCY, convert as fxConvert, convertPriceString } from "../lib/currency";
+import { detectCurrency, currencySymbol, formatAmount, hybridPriceLabel, SECONDARY_CURRENCY, convert as fxConvert, convertPriceString, formatOfferPrice, parseTargetPriceToStructured } from "../lib/currency";
 
 // ─────────────────────────────────────────────────────────────────
 // PITCH DECK — 10 slides + optional slide 11 (Investimento)
@@ -2788,6 +2788,13 @@ function buildDefaultSlides(creator) {
   const curSep = cur.length > 1 ? ' ' : '';
   const recPrice = Number(creator?.revenuePrice) || null;
   const initFee  = Number(creator?.revenueInitialFee) || null;
+  // Structured price — canonical source of truth. Read CP2's new price field
+  // first; fall back to parsing the legacy target_price string for offers
+  // generated before this field existed. Slides 4 / 5 / 7 / 10 all consume
+  // this object via formatOfferPrice() so they can't drift from each other.
+  const structuredPrice = (cfo.price && typeof cfo.price === 'object')
+    ? cfo.price
+    : parseTargetPriceToStructured(cfo.target_price);
   const pmodel   = cfo.pricing_model || 'monthly';
   const isOT = pmodel === 'one_time';
   const isHyb = pmodel === 'hybrid';
@@ -2800,6 +2807,13 @@ function buildDefaultSlides(creator) {
   // Unit suffixes per language. Recurring monthly = "/mo" / "/mês" / "/mes".
   const moSfx = lang === 'pt' ? '/mês' : lang === 'es' ? '/mes' : '/mo';
   const yrSfx = lang === 'pt' ? '/ano' : lang === 'es' ? '/año' : '/yr';
+  // Build the recommended-tier label from the structured price when available
+  // — this is what slide 5's "Network Member" / "Inicial" / "Mensal" row should
+  // show. Subsequent annual / founders tier labels are still synthesised below
+  // but the recommended row always uses the canonical price.
+  const recommendedTierLabel = structuredPrice
+    ? formatOfferPrice(structuredPrice, currencyCode, lang, { mode: 'full' })
+    : null;
   let fallbackTiers;
   if (isOT) {
     // One-time: flat prices, no monthly suffix. Premium = 3× anchor.
@@ -2868,21 +2882,35 @@ function buildDefaultSlides(creator) {
         ]);
   }
   // ── Tier coherence guard ──
-  // If CP2 produced pricing_tiers that contradict creator.revenuePrice by
-  // >25%, we override CP2's tiers with the fallback (which uses recPrice).
-  // Why: CP2 sometimes hallucinates a tier range (e.g. €497-897/mo) that
-  // disagrees with the canonical revenuePrice on the offer tab. Without this
-  // guard, slide 4 ends up showing one number and slides 5/7 a different
-  // one — destroying the deck's internal consistency.
-  const cp2Tiers = cfo.pricing_tiers || c.tiers;
-  if (recPrice && Array.isArray(cp2Tiers) && cp2Tiers.length > 0) {
-    const tierAnchor = cp2Tiers.find(t => /recom|recommend|mensal|monthly|starter|inicial/i.test(t?.name || ''));
-    const anchorPrice = tierAnchor?.price && String(tierAnchor.price).match(/(\d[\d.,]*)/);
-    if (anchorPrice) {
-      const anchorNum = parseFloat(anchorPrice[1].replace(/[.,]/g, ''));
-      if (Number.isFinite(anchorNum) && Math.abs(anchorNum - recPrice) / recPrice > 0.25) {
-        // Tier prices drift too far from revenuePrice — use fallback.
-        c.tiers = fallbackTiers;
+  // When structuredPrice exists, ALWAYS use the fallback tiers — they're
+  // derived from the canonical structured object and will be currency-/
+  // period-consistent with slides 4 and 7. CP2's `pricing_tiers` is the
+  // LLM's tier interpretation which can drift (wrong currency, wrong
+  // period — "AED 2,497 + AED 997/quarter" when the price is actually
+  // €2,497 + €997/mo, etc.).
+  //
+  // Legacy fallback: when no structuredPrice (pre-schema offers), keep
+  // the old ±25% drift check against the revenuePrice scalar.
+  if (structuredPrice) {
+    // The recommended-tier price comes straight from formatOfferPrice so
+    // it can't drift from slide 4 / slide 7. Subsequent tier slots
+    // (annual prepay, founders circle) are still synthesised by
+    // fallbackTiers above.
+    if (Array.isArray(fallbackTiers) && fallbackTiers.length > 0 && recommendedTierLabel) {
+      fallbackTiers[0] = { ...fallbackTiers[0], price: recommendedTierLabel };
+    }
+    c.tiers = fallbackTiers;
+  } else {
+    const cp2Tiers = cfo.pricing_tiers || c.tiers;
+    if (recPrice && Array.isArray(cp2Tiers) && cp2Tiers.length > 0) {
+      const tierAnchor = cp2Tiers.find(t => /recom|recommend|mensal|monthly|starter|inicial/i.test(t?.name || ''));
+      const anchorPrice = tierAnchor?.price && String(tierAnchor.price).match(/(\d[\d.,]*)/);
+      if (anchorPrice) {
+        const anchorNum = parseFloat(anchorPrice[1].replace(/[.,]/g, ''));
+        if (Number.isFinite(anchorNum) && Math.abs(anchorNum - recPrice) / recPrice > 0.25) {
+          // Tier prices drift too far from revenuePrice — use fallback.
+          c.tiers = fallbackTiers;
+        }
       }
     }
   }
@@ -2940,7 +2968,13 @@ function buildDefaultSlides(creator) {
       products,
       newOfferTier,
       newOfferName: cfo.community_name || (lang === 'en' ? 'New Community' : 'Nova Comunidade'),
-      newOfferPrice: cfo.target_price || '—',
+      // Ecosystem caption price — reads from the structured price so it
+      // matches slide 5 community tiers and slide 7 actualPrice exactly.
+      // Falls back to the legacy target_price string for offers generated
+      // before the structured field existed.
+      newOfferPrice: structuredPrice
+        ? formatOfferPrice(structuredPrice, currencyCode, lang, { mode: 'full' })
+        : (cfo.target_price || '—'),
       roleExplanation,
       // CP1 ecosystem_impact — 3-5 money-anchored bullets on what the new
       // offer DOES to the creator's existing business. Drives the right
@@ -3108,16 +3142,18 @@ function buildDefaultSlides(creator) {
         if (sum > 0) total = `${cur}${sum.toLocaleString(lang === 'en' ? 'en-US' : 'pt-PT')}`;
       }
       if (!total) total = `${cur}${curSep}[X ${t('total', 'total')}]`;
-      // Preço Real follows the offer page: creator.revenuePrice is the single
-      // source of truth set on the offer tab. Falls back to the LLM-parsed
-      // value then to a placeholder. Hybrid offers now show "setup + monthly"
-      // composite — previously this slide dropped the setup fee entirely,
-      // making the deck contradict its own page-4 tier table.
-      const actualPrice = recPrice
-        ? (isHyb && initFee
-            ? hybridPriceLabel(initFee, recPrice, currencyCode, lang)
-            : `${formatAmount(recPrice, currencyCode)}${moSfx}`)
-        : (vs.actualPrice || `${cur}${curSep}[X]${moSfx}`);
+      // Preço Real now reads from the structured price object (CP2's canonical
+      // source of truth). formatOfferPrice handles all 4 pricing models AND
+      // FX conversion in one place — slide 7 can no longer drift from slides
+      // 4 / 5 / 10 the way it used to (which produced "AED 2,497/mo" while
+      // slide 4 said "AED 2,497 + AED 997/quarter" for the same offer).
+      const actualPrice = structuredPrice
+        ? formatOfferPrice(structuredPrice, currencyCode, lang, { mode: 'full' })
+        : (recPrice
+            ? (isHyb && initFee
+                ? hybridPriceLabel(initFee, recPrice, currencyCode, lang)
+                : `${formatAmount(recPrice, currencyCode)}${moSfx}`)
+            : (vs.actualPrice || `${cur}${curSep}[X]${moSfx}`));
       return {
         title: t('O Valor', 'The Value'),
         subtitle: t('Cada coisa que recebes. Cada coisa tem um valor.', 'Every thing you get. Every thing has a value.'),
