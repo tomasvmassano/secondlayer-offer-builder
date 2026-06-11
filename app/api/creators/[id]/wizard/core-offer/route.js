@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getCreator, updateCreator } from '../../../../../lib/creators';
-import { validateCoreOffer, VALID_PRICING_TIERS, TIER_PRICE_HINTS } from '../../../../../lib/schemas/coreOffer';
+import { validateCoreOffer, VALID_PRICING_TIERS, TIER_PRICE_HINTS, revenuePriceMatchesTier } from '../../../../../lib/schemas/coreOffer';
 import { readCheckpointProgress } from '../../../../../lib/offerSchema';
 import { OPERATOR_INSTRUCTIONS_RULE, formatInstructionsBlock, formatInstructionsReminder } from '../../../../../lib/operatorInstructions';
 
@@ -80,7 +80,34 @@ export async function POST(request, { params }) {
     const existingOffer = creator.offer || {};
     const existingMeta = existingOffer.internal_metadata || {};
     const existingClient = existingOffer.client_facing_output || {};
+
+    // Sync top-level revenuePrice (+ revenueInitialFee for hybrid) to the
+    // freshly-generated target_price. Without this, a stale price from a
+    // previous tier-mismatched run would persist on the creator record and
+    // get picked up as an override on the NEXT CP2 generation, re-creating
+    // the bug we just fixed by ignoring stale overrides at prompt time.
+    // The override-ignore logic is the runtime guard; this sync is the
+    // persistence-layer cleanup so the stale value goes away for good.
+    const priceUpdates = {};
+    const tp = String(result.data.target_price || '');
+    // Hybrid: "€2497 + €197/mo" → setup=2497, monthly=197.
+    // Monthly/annual: "€997/mo" → monthly=997.
+    // One-time: "€3497 one-time" → setup=3497 (used as the launch price).
+    const hybridMatch = tp.match(/[€$£]?\s*(\d[\d.,]*)\s*[+]\s*[€$£]?\s*(\d[\d.,]*)\s*\/(?:mo|mês|mes|month)/i);
+    const monthlyMatch = !hybridMatch && tp.match(/[€$£]?\s*(\d[\d.,]*)\s*\/(?:mo|mês|mes|month|yr|ano|year|año)/i);
+    const oneTimeMatch = !hybridMatch && !monthlyMatch && tp.match(/[€$£]?\s*(\d[\d.,]*)/);
+    const toNum = (s) => { const n = parseFloat(String(s).replace(/[.,]/g, '')); return Number.isFinite(n) ? n : null; };
+    if (hybridMatch) {
+      priceUpdates.revenueInitialFee = toNum(hybridMatch[1]);
+      priceUpdates.revenuePrice = toNum(hybridMatch[2]);
+    } else if (monthlyMatch) {
+      priceUpdates.revenuePrice = toNum(monthlyMatch[1]);
+    } else if (oneTimeMatch) {
+      priceUpdates.revenuePrice = toNum(oneTimeMatch[1]);
+    }
+
     await updateCreator(id, {
+      ...priceUpdates,
       offer: {
         ...existingOffer,
         client_facing_output: {
@@ -125,6 +152,14 @@ export async function POST(request, { params }) {
         frame_role: result.frameRole,
         uniqueness_elements_input: result.uniquenessElementsInput,
         retries: result.retries,
+        // null if no override was even attempted (creator had no stored
+        // revenuePrice). { kept: true, price } if honored. { kept: false,
+        // price, reason } if dropped as stale.
+        revenue_price_override: result.overrideDecision,
+        // What we just synced to creator.revenuePrice + revenueInitialFee
+        // from the freshly-generated target_price. Lets the operator see
+        // the wizard's intent for the projector / pitch deck.
+        price_synced: Object.keys(priceUpdates).length > 0 ? priceUpdates : null,
       },
     });
   } catch (err) {
@@ -377,9 +412,26 @@ Bio: ${(creator.bio || '').slice(0, 500) || '(no bio)'}
 Audience: ${audienceLine}`;
 
   // Hard override: if the creator has a manually-set revenuePrice (set in
-  // the Workspace or CRM by the operator), the wizard MUST respect it. The
-  // operator's decision wins over the model's tier-band guess.
-  const revenuePriceOverride = Number(creator.revenuePrice) > 0 ? Number(creator.revenuePrice) : null;
+  // the Workspace or CRM by the operator), the wizard MUST respect it —
+  // BUT ONLY when it's tier-consistent. If the operator re-runs at "high"
+  // tier and the creator still has €39 stored from a prior low-tier run
+  // (or from a niche-DB default), that €39 is STALE and would have hard-
+  // locked the new offer at €39/mo despite the new "high" choice.
+  //
+  // The staleness check: numeric range against TIER_PRICE_RANGES. If the
+  // stored price falls inside the picked tier (monthly OR one-time band),
+  // honor it. Otherwise drop the override and let the model price from
+  // scratch within the tier guidance.
+  const rawRevenuePrice = Number(creator.revenuePrice) > 0 ? Number(creator.revenuePrice) : null;
+  const priceMatchesTier = rawRevenuePrice != null && revenuePriceMatchesTier(rawRevenuePrice, pricingTier);
+  const revenuePriceOverride = priceMatchesTier ? rawRevenuePrice : null;
+  // Diagnostic for the response — operator can see WHY the override was
+  // dropped without having to read code.
+  const overrideDecision = rawRevenuePrice == null
+    ? null
+    : priceMatchesTier
+      ? { kept: true, price: rawRevenuePrice }
+      : { kept: false, price: rawRevenuePrice, reason: `€${rawRevenuePrice} is outside the ${pricingTier}-tier band (${TIER_PRICE_HINTS[pricingTier]}); model will pick a tier-consistent price` };
   // Pricing model lock — when the operator chose a specific model in the
   // UI dropdown (vs leaving it on 'Auto'), force it. Useful e.g. when the
   // creator already runs a monthly community and the new offer should be
@@ -479,7 +531,7 @@ Return ONLY the JSON object per the schema in the system prompt.${formatInstruct
           retryParsed.pricing_tier = pricingTier;
           if (pricingModelOverride) retryParsed.pricing_model = pricingModelOverride;
           const retryValidation = validateCoreOffer(retryParsed);
-          if (retryValidation.valid) return enrich(retryParsed, frame, uniqueness, retryCount + 1);
+          if (retryValidation.valid) return enrich(retryParsed, frame, uniqueness, retryCount + 1, overrideDecision);
           return { error: 'Schema validation failed twice', errors: retryValidation.errors, raw: retryText, retries: retryCount + 1 };
         }
       }
@@ -487,15 +539,16 @@ Return ONLY the JSON object per the schema in the system prompt.${formatInstruct
     return { error: 'Schema validation failed', errors: validation.errors, raw: rawText, retries: retryCount };
   }
 
-  return enrich(parsed, frame, uniqueness, retryCount);
+  return enrich(parsed, frame, uniqueness, retryCount, overrideDecision);
 }
 
-function enrich(data, frame, uniqueness, retries) {
+function enrich(data, frame, uniqueness, retries, overrideDecision) {
   return {
     data,
     frameRole: frame?.confirmed_role || null,
     uniquenessElementsInput: (uniqueness?.unique_elements || []).length,
     retries,
+    overrideDecision: overrideDecision || null,
   };
 }
 

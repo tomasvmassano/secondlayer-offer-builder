@@ -55,6 +55,33 @@ export const TIER_PRICE_HINTS = {
   high: '€1000+/mo or €3000+ one-time',
 };
 
+// Numeric tier ranges for staleness-checking a stored revenuePrice against
+// the tier the operator just picked. Slightly wider than TIER_PRICE_HINTS
+// so a recurring high-ticket creator at €800 isn't rejected as "stale" —
+// the bands overlap on purpose where the boundary is genuinely fuzzy.
+export const TIER_PRICE_RANGES = {
+  low:  { monthly: [20, 150],    one_time: [80, 400]   },
+  mid:  { monthly: [150, 600],   one_time: [400, 2000] },
+  high: { monthly: [800, 50000], one_time: [2000, 100000] },
+};
+
+// Returns true when a stored revenuePrice (numeric, EUR-assumed) is
+// consistent with the operator-picked tier. Used by CP2 wizard to decide
+// whether to honor the override or treat it as stale and let the model
+// price from scratch within the tier band.
+//
+// We accept the price if EITHER the monthly OR one_time range matches —
+// without knowing the final pricing_model yet, "high tier with €1,500"
+// is plausible both as monthly subscription and as one-time cohort.
+export function revenuePriceMatchesTier(price, tier) {
+  if (!Number.isFinite(price) || price <= 0) return false;
+  const ranges = TIER_PRICE_RANGES[tier];
+  if (!ranges) return false;
+  const inMonthly  = price >= ranges.monthly[0]  && price <= ranges.monthly[1];
+  const inOneTime  = price >= ranges.one_time[0] && price <= ranges.one_time[1];
+  return inMonthly || inOneTime;
+}
+
 function isStr(v) { return typeof v === 'string' && v.length > 0; }
 
 // Pull the first numeric value out of a price string like "€3,497 one-time"
