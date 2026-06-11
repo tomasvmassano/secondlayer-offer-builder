@@ -158,6 +158,66 @@ export function priceLabel(amount, code = 'EUR', suffix = '') {
 }
 
 /**
+ * Detect the currency code embedded in a price string by scanning for known
+ * symbols/codes. Returns null when nothing recognisable is found.
+ *   detectCurrencyInString("$8,500")    → 'USD'
+ *   detectCurrencyInString("€297/mês")  → 'EUR'
+ *   detectCurrencyInString("AED 4,997") → 'AED'
+ *   detectCurrencyInString("8500")      → null
+ */
+export function detectCurrencyInString(s) {
+  if (typeof s !== 'string') return null;
+  if (/(?:^|\s)AED\s?\d/.test(s)) return 'AED';
+  if (/(?:^|\s)EUR\s?\d/.test(s)) return 'EUR';
+  if (/(?:^|\s)USD\s?\d/.test(s)) return 'USD';
+  if (/(?:^|\s)GBP\s?\d/.test(s)) return 'GBP';
+  if (/(?:^|\s)CHF\s?\d/.test(s)) return 'CHF';
+  if (/R\$\s?\d/.test(s)) return 'BRL';
+  if (/\$\d/.test(s)) return 'USD';
+  if (/€\d/.test(s)) return 'EUR';
+  if (/£\d/.test(s)) return 'GBP';
+  return null;
+}
+
+/**
+ * FX-convert + re-emit a price string. Parses out the amount and source
+ * currency, converts to the target, re-emits with the target symbol.
+ * Preserves any trailing unit ("/mês", "/yr", " one-time").
+ *   convertPriceString("$8,500", 'AED')        → "AED 31,205"
+ *   convertPriceString("€997/mês", 'AED')      → "AED 3,996/mês"
+ *   convertPriceString("8500", 'AED')          → "8500"  (no source currency → no-op)
+ *
+ * For use on LLM-generated price strings (value-stack dollarValue, CP2
+ * pricing_tiers) where the LLM picked a currency that disagrees with the
+ * creator's chosen display currency.
+ */
+export function convertPriceString(s, targetCurrency, assumeFromCurrency = null) {
+  if (typeof s !== 'string' || !targetCurrency) return s;
+  // Per-token detection. A string like "$4,997 + $997/mo" has TWO price
+  // tokens, possibly in different currencies — we convert each one in place,
+  // preserving any non-price text (separators, units, words) between them.
+  const tokenRe = /(R\$|AED\s?|EUR\s?|USD\s?|GBP\s?|CHF\s?|BRL\s?|\$|€|£)\s?([\d][\d.,]*)/g;
+  return s.replace(tokenRe, (whole, symRaw, numRaw) => {
+    const sym = symRaw.trim();
+    const fromCurrency = ({
+      'R$': 'BRL', 'AED': 'AED', 'EUR': 'EUR', 'USD': 'USD',
+      'GBP': 'GBP', 'CHF': 'CHF', 'BRL': 'BRL',
+      '$': 'USD', '€': 'EUR', '£': 'GBP',
+    })[sym] || assumeFromCurrency;
+    if (!fromCurrency) return whole;
+    // Strip thousands separators (both "," and "."), parse as integer-ish.
+    const num = parseFloat(numRaw.replace(/[.,](?=\d{3}(?:\D|$))/g, ''));
+    if (!Number.isFinite(num)) return whole;
+    if (fromCurrency === targetCurrency) {
+      // Just re-emit with consistent symbol style (e.g. "USD 8500" → "$8,500").
+      return formatAmount(num, targetCurrency);
+    }
+    const converted = convert(num, fromCurrency, targetCurrency);
+    return formatAmount(converted, targetCurrency);
+  });
+}
+
+/**
  * Compose a hybrid pricing label: "$4,997 setup + $997/mo".
  * For the value-stack "actual price" block and any other spot that needs to
  * convey the full hybrid offer rather than just the recurring tail.

@@ -6,7 +6,7 @@ import { SCENARIOS as SHARED_SCENARIOS, projectGrowth as sharedProjectGrowth, cu
 import { parseOutput } from "../lib/offerParser";
 import { readClientFacing, legacyParsedToOfferState } from "../lib/offerSchema";
 import { pickCases, platformFromUrl, caseInitials, caseAvatarColor } from "../lib/casesDb";
-import { detectCurrency, currencySymbol, formatAmount, hybridPriceLabel, SECONDARY_CURRENCY, convert as fxConvert } from "../lib/currency";
+import { detectCurrency, currencySymbol, formatAmount, hybridPriceLabel, SECONDARY_CURRENCY, convert as fxConvert, convertPriceString } from "../lib/currency";
 
 // ─────────────────────────────────────────────────────────────────
 // PITCH DECK — 10 slides + optional slide 11 (Investimento)
@@ -89,14 +89,35 @@ function formatEuro(n) {
 // and SHOULD emit the correct currency + units, but legacy offer data
 // generated before that prompt fix still lives in Redis. Regenerating CP3/CP4
 // for every existing creator is expensive; this hot-fixes the render path.
-function localizePriceString(s, lang) {
+function localizePriceString(s, lang, targetCurrency) {
   if (typeof s !== 'string') return s;
-  // PT or unknown → leave PT-formatted source alone.
-  if (lang !== 'en' && lang !== 'es') return s;
   let out = s;
+  // Currency symbol normalisation. If a target currency is provided, swap
+  // any concrete currency token in the string ($, €, £, USD, EUR, GBP, AED,
+  // CHF, BRL, R$) to the target symbol. This catches CP2/CP4 LLM output
+  // strings (slide 5 community tiers, slide 7 valueStack dollarValue, etc.)
+  // that hardcoded a currency from the LLM's default which now disagrees
+  // with the creator's chosen display currency.
+  // We do SYMBOL swap, not value conversion. Operator can inline-edit any
+  // amount that's off; FX conversion is handled at the projector level
+  // when revenuePrice is canonical.
+  if (targetCurrency && targetCurrency !== 'EUR') {
+    // Pick the symbol for the target currency.
+    const sym = ({ USD: '$', GBP: '£', AED: 'AED', CHF: 'CHF', BRL: 'R$', EUR: '€' })[targetCurrency] || targetCurrency;
+    const sep = sym.length > 1 ? ' ' : '';
+    // Replace leading currency tokens: "$4,997" → "AED 4,997". Order matters:
+    // multi-char before single-char to avoid double-replacing.
+    out = out.replace(/(?:R\$|AED\s?|EUR\s?|USD\s?|GBP\s?|CHF\s?|BRL\s?|\$|€|£)\s?(\d)/g, `${sym}${sep}$1`);
+  } else if (targetCurrency === 'EUR') {
+    // Explicitly normalize TO EUR — swap $ / AED / etc. to €.
+    out = out.replace(/(?:R\$|AED\s?|USD\s?|GBP\s?|CHF\s?|BRL\s?|\$|£)\s?(\d)/g, '€$1');
+  }
+  // PT or unknown → leave PT-formatted source alone beyond currency swap.
+  if (lang !== 'en' && lang !== 'es') return out;
   if (lang === 'en') {
-    // Currency symbol first — every € becomes $ for an EN creator.
-    out = out.replace(/€/g, '$');
+    // Currency symbol fallback — if no targetCurrency override, every €
+    // becomes $ for an EN creator (legacy behavior, kept for back-compat).
+    if (!targetCurrency) out = out.replace(/€/g, '$');
     // Unit labels.
     out = out.replace(/\/mês/g, '/mo').replace(/\/m[êe]s/g, '/mo');
     out = out.replace(/\/ano/g, '/yr');
@@ -428,6 +449,11 @@ function PitchPageContent() {
     if (lang === 'es') return es ?? en;
     return en;
   };
+  // Pitch-wide effective currency — read at every render site so currency
+  // overrides on the creator propagate to slide 5 tiers, slide 7 value
+  // dollar-amounts, etc. Lives at component scope so all JSX below can
+  // reach it without prop-drilling.
+  const pitchCurrencyCode = detectCurrency(creator);
   const [loading, setLoading] = useState(true);
   const [showInvestimento, setShowInvestimento] = useState(false);
   const [exporting, setExporting] = useState(false);
@@ -1300,7 +1326,7 @@ function PitchPageContent() {
                         <div style={{ ...italicSerif, fontSize: 30, color: "#f5f5f5", lineHeight: 1.05, marginBottom: 6 }}>{slides.businessContext.newOfferName}</div>
                         <div style={{ fontSize: 22, color: "#B11E2F", fontFamily: "'JetBrains Mono', ui-monospace, monospace", fontWeight: 700 }}>
                           <Editable
-                            value={localizePriceString(slides.businessContext.newOfferPrice, creator?.primaryLanguage)}
+                            value={localizePriceString(slides.businessContext.newOfferPrice, creator?.primaryLanguage, pitchCurrencyCode)}
                             onChange={v => updateSlide('businessContext', 'newOfferPrice', v)}
                           />
                         </div>
@@ -1315,7 +1341,7 @@ function PitchPageContent() {
                   const cur = en ? '$' : '€';
                   const priceDisplay = isLeadMagnet
                     ? (en ? 'Free' : es ? 'Gratis' : 'Grátis')
-                    : (p.price_eur ? cur + p.price_eur : localizePriceString(p.price, creator?.primaryLanguage) || '—');
+                    : (p.price_eur ? cur + p.price_eur : localizePriceString(p.price, creator?.primaryLanguage, pitchCurrencyCode) || '—');
                   return (
                     <div key={`p-${i}`} style={{ opacity: 0.55 }}>
                       <div style={{ fontSize: 9, fontWeight: 700, color: "#8A8A8A", letterSpacing: "0.18em", textTransform: "uppercase", marginBottom: 4, fontFamily: "'JetBrains Mono', ui-monospace, monospace" }}>
@@ -1399,9 +1425,9 @@ function PitchPageContent() {
             <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
               {(slides.community.tiers || []).slice(0, 3).map((t, i) => (
                 <div key={i} style={{ padding: "18px 22px", background: i === 0 ? "linear-gradient(90deg, rgba(177,30,47,0.12), rgba(15,15,15,0.85))" : "rgba(15,15,15,0.6)", border: `1px solid ${i === 0 ? "rgba(177,30,47,0.55)" : "rgba(255,255,255,0.06)"}`, borderRadius: 10 }}>
-                  <div style={{ fontSize: 10, fontWeight: 700, color: "#B11E2F", letterSpacing: "0.18em", textTransform: "uppercase", marginBottom: 6 }}>{localizePriceString(t.name, creator?.primaryLanguage)}</div>
-                  <div style={{ ...italicSerif, fontSize: 32, color: "#f5f5f5", lineHeight: 1, marginBottom: 6 }}>{localizePriceString(t.price, creator?.primaryLanguage)}</div>
-                  {t.note && <div style={{ fontSize: 11.5, color: "#888", lineHeight: 1.4 }}>{localizePriceString(t.note, creator?.primaryLanguage)}</div>}
+                  <div style={{ fontSize: 10, fontWeight: 700, color: "#B11E2F", letterSpacing: "0.18em", textTransform: "uppercase", marginBottom: 6 }}>{localizePriceString(t.name, creator?.primaryLanguage, pitchCurrencyCode)}</div>
+                  <div style={{ ...italicSerif, fontSize: 32, color: "#f5f5f5", lineHeight: 1, marginBottom: 6 }}>{convertPriceString(localizePriceString(t.price, creator?.primaryLanguage, pitchCurrencyCode), pitchCurrencyCode)}</div>
+                  {t.note && <div style={{ fontSize: 11.5, color: "#888", lineHeight: 1.4 }}>{localizePriceString(t.note, creator?.primaryLanguage, pitchCurrencyCode)}</div>}
                 </div>
               ))}
             </div>
@@ -1553,7 +1579,7 @@ function PitchPageContent() {
                           }} />
                         </td>
                         <td style={{ ...tdBase, fontSize: fsValue, fontWeight: 700, color: "#1F8A4C", textAlign: "right", fontFamily: "'JetBrains Mono', ui-monospace, monospace", letterSpacing: "-0.02em" }}>
-                          <Editable value={localizePriceString(it.dollarValue, creator?.primaryLanguage)} onChange={v => {
+                          <Editable value={convertPriceString(it.dollarValue, pitchCurrencyCode)} onChange={v => {
                             const next = [...slides.valueStack.items]; next[i] = { ...it, dollarValue: v };
                             updateSlide('valueStack', 'items', next);
                           }} />
@@ -1573,7 +1599,7 @@ function PitchPageContent() {
                 <EditableLabel slot="slide6.totalLabel" default={pitchLang('Total stacked value', 'Valor total empilhado', 'Valor total apilado')} overrides={slides.labelOverrides} onChange={updateLabel} />
               </div>
               <div style={{ fontSize: 48, fontWeight: 800, color: "#1F8A4C", letterSpacing: "-0.03em", fontFamily: "'JetBrains Mono', ui-monospace, monospace" }}>
-                <Editable value={localizePriceString(slides.valueStack.total, creator?.primaryLanguage)} onChange={v => updateSlide('valueStack', 'total', v)} />
+                <Editable value={convertPriceString(slides.valueStack.total, pitchCurrencyCode)} onChange={v => updateSlide('valueStack', 'total', v)} />
               </div>
             </div>
             <div style={{ padding: "26px 32px", background: "rgba(177,30,47,0.08)", border: "1px solid rgba(177,30,47,0.4)", borderRadius: 12 }}>
@@ -1581,7 +1607,7 @@ function PitchPageContent() {
                 <EditableLabel slot="slide6.priceLabel" default={pitchLang('Actual price', 'Preço real', 'Precio real')} overrides={slides.labelOverrides} onChange={updateLabel} />
               </div>
               <div style={{ ...italicSerif, fontSize: 64, color: "#f5f5f5", letterSpacing: "-0.02em", lineHeight: 1 }}>
-                <Editable value={localizePriceString(slides.valueStack.actualPrice, creator?.primaryLanguage)} onChange={v => updateSlide('valueStack', 'actualPrice', v)} />
+                <Editable value={localizePriceString(slides.valueStack.actualPrice, creator?.primaryLanguage, pitchCurrencyCode)} onChange={v => updateSlide('valueStack', 'actualPrice', v)} />
               </div>
             </div>
           </div>
@@ -2192,7 +2218,7 @@ function PitchPageContent() {
                   <div>
                     <div style={{ fontSize: 10, color: "#666", letterSpacing: "0.16em", textTransform: "uppercase" }}><EditableLabel slot="slide10.membersLabel" default={pitchLang('Members', 'Membros', 'Miembros')} overrides={slides.labelOverrides} onChange={updateLabel} /></div>
                     <div style={{ fontSize: 20, color: "#f5f5f5", fontWeight: 600 }}>
-                      <Editable value={localizePriceString(c.members, creator?.primaryLanguage)} onChange={v => {
+                      <Editable value={localizePriceString(c.members, creator?.primaryLanguage, pitchCurrencyCode)} onChange={v => {
                         const next = [...slides.cases.items]; next[i] = { ...c, members: v };
                         updateSlide('cases', 'items', next);
                       }} />
@@ -2201,7 +2227,7 @@ function PitchPageContent() {
                   <div>
                     <div style={{ fontSize: 10, color: "#666", letterSpacing: "0.16em", textTransform: "uppercase" }}><EditableLabel slot="slide10.priceLabel" default={pitchLang('Price', 'Preço', 'Precio')} overrides={slides.labelOverrides} onChange={updateLabel} /></div>
                     <div style={{ fontSize: 20, color: "#f5f5f5", fontWeight: 600 }}>
-                      <Editable value={localizePriceString(c.price, creator?.primaryLanguage)} onChange={v => {
+                      <Editable value={localizePriceString(c.price, creator?.primaryLanguage, pitchCurrencyCode)} onChange={v => {
                         const next = [...slides.cases.items]; next[i] = { ...c, price: v };
                         updateSlide('cases', 'items', next);
                       }} />

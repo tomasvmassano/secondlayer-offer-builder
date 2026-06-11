@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useRef, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { calculateDealScore } from "../../lib/dealScore";
 import { SCENARIOS as REVENUE_SCENARIOS, calculateSteadyMRR as sharedCalcMRR, calculateOfferRevenue, projectEcosystemRevenue, classifyTierBucket, estimateCurrentBuyers, TIER_CONVERSION_CAP } from "../../lib/revenue";
-import { detectCurrency, CURRENCY_SYMBOLS } from "../../lib/currency";
+import { detectCurrency, CURRENCY_SYMBOLS, convert as fxConvert } from "../../lib/currency";
 import { renderMd, parseOutput, extractAudience } from "../../lib/offerParser";
 import { legacyParsedToOfferState, CHECKPOINTS, readCheckpointProgress, readOfferState } from "../../lib/offerSchema";
 import { OFFER_SYSTEM_PROMPT } from "../../lib/systemPrompt";
@@ -2553,7 +2553,14 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
                 ? Math.round(cfoPrice)
                 : (rawPriceMatch ? parseInt(rawPriceMatch[1], 10) : nichePrice);
               const price = revenuePrice ?? creator.revenuePrice ?? defaultPrice;
-              const fmt = (n) => "€" + Math.round(n).toLocaleString();
+              // Currency-aware projector formatter. Reads creator.currency
+              // override or auto-detects from location/niche. Replaces the
+              // hardcoded "€" prefix which was rendering "€" even when the
+              // operator picked AED in the currency dropdown.
+              const projectorCurrency = detectCurrency(creator);
+              const projectorCurSym = CURRENCY_SYMBOLS[projectorCurrency] || '€';
+              const projectorCurSep = projectorCurSym.length > 1 ? ' ' : '';
+              const fmt = (n) => `${projectorCurSym}${projectorCurSep}${Math.round(n).toLocaleString()}`;
               const priceSource = (Number.isFinite(cfoPrice) && cfoPrice > 0) ? 'from CP2' : (rawPriceMatch ? 'from offer markdown' : 'niche DB');
 
               // ─── Engagement
@@ -2736,19 +2743,40 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
                         <select
                           value={creator.currency || ''}
                           onChange={async (e) => {
-                            const next = e.target.value || null;
-                            // Optimistic UI + PATCH save.
-                            setCreator(prev => prev ? ({ ...prev, currency: next }) : prev);
+                            const nextCurrencyOverride = e.target.value || null;
+                            // What was the EFFECTIVE currency before this change? Read prior
+                            // override first; if no override, fall back to auto-detect against
+                            // the pre-change creator state.
+                            const prevEffective = creator.currency || detectCurrency(creator);
+                            const nextEffective = nextCurrencyOverride || detectCurrency({ ...creator, currency: null });
+                            // FX-convert stored monetary fields when the effective currency
+                            // actually changes. Without this, switching from EUR to AED would
+                            // just swap symbols — "€4,997" → "AED 4,997" — which is a 4×
+                            // understatement of the actual price. AED 4,997 ≠ EUR 4,997.
+                            const patch = { currency: nextCurrencyOverride };
+                            if (prevEffective !== nextEffective) {
+                              if (creator.revenuePrice != null) {
+                                patch.revenuePrice = Math.round(fxConvert(creator.revenuePrice, prevEffective, nextEffective));
+                              }
+                              if (creator.revenueInitialFee != null) {
+                                patch.revenueInitialFee = Math.round(fxConvert(creator.revenueInitialFee, prevEffective, nextEffective));
+                              }
+                            }
+                            // Optimistic UI — update local state immediately so the projector
+                            // re-renders with new symbols + converted numbers, then persist.
+                            setCreator(prev => prev ? ({ ...prev, ...patch }) : prev);
+                            if (patch.revenuePrice != null) setRevenuePrice(patch.revenuePrice);
+                            if (patch.revenueInitialFee != null) setRevenueInitialFee(patch.revenueInitialFee);
                             try {
                               await fetch(`/api/creators/${params.id}`, {
                                 method: 'PATCH',
                                 headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({ currency: next }),
+                                body: JSON.stringify(patch),
                               });
                             } catch {}
                           }}
                           style={{ padding: "5px 8px", background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 4, color: "#f5f5f5", fontSize: 11, fontFamily: "inherit", outline: "none", cursor: "pointer" }}
-                          title={`Auto-detected: ${detectCurrency(creator)}`}
+                          title={`Auto-detected: ${detectCurrency(creator)}. Changing this FX-converts revenuePrice + revenueInitialFee.`}
                         >
                           <option value="">Auto · {detectCurrency(creator)}</option>
                           {Object.entries(CURRENCY_SYMBOLS).map(([code, sym]) => (
