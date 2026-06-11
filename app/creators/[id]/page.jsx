@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useRef, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { calculateDealScore } from "../../lib/dealScore";
 import { SCENARIOS as REVENUE_SCENARIOS, calculateSteadyMRR as sharedCalcMRR, calculateOfferRevenue, projectEcosystemRevenue, classifyTierBucket, estimateCurrentBuyers, TIER_CONVERSION_CAP } from "../../lib/revenue";
+import { detectCurrency, CURRENCY_SYMBOLS } from "../../lib/currency";
 import { renderMd, parseOutput, extractAudience } from "../../lib/offerParser";
 import { legacyParsedToOfferState, CHECKPOINTS, readCheckpointProgress, readOfferState } from "../../lib/offerSchema";
 import { OFFER_SYSTEM_PROMPT } from "../../lib/systemPrompt";
@@ -2725,6 +2726,36 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
                         />
                         Payment plan available <span style={{ color: "#444", fontWeight: 400, letterSpacing: 0, textTransform: "none" }}>(+25% CVR)</span>
                       </label>
+                      {/* Currency override. Defaults to auto-detect (creator
+                          location/niche/lang). Operator picks AED for Dubai,
+                          GBP for UK, etc. Affects ALL price renders on the
+                          pitch deck — tiers, value stack, actual price,
+                          ecosystem table. */}
+                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        <span style={{ fontSize: 10, fontWeight: 600, color: "#555", letterSpacing: "0.05em", textTransform: "uppercase" }}>Currency</span>
+                        <select
+                          value={creator.currency || ''}
+                          onChange={async (e) => {
+                            const next = e.target.value || null;
+                            // Optimistic UI + PATCH save.
+                            setCreator(prev => prev ? ({ ...prev, currency: next }) : prev);
+                            try {
+                              await fetch(`/api/creators/${params.id}`, {
+                                method: 'PATCH',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ currency: next }),
+                              });
+                            } catch {}
+                          }}
+                          style={{ padding: "5px 8px", background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 4, color: "#f5f5f5", fontSize: 11, fontFamily: "inherit", outline: "none", cursor: "pointer" }}
+                          title={`Auto-detected: ${detectCurrency(creator)}`}
+                        >
+                          <option value="">Auto · {detectCurrency(creator)}</option>
+                          {Object.entries(CURRENCY_SYMBOLS).map(([code, sym]) => (
+                            <option key={code} value={code}>{code} · {sym}</option>
+                          ))}
+                        </select>
+                      </div>
                     </div>
                   </div>
 

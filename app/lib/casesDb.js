@@ -384,6 +384,70 @@ const CASES = {
       url: 'https://www.americastestkitchen.com',
     },
   ],
+  // High-ticket hybrid offers (setup + monthly recurring with 1:1 access)
+  // get peer-board / intimate-community comps instead of mass-market
+  // newsletter unicorns. Different unit economics — 30-200 members, $5-50K/yr,
+  // delivery includes high-touch personal access. This bucket is what makes
+  // the "30 serious players at premium price" narrative defensible on the
+  // pitch deck.
+  peer_board: [
+    {
+      name: 'Hampton · Sam Parr',
+      niche: 'Founders · Peer Board',
+      members: '600+ vetted founders',
+      members_pt: '600+ founders verificados',
+      price: '$8,500/yr',
+      price_en: '$8,500/yr',
+      revenue_type: 'mrr',
+      revenue_value: '~$5M+ ARR',
+      trajectory: { pt: 'Lançado 2023 · 600+ membros pagantes em 18 meses · founder do The Hustle', en: 'Launched 2023 · 600+ paying members in 18 months · founder of The Hustle' },
+      resume: { pt: 'Comunidade fechada para founders 7-9 figures. Application-only, peer groups de 8, eventos físicos.', en: 'Closed community for 7-9 figure founders. Application-only, 8-person peer groups, in-person events.' },
+      why: { pt: 'O modelo definitivo de peer-board high-ticket. Mostra que $8.5K/ano com 600 membros = $5M ARR é viável sem volume mass-market.', en: 'The definitive high-ticket peer-board model. Shows $8.5K/yr × 600 members = $5M ARR is viable without mass-market volume.' },
+      url: 'https://www.joinhampton.com',
+    },
+    {
+      name: 'Founders Network · Kevin Holmes',
+      niche: 'Founders · Peer Board',
+      members: '1,200+ tech founders',
+      members_pt: '1.200+ founders tech',
+      price: '$2,500/yr',
+      price_en: '$2,500/yr',
+      revenue_type: 'mrr',
+      revenue_value: '~$3M+ ARR',
+      trajectory: { pt: 'Fundado 2011 · 1.200+ tech founders · 50+ chapters globais', en: 'Founded 2011 · 1,200+ tech founders · 50+ global chapters' },
+      resume: { pt: 'Peer-to-peer network para tech founders. Mentor matching + chapters mensais + due-diligence em deals.', en: 'Peer-to-peer network for tech founders. Mentor matching + monthly chapters + deal due-diligence.' },
+      why: { pt: 'Modelo de chapter local + acesso global. Útil se a oferta vai escalar via cidades em vez de seguidores online.', en: 'Local chapter + global access model. Useful if the offer will scale via cities rather than online followers.' },
+      url: 'https://foundersnetwork.com',
+    },
+    {
+      name: 'Chief · Carolyn Childers',
+      niche: 'Women execs · Peer Board',
+      members: '20,000+ senior executives',
+      members_pt: '20.000+ executivas seniores',
+      price: '$7,800/yr',
+      price_en: '$7,800/yr',
+      revenue_type: 'mrr',
+      revenue_value: '~$150M+ ARR',
+      trajectory: { pt: 'Lançado 2019 · 20K+ executivas · $1.1B valuation 2022', en: 'Launched 2019 · 20K+ executives · $1.1B valuation 2022' },
+      resume: { pt: 'Network privado para mulheres em C-suite + VP roles. Application-only, peer groups facilitados, eventos em 12 cidades.', en: 'Private network for women in C-suite + VP roles. Application-only, facilitated peer groups, events in 12 cities.' },
+      why: { pt: 'Prova máxima: women-only premium peer-board sustenta $150M ARR. Mesma audiência (mulheres em momento de poder).', en: 'Peak proof: women-only premium peer-board sustains $150M ARR. Same audience (women in moments of power).' },
+      url: 'https://chief.com',
+    },
+    {
+      name: 'YPO · Young Presidents\' Organization',
+      niche: 'CEOs · Peer Board',
+      members: '34,000+ chief executives',
+      members_pt: '34.000+ chief executives',
+      price: '$3,500-7,000/yr',
+      price_en: '$3,500-7,000/yr',
+      revenue_type: 'mrr',
+      revenue_value: '~$200M+ ARR',
+      trajectory: { pt: 'Fundada 1950 · 34K+ CEOs em 142 países · referência mundial', en: 'Founded 1950 · 34K+ CEOs in 142 countries · global reference' },
+      resume: { pt: 'A organização original de peer-board para CEOs. Forums de 8-10 pessoas, eventos globais, learning experiences.', en: 'The original CEO peer-board organization. 8-10 person forums, global events, learning experiences.' },
+      why: { pt: 'A referência histórica. Mostra que peer-board high-ticket é uma categoria de 75 anos, não uma moda.', en: 'The historical reference. Shows high-ticket peer-board is a 75-year-old category, not a trend.' },
+      url: 'https://www.ypo.org',
+    },
+  ],
   beauty_skincare: [
     {
       name: 'Skin Rocks · Caroline Hirons',
@@ -499,9 +563,23 @@ export function caseAvatarColor(name) {
 export function pickCases(creator, lang = 'pt') {
   const archetype = creator?.offer?.internal_metadata?.archetype_classification?.primary_archetype;
   const nicheRaw = String(creator?.niche || '').toLowerCase();
+  const cfo = creator?.offer?.client_facing_output || {};
+  const pricingTier = cfo.pricing_tier;
+  const pricingModel = cfo.pricing_model;
+
+  // High-ticket hybrid offers (setup + monthly recurring with 1:1 access)
+  // get peer-board comps instead of generic creator-economy/niche cases.
+  // Without this, a $4,997 + $997/mo offer with quarterly 1:1 calls would
+  // show Lenny ($19/mo, 40K subs) as proof — destroying the narrative
+  // ("but you said this was an intimate cohort?"). The peer-board comps
+  // make the high-ticket promise defensible.
+  const isPeerBoardOffer = (pricingTier === 'high' || pricingTier === 'high_ticket')
+    && (pricingModel === 'hybrid' || pricingModel === 'one_time');
 
   let bucket = archetype && CASES[archetype] ? CASES[archetype] : null;
-  if (!bucket) {
+  if (isPeerBoardOffer) {
+    bucket = CASES.peer_board;
+  } else if (!bucket) {
     // Niche-keyword routing — specific niches before generic archetypes
     // so a "real-estate woman investor" gets finance_investing not
     // coach_transformation.

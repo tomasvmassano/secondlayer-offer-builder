@@ -6,6 +6,7 @@ import { SCENARIOS as SHARED_SCENARIOS, projectGrowth as sharedProjectGrowth, cu
 import { parseOutput } from "../lib/offerParser";
 import { readClientFacing, legacyParsedToOfferState } from "../lib/offerSchema";
 import { pickCases, platformFromUrl, caseInitials, caseAvatarColor } from "../lib/casesDb";
+import { detectCurrency, currencySymbol, formatAmount, hybridPriceLabel, SECONDARY_CURRENCY, convert as fxConvert } from "../lib/currency";
 
 // ─────────────────────────────────────────────────────────────────
 // PITCH DECK — 10 slides + optional slide 11 (Investimento)
@@ -2751,34 +2752,49 @@ function buildDefaultSlides(creator) {
   //   recurring → Monthly / Annual / Founders Circle (with /mês suffix)
   //   one_time  → Standard / Early Bird / Premium    (flat prices, no suffix)
   //   hybrid    → Setup + Monthly composite labels
-  // Currency: EN creators get $ + USD; PT creators get € + EUR.
-  const cur = lang === 'en' ? '$' : '€';
+  // Currency: detect from creator.currency override → location → niche → lang
+  // fallback. Replaces the old `lang === 'en' ? '$' : '€'` swap which broke
+  // for Dubai/GCC creators (their buyer's mental currency is AED, not USD).
+  const currencyCode = detectCurrency(creator);
+  const cur = currencySymbol(currencyCode);
+  // 3-letter codes (AED) get a space between symbol and number; single-char
+  // symbols ($/€/£) hug. Used in template-literal tier prices.
+  const curSep = cur.length > 1 ? ' ' : '';
   const recPrice = Number(creator?.revenuePrice) || null;
   const initFee  = Number(creator?.revenueInitialFee) || null;
   const pmodel   = cfo.pricing_model || 'monthly';
   const isOT = pmodel === 'one_time';
   const isHyb = pmodel === 'hybrid';
+  // Currency-aware money formatter for tier prices. Uses the detected
+  // creator currency, locale-aware grouping (4,997 / 4.997), and proper
+  // symbol placement ("AED 4,997" / "$4,997" / "€4.997"). Replaces the
+  // raw `${cur}${recPrice}` template literals which produced "$4997" and
+  // ignored AED entirely.
+  const $ = (amt) => formatAmount(amt, currencyCode);
+  // Unit suffixes per language. Recurring monthly = "/mo" / "/mês" / "/mes".
+  const moSfx = lang === 'pt' ? '/mês' : lang === 'es' ? '/mes' : '/mo';
+  const yrSfx = lang === 'pt' ? '/ano' : lang === 'es' ? '/año' : '/yr';
   let fallbackTiers;
   if (isOT) {
     // One-time: flat prices, no monthly suffix. Premium = 3× anchor.
     fallbackTiers = recPrice
       ? (lang === 'en' ? [
-          { name: 'Standard',   price: `${cur}${recPrice}`,                note: 'Recommended' },
-          { name: 'Early Bird', price: `${cur}${Math.round(recPrice * 0.8)}`, note: '20% off' },
-          { name: 'Premium',    price: `${cur}${recPrice * 3}`,            note: '1-on-1 included' },
+          { name: 'Standard',   price: $(recPrice),                note: 'Recommended' },
+          { name: 'Early Bird', price: $(Math.round(recPrice * 0.8)), note: '20% off' },
+          { name: 'Premium',    price: $(recPrice * 3),            note: '1-on-1 included' },
         ] : [
-          { name: 'Standard',   price: `${cur}${recPrice}`,                note: 'Recomendado' },
-          { name: 'Early Bird', price: `${cur}${Math.round(recPrice * 0.8)}`, note: '20% desconto' },
-          { name: 'Premium',    price: `${cur}${recPrice * 3}`,            note: '1-on-1 incluído' },
+          { name: 'Standard',   price: $(recPrice),                note: 'Recomendado' },
+          { name: 'Early Bird', price: $(Math.round(recPrice * 0.8)), note: '20% desconto' },
+          { name: 'Premium',    price: $(recPrice * 3),            note: '1-on-1 incluído' },
         ])
       : (lang === 'en' ? [
-          { name: 'Standard',   price: `${cur}[X]`, note: 'Recommended' },
-          { name: 'Early Bird', price: `${cur}[X]`, note: '20% off' },
-          { name: 'Premium',    price: `${cur}[X]`, note: '1-on-1 included' },
+          { name: 'Standard',   price: `${cur}${curSep}[X]`, note: 'Recommended' },
+          { name: 'Early Bird', price: `${cur}${curSep}[X]`, note: '20% off' },
+          { name: 'Premium',    price: `${cur}${curSep}[X]`, note: '1-on-1 included' },
         ] : [
-          { name: 'Standard',   price: `${cur}[X]`, note: 'Recomendado' },
-          { name: 'Early Bird', price: `${cur}[X]`, note: '20% desconto' },
-          { name: 'Premium',    price: `${cur}[X]`, note: '1-on-1 incluído' },
+          { name: 'Standard',   price: `${cur}${curSep}[X]`, note: 'Recomendado' },
+          { name: 'Early Bird', price: `${cur}${curSep}[X]`, note: '20% desconto' },
+          { name: 'Premium',    price: `${cur}${curSep}[X]`, note: '1-on-1 incluído' },
         ]);
   } else if (isHyb) {
     // Hybrid: each tier shows up-front + monthly. Founders pays a higher
@@ -2786,44 +2802,63 @@ function buildDefaultSlides(creator) {
     const i = initFee || (recPrice ? recPrice * 5 : null);
     fallbackTiers = recPrice
       ? (lang === 'en' ? [
-          { name: 'Starter',         price: `${cur}${i}+${cur}${recPrice}/mo`,           note: 'Recommended' },
-          { name: 'Annual Prepay',   price: `${cur}${i}+${cur}${recPrice * 10}/yr`,      note: '2 months free' },
-          { name: 'Founders Circle', price: `${cur}${i ? i * 2 : ''}+${cur}${recPrice}/mo`, note: '1-on-1 + masterclasses' },
+          { name: 'Starter',         price: `${$(i)} + ${$(recPrice)}${moSfx}`,           note: 'Recommended' },
+          { name: 'Annual Prepay',   price: `${$(i)} + ${$(recPrice * 10)}${yrSfx}`,      note: '2 months free' },
+          { name: 'Founders Circle', price: `${$(i ? i * 2 : 0)} + ${$(recPrice)}${moSfx}`, note: '1-on-1 + masterclasses' },
         ] : [
-          { name: 'Inicial',         price: `${cur}${i}+${cur}${recPrice}/mês`,          note: 'Recomendado' },
-          { name: 'Anual',           price: `${cur}${i}+${cur}${recPrice * 10}/ano`,     note: '2 meses grátis' },
-          { name: 'Founders Circle', price: `${cur}${i ? i * 2 : ''}+${cur}${recPrice}/mês`, note: '1-on-1 + masterclasses' },
+          { name: 'Inicial',         price: `${$(i)} + ${$(recPrice)}${moSfx}`,          note: 'Recomendado' },
+          { name: 'Anual',           price: `${$(i)} + ${$(recPrice * 10)}${yrSfx}`,     note: '2 meses grátis' },
+          { name: 'Founders Circle', price: `${$(i ? i * 2 : 0)} + ${$(recPrice)}${moSfx}`, note: '1-on-1 + masterclasses' },
         ])
       : (lang === 'en' ? [
-          { name: 'Starter',         price: `${cur}[X]+${cur}[Y]/mo`, note: 'Recommended' },
-          { name: 'Annual Prepay',   price: `${cur}[X]+${cur}[Y]/yr`, note: '2 months free' },
-          { name: 'Founders Circle', price: `${cur}[X]+${cur}[Y]/mo`, note: '1-on-1 + masterclasses' },
+          { name: 'Starter',         price: `${cur}${curSep}[X] + ${cur}${curSep}[Y]${moSfx}`, note: 'Recommended' },
+          { name: 'Annual Prepay',   price: `${cur}${curSep}[X] + ${cur}${curSep}[Y]${yrSfx}`, note: '2 months free' },
+          { name: 'Founders Circle', price: `${cur}${curSep}[X] + ${cur}${curSep}[Y]${moSfx}`, note: '1-on-1 + masterclasses' },
         ] : [
-          { name: 'Inicial',         price: `${cur}[X]+${cur}[Y]/mês`, note: 'Recomendado' },
-          { name: 'Anual',           price: `${cur}[X]+${cur}[Y]/ano`, note: '2 meses grátis' },
-          { name: 'Founders Circle', price: `${cur}[X]+${cur}[Y]/mês`, note: '1-on-1 + masterclasses' },
+          { name: 'Inicial',         price: `${cur}${curSep}[X] + ${cur}${curSep}[Y]${moSfx}`, note: 'Recomendado' },
+          { name: 'Anual',           price: `${cur}${curSep}[X] + ${cur}${curSep}[Y]${yrSfx}`, note: '2 meses grátis' },
+          { name: 'Founders Circle', price: `${cur}${curSep}[X] + ${cur}${curSep}[Y]${moSfx}`, note: '1-on-1 + masterclasses' },
         ]);
   } else {
     // Recurring (monthly/annual) — original shape.
     fallbackTiers = recPrice
       ? (lang === 'en' ? [
-          { name: 'Monthly',         price: `${cur}${recPrice}/mo`,         note: 'Recommended' },
-          { name: 'Annual Prepay',   price: `${cur}${recPrice * 10}/yr`,    note: '2 months free' },
-          { name: 'Founders Circle', price: `${cur}${recPrice * 5}/mo`,     note: '1-on-1 + masterclasses' },
+          { name: 'Monthly',         price: `${$(recPrice)}${moSfx}`,         note: 'Recommended' },
+          { name: 'Annual Prepay',   price: `${$(recPrice * 10)}${yrSfx}`,    note: '2 months free' },
+          { name: 'Founders Circle', price: `${$(recPrice * 5)}${moSfx}`,     note: '1-on-1 + masterclasses' },
         ] : [
-          { name: 'Mensal',          price: `${cur}${recPrice}/mês`,        note: 'Recomendado' },
-          { name: 'Anual',           price: `${cur}${recPrice * 10}/ano`,   note: '2 meses grátis' },
-          { name: 'Founders Circle', price: `${cur}${recPrice * 5}/mês`,    note: '1-on-1 + masterclasses' },
+          { name: 'Mensal',          price: `${$(recPrice)}${moSfx}`,         note: 'Recomendado' },
+          { name: 'Anual',           price: `${$(recPrice * 10)}${yrSfx}`,    note: '2 meses grátis' },
+          { name: 'Founders Circle', price: `${$(recPrice * 5)}${moSfx}`,     note: '1-on-1 + masterclasses' },
         ])
       : (lang === 'en' ? [
-          { name: 'Monthly',         price: `${cur}[X]/mo`,  note: 'Recommended' },
-          { name: 'Annual Prepay',   price: `${cur}[X]/yr`,  note: '2 months free' },
-          { name: 'Founders Circle', price: `${cur}[X]/mo`,  note: '1-on-1 + masterclasses' },
+          { name: 'Monthly',         price: `${cur}${curSep}[X]${moSfx}`,  note: 'Recommended' },
+          { name: 'Annual Prepay',   price: `${cur}${curSep}[X]${yrSfx}`,  note: '2 months free' },
+          { name: 'Founders Circle', price: `${cur}${curSep}[X]${moSfx}`,  note: '1-on-1 + masterclasses' },
         ] : [
-          { name: 'Mensal',          price: `${cur}[X]/mês`, note: 'Recomendado' },
-          { name: 'Anual',           price: `${cur}[X]/ano`, note: '2 meses grátis' },
-          { name: 'Founders Circle', price: `${cur}[X]/mês`, note: '1-on-1 + masterclasses' },
+          { name: 'Mensal',          price: `${cur}${curSep}[X]${moSfx}`, note: 'Recomendado' },
+          { name: 'Anual',           price: `${cur}${curSep}[X]${yrSfx}`, note: '2 meses grátis' },
+          { name: 'Founders Circle', price: `${cur}${curSep}[X]${moSfx}`, note: '1-on-1 + masterclasses' },
         ]);
+  }
+  // ── Tier coherence guard ──
+  // If CP2 produced pricing_tiers that contradict creator.revenuePrice by
+  // >25%, we override CP2's tiers with the fallback (which uses recPrice).
+  // Why: CP2 sometimes hallucinates a tier range (e.g. €497-897/mo) that
+  // disagrees with the canonical revenuePrice on the offer tab. Without this
+  // guard, slide 4 ends up showing one number and slides 5/7 a different
+  // one — destroying the deck's internal consistency.
+  const cp2Tiers = cfo.pricing_tiers || c.tiers;
+  if (recPrice && Array.isArray(cp2Tiers) && cp2Tiers.length > 0) {
+    const tierAnchor = cp2Tiers.find(t => /recom|recommend|mensal|monthly|starter|inicial/i.test(t?.name || ''));
+    const anchorPrice = tierAnchor?.price && String(tierAnchor.price).match(/(\d[\d.,]*)/);
+    if (anchorPrice) {
+      const anchorNum = parseFloat(anchorPrice[1].replace(/[.,]/g, ''));
+      if (Number.isFinite(anchorNum) && Math.abs(anchorNum - recPrice) / recPrice > 0.25) {
+        // Tier prices drift too far from revenuePrice — use fallback.
+        c.tiers = fallbackTiers;
+      }
+    }
   }
 
   return {
@@ -3046,13 +3081,17 @@ function buildDefaultSlides(creator) {
         }, 0);
         if (sum > 0) total = `${cur}${sum.toLocaleString(lang === 'en' ? 'en-US' : 'pt-PT')}`;
       }
-      if (!total) total = `${cur}[X ${t('total', 'total')}]`;
+      if (!total) total = `${cur}${curSep}[X ${t('total', 'total')}]`;
       // Preço Real follows the offer page: creator.revenuePrice is the single
       // source of truth set on the offer tab. Falls back to the LLM-parsed
-      // value then to a placeholder.
+      // value then to a placeholder. Hybrid offers now show "setup + monthly"
+      // composite — previously this slide dropped the setup fee entirely,
+      // making the deck contradict its own page-4 tier table.
       const actualPrice = recPrice
-        ? (lang === 'en' ? `${cur}${recPrice}/mo` : `${cur}${recPrice}/mês`)
-        : (vs.actualPrice || (lang === 'en' ? `${cur}[X]/mo` : `${cur}[X]/mês`));
+        ? (isHyb && initFee
+            ? hybridPriceLabel(initFee, recPrice, currencyCode, lang)
+            : `${formatAmount(recPrice, currencyCode)}${moSfx}`)
+        : (vs.actualPrice || `${cur}${curSep}[X]${moSfx}`);
       return {
         title: t('O Valor', 'The Value'),
         subtitle: t('Cada coisa que recebes. Cada coisa tem um valor.', 'Every thing you get. Every thing has a value.'),
@@ -3120,7 +3159,7 @@ function buildDefaultSlides(creator) {
             name: cs.name || t('[Nome]', '[Name]'),
             niche: cs.niche || t('[Nicho]', '[Niche]'),
             members: cs.members || t('[X membros]', '[X members]'),
-            price: cs.price || (lang === 'en' ? `${cur}[X]/mo` : `${cur}[X]/mês`),
+            price: cs.price || `${cur}${curSep}[X]${moSfx}`,
             revenue_type: cs.revenue_type || 'mrr',
             revenue_value: cs.revenue_value || cs.mrr || '—',
             revenue_label: lang === 'en' ? 'MRR' : 'MRR',

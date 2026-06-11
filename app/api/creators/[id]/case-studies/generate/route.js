@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getCreator, updateCreator } from '../../../../../lib/creators';
+import { detectCurrency, currencySymbol } from '../../../../../lib/currency';
 
 // ─────────────────────────────────────────────────────────────────
 // Case-study generator — niche-specific real-world communities, gated by
@@ -166,7 +167,19 @@ export async function POST(request, { params }) {
     const audience    = frame?.audience_segment?.description || cfo.target_audience || '';
     const price       = cfo.target_price || '';
     const model       = cfo.pricing_model || 'monthly';
+    const tier        = cfo.pricing_tier || '';
     const lang        = (creator.primaryLanguage || 'pt').toLowerCase();
+    const currencyCode = detectCurrency(creator);
+    const currencySym  = currencySymbol(currencyCode);
+    // For high-ticket + hybrid/one-time offers, explicitly steer the model
+    // toward peer-board / intimate-community comps (Hampton, Chief, YPO
+    // shape) rather than mass-market scale plays. Otherwise the deck ends
+    // up with a $4,997 + $997/mo offer next to Lenny ($19/mo, 40K subs)
+    // — the unit economics don't line up and the deck reads as confused.
+    const isPeerBoard = (tier === 'high' || tier === 'high_ticket') && (model === 'hybrid' || model === 'one_time');
+    const scaleSteer = isPeerBoard
+      ? 'IMPORTANT: this is a HIGH-TICKET PREMIUM offer (setup fee + monthly recurring with 1:1 access). The right comps are peer-board / intimate-community models — Hampton, Chief, YPO, Founders Network, Trade With Conviction, RealVision Pro. NOT mass-market newsletters. Target case scale: 30-2,000 members at $1,500-10,000/yr. Reject anything that smells like high-volume low-tier.'
+      : '';
 
     const userMessage = `Creator profile:
 - Name: ${creator.name || '(unknown)'}
@@ -177,7 +190,10 @@ export async function POST(request, { params }) {
 
 Offer we're building:
 - Community name: ${community}
-- Pricing: ${price} (${model})
+- Pricing: ${price} (${model}${tier ? `, ${tier} ticket` : ''})
+- Buyer's currency: ${currencyCode} (${currencySym}) — render all prices in this currency
+
+${scaleSteer}
 
 Find 3 REAL communities that match this creator's niche, scale, and pricing model. Follow the rules in the system prompt strictly. Return JSON only.`;
 
