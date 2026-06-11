@@ -2881,38 +2881,39 @@ function buildDefaultSlides(creator) {
           { name: 'Founders Circle', price: `${cur}${curSep}[X]${moSfx}`, note: '1-on-1 + masterclasses' },
         ]);
   }
-  // ── Tier coherence guard ──
-  // When structuredPrice exists, ALWAYS use the fallback tiers — they're
-  // derived from the canonical structured object and will be currency-/
-  // period-consistent with slides 4 and 7. CP2's `pricing_tiers` is the
-  // LLM's tier interpretation which can drift (wrong currency, wrong
-  // period — "AED 2,497 + AED 997/quarter" when the price is actually
-  // €2,497 + €997/mo, etc.).
+  // ── Tier source resolution ──
+  // Source priority for slide 5 community tier cards:
+  //   1. cfo.pricing_tiers (CP4 value-stack wizard) — has the LLM's CREATIVE
+  //      tier names ("Founding Member", "Annual Yacht Circle", "VIP Admiral")
+  //      which the operator also sees on the offer view. The pitch MUST show
+  //      the same names + structure or the two views contradict each other.
+  //   2. fallbackTiers — synthesized from structuredPrice (or revenuePrice)
+  //      using generic labels (Monthly / Annual Prepay / Founders Circle).
+  //      Only used when CP4 hasn't run yet.
   //
-  // Legacy fallback: when no structuredPrice (pre-schema offers), keep
-  // the old ±25% drift check against the revenuePrice scalar.
-  if (structuredPrice) {
-    // The recommended-tier price comes straight from formatOfferPrice so
-    // it can't drift from slide 4 / slide 7. Subsequent tier slots
-    // (annual prepay, founders circle) are still synthesised by
-    // fallbackTiers above.
-    if (Array.isArray(fallbackTiers) && fallbackTiers.length > 0 && recommendedTierLabel) {
-      fallbackTiers[0] = { ...fallbackTiers[0], price: recommendedTierLabel };
-    }
-    c.tiers = fallbackTiers;
-  } else {
-    const cp2Tiers = cfo.pricing_tiers || c.tiers;
-    if (recPrice && Array.isArray(cp2Tiers) && cp2Tiers.length > 0) {
-      const tierAnchor = cp2Tiers.find(t => /recom|recommend|mensal|monthly|starter|inicial/i.test(t?.name || ''));
-      const anchorPrice = tierAnchor?.price && String(tierAnchor.price).match(/(\d[\d.,]*)/);
-      if (anchorPrice) {
-        const anchorNum = parseFloat(anchorPrice[1].replace(/[.,]/g, ''));
-        if (Number.isFinite(anchorNum) && Math.abs(anchorNum - recPrice) / recPrice > 0.25) {
-          // Tier prices drift too far from revenuePrice — use fallback.
-          c.tiers = fallbackTiers;
-        }
+  // Currency handling: CP4 emits tier prices as freeform strings with the
+  // currency it picked at generation (usually USD or EUR). The pitch's
+  // display currency (creator.currency override or auto-detect) may differ
+  // — we FX-convert each tier's price string via convertPriceString so the
+  // numbers actually mean the same thing across currencies, not just symbol-
+  // swapped.
+  if (Array.isArray(cfo.pricing_tiers) && cfo.pricing_tiers.length > 0) {
+    // Keep CP4's names + notes + structure. FX-convert each price string.
+    // First tier optionally gets its price re-derived from structuredPrice
+    // so it matches slide 7's actualPrice exactly (single canonical number).
+    const cp4Tiers = cfo.pricing_tiers.map((t, i) => {
+      let priceStr = convertPriceString(t.price || '', currencyCode);
+      if (i === 0 && structuredPrice && recommendedTierLabel) {
+        // Recommended tier — pin to canonical formatter output so slides
+        // 4 / 5 / 7 emit byte-identical strings for the headline tier.
+        priceStr = recommendedTierLabel;
       }
-    }
+      return { ...t, price: priceStr };
+    });
+    c.tiers = cp4Tiers;
+  } else {
+    // CP4 hasn't run yet — synthesise from structuredPrice / revenuePrice.
+    c.tiers = fallbackTiers;
   }
 
   return {
