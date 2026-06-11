@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useRef, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { calculateDealScore } from "../../lib/dealScore";
 import { SCENARIOS as REVENUE_SCENARIOS, calculateSteadyMRR as sharedCalcMRR, calculateOfferRevenue, projectEcosystemRevenue, classifyTierBucket, estimateCurrentBuyers, TIER_CONVERSION_CAP } from "../../lib/revenue";
-import { detectCurrency, CURRENCY_SYMBOLS, convert as fxConvert } from "../../lib/currency";
+import { detectCurrency, CURRENCY_SYMBOLS, convert as fxConvert, convertPriceString } from "../../lib/currency";
 import { renderMd, parseOutput, extractAudience } from "../../lib/offerParser";
 import { legacyParsedToOfferState, CHECKPOINTS, readCheckpointProgress, readOfferState } from "../../lib/offerSchema";
 import { OFFER_SYSTEM_PROMPT } from "../../lib/systemPrompt";
@@ -6464,21 +6464,32 @@ function OfferSummaryCard({ creator }) {
         </div>
       )}
 
-      {/* Pricing tiers */}
-      {Array.isArray(c.pricing_tiers) && c.pricing_tiers.length > 0 && (
-        <div style={{ padding: "13px 16px", background: "#141414", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 10 }}>
-          <div style={{ fontSize: 9, fontWeight: 700, color: "#666", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 10 }}>Pricing Tiers · {c.pricing_tiers.length}</div>
-          <div className="sl-grid" className="sl-grid" style={{ display: "grid", gridTemplateColumns: `repeat(${Math.min(c.pricing_tiers.length, 3)}, 1fr)`, gap: 8 }}>
-            {c.pricing_tiers.map((t, i) => (
-              <div key={i} style={{ padding: "11px 12px", background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.05)", borderRadius: 6 }}>
-                <div style={{ fontSize: 9, fontWeight: 700, color: "#B11E2F", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 4 }}>{t.name}</div>
-                <div style={{ fontSize: 15, fontWeight: 700, color: "#f5f5f5", fontFamily: "'Instrument Serif', Georgia, serif", marginBottom: 4 }}>{t.price}</div>
-                <div style={{ fontSize: 10.5, color: "#888", lineHeight: 1.45 }}>{t.note}</div>
-              </div>
-            ))}
+      {/* Pricing tiers · big = display currency (what client sees on pitch),
+          small = source currency that CP4 emitted. */}
+      {Array.isArray(c.pricing_tiers) && c.pricing_tiers.length > 0 && (() => {
+        const displayCurrency = detectCurrency(creator);
+        return (
+          <div style={{ padding: "13px 16px", background: "#141414", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 10 }}>
+            <div style={{ fontSize: 9, fontWeight: 700, color: "#666", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 10 }}>Pricing Tiers · {c.pricing_tiers.length}</div>
+            <div className="sl-grid" style={{ display: "grid", gridTemplateColumns: `repeat(${Math.min(c.pricing_tiers.length, 3)}, 1fr)`, gap: 8 }}>
+              {c.pricing_tiers.map((t, i) => {
+                const converted = convertPriceString(t.price || '', displayCurrency);
+                const sourceDiffers = converted !== (t.price || '');
+                return (
+                  <div key={i} style={{ padding: "11px 12px", background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.05)", borderRadius: 6 }}>
+                    <div style={{ fontSize: 9, fontWeight: 700, color: "#B11E2F", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 4 }}>{t.name}</div>
+                    <div style={{ fontSize: 15, fontWeight: 700, color: "#f5f5f5", fontFamily: "'Instrument Serif', Georgia, serif", marginBottom: sourceDiffers ? 2 : 4 }}>{converted || t.price}</div>
+                    {sourceDiffers && (
+                      <div style={{ fontSize: 9.5, color: "#555", marginBottom: 4, fontFamily: "ui-monospace, monospace" }}>{t.price}</div>
+                    )}
+                    <div style={{ fontSize: 10.5, color: "#888", lineHeight: 1.45 }}>{t.note}</div>
+                  </div>
+                );
+              })}
+            </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
     </div>
   );
 }
@@ -6936,27 +6947,55 @@ function ResumoPanel({ creator, patchCreator }) {
         </Section>
       )}
 
-      {/* ── 8. Pricing Tiers ── */}
-      {Array.isArray(cfo.pricing_tiers) && cfo.pricing_tiers.length > 0 && (
-        <Section>
-          <Eyebrow>Tiers de Preço</Eyebrow>
-          <div style={{ display: "grid", gridTemplateColumns: `repeat(${Math.min(cfo.pricing_tiers.length, 3)}, 1fr)`, gap: 12 }}>
-            {cfo.pricing_tiers.map((t, i) => (
-              <div key={i} style={{ padding: "14px 16px", background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.05)", borderRadius: 8 }}>
-                <div style={{ fontSize: 9, fontWeight: 700, color: "#7A0E18", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 6 }}>
-                  <Inline value={t.name} onChange={saveArrayItem('pricing_tiers', i, 'name')} placeholder="Nome do tier" />
-                </div>
-                <div style={{ fontSize: 22, fontWeight: 700, color: "#f5f5f5", fontFamily: "'Instrument Serif', Georgia, serif", marginBottom: 6 }}>
-                  <Inline value={t.price} onChange={saveArrayItem('pricing_tiers', i, 'price')} placeholder="€X" />
-                </div>
-                <div style={{ fontSize: 11, color: "#888", lineHeight: 1.45 }}>
-                  <Inline value={t.note} onChange={saveArrayItem('pricing_tiers', i, 'note')} placeholder="Nota (ex: 2 meses grátis)" multiline />
-                </div>
-              </div>
-            ))}
-          </div>
-        </Section>
-      )}
+      {/* ── 8. Pricing Tiers ──
+          BIG number = display currency (what the client sees on the pitch),
+          small subtitle = source currency (what CP4 actually wrote, editable).
+          The operator clicks the small line to fix a CP4 typo; the big line
+          auto-recomputes via FX. This way the offer view + pitch deck show
+          the SAME big number for the same offer. */}
+      {Array.isArray(cfo.pricing_tiers) && cfo.pricing_tiers.length > 0 && (() => {
+        const displayCurrency = detectCurrency(creator);
+        return (
+          <Section>
+            <Eyebrow>Tiers de Preço</Eyebrow>
+            <div style={{ display: "grid", gridTemplateColumns: `repeat(${Math.min(cfo.pricing_tiers.length, 3)}, 1fr)`, gap: 12 }}>
+              {cfo.pricing_tiers.map((t, i) => {
+                const converted = convertPriceString(t.price || '', displayCurrency);
+                // Only show the source subtitle when conversion actually
+                // changed the string (i.e. display ≠ source currency).
+                const sourceDiffers = converted !== (t.price || '');
+                return (
+                  <div key={i} style={{ padding: "14px 16px", background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.05)", borderRadius: 8 }}>
+                    <div style={{ fontSize: 9, fontWeight: 700, color: "#7A0E18", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 6 }}>
+                      <Inline value={t.name} onChange={saveArrayItem('pricing_tiers', i, 'name')} placeholder="Nome do tier" />
+                    </div>
+                    {/* BIG — converted display currency, non-editable, matches what the pitch deck renders. */}
+                    <div style={{ fontSize: 22, fontWeight: 700, color: "#f5f5f5", fontFamily: "'Instrument Serif', Georgia, serif", marginBottom: sourceDiffers ? 2 : 6 }}>
+                      {converted || t.price}
+                    </div>
+                    {/* small — editable source string. CP4 wrote this in its picked currency; FX applies on render. */}
+                    {sourceDiffers && (
+                      <div style={{ fontSize: 10, color: "#666", marginBottom: 6, fontFamily: "ui-monospace, monospace" }}>
+                        <Inline value={t.price} onChange={saveArrayItem('pricing_tiers', i, 'price')} placeholder="$X" />
+                      </div>
+                    )}
+                    {!sourceDiffers && (
+                      // No FX delta — render the editable inline directly
+                      // (operator can still correct the source value here).
+                      <div style={{ display: 'none' }}>
+                        <Inline value={t.price} onChange={saveArrayItem('pricing_tiers', i, 'price')} placeholder="€X" />
+                      </div>
+                    )}
+                    <div style={{ fontSize: 11, color: "#888", lineHeight: 1.45 }}>
+                      <Inline value={t.note} onChange={saveArrayItem('pricing_tiers', i, 'note')} placeholder="Nota (ex: 2 meses grátis)" multiline />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </Section>
+        );
+      })()}
 
       {/* ── 9. Unlocked Bonuses ── */}
       {Array.isArray(cfo.unlocked_bonuses) && cfo.unlocked_bonuses.length > 0 && (
