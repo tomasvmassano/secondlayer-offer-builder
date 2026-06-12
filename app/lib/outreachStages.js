@@ -1,103 +1,216 @@
 /**
- * Outreach pipeline stage computation.
+ * CRM Kanban — 8-stage outreach pipeline.
  *
- * Stages are DERIVED from existing creator data — never stored as a manual
- * field. Operator moves a creator forward by doing the work (recording a
- * Loom, sending the deck, etc.), not by dragging cards between columns.
+ * Stages are DERIVED from existing creator data. Operator can ALSO drag
+ * a card between columns; the drag handler maps each stage to the
+ * field-set that needs to be patched to land in that stage.
  *
- * Source signals:
- *   creator.pipelineStatus       — prospect | cold | signed (manual)
- *   creator.offer?.internal_metadata?.ecosystem_audit  — audit done
- *   creator.dmSequence           — DM drafted
- *   creator.outreach.dmSentAt    — first DM sent
- *   creator.outreach.repliedAt   — creator engaged
- *   creator.outreach.loomSentAt  — personalised Loom sent
- *   creator.outreach.bumpSentAt  — Loom-no-reply bump sent
- *   creator.outreach.callAgreedAt — call booked (reusing existing field)
- *   creator.outreach.callHeldAt   — discovery call happened
- *   creator.pitch?.sentAt         — pitch deck shared
- *   creator.outreach.notInterestedAt — explicit reject
+ * Order matches Tomás's playbook:
+ *   1. Por contactar       — added, no DM/email sent yet
+ *   2. Em outreach         — DM/email sent, no reply yet
+ *   3. Contacto feito      — creator replied, no Loom request yet
+ *   4. Pediu Loom          — creator asked for a personalised Loom
+ *   5. Loom enviado        — Loom recorded + delivered
+ *   6. Reunião marcada     — discovery call booked
+ *   7. Apresentação enviada — pitch deck shared
+ *   8. Frio                 — cold (manual or auto-aged-out)
  *
- * Pipeline mapped from Tomás's playbook:
- *   1. Researcher adds creator → audit runs
- *   2. Operator drafts + sends DM
- *   3. Follow-up sequence
- *   5. If reply: record Loom → DM the Loom link
- *   6. Wait 5 days
- *   7. If still no reply: bump message
- *   8. If reply: Call booked
- *   9. Call booked → discovery call happens
- *  10. Post-call: send pitch deck
- *  11. Not interested / Cold
+ * Signed creators jump out of this Kanban into the Delivery page (the
+ * existing /pipeline view) — they're no longer in the sales funnel.
  */
 
 export const STAGES = [
-  { key: 'sourced',         label: 'Sourced',           accent: '#666',    description: 'Added to CRM, audit not run' },
-  { key: 'outreach_ready',  label: 'Outreach ready',    accent: '#888',    description: 'Audit done, DM not sent' },
-  { key: 'dm_out',          label: 'DM out',            accent: '#eab308', description: 'DM sent, awaiting reply' },
-  { key: 'in_conversation', label: 'In conversation',   accent: '#3b82f6', description: 'Replied, no Loom yet' },
-  { key: 'loom_sent',       label: 'Loom sent',         accent: '#a855f7', description: 'Loom delivered, awaiting reply' },
-  { key: 'call_booked',     label: 'Call booked',       accent: '#22c55e', description: 'Discovery call scheduled' },
-  { key: 'pitch_sent',      label: 'Pitch sent',        accent: '#7A0E18', description: 'Deck shared, awaiting decision' },
-  { key: 'cold',            label: 'Cold / Not interested', accent: '#444', description: 'Aged out or rejected', terminal: true },
+  { key: 'por_contactar',         label: 'Por contactar',         accent: '#666',    description: 'Add criado · sem outreach' },
+  { key: 'em_outreach',           label: 'Em outreach',           accent: '#eab308', description: 'DM/email enviado · sem resposta' },
+  { key: 'contacto_feito',        label: 'Contacto feito',        accent: '#3b82f6', description: 'Respondeu · pronto para Loom' },
+  { key: 'pediu_loom',            label: 'Pediu Loom',            accent: '#a855f7', description: 'Pediu Loom personalizado' },
+  { key: 'loom_enviado',          label: 'Loom enviado',          accent: '#c084fc', description: 'Loom entregue · à espera de resposta' },
+  { key: 'reuniao_marcada',       label: 'Reunião marcada',       accent: '#22c55e', description: 'Call de descoberta agendada' },
+  { key: 'apresentacao_enviada',  label: 'Apresentação enviada',  accent: '#7A0E18', description: 'Deck partilhado · à espera de decisão' },
+  { key: 'frio',                  label: 'Frio',                  accent: '#444',    description: 'Não interessado ou parou', terminal: true },
 ];
 
 export const STAGE_KEYS = STAGES.map(s => s.key);
 export const STAGE_INDEX = Object.fromEntries(STAGES.map((s, i) => [s.key, i]));
 
 /**
- * Compute the current pipeline stage from creator data.
+ * Compute current stage from creator data. Walk LATEST signal first so a
+ * pitched creator registers as 'apresentacao_enviada' even if every
+ * earlier timestamp is also set.
  *
- * Order matters: we walk LATEST signals first so a creator who's been
- * signed registers as 'signed' even if earlier fields are also set.
- * Returns one of STAGE_KEYS (or 'signed' for closed creators — which the
- * Kanban skips, sending them to the delivery phase).
+ * Returns one of STAGE_KEYS, or 'signed' (which the Kanban filters out
+ * — signed creators belong to Delivery).
  */
 export function computeOutreachStage(creator) {
-  if (!creator) return 'sourced';
+  if (!creator) return 'por_contactar';
 
-  // Terminal: signed creators are out of the outreach pipeline.
   if (creator.pipelineStatus === 'signed') return 'signed';
+  if (creator.pipelineStatus === 'cold')   return 'frio';
 
-  // Terminal: explicitly cold or not interested.
-  if (creator.pipelineStatus === 'cold') return 'cold';
-  if (creator.outreach?.notInterestedAt) return 'cold';
+  // Tolerant of both shapes: the full creator record stores fields under
+  // creator.outreach.*, but the /api/creators list summary flattens them
+  // to the top level for cheap CRM-list reads. Read both so the Kanban
+  // works against either source.
+  const o = creator.outreach || {};
+  const notInterestedAt = o.notInterestedAt || creator.notInterestedAt;
+  const pitchSentAt     = creator.pitch?.sentAt || creator.pitchSentAt;
+  const callHeldAt      = o.callHeldAt    || creator.callHeldAt;
+  const callBookedAt    = o.callBookedAt  || o.callAgreedAt || creator.callBookedAt;
+  const loomSentAt      = o.loomSentAt    || creator.loomSentAt;
+  const loomRequestedAt = o.loomRequestedAt || creator.loomRequestedAt;
+  const repliedAt       = o.repliedAt     || creator.repliedAt;
+  const dmSentAt        = o.dmSentAt      || creator.dmSentAt;
+  const emailSentAt     = o.emailSentAt   || creator.emailSentAt;
 
-  // Walk back from the latest signal. The "furthest" stage wins.
-  if (creator.pitch?.sentAt)              return 'pitch_sent';
-  if (creator.outreach?.callHeldAt)       return 'pitch_sent'; // call done, send deck next — render in same column
-  if (creator.outreach?.callAgreedAt || creator.outreach?.callBookedAt) return 'call_booked';
-  if (creator.outreach?.loomSentAt)       return 'loom_sent';
-  if (creator.outreach?.repliedAt)        return 'in_conversation';
-  if (creator.outreach?.dmSentAt || creator.outreach?.emailSentAt) return 'dm_out';
-  // Audit done? Look for any meta on the offer.
-  const hasAudit = !!(creator.offer?.internal_metadata?.ecosystem_audit
-    || creator.hasAudit
-    || creator.offer?.raw);
-  if (hasAudit && creator.dmSequence)     return 'outreach_ready';
-  if (hasAudit)                           return 'outreach_ready';
-  return 'sourced';
+  if (notInterestedAt)              return 'frio';
+  if (pitchSentAt)                  return 'apresentacao_enviada';
+  if (callHeldAt)                   return 'apresentacao_enviada';
+  if (callBookedAt)                 return 'reuniao_marcada';
+  if (loomSentAt)                   return 'loom_enviado';
+  if (loomRequestedAt)              return 'pediu_loom';
+  if (repliedAt)                    return 'contacto_feito';
+  if (dmSentAt || emailSentAt)      return 'em_outreach';
+  return 'por_contactar';
 }
 
 /**
- * Group an array of creators by computed stage. Returns an object keyed by
- * STAGE_KEYS, each entry an array of creators. Empty stages still get an
- * empty array so the Kanban can render every column.
+ * Inverse mapping for drag-and-drop. When the operator drops a card on a
+ * specific column, we patch the creator with this field-set so the next
+ * render places the card in the right stage. Each entry must produce a
+ * stage match when fed back through computeOutreachStage().
+ *
+ * Forward moves stamp timestamps to "now". Backward moves clear later
+ * fields so the card lands in the destination stage (e.g. dragging from
+ * "Loom enviado" back to "Contacto feito" clears loomSentAt + loomRequestedAt).
+ *
+ * Returns a partial creator patch ready to PATCH /api/creators/:id.
+ */
+export function stagePatch(creator, targetStage) {
+  const now = new Date().toISOString();
+  const cur = creator?.outreach || {};
+  // Helper: only set if not already set, to preserve original timestamp.
+  const keep = (v) => v || now;
+  const drop = () => null;
+
+  switch (targetStage) {
+    case 'por_contactar':
+      return {
+        pipelineStatus: 'prospect',
+        outreach: {
+          ...cur,
+          dmSentAt: null, emailSentAt: null,
+          repliedAt: null, repliedChannel: null,
+          loomRequestedAt: null, loomSentAt: null,
+          callBookedAt: null, callAgreedAt: null, callHeldAt: null,
+          notInterestedAt: null,
+        },
+        pitch: { ...(creator?.pitch || {}), sentAt: null },
+      };
+    case 'em_outreach':
+      return {
+        pipelineStatus: 'prospect',
+        outreach: {
+          ...cur,
+          dmSentAt: keep(cur.dmSentAt),
+          repliedAt: null, repliedChannel: null,
+          loomRequestedAt: null, loomSentAt: null,
+          callBookedAt: null, callAgreedAt: null, callHeldAt: null,
+          notInterestedAt: null,
+        },
+        pitch: { ...(creator?.pitch || {}), sentAt: null },
+      };
+    case 'contacto_feito':
+      return {
+        pipelineStatus: 'prospect',
+        outreach: {
+          ...cur,
+          dmSentAt: keep(cur.dmSentAt),
+          repliedAt: keep(cur.repliedAt),
+          loomRequestedAt: null, loomSentAt: null,
+          callBookedAt: null, callAgreedAt: null, callHeldAt: null,
+          notInterestedAt: null,
+        },
+        pitch: { ...(creator?.pitch || {}), sentAt: null },
+      };
+    case 'pediu_loom':
+      return {
+        pipelineStatus: 'prospect',
+        outreach: {
+          ...cur,
+          dmSentAt: keep(cur.dmSentAt),
+          repliedAt: keep(cur.repliedAt),
+          loomRequestedAt: keep(cur.loomRequestedAt),
+          loomSentAt: null,
+          callBookedAt: null, callAgreedAt: null, callHeldAt: null,
+          notInterestedAt: null,
+        },
+        pitch: { ...(creator?.pitch || {}), sentAt: null },
+      };
+    case 'loom_enviado':
+      return {
+        pipelineStatus: 'prospect',
+        outreach: {
+          ...cur,
+          dmSentAt: keep(cur.dmSentAt),
+          repliedAt: keep(cur.repliedAt),
+          loomRequestedAt: keep(cur.loomRequestedAt),
+          loomSentAt: keep(cur.loomSentAt),
+          callBookedAt: null, callAgreedAt: null, callHeldAt: null,
+          notInterestedAt: null,
+        },
+        pitch: { ...(creator?.pitch || {}), sentAt: null },
+      };
+    case 'reuniao_marcada':
+      return {
+        pipelineStatus: 'prospect',
+        outreach: {
+          ...cur,
+          dmSentAt: keep(cur.dmSentAt),
+          repliedAt: keep(cur.repliedAt),
+          callBookedAt: keep(cur.callBookedAt),
+          callHeldAt: null,
+          notInterestedAt: null,
+        },
+        pitch: { ...(creator?.pitch || {}), sentAt: null },
+      };
+    case 'apresentacao_enviada':
+      return {
+        pipelineStatus: 'prospect',
+        outreach: {
+          ...cur,
+          dmSentAt: keep(cur.dmSentAt),
+          repliedAt: keep(cur.repliedAt),
+          callBookedAt: keep(cur.callBookedAt),
+          callHeldAt: keep(cur.callHeldAt),
+          notInterestedAt: null,
+        },
+        pitch: { ...(creator?.pitch || {}), sentAt: keep(creator?.pitch?.sentAt) },
+      };
+    case 'frio':
+      return {
+        pipelineStatus: 'cold',
+        outreach: { ...cur, notInterestedAt: keep(cur.notInterestedAt) },
+      };
+    default:
+      return null;
+  }
+}
+
+/**
+ * Group an array of creators by computed stage. Empty stages still get
+ * an empty array so the Kanban can render every column.
  */
 export function groupByStage(creators) {
   const grouped = Object.fromEntries(STAGE_KEYS.map(k => [k, []]));
   for (const c of creators || []) {
     const stage = computeOutreachStage(c);
-    if (stage === 'signed') continue;        // signed → delivery phase
-    if (!grouped[stage]) grouped[stage] = []; // defensive
+    if (stage === 'signed') continue; // signed → Delivery page
+    if (!grouped[stage]) grouped[stage] = [];
     grouped[stage].push(c);
   }
   return grouped;
 }
 
-/**
- * "Days since" — null-safe. Returns -1 when timestamp is falsy.
- */
 function daysSince(iso) {
   if (!iso) return -1;
   const t = new Date(iso).getTime();
@@ -106,93 +219,52 @@ function daysSince(iso) {
 }
 
 /**
- * Per-stage staleness rules. Returns { stale: bool, days: number, level: 'ok'|'warn'|'cold' }.
- * Used to render the red age-chip + the "Send bump" / "Mark cold" CTAs.
+ * Per-stage staleness rules. Returns { days, level, stale }.
+ * Used to render age chips + auto-suggest pills on cards.
  */
 export function stageStaleness(creator) {
   const stage = computeOutreachStage(creator);
   const o = creator?.outreach || {};
-
   switch (stage) {
-    case 'sourced':
+    case 'por_contactar':
       return { days: daysSince(creator?.createdAt), level: 'ok', stale: false };
-    case 'outreach_ready':
-      return { days: daysSince(o.auditedAt || creator?.createdAt), level: 'ok', stale: false };
-    case 'dm_out': {
-      const d = daysSince(o.dmSentAt || o.emailSentAt);
+    case 'em_outreach': {
+      const d = daysSince(o.dmSentAt || o.emailSentAt || creator?.dmSentAt);
       if (d > 14) return { days: d, level: 'cold', stale: true };
       if (d > 7)  return { days: d, level: 'warn', stale: false };
       return { days: d, level: 'ok', stale: false };
     }
-    case 'in_conversation': {
-      const d = daysSince(o.repliedAt);
-      if (d > 7) return { days: d, level: 'warn', stale: true };
+    case 'contacto_feito': {
+      const d = daysSince(o.repliedAt || creator?.repliedAt);
+      if (d > 5) return { days: d, level: 'warn', stale: true };
       return { days: d, level: 'ok', stale: false };
     }
-    case 'loom_sent': {
+    case 'pediu_loom': {
+      const d = daysSince(o.loomRequestedAt);
+      if (d > 3) return { days: d, level: 'warn', stale: true };
+      return { days: d, level: 'ok', stale: false };
+    }
+    case 'loom_enviado': {
       const d = daysSince(o.loomSentAt);
-      // Bump suggested at day 5; cold at day 14.
       if (d > 14) return { days: d, level: 'cold', stale: true };
       if (d > 5)  return { days: d, level: 'warn', stale: true };
       return { days: d, level: 'ok', stale: false };
     }
-    case 'call_booked': {
-      // If call date passed and not held yet, that's a no-show warning.
+    case 'reuniao_marcada': {
       const booked = o.callBookedAt || o.callAgreedAt;
       const d = daysSince(booked);
       if (d > 3 && !o.callHeldAt) return { days: d, level: 'warn', stale: true };
       return { days: d, level: 'ok', stale: false };
     }
-    case 'pitch_sent': {
+    case 'apresentacao_enviada': {
       const d = daysSince(creator?.pitch?.sentAt || o.callHeldAt);
       if (d > 10) return { days: d, level: 'cold', stale: true };
       if (d > 5)  return { days: d, level: 'warn', stale: true };
       return { days: d, level: 'ok', stale: false };
     }
-    case 'cold':
+    case 'frio':
       return { days: daysSince(o.notInterestedAt), level: 'ok', stale: false };
     default:
       return { days: -1, level: 'ok', stale: false };
   }
-}
-
-/**
- * Single "next action" CTA per stage. Drives the primary button on every
- * card so the operator never has to think "what now."
- */
-export function nextAction(creator) {
-  const stage = computeOutreachStage(creator);
-  switch (stage) {
-    case 'sourced':         return { label: 'Run audit',      href: c => `/creators/${c.id}?tab=audit` };
-    case 'outreach_ready':  return { label: 'Draft DM',       href: c => `/creators/${c.id}?tab=dm` };
-    case 'dm_out':          return { label: 'Send follow-up', href: c => `/creators/${c.id}?tab=dm` };
-    case 'in_conversation': return { label: 'Record Loom',    href: c => `/creators/${c.id}?tab=outreach&record=loom` };
-    case 'loom_sent':       return { label: 'Send bump',      href: c => `/creators/${c.id}?tab=outreach&action=bump` };
-    case 'call_booked':     return { label: 'Mark call done', href: c => `/creators/${c.id}?tab=outreach&action=callDone` };
-    case 'pitch_sent':      return { label: 'Mark signed',    href: c => `/creators/${c.id}?tab=outreach&action=sign` };
-    default:                return null;
-  }
-}
-
-/**
- * Auto-suggest pills shown on a card when its staleness crosses a threshold.
- * Returns an array of { label, kind } where kind drives UI color.
- */
-export function suggestedActions(creator) {
-  const stage = computeOutreachStage(creator);
-  const s = stageStaleness(creator);
-  const out = [];
-  if (stage === 'loom_sent' && s.days > 5 && !creator?.outreach?.bumpSentAt) {
-    out.push({ label: `Send bump · Loom out ${s.days}d`, kind: 'warn' });
-  }
-  if (stage === 'dm_out' && s.days > 14) {
-    out.push({ label: `Mark cold · ${s.days}d no reply`, kind: 'cold' });
-  }
-  if (stage === 'pitch_sent' && s.days > 10) {
-    out.push({ label: `Follow up · pitch out ${s.days}d`, kind: 'warn' });
-  }
-  if (stage === 'call_booked' && s.days > 3 && !creator?.outreach?.callHeldAt) {
-    out.push({ label: `No-show check · call ${s.days}d ago`, kind: 'warn' });
-  }
-  return out;
 }

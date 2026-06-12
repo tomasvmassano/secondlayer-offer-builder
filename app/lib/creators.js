@@ -27,6 +27,15 @@ function buildSummary(creator, createdAt) {
     emailSentAt: creator.outreach?.emailSentAt || null,
     repliedAt: creator.outreach?.repliedAt || null,
     repliedChannel: creator.outreach?.repliedChannel || null,
+    // Kanban-stage signals — surface here so the CRM Kanban can place each
+    // card in the right column without fetching the full creator record.
+    loomRequestedAt: creator.outreach?.loomRequestedAt || null,
+    loomSentAt:      creator.outreach?.loomSentAt      || null,
+    callBookedAt:    creator.outreach?.callBookedAt    || creator.outreach?.callAgreedAt || null,
+    callHeldAt:      creator.outreach?.callHeldAt      || null,
+    notInterestedAt: creator.outreach?.notInterestedAt || null,
+    pitchSentAt:     creator.pitch?.sentAt             || null,
+    profilePicUrl:   creator.profilePicUrl             || null,
     // Filters — addedByFirstName goes through normalizeOperatorName so
     // legacy "Tomas"/"Raul" upgrade to "Tomás"/"Raúl". Idempotent on
     // already-accented data.

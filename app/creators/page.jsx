@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
+import { STAGES, computeOutreachStage, groupByStage, stagePatch, stageStaleness } from "../lib/outreachStages";
 
 const LOGO_B64 = "data:image/png;base64,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";
 
@@ -25,6 +26,18 @@ export default function CreatorsPage() {
   // pile is what loads first. Legacy "novos" still routes to the same
   // list via the filter logic below.
   const [crmTab, setCrmTab] = useState("por-contactar");
+  // View mode: "list" (existing tabbed list) | "kanban" (8-column drag-and-drop).
+  // Persisted to localStorage so the operator's choice survives reload.
+  const [crmView, setCrmView] = useState("list");
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem('sl_crm_view_v1');
+      if (stored === 'list' || stored === 'kanban') setCrmView(stored);
+    } catch {}
+  }, []);
+  useEffect(() => {
+    try { localStorage.setItem('sl_crm_view_v1', crmView); } catch {}
+  }, [crmView]);
   // Filters — persisted to localStorage so they survive a reload.
   // addedBy: null | "Tomás" | "Raúl" | etc.  (string match against summary.addedByFirstName)
   // dealScore: null | "A" | "B" | "C" | "D"
@@ -713,6 +726,19 @@ export default function CreatorsPage() {
                     onChange={(v) => setFilters(f => ({ ...f, hasAudit: v === 'yes' ? true : v === 'no' ? false : null }))}
                   />
 
+                  {/* View toggle · pushes to the right edge. List = current
+                      tabbed grid; Kanban = 8-column drag-and-drop board. */}
+                  <div style={{ marginLeft: "auto", display: "flex", gap: 0, padding: 2, background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 6 }}>
+                    {['list', 'kanban'].map(v => (
+                      <button key={v} onClick={() => setCrmView(v)} style={{
+                        padding: "4px 10px", background: crmView === v ? "rgba(122,14,24,0.85)" : "transparent",
+                        border: 'none', borderRadius: 4, color: crmView === v ? "#fff" : "#666",
+                        fontSize: 10, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase",
+                        cursor: "pointer", fontFamily: "inherit",
+                      }}>{v === 'list' ? 'Lista' : 'Kanban'}</button>
+                    ))}
+                  </div>
+
                   {filterCount > 0 && (
                     <button
                       onClick={() => setFilters({ addedBy: null, dealScore: null, hasAudit: null })}
@@ -724,6 +750,13 @@ export default function CreatorsPage() {
                 </div>
               )}
 
+              {crmView === 'kanban' ? (
+                <CrmKanban
+                  creators={filtered.filter(c => c.pipelineStatus !== 'signed')}
+                  setCreators={setCreators}
+                />
+              ) : (
+              <>
               <div className="sl-tabs sl-hscroll" style={{ display: "flex", gap: 0, marginBottom: 28, borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
                 {[
                   { key: "por-contactar", label: "Por contactar", count: porContactar.length },
@@ -1339,6 +1372,8 @@ export default function CreatorsPage() {
                   ))}
                 </div>
               )}
+              </>
+              )}
             </div>
           );
         })()}
@@ -1387,5 +1422,164 @@ function FilterDropdown({ label, value, options, onChange }) {
         ))}
       </select>
     </label>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────
+// CrmKanban — 8-column drag-and-drop board for the outreach pipeline.
+// Stages: Por contactar → Em outreach → Contacto feito → Pediu Loom →
+//         Loom enviado → Reunião marcada → Apresentação enviada → Frio
+//
+// Cards are draggable (HTML5 native). Dropping on a column patches the
+// creator with the field-set that produces that stage (stagePatch helper).
+// Cards ALSO auto-move when the operator does the work elsewhere — e.g.
+// recording a Loom on the creator detail page sets loomSentAt, and the
+// card automatically re-classifies on next render.
+// ─────────────────────────────────────────────────────────────────
+function CrmKanban({ creators, setCreators }) {
+  const grouped = useMemo(() => groupByStage(creators), [creators]);
+  const [dragId, setDragId] = useState(null);
+  const [dragOver, setDragOver] = useState(null);
+
+  const onDragStart = (id) => (e) => {
+    setDragId(id);
+    e.dataTransfer.effectAllowed = 'move';
+    try { e.dataTransfer.setData('text/plain', id); } catch {}
+  };
+  const onDragEnd = () => { setDragId(null); setDragOver(null); };
+  const onDragOverCol = (key) => (e) => { e.preventDefault(); setDragOver(key); };
+  const onDropCol = (stageKey) => async (e) => {
+    e.preventDefault();
+    const id = dragId || (e.dataTransfer?.getData('text/plain') || '');
+    setDragOver(null); setDragId(null);
+    if (!id) return;
+    const creator = creators.find(c => c.id === id);
+    if (!creator) return;
+    if (computeOutreachStage(creator) === stageKey) return; // no-op
+    const patch = stagePatch(creator, stageKey);
+    if (!patch) return;
+    // Optimistic — update local state immediately so the card snaps to
+    // the new column without waiting for the network round-trip.
+    setCreators(prev => prev.map(c => c.id === id ? {
+      ...c,
+      ...patch,
+      // Flatten outreach fields onto top level so the next groupByStage
+      // call (which reads summary-shaped data) sees the new stage.
+      dmSentAt:        patch.outreach?.dmSentAt ?? c.dmSentAt,
+      emailSentAt:     patch.outreach?.emailSentAt ?? c.emailSentAt,
+      repliedAt:       patch.outreach?.repliedAt ?? c.repliedAt,
+      loomRequestedAt: patch.outreach?.loomRequestedAt ?? c.loomRequestedAt,
+      loomSentAt:      patch.outreach?.loomSentAt ?? c.loomSentAt,
+      callBookedAt:    patch.outreach?.callBookedAt ?? c.callBookedAt,
+      callHeldAt:      patch.outreach?.callHeldAt ?? c.callHeldAt,
+      notInterestedAt: patch.outreach?.notInterestedAt ?? c.notInterestedAt,
+      pitchSentAt:     patch.pitch?.sentAt ?? c.pitchSentAt,
+    } : c));
+    try {
+      await fetch(`/api/creators/${id}`, {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(patch),
+      });
+    } catch {}
+  };
+
+  return (
+    <div style={{ display: "flex", gap: 10, overflowX: "auto", paddingBottom: 12, marginBottom: 32 }}>
+      {STAGES.map(stage => {
+        const items = grouped[stage.key] || [];
+        const isDropTarget = dragOver === stage.key;
+        return (
+          <div
+            key={stage.key}
+            onDragOver={onDragOverCol(stage.key)}
+            onDragLeave={() => setDragOver(o => o === stage.key ? null : o)}
+            onDrop={onDropCol(stage.key)}
+            style={{
+              minWidth: 240, width: 240, flexShrink: 0,
+              background: isDropTarget ? "rgba(122,14,24,0.08)" : "transparent",
+              border: isDropTarget ? "1px dashed rgba(122,14,24,0.4)" : "1px dashed transparent",
+              borderRadius: 8, padding: 4, transition: "background 0.1s, border-color 0.1s",
+            }}
+          >
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "4px 8px 8px" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <span style={{ width: 6, height: 6, borderRadius: "50%", background: stage.accent }} />
+                <span style={{ fontSize: 10, fontWeight: 700, color: "#f5f5f5", letterSpacing: "0.08em", textTransform: "uppercase" }}>{stage.label}</span>
+              </div>
+              <span style={{ fontSize: 11, color: "#555", fontWeight: 600 }}>{items.length}</span>
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 8, minHeight: 60 }}>
+              {items.length === 0 ? (
+                <div style={{ padding: "20px 10px", fontSize: 10, color: "#333", textAlign: "center", background: "rgba(255,255,255,0.01)", border: "1px dashed rgba(255,255,255,0.04)", borderRadius: 6 }}>
+                  {stage.description}
+                </div>
+              ) : items.map(c => (
+                <KanbanCard
+                  key={c.id}
+                  creator={c}
+                  isDragging={dragId === c.id}
+                  onDragStart={onDragStart(c.id)}
+                  onDragEnd={onDragEnd}
+                />
+              ))}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// CrmKanban card — same visual shape as the list view's card (name +
+// followers, niche, platform chip + date) but compact + draggable.
+function KanbanCard({ creator, isDragging, onDragStart, onDragEnd }) {
+  const stale = stageStaleness(creator);
+  const ageColor = stale.level === 'cold' ? '#7A0E18' : stale.level === 'warn' ? '#eab308' : '#444';
+  const ageBg    = stale.level === 'cold' ? 'rgba(122,14,24,0.15)' : stale.level === 'warn' ? 'rgba(234,179,8,0.1)' : 'rgba(255,255,255,0.03)';
+  return (
+    <a
+      href={`/creators/${creator.id}`}
+      draggable
+      onDragStart={onDragStart}
+      onDragEnd={onDragEnd}
+      style={{
+        display: "block", padding: "12px 14px", background: "#141414",
+        border: "1px solid rgba(255,255,255,0.04)", borderRadius: 8,
+        textDecoration: "none", color: "inherit",
+        cursor: isDragging ? "grabbing" : "grab",
+        opacity: isDragging ? 0.4 : 1,
+        transition: "border-color 0.15s, transform 0.1s, opacity 0.1s",
+      }}
+      onMouseEnter={e => { if (!isDragging) e.currentTarget.style.borderColor = "rgba(122,14,24,0.4)"; }}
+      onMouseLeave={e => { e.currentTarget.style.borderColor = "rgba(255,255,255,0.04)"; }}
+    >
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 6 }}>
+        <h3 style={{ fontSize: 13, fontWeight: 700, margin: 0, color: "#f5f5f5", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1, paddingRight: 8 }}>
+          {creator.name || "Unknown"}
+        </h3>
+        <span style={{ fontSize: 12, fontWeight: 700, color: "#7A0E18", flexShrink: 0 }}>
+          {formatFollowers(creator.followers)}
+        </span>
+      </div>
+      {creator.niche && (
+        <p style={{ fontSize: 11, color: "#888", margin: "0 0 8px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{creator.niche}</p>
+      )}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 6 }}>
+        <span style={{
+          fontSize: 9, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.08em",
+          color: "#555", padding: "2px 7px", background: "rgba(255,255,255,0.03)", borderRadius: 5,
+        }}>{creator.primaryPlatform || "Instagram"}</span>
+        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          {stale.days >= 0 && (
+            <span style={{ fontSize: 9, fontWeight: 700, color: ageColor, padding: "2px 6px", borderRadius: 3, background: ageBg, fontFamily: "ui-monospace, monospace" }}>
+              {stale.days}d
+            </span>
+          )}
+          <span style={{ fontSize: 10, color: "#555" }}>
+            {creator.createdAt ? new Date(creator.createdAt).toLocaleDateString("pt-PT", { day: '2-digit', month: '2-digit' }) : ""}
+          </span>
+        </div>
+      </div>
+    </a>
   );
 }
