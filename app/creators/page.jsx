@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { STAGES, computeOutreachStage, groupByStage, stagePatch, stageStaleness } from "../lib/outreachStages";
 
 const LOGO_B64 = "data:image/png;base64,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";
@@ -10,6 +10,38 @@ function formatFollowers(n) {
   if (n >= 1000000) return (n / 1000000).toFixed(1).replace(/\.0$/, "") + "M";
   if (n >= 1000) return (n / 1000).toFixed(1).replace(/\.0$/, "") + "K";
   return String(n);
+}
+
+// Compare two timestamps, return the newer one (or null when both falsy).
+// Used by mergeCreatorLists to detect locally-applied optimistic edits.
+function newer(a, b) {
+  if (!a) return b;
+  if (!b) return a;
+  return new Date(a).getTime() > new Date(b).getTime() ? a : b;
+}
+
+// Smart merge for silent polls. The page state may have OPTIMISTIC edits
+// (a drag just landed, we patched local state, the PATCH is still in flight
+// and the server hasn't seen it yet on the next poll). A naive
+// `setCreators(serverList)` would clobber those edits and the card would
+// snap back to its old column for one render cycle.
+//
+// Heuristic: if any tracked timestamp on the LOCAL copy is newer than the
+// server copy, the local copy has unsynced edits — keep it. Otherwise
+// take the server copy.
+function mergeCreatorLists(local, server) {
+  if (!Array.isArray(local) || local.length === 0) return server;
+  const byId = new Map(local.map(c => [c.id, c]));
+  return server.map(s => {
+    const l = byId.get(s.id);
+    if (!l) return s;
+    // Look at the latest "edit signal" on each side. If local is newer,
+    // it has unsynced optimistic state — keep it.
+    const lLatest = newer(newer(newer(l.dmSentAt, l.repliedAt), newer(l.loomSentAt, l.callBookedAt)), l.pitchSentAt);
+    const sLatest = newer(newer(newer(s.dmSentAt, s.repliedAt), newer(s.loomSentAt, s.callBookedAt)), s.pitchSentAt);
+    if (lLatest && (!sLatest || new Date(lLatest).getTime() > new Date(sLatest).getTime())) return l;
+    return s;
+  });
 }
 
 export default function CreatorsPage() {
@@ -64,7 +96,7 @@ export default function CreatorsPage() {
   const [newSeedCountry, setNewSeedCountry] = useState("PT");
   const [addError, setAddError] = useState("");
 
-  const fetchCreators = useCallback(async (q) => {
+  const fetchCreators = useCallback(async (q, opts = {}) => {
     try {
       // Load ALL creators (no status filter). The previous `?status=prospect`
       // excluded cold creators entirely — they never reached the page, which
@@ -75,13 +107,41 @@ export default function CreatorsPage() {
       const url = q ? `/api/creators?q=${encodeURIComponent(q)}` : "/api/creators";
       const res = await fetch(url);
       const data = await res.json();
-      setCreators(data.creators || []);
+      // Silent polls preserve any locally-applied optimistic edits — if the
+      // server hasn't caught up yet, don't blow away the operator's
+      // just-completed drag move.
+      if (opts.silent) {
+        setCreators(prev => mergeCreatorLists(prev, data.creators || []));
+      } else {
+        setCreators(data.creators || []);
+      }
     } catch {
-      setCreators([]);
+      if (!opts.silent) setCreators([]);
     } finally {
-      setLoading(false);
+      if (!opts.silent) setLoading(false);
     }
   }, []);
+
+  // Real-time sync via polling. Every 10 seconds we silently refetch the
+  // creators list so teammate changes (DM sent, replied, stage moved, etc.)
+  // appear without anyone hitting reload. Paused during drag so a poll
+  // doesn't overwrite the optimistic state mid-move. Also paused when the
+  // tab is hidden to save Vercel function invocations.
+  const [isDragging, setIsDragging] = useState(false);
+  const isDraggingRef = useRef(false);
+  useEffect(() => { isDraggingRef.current = isDragging; }, [isDragging]);
+  const [syncTick, setSyncTick] = useState(0); // increments after every silent poll for the live pill animation
+  useEffect(() => {
+    let intervalId = null;
+    const tick = () => {
+      if (isDraggingRef.current) return;
+      if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return;
+      fetchCreators(search, { silent: true });
+      setSyncTick(t => t + 1);
+    };
+    intervalId = setInterval(tick, 10_000);
+    return () => clearInterval(intervalId);
+  }, [search, fetchCreators]);
 
   const fetchDiscoveryQueue = useCallback(async () => {
     try {
@@ -430,12 +490,32 @@ export default function CreatorsPage() {
       <div className="sl-page" style={{ width: "100%", maxWidth: "100%", padding: "40px 24px 80px", boxSizing: "border-box" }}>
         {/* Title */}
         <div style={{ marginBottom: 32 }}>
-          <h1 className="sl-h1" style={{ fontSize: 28, fontWeight: 600, margin: "0 0 6px", letterSpacing: "-0.02em" }}>
-            Creators
-          </h1>
-          <p style={{ fontSize: 13, color: "#888", margin: 0 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <h1 className="sl-h1" style={{ fontSize: 28, fontWeight: 600, margin: 0, letterSpacing: "-0.02em" }}>
+              Creators
+            </h1>
+            {/* Live-sync pill — visible signal that the page is polling
+                teammate changes every 10s. Pulses on every successful poll
+                (syncTick increments). Pauses during drag so the operator
+                knows their move won't be clobbered. */}
+            <div style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "3px 10px", borderRadius: 999, background: isDragging ? "rgba(234,179,8,0.1)" : "rgba(34,197,94,0.08)", border: `1px solid ${isDragging ? "rgba(234,179,8,0.25)" : "rgba(34,197,94,0.2)"}` }} title={isDragging ? "Sync pausado durante drag" : `A sincronizar a cada 10s · última: ${syncTick > 0 ? `${syncTick} polls` : 'em breve'}`}>
+              <span key={syncTick} className="sl-live-dot" style={{ width: 6, height: 6, borderRadius: "50%", background: isDragging ? "#eab308" : "#22c55e" }} />
+              <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: isDragging ? "#eab308" : "#22c55e" }}>
+                {isDragging ? "Drag" : "Live"}
+              </span>
+            </div>
+          </div>
+          <p style={{ fontSize: 13, color: "#888", margin: "6px 0 0" }}>
             Base de dados de todos os criadores. Perfil, pesquisa, notas de reuniao e ferramentas.
           </p>
+          <style>{`
+            @keyframes sl-live-pulse {
+              0% { transform: scale(1); opacity: 1; }
+              50% { transform: scale(1.6); opacity: 0.4; }
+              100% { transform: scale(1); opacity: 1; }
+            }
+            .sl-live-dot { animation: sl-live-pulse 0.6s ease-out; }
+          `}</style>
         </div>
 
         {/* Search + Add */}
@@ -1273,6 +1353,7 @@ export default function CreatorsPage() {
                 <CrmKanban
                   creators={filtered.filter(c => c.pipelineStatus !== 'signed')}
                   setCreators={setCreators}
+                  onDragChange={setIsDragging}
                 />
               )}
             </div>
@@ -1337,7 +1418,7 @@ function FilterDropdown({ label, value, options, onChange }) {
 // recording a Loom on the creator detail page sets loomSentAt, and the
 // card automatically re-classifies on next render.
 // ─────────────────────────────────────────────────────────────────
-function CrmKanban({ creators, setCreators }) {
+function CrmKanban({ creators, setCreators, onDragChange }) {
   const grouped = useMemo(() => groupByStage(creators), [creators]);
   const [dragId, setDragId] = useState(null);
   const [dragOver, setDragOver] = useState(null);
@@ -1346,9 +1427,13 @@ function CrmKanban({ creators, setCreators }) {
     setDragId(id);
     e.dataTransfer.effectAllowed = 'move';
     try { e.dataTransfer.setData('text/plain', id); } catch {}
+    if (onDragChange) onDragChange(true);
     console.log('[kanban] dragstart', id);
   };
-  const onDragEnd = () => { setDragId(null); setDragOver(null); };
+  const onDragEnd = () => {
+    setDragId(null); setDragOver(null);
+    if (onDragChange) onDragChange(false);
+  };
   const onDragOverCol = (key) => (e) => {
     e.preventDefault();
     // Setting dropEffect on the dragover event is what tells the browser
@@ -1363,6 +1448,7 @@ function CrmKanban({ creators, setCreators }) {
     e.stopPropagation();
     const id = dragId || (e.dataTransfer?.getData('text/plain') || '');
     setDragOver(null); setDragId(null);
+    if (onDragChange) onDragChange(false);
     if (!id) { console.warn('[kanban] drop without id'); return; }
     const creator = creators.find(c => c.id === id);
     if (!creator) { console.warn('[kanban] drop on unknown creator', id); return; }
