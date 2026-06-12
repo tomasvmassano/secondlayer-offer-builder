@@ -398,11 +398,11 @@ export default function CreatorsPage() {
   };
 
   return (
-    <div style={{ minHeight: "100vh", background: "#0a0a0a", color: "#f5f5f5", fontFamily: "'Inter', 'Helvetica Neue', Helvetica, Arial, sans-serif" }}>
+    <div style={{ minHeight: "100vh", background: "#0a0a0a", color: "#f5f5f5", fontFamily: "'Inter', 'Helvetica Neue', Helvetica, Arial, sans-serif", overflowX: "hidden" }}>
       <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
 
       {/* Header */}
-      <div style={{ padding: "20px 28px", borderBottom: "1px solid rgba(255,255,255,0.04)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+      <div style={{ padding: "20px 28px", borderBottom: "1px solid rgba(255,255,255,0.04)", display: "flex", alignItems: "center", justifyContent: "space-between", boxSizing: "border-box", width: "100%" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
           <a href="/" style={{ display: "flex", alignItems: "center", textDecoration: "none" }}>
             <img src={LOGO_B64} alt="Second Layer" style={{ height: 16, opacity: 0.85 }} />
@@ -418,8 +418,10 @@ export default function CreatorsPage() {
 
       {/* Full-width page so the Kanban can use every column the viewport
           gives it. Sections that want a narrower reading width (forms,
-          discovery view) constrain themselves with their own max-width. */}
-      <div className="sl-page" style={{ width: "100%", padding: "40px 24px 80px" }}>
+          discovery view) constrain themselves with their own max-width.
+          box-sizing ensures the 24px side padding doesn't push the wrapper
+          past 100% viewport width and overflow the header. */}
+      <div className="sl-page" style={{ width: "100%", maxWidth: "100%", padding: "40px 24px 80px", boxSizing: "border-box" }}>
         {/* Title */}
         <div style={{ marginBottom: 32 }}>
           <h1 className="sl-h1" style={{ fontSize: 28, fontWeight: 600, margin: "0 0 6px", letterSpacing: "-0.02em" }}>
@@ -1377,7 +1379,7 @@ function CrmKanban({ creators, setCreators }) {
   };
 
   return (
-    <div style={{ display: "flex", gap: 10, overflowX: "auto", paddingBottom: 12, marginBottom: 32 }}>
+    <div style={{ display: "flex", gap: 10, overflowX: "auto", paddingBottom: 12, marginBottom: 32, width: "100%", maxWidth: "100%" }}>
       {STAGES.map(stage => {
         const items = grouped[stage.key] || [];
         const isDropTarget = dragOver === stage.key;
