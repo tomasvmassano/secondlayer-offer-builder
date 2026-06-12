@@ -1379,6 +1379,24 @@ function CrmKanban({ creators, setCreators }) {
   };
 
   return (
+    <>
+    {/* Thin dark scrollbar for the per-column overflow. The default browser
+        scrollbar is too chunky on Windows / fights the dark theme on Mac.
+        Per-column scrolling so an operator hunting for a creator at the
+        bottom of a 40-card "Em outreach" column doesn't have to scroll
+        the whole page. */}
+    <style>{`
+      .sl-kanban-col::-webkit-scrollbar { width: 6px; }
+      .sl-kanban-col::-webkit-scrollbar-track { background: transparent; }
+      .sl-kanban-col::-webkit-scrollbar-thumb {
+        background: rgba(255,255,255,0.08);
+        border-radius: 3px;
+      }
+      .sl-kanban-col::-webkit-scrollbar-thumb:hover {
+        background: rgba(122,14,24,0.4);
+      }
+      .sl-kanban-col { scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.08) transparent; }
+    `}</style>
     <div style={{ display: "flex", gap: 10, overflowX: "auto", paddingBottom: 12, marginBottom: 32, width: "100%", maxWidth: "100%" }}>
       {STAGES.map(stage => {
         const items = grouped[stage.key] || [];
@@ -1394,16 +1412,32 @@ function CrmKanban({ creators, setCreators }) {
               background: isDropTarget ? "rgba(122,14,24,0.08)" : "transparent",
               border: isDropTarget ? "1px dashed rgba(122,14,24,0.4)" : "1px dashed transparent",
               borderRadius: 8, padding: 4, transition: "background 0.1s, border-color 0.1s",
+              // Column wraps a sticky-style header + scrollable body. The
+              // total column height is capped so a creator at the bottom
+              // of a long column can be reached by scrolling the column
+              // alone, without scrolling the whole page.
+              display: "flex", flexDirection: "column",
+              maxHeight: "calc(100vh - 260px)",
             }}
           >
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "4px 8px 8px" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "4px 8px 8px", flexShrink: 0 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                 <span style={{ width: 6, height: 6, borderRadius: "50%", background: stage.accent }} />
                 <span style={{ fontSize: 10, fontWeight: 700, color: "#f5f5f5", letterSpacing: "0.08em", textTransform: "uppercase" }}>{stage.label}</span>
               </div>
               <span style={{ fontSize: 11, color: "#555", fontWeight: 600 }}>{items.length}</span>
             </div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 8, minHeight: 60 }}>
+            <div
+              className="sl-kanban-col"
+              style={{
+                display: "flex", flexDirection: "column", gap: 8, minHeight: 60,
+                // Inner card list scrolls vertically within the capped
+                // column height. Tiny native scrollbar is hidden / restyled
+                // via the .sl-kanban-col rule below.
+                flex: 1, overflowY: "auto", overflowX: "hidden",
+                paddingRight: 2,
+              }}
+            >
               {items.length === 0 ? (
                 <div style={{ padding: "20px 10px", fontSize: 10, color: "#333", textAlign: "center", background: "rgba(255,255,255,0.01)", border: "1px dashed rgba(255,255,255,0.04)", borderRadius: 6 }}>
                   {stage.description}
@@ -1422,6 +1456,7 @@ function CrmKanban({ creators, setCreators }) {
         );
       })}
     </div>
+    </>
   );
 }
 
