@@ -2237,6 +2237,15 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
                   );
                 })()}
 
+                {/* Conversation log — what the creator actually said. Any
+                    team member can paste replies here so the operator who
+                    records the personalised Loom has full context, even
+                    if they weren't the one who got the response. Visible
+                    once any outreach has been sent. Auto-saves on blur. */}
+                {(creator.outreach?.dmSentAt || creator.outreach?.emailSentAt) && (
+                  <ReplyNotesField creator={creator} patchCreator={patchCreator} />
+                )}
+
                 {/* Cold outreach pair — the DM + Day 1 email say the same
                     thing in two formats. We pair them visually and share
                     a single rewrite panel below: operator feedback applies
@@ -7373,6 +7382,66 @@ function PivotTierModal({ creator, onClose, onComplete, mode = 'tier', fromCpId 
           }
         `}</style>
       </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────
+// ReplyNotesField — persistent textarea for what the creator actually
+// replied (and any back-and-forth notes). Shared across the team so
+// whoever records the personalised Loom has full conversation context
+// even if they weren't the one who sent the original DM.
+//
+// Lives at creator.outreach.replyContent (string). Auto-saves on blur
+// — keeping the operator in flow without a "Save" button. Shows a
+// green saved indicator briefly after each successful save.
+// ─────────────────────────────────────────────────────────────────
+function ReplyNotesField({ creator, patchCreator }) {
+  const persisted = creator?.outreach?.replyContent || '';
+  const [value, setValue] = useState(persisted);
+  const [savedAt, setSavedAt] = useState(null);
+
+  // Reset local value when the creator changes (navigating between profiles)
+  // or when an external update (e.g. a teammate's poll-sync) lands a fresher
+  // value than what we have locally. Don't reset while the operator is
+  // mid-typing — only on blur or initial mount of this creator.
+  useEffect(() => { setValue(persisted); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [creator?.id]);
+
+  const onBlur = async () => {
+    if (value === persisted) return;
+    await patchCreator({ outreach: { ...(creator.outreach || {}), replyContent: value } });
+    setSavedAt(Date.now());
+    setTimeout(() => setSavedAt(null), 2500);
+  };
+
+  return (
+    <div style={{ marginTop: 12, marginBottom: 12, padding: "12px 14px", background: "rgba(34,197,94,0.04)", border: "1px solid rgba(34,197,94,0.15)", borderRadius: 8 }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <span style={{ fontSize: 10, fontWeight: 700, color: "#22c55e", letterSpacing: "0.08em", textTransform: "uppercase" }}>
+            Resposta do creator
+          </span>
+          <span style={{ fontSize: 10, color: "#555" }}>Cola aqui o que o criador disse · partilhado com a equipa</span>
+        </div>
+        {savedAt && (
+          <span style={{ fontSize: 9, fontWeight: 700, color: "#22c55e", letterSpacing: "0.06em", textTransform: "uppercase" }}>
+            ✓ Guardado
+          </span>
+        )}
+      </div>
+      <textarea
+        value={value}
+        onChange={e => setValue(e.target.value)}
+        onBlur={onBlur}
+        placeholder="Ex: 'Olá! Já vi a tua DM. Estou ocupada esta semana mas adoraria saber mais. Podes mandar um Loom a explicar?'"
+        rows={Math.max(3, Math.min(12, Math.ceil((value || '').split('\n').length)))}
+        style={{
+          width: "100%", padding: "10px 12px",
+          background: "rgba(15,15,15,0.7)", border: "1px solid rgba(255,255,255,0.06)",
+          borderRadius: 6, color: "#f5f5f5", fontSize: 13, fontFamily: "inherit",
+          lineHeight: 1.5, outline: "none", resize: "vertical", boxSizing: "border-box",
+        }}
+      />
     </div>
   );
 }
