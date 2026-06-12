@@ -1346,19 +1346,32 @@ function CrmKanban({ creators, setCreators }) {
     setDragId(id);
     e.dataTransfer.effectAllowed = 'move';
     try { e.dataTransfer.setData('text/plain', id); } catch {}
+    console.log('[kanban] dragstart', id);
   };
   const onDragEnd = () => { setDragId(null); setDragOver(null); };
-  const onDragOverCol = (key) => (e) => { e.preventDefault(); setDragOver(key); };
+  const onDragOverCol = (key) => (e) => {
+    e.preventDefault();
+    // Setting dropEffect on the dragover event is what tells the browser
+    // "this is a valid drop target". Without it, some browsers fall back
+    // to dropEffect='none' which silently rejects the drop without
+    // firing onDrop. That was making backward drags appear to do nothing.
+    if (e.dataTransfer) e.dataTransfer.dropEffect = 'move';
+    setDragOver(key);
+  };
   const onDropCol = (stageKey) => async (e) => {
     e.preventDefault();
+    e.stopPropagation();
     const id = dragId || (e.dataTransfer?.getData('text/plain') || '');
     setDragOver(null); setDragId(null);
-    if (!id) return;
+    if (!id) { console.warn('[kanban] drop without id'); return; }
     const creator = creators.find(c => c.id === id);
-    if (!creator) return;
-    if (computeOutreachStage(creator) === stageKey) return; // no-op
+    if (!creator) { console.warn('[kanban] drop on unknown creator', id); return; }
+    const fromStage = computeOutreachStage(creator);
+    if (fromStage === stageKey) { console.log('[kanban] drop same column, no-op', stageKey); return; }
+    console.log('[kanban] drop', { id, from: fromStage, to: stageKey });
     const patch = stagePatch(creator, stageKey);
-    if (!patch) return;
+    if (!patch) { console.warn('[kanban] no patch for', stageKey); return; }
+    console.log('[kanban] patch', patch);
     // Optimistic — update local state immediately so the card snaps to
     // the new column without waiting for the network round-trip.
     //
