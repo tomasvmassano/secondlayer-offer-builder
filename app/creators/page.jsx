@@ -66,7 +66,13 @@ export default function CreatorsPage() {
 
   const fetchCreators = useCallback(async (q) => {
     try {
-      const url = q ? `/api/creators?q=${encodeURIComponent(q)}&status=prospect` : "/api/creators?status=prospect";
+      // Load ALL creators (no status filter). The previous `?status=prospect`
+      // excluded cold creators entirely — they never reached the page, which
+      // looked like the Frio column was auto-deleting them. Cold leads now
+      // load and land in the Frio column via groupByStage. Signed creators
+      // also load, but the Kanban filters them out client-side (they belong
+      // to the Delivery page).
+      const url = q ? `/api/creators?q=${encodeURIComponent(q)}` : "/api/creators";
       const res = await fetch(url);
       const data = await res.json();
       setCreators(data.creators || []);
