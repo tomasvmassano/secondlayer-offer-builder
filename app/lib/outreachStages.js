@@ -87,109 +87,107 @@ export function computeOutreachStage(creator) {
  */
 export function stagePatch(creator, targetStage) {
   const now = new Date().toISOString();
-  const cur = creator?.outreach || {};
-  // Helper: only set if not already set, to preserve original timestamp.
-  const keep = (v) => v || now;
-  const drop = () => null;
-
+  // Tolerant of summary shape (flattened fields) AND full creator shape
+  // (nested outreach). Source-of-truth lookups for "keep existing":
+  const getOutreach = (key) => creator?.outreach?.[key] ?? creator?.[key] ?? null;
+  const getPitchSent = () => creator?.pitch?.sentAt ?? creator?.pitchSentAt ?? null;
+  // SPARSE patches — only include the fields that need to CHANGE for this
+  // transition. The server's deep-merge on creator.outreach preserves
+  // everything we don't send. Null values explicitly clear a field.
+  // Forward transitions stamp `now` only when the timestamp isn't already set.
   switch (targetStage) {
     case 'por_contactar':
+      // Clear EVERYTHING outreach-related — card needs to land back at start.
       return {
         pipelineStatus: 'prospect',
         outreach: {
-          ...cur,
           dmSentAt: null, emailSentAt: null,
           repliedAt: null, repliedChannel: null,
           loomRequestedAt: null, loomSentAt: null,
           callBookedAt: null, callAgreedAt: null, callHeldAt: null,
           notInterestedAt: null,
         },
-        pitch: { ...(creator?.pitch || {}), sentAt: null },
+        pitch: { sentAt: null },
       };
     case 'em_outreach':
+      // Keep dmSentAt (set it if missing); clear everything from reply onwards.
       return {
         pipelineStatus: 'prospect',
         outreach: {
-          ...cur,
-          dmSentAt: keep(cur.dmSentAt),
+          dmSentAt: getOutreach('dmSentAt') || now,
           repliedAt: null, repliedChannel: null,
           loomRequestedAt: null, loomSentAt: null,
           callBookedAt: null, callAgreedAt: null, callHeldAt: null,
           notInterestedAt: null,
         },
-        pitch: { ...(creator?.pitch || {}), sentAt: null },
+        pitch: { sentAt: null },
       };
     case 'contacto_feito':
       return {
         pipelineStatus: 'prospect',
         outreach: {
-          ...cur,
-          dmSentAt: keep(cur.dmSentAt),
-          repliedAt: keep(cur.repliedAt),
+          dmSentAt: getOutreach('dmSentAt') || now,
+          repliedAt: getOutreach('repliedAt') || now,
           loomRequestedAt: null, loomSentAt: null,
           callBookedAt: null, callAgreedAt: null, callHeldAt: null,
           notInterestedAt: null,
         },
-        pitch: { ...(creator?.pitch || {}), sentAt: null },
+        pitch: { sentAt: null },
       };
     case 'pediu_loom':
       return {
         pipelineStatus: 'prospect',
         outreach: {
-          ...cur,
-          dmSentAt: keep(cur.dmSentAt),
-          repliedAt: keep(cur.repliedAt),
-          loomRequestedAt: keep(cur.loomRequestedAt),
+          dmSentAt: getOutreach('dmSentAt') || now,
+          repliedAt: getOutreach('repliedAt') || now,
+          loomRequestedAt: getOutreach('loomRequestedAt') || now,
           loomSentAt: null,
           callBookedAt: null, callAgreedAt: null, callHeldAt: null,
           notInterestedAt: null,
         },
-        pitch: { ...(creator?.pitch || {}), sentAt: null },
+        pitch: { sentAt: null },
       };
     case 'loom_enviado':
       return {
         pipelineStatus: 'prospect',
         outreach: {
-          ...cur,
-          dmSentAt: keep(cur.dmSentAt),
-          repliedAt: keep(cur.repliedAt),
-          loomRequestedAt: keep(cur.loomRequestedAt),
-          loomSentAt: keep(cur.loomSentAt),
+          dmSentAt: getOutreach('dmSentAt') || now,
+          repliedAt: getOutreach('repliedAt') || now,
+          loomRequestedAt: getOutreach('loomRequestedAt') || now,
+          loomSentAt: getOutreach('loomSentAt') || now,
           callBookedAt: null, callAgreedAt: null, callHeldAt: null,
           notInterestedAt: null,
         },
-        pitch: { ...(creator?.pitch || {}), sentAt: null },
+        pitch: { sentAt: null },
       };
     case 'reuniao_marcada':
       return {
         pipelineStatus: 'prospect',
         outreach: {
-          ...cur,
-          dmSentAt: keep(cur.dmSentAt),
-          repliedAt: keep(cur.repliedAt),
-          callBookedAt: keep(cur.callBookedAt),
+          dmSentAt: getOutreach('dmSentAt') || now,
+          repliedAt: getOutreach('repliedAt') || now,
+          callBookedAt: getOutreach('callBookedAt') || getOutreach('callAgreedAt') || now,
           callHeldAt: null,
           notInterestedAt: null,
         },
-        pitch: { ...(creator?.pitch || {}), sentAt: null },
+        pitch: { sentAt: null },
       };
     case 'apresentacao_enviada':
       return {
         pipelineStatus: 'prospect',
         outreach: {
-          ...cur,
-          dmSentAt: keep(cur.dmSentAt),
-          repliedAt: keep(cur.repliedAt),
-          callBookedAt: keep(cur.callBookedAt),
-          callHeldAt: keep(cur.callHeldAt),
+          dmSentAt: getOutreach('dmSentAt') || now,
+          repliedAt: getOutreach('repliedAt') || now,
+          callBookedAt: getOutreach('callBookedAt') || getOutreach('callAgreedAt') || now,
+          callHeldAt: getOutreach('callHeldAt') || now,
           notInterestedAt: null,
         },
-        pitch: { ...(creator?.pitch || {}), sentAt: keep(creator?.pitch?.sentAt) },
+        pitch: { sentAt: getPitchSent() || now },
       };
     case 'frio':
       return {
         pipelineStatus: 'cold',
-        outreach: { ...cur, notInterestedAt: keep(cur.notInterestedAt) },
+        outreach: { notInterestedAt: getOutreach('notInterestedAt') || now },
       };
     default:
       return null;

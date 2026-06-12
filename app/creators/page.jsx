@@ -26,18 +26,10 @@ export default function CreatorsPage() {
   // pile is what loads first. Legacy "novos" still routes to the same
   // list via the filter logic below.
   const [crmTab, setCrmTab] = useState("por-contactar");
-  // View mode: "list" (existing tabbed list) | "kanban" (8-column drag-and-drop).
-  // Persisted to localStorage so the operator's choice survives reload.
-  const [crmView, setCrmView] = useState("list");
-  useEffect(() => {
-    try {
-      const stored = localStorage.getItem('sl_crm_view_v1');
-      if (stored === 'list' || stored === 'kanban') setCrmView(stored);
-    } catch {}
-  }, []);
-  useEffect(() => {
-    try { localStorage.setItem('sl_crm_view_v1', crmView); } catch {}
-  }, [crmView]);
+  // CRM is Kanban-only. The legacy tabbed list view was removed once the
+  // operator confirmed Kanban as the primary surface. crmTab still drives
+  // the Discovery tab (which sits outside the Kanban as a separate mode).
+  const crmView = 'kanban';
   // Filters — persisted to localStorage so they survive a reload.
   // addedBy: null | "Tomás" | "Raúl" | etc.  (string match against summary.addedByFirstName)
   // dealScore: null | "A" | "B" | "C" | "D"
@@ -424,7 +416,10 @@ export default function CreatorsPage() {
         </div>
       </div>
 
-      <div className="sl-page" style={{ maxWidth: 960, margin: "0 auto", padding: "40px 24px 80px" }}>
+      {/* Full-width page so the Kanban can use every column the viewport
+          gives it. Sections that want a narrower reading width (forms,
+          discovery view) constrain themselves with their own max-width. */}
+      <div className="sl-page" style={{ width: "100%", padding: "40px 24px 80px" }}>
         {/* Title */}
         <div style={{ marginBottom: 32 }}>
           <h1 className="sl-h1" style={{ fontSize: 28, fontWeight: 600, margin: "0 0 6px", letterSpacing: "-0.02em" }}>
@@ -726,19 +721,6 @@ export default function CreatorsPage() {
                     onChange={(v) => setFilters(f => ({ ...f, hasAudit: v === 'yes' ? true : v === 'no' ? false : null }))}
                   />
 
-                  {/* View toggle · pushes to the right edge. List = current
-                      tabbed grid; Kanban = 8-column drag-and-drop board. */}
-                  <div style={{ marginLeft: "auto", display: "flex", gap: 0, padding: 2, background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 6 }}>
-                    {['list', 'kanban'].map(v => (
-                      <button key={v} onClick={() => setCrmView(v)} style={{
-                        padding: "4px 10px", background: crmView === v ? "rgba(122,14,24,0.85)" : "transparent",
-                        border: 'none', borderRadius: 4, color: crmView === v ? "#fff" : "#666",
-                        fontSize: 10, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase",
-                        cursor: "pointer", fontFamily: "inherit",
-                      }}>{v === 'list' ? 'Lista' : 'Kanban'}</button>
-                    ))}
-                  </div>
-
                   {filterCount > 0 && (
                     <button
                       onClick={() => setFilters({ addedBy: null, dealScore: null, hasAudit: null })}
@@ -750,50 +732,36 @@ export default function CreatorsPage() {
                 </div>
               )}
 
-              {crmView === 'kanban' ? (
-                <CrmKanban
-                  creators={filtered.filter(c => c.pipelineStatus !== 'signed')}
-                  setCreators={setCreators}
-                />
-              ) : (
-              <>
-              <div className="sl-tabs sl-hscroll" style={{ display: "flex", gap: 0, marginBottom: 28, borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
+              {/* Single mode toggle — Pipeline (Kanban) vs Discovery queue.
+                  The old per-stage tab strip is gone: stages are now columns
+                  of the Kanban, so tabs would be redundant. */}
+              <div style={{ display: "flex", gap: 6, marginBottom: 20 }}>
                 {[
-                  { key: "por-contactar", label: "Por contactar", count: porContactar.length },
-                  { key: "outreach", label: "Em outreach", count: outreach.length },
-                  { key: "contacto", label: "Em contacto", count: warm.length },
-                  { key: "frio", label: "Frio", count: frio.length },
-                  { key: "discovery", label: "Discovery", count: discoveryQueue.length },
-                ].map(t => (
-                  <button
-                    key={t.key}
-                    onClick={() => setCrmTab(t.key)}
-                    style={{
-                      padding: "12px 20px",
-                      background: "transparent",
-                      border: "none",
-                      borderBottom: crmTab === t.key ? "2px solid #f5f5f5" : "2px solid transparent",
-                      color: crmTab === t.key ? "#f5f5f5" : "#555",
-                      fontSize: 13,
-                      fontWeight: 600,
-                      cursor: "pointer",
-                      fontFamily: "inherit",
-                      transition: "color 0.15s, border-color 0.15s",
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 8,
-                    }}
-                  >
-                    {t.label}
-                    <span style={{
-                      fontSize: 11,
-                      fontWeight: 700,
-                      color: crmTab === t.key ? "#888" : "#333",
-                      minWidth: 20,
-                      textAlign: "center",
-                    }}>{t.count}</span>
-                  </button>
-                ))}
+                  { key: 'pipeline',  label: 'Pipeline',  count: filtered.filter(c => c.pipelineStatus !== 'signed').length },
+                  { key: 'discovery', label: 'Discovery', count: discoveryQueue.length },
+                ].map(m => {
+                  const isActive = (m.key === 'discovery' && crmTab === 'discovery')
+                    || (m.key === 'pipeline'  && crmTab !== 'discovery');
+                  return (
+                    <button
+                      key={m.key}
+                      onClick={() => setCrmTab(m.key === 'discovery' ? 'discovery' : 'por-contactar')}
+                      style={{
+                        padding: "8px 16px",
+                        background: isActive ? "rgba(122,14,24,0.18)" : "rgba(255,255,255,0.02)",
+                        border: `1px solid ${isActive ? "rgba(122,14,24,0.45)" : "rgba(255,255,255,0.06)"}`,
+                        borderRadius: 6,
+                        color: isActive ? "#f5f5f5" : "#666",
+                        fontSize: 12, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase",
+                        cursor: "pointer", fontFamily: "inherit",
+                        display: "flex", alignItems: "center", gap: 8,
+                      }}
+                    >
+                      {m.label}
+                      <span style={{ fontSize: 11, color: isActive ? "#888" : "#444", fontWeight: 700 }}>{m.count}</span>
+                    </button>
+                  );
+                })}
               </div>
 
               {/* Discovery Tab */}
@@ -1293,86 +1261,11 @@ export default function CreatorsPage() {
                     </div>
                   )}
                 </div>
-              ) : loading ? (
-                <div style={{ textAlign: "center", padding: 60, color: "#555" }}>
-                  A carregar...
-                </div>
-              ) : activeList.length === 0 ? (
-                <div style={{ textAlign: "center", padding: 60, color: "#555" }}>
-                  {search
-                    ? "Nenhum creator encontrado."
-                    : filterCount > 0
-                      ? "Nenhum creator com estes filtros. Limpa um para ver mais."
-                      : crmTab === "por-contactar" || crmTab === "novos"
-                        ? "Nenhum creator por contactar. Clica em \"+ Adicionar Creator\" para começar."
-                        : crmTab === "outreach"
-                          ? "Nenhum creator em outreach. Marca DM enviada na página do creator para mover para aqui."
-                          : crmTab === "contacto"
-                            ? "Nenhum creator em contacto. Marca \"Respondeu\" na página do creator quando ele engajar."
-                            : "Nenhum creator nesta tab."
-                  }
-                </div>
               ) : (
-                <div className="sl-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 14 }}>
-                  {activeList.map((c) => (
-                    <a
-                      key={c.id}
-                      href={`/creators/${c.id}`}
-                      style={{
-                        display: "block",
-                        padding: "22px 20px",
-                        background: "#141414",
-                        border: "1px solid rgba(255,255,255,0.04)",
-                        borderRadius: 12,
-                        textDecoration: "none",
-                        color: "inherit",
-                        transition: "border-color 0.15s, background 0.15s, transform 0.15s",
-                        cursor: "pointer",
-                      }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.borderColor = "#7A0E18";
-                        e.currentTarget.style.background = "#181818";
-                        e.currentTarget.style.transform = "translateY(-1px)";
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.borderColor = "rgba(255,255,255,0.04)";
-                        e.currentTarget.style.background = "#141414";
-                        e.currentTarget.style.transform = "translateY(0)";
-                      }}
-                    >
-                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 12 }}>
-                        <h3 style={{ fontSize: 15, fontWeight: 600, margin: 0, color: "#f5f5f5" }}>
-                          {c.name || "Unknown"}
-                        </h3>
-                        <span style={{ fontSize: 13, fontWeight: 700, color: "#7A0E18" }}>
-                          {formatFollowers(c.followers)}
-                        </span>
-                      </div>
-                      {c.niche && (
-                        <p style={{ fontSize: 12, color: "#888", margin: "0 0 8px" }}>{c.niche}</p>
-                      )}
-                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                        <span style={{
-                          fontSize: 10,
-                          fontWeight: 600,
-                          textTransform: "uppercase",
-                          letterSpacing: "0.08em",
-                          color: "#555",
-                          padding: "3px 8px",
-                          background: "rgba(255,255,255,0.03)",
-                          borderRadius: 6,
-                        }}>
-                          {c.primaryPlatform || "Instagram"}
-                        </span>
-                        <span style={{ fontSize: 11, color: "#555" }}>
-                          {c.createdAt ? new Date(c.createdAt).toLocaleDateString("pt-PT") : ""}
-                        </span>
-                      </div>
-                    </a>
-                  ))}
-                </div>
-              )}
-              </>
+                <CrmKanban
+                  creators={filtered.filter(c => c.pipelineStatus !== 'signed')}
+                  setCreators={setCreators}
+                />
               )}
             </div>
           );
