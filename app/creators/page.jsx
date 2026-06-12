@@ -1361,21 +1361,34 @@ function CrmKanban({ creators, setCreators }) {
     if (!patch) return;
     // Optimistic — update local state immediately so the card snaps to
     // the new column without waiting for the network round-trip.
-    setCreators(prev => prev.map(c => c.id === id ? {
-      ...c,
-      ...patch,
-      // Flatten outreach fields onto top level so the next groupByStage
-      // call (which reads summary-shaped data) sees the new stage.
-      dmSentAt:        patch.outreach?.dmSentAt ?? c.dmSentAt,
-      emailSentAt:     patch.outreach?.emailSentAt ?? c.emailSentAt,
-      repliedAt:       patch.outreach?.repliedAt ?? c.repliedAt,
-      loomRequestedAt: patch.outreach?.loomRequestedAt ?? c.loomRequestedAt,
-      loomSentAt:      patch.outreach?.loomSentAt ?? c.loomSentAt,
-      callBookedAt:    patch.outreach?.callBookedAt ?? c.callBookedAt,
-      callHeldAt:      patch.outreach?.callHeldAt ?? c.callHeldAt,
-      notInterestedAt: patch.outreach?.notInterestedAt ?? c.notInterestedAt,
-      pitchSentAt:     patch.pitch?.sentAt ?? c.pitchSentAt,
-    } : c));
+    //
+    // CRITICAL: stagePatch returns `null` for fields to CLEAR (backward
+    // moves). The previous `??` operator treated null as "no value" and
+    // kept the old timestamp, so backward drags appeared to do nothing.
+    // We now use explicit "in" checks so null is honored as a real value.
+    setCreators(prev => prev.map(c => {
+      if (c.id !== id) return c;
+      const o = patch.outreach || {};
+      const p = patch.pitch || {};
+      const updated = { ...c };
+      if ('pipelineStatus' in patch) updated.pipelineStatus = patch.pipelineStatus;
+      // Flatten outreach fields onto the summary's top level. Any key
+      // present in patch.outreach gets applied (null included → clears).
+      for (const k of ['dmSentAt', 'emailSentAt', 'repliedAt', 'repliedChannel',
+                       'loomRequestedAt', 'loomSentAt',
+                       'callBookedAt', 'callAgreedAt', 'callHeldAt',
+                       'notInterestedAt']) {
+        if (k in o) updated[k] = o[k];
+      }
+      // Mirror onto a nested outreach object too so any consumer reading
+      // the canonical shape sees the same data.
+      updated.outreach = { ...(c.outreach || {}), ...o };
+      // Pitch is its own block: only sentAt is exposed on the summary as
+      // pitchSentAt, but we also mirror the full pitch object.
+      if ('sentAt' in p) updated.pitchSentAt = p.sentAt;
+      updated.pitch = { ...(c.pitch || {}), ...p };
+      return updated;
+    }));
     try {
       await fetch(`/api/creators/${id}`, {
         method: 'PATCH', headers: { 'Content-Type': 'application/json' },
