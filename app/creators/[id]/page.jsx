@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef, Suspense } from "react";
+import { nanoid } from "nanoid";
 import { useRouter, useSearchParams } from "next/navigation";
 import { calculateDealScore } from "../../lib/dealScore";
 import { SCENARIOS as REVENUE_SCENARIOS, calculateSteadyMRR as sharedCalcMRR, calculateOfferRevenue, projectEcosystemRevenue, classifyTierBucket, estimateCurrentBuyers, TIER_CONVERSION_CAP } from "../../lib/revenue";
@@ -582,6 +583,10 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [creator?.id]);
   const [replySaving, setReplySaving] = useState(false);
+  // Undo-toast for soft-deleted reply messages. Single global slot — a new
+  // delete replaces the previous toast (deletedAt persists in storage so the
+  // earlier delete is still recoverable from the conversation log audit).
+  const [undoToast, setUndoToast] = useState(null); // { messageId, preview, deletedAtTs }
   // saveReplyMessage is defined LATER in the file (after patchCreator is
   // declared) to avoid a Temporal Dead Zone error — useCallback evaluates
   // its deps array on every render, and reading patchCreator before its
@@ -741,34 +746,158 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
   // Append the current draft to the creator's chat-style reply log, clear
   // the input, and persist. Defined HERE (after patchCreator) so the deps
   // array can reference patchCreator without a Temporal Dead Zone error.
-  const saveReplyMessage = useCallback(async () => {
+  // Anchored Thread, Single-Stroke Save (workflow-designed pattern).
+  //
+  // saveAndClassify: ONE action does the save + the AI classification in
+  // one stroke. The message lands optimistically with ai.status='pending';
+  // /api/dm-reply fires in the background and patches the same row with
+  // the suggested Raul-voice reply when it returns. If the AI call fails
+  // the row keeps its content — only the AI sub-card shows an error +
+  // retry. The save itself never blocks on the network.
+  //
+  // Replaces the old "Guardar" + "Obter Resposta" two-button pattern —
+  // operators were losing messages by clicking the wrong button.
+  const writeRows = useCallback(async (mutator) => {
+    // Helper: build a fresh replyMessages array by running `mutator` over
+    // the current array, then PATCH. Centralises legacy migration + the
+    // replyContent mirror for back-compat consumers (the /api/dm-reply
+    // prompt and any stale code reading the single-string field).
+    const existing = Array.isArray(creator?.outreach?.replyMessages) ? creator.outreach.replyMessages : [];
+    const legacyAlreadyMigrated = !!creator?.outreach?.replyMessagesMigratedAt;
+    const seed = (existing.length === 0 && !legacyAlreadyMigrated && creator?.outreach?.replyContent)
+      ? [{
+          id: nanoid(10),
+          content: creator.outreach.replyContent,
+          at: creator.outreach.replyContentAt || new Date().toISOString(),
+          authorEmail: 'legacy',
+          legacy: true,
+        }]
+      : existing;
+    const next = mutator(seed);
+    // Mirror the LATEST non-deleted message into replyContent for any
+    // legacy consumer (e.g. the /api/dm-reply prompt) that still reads it.
+    const latest = [...next].reverse().find(m => !m.deletedAt);
+    await patchCreator({
+      outreach: {
+        ...(creator.outreach || {}),
+        replyMessages: next,
+        replyMessagesMigratedAt: creator?.outreach?.replyMessagesMigratedAt || new Date().toISOString(),
+        replyContent: latest?.content ?? null,
+        replyContentAt: latest?.at ?? null,
+      },
+    });
+  }, [creator, patchCreator]);
+
+  const saveAndClassify = useCallback(async () => {
     const content = replyText.trim();
     if (!content || replySaving) return;
     setReplySaving(true);
+    const id = nanoid(10);
+    const now = new Date().toISOString();
     try {
-      const existing = Array.isArray(creator?.outreach?.replyMessages) ? creator.outreach.replyMessages : [];
-      // Migrate legacy single-string replyContent into the array on first
-      // save so we don't lose old notes. After this, only replyMessages is used.
-      const seed = (existing.length === 0 && creator?.outreach?.replyContent)
-        ? [{ content: creator.outreach.replyContent, at: creator.outreach.replyContentAt || null, migrated: true }]
-        : existing;
-      const next = [...seed, { content, at: new Date().toISOString() }];
-      await patchCreator({
-        outreach: {
-          ...(creator.outreach || {}),
-          replyMessages: next,
-          // Keep replyContent in sync with the LATEST message so any legacy
-          // consumer (e.g. the existing dm-reply prompt that reads it) still
-          // works without changes.
-          replyContent: content,
-          replyContentAt: new Date().toISOString(),
-        },
-      });
-      setReplyText(""); // clear the input — operator can paste the next message right away
+      // 1. Optimistic append + clear composer. AI status = pending.
+      await writeRows(seed => [...seed, {
+        id,
+        content,
+        at: now,
+        ai: { status: 'pending', at: now },
+      }]);
+      setReplyText("");
+      // Also bump outreach.repliedAt so the CRM stage advances on the
+      // first reply (used to happen in handleReply — now folded here).
+      if (!creator?.outreach?.repliedAt) {
+        await patchCreator({ outreach: { ...(creator.outreach || {}), repliedAt: now, repliedChannel: 'dm' } });
+      }
     } finally {
       setReplySaving(false);
     }
-  }, [replyText, replySaving, creator, patchCreator]);
+    // 2. Fire /api/dm-reply in background. Don't await — the save UX
+    //    completed in step 1. If the API errors we patch ai.status='error'
+    //    on the same row so the operator can retry from the AI card.
+    try {
+      const r = await fetch("/api/dm-reply", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          creatorReply: content,
+          dmSequence: creator?.dmSequence || null,
+          creator: { name: creator?.name, niche: creator?.niche, primaryPlatform: creator?.primaryPlatform },
+        }),
+      });
+      const data = await r.json();
+      if (!r.ok) throw new Error(data.error || `HTTP ${r.status}`);
+      await writeRows(rows => rows.map(m => m.id === id ? ({
+        ...m,
+        ai: { category: data.category || 'Unknown', response: data.response || '', at: new Date().toISOString(), status: 'ready' },
+      }) : m));
+    } catch (err) {
+      await writeRows(rows => rows.map(m => m.id === id ? ({
+        ...m,
+        ai: { ...(m.ai || {}), status: 'error', errorMessage: String(err?.message || err), at: new Date().toISOString() },
+      }) : m));
+    }
+  }, [replyText, replySaving, creator, patchCreator, writeRows]);
+
+  // Per-row handlers — keep them small, all routing through writeRows.
+  const deleteMessage = useCallback(async (id) => {
+    const target = (creator?.outreach?.replyMessages || []).find(m => m.id === id);
+    const preview = (target?.content || '').slice(0, 60);
+    await writeRows(rows => rows.map(m => m.id === id ? ({ ...m, deletedAt: new Date().toISOString() }) : m));
+    setUndoToast({ messageId: id, preview, deletedAtTs: Date.now() });
+  }, [creator, writeRows]);
+  const undoDelete = useCallback(async (id) => {
+    await writeRows(rows => rows.map(m => m.id === id ? ({ ...m, deletedAt: null, deletedBy: null }) : m));
+    setUndoToast(t => (t && t.messageId === id ? null : t));
+  }, [writeRows]);
+  // Auto-dismiss the toast after 6s. Cmd+Z while toast visible triggers undo.
+  useEffect(() => {
+    if (!undoToast) return;
+    const tid = setTimeout(() => setUndoToast(t => (t?.messageId === undoToast.messageId ? null : t)), 6000);
+    const onKey = (e) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'z') {
+        e.preventDefault();
+        undoDelete(undoToast.messageId);
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => { clearTimeout(tid); window.removeEventListener('keydown', onKey); };
+  }, [undoToast, undoDelete]);
+  const markSent = useCallback(async (id) => {
+    await writeRows(rows => rows.map(m => m.id === id ? ({ ...m, sentAt: new Date().toISOString() }) : m));
+  }, [writeRows]);
+  const regenerateAi = useCallback(async (id) => {
+    const target = (creator?.outreach?.replyMessages || []).find(m => m.id === id);
+    if (!target?.content) return;
+    // 1. Stack current ai into history, mark new generation as pending.
+    await writeRows(rows => rows.map(m => m.id === id ? ({
+      ...m,
+      ai: { status: 'pending', at: new Date().toISOString() },
+      aiHistory: [...(m.aiHistory || []), ...(m.ai && m.ai.response ? [{ category: m.ai.category, response: m.ai.response, at: m.ai.at }] : [])],
+    }) : m));
+    // 2. Fire and patch on resolve.
+    try {
+      const r = await fetch("/api/dm-reply", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          creatorReply: target.content,
+          dmSequence: creator?.dmSequence || null,
+          creator: { name: creator?.name, niche: creator?.niche, primaryPlatform: creator?.primaryPlatform },
+        }),
+      });
+      const data = await r.json();
+      if (!r.ok) throw new Error(data.error || `HTTP ${r.status}`);
+      await writeRows(rows => rows.map(m => m.id === id ? ({
+        ...m,
+        ai: { category: data.category || 'Unknown', response: data.response || '', at: new Date().toISOString(), status: 'ready' },
+      }) : m));
+    } catch (err) {
+      await writeRows(rows => rows.map(m => m.id === id ? ({
+        ...m,
+        ai: { ...(m.ai || {}), status: 'error', errorMessage: String(err?.message || err) },
+      }) : m));
+    }
+  }, [creator, writeRows]);
 
   const handleDelete = useCallback(async () => {
     if (!params?.id || !window.confirm("Tens a certeza que queres eliminar este creator?")) return;
@@ -2402,44 +2531,53 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
                     is auto-migrated into the array on first save. */}
                 <p style={{ ...sectionTitleStyle, marginTop: 24 }}>Resposta do Criador</p>
                 {(() => {
-                  // Build the log: prefer the array. Fall back to the legacy
-                  // single-string field for pre-migration creators so old
-                  // notes still appear.
+                  // Build the visible thread:
+                  //   - Filter out soft-deleted rows (deletedAt set)
+                  //   - Synthesise a stable id on any pre-id legacy row so React keys + delete/regen handlers still work
+                  //   - Fold legacy single-string replyContent into a synthetic row when no array exists yet
+                  const raw = Array.isArray(creator.outreach?.replyMessages) ? creator.outreach.replyMessages : [];
                   const messages = (() => {
-                    const arr = creator.outreach?.replyMessages;
-                    if (Array.isArray(arr) && arr.length > 0) return arr;
+                    if (raw.length > 0) {
+                      return raw
+                        .filter(m => !m.deletedAt)
+                        .map(m => ({ ...m, id: m.id || `legacy-${(m.at || '').slice(0, 19)}` }));
+                    }
                     if (creator.outreach?.replyContent) {
-                      return [{ content: creator.outreach.replyContent, at: creator.outreach.replyContentAt || null, legacy: true }];
+                      return [{
+                        id: 'legacy-single',
+                        content: creator.outreach.replyContent,
+                        at: creator.outreach.replyContentAt || null,
+                        legacy: true,
+                      }];
                     }
                     return [];
                   })();
                   return (
                     <div style={{ padding: "16px 18px", borderRadius: 8, background: "#141414", border: "1px solid rgba(34,197,94,0.18)" }}>
-                      {/* Chat log — most-recent message at the bottom. */}
+                      {/* Anchored chat thread — each message + its AI sub-card. */}
                       {messages.length > 0 && (
-                        <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 14, maxHeight: 320, overflowY: "auto" }}>
+                        <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 14, maxHeight: 480, overflowY: "auto" }}>
                           {messages.map((m, i) => (
-                            <div key={i} style={{ padding: "10px 12px", background: "rgba(34,197,94,0.05)", border: "1px solid rgba(34,197,94,0.15)", borderRadius: 8 }}>
-                              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
-                                <span style={{ fontSize: 9, fontWeight: 700, color: "#22c55e", letterSpacing: "0.08em", textTransform: "uppercase" }}>
-                                  {m.legacy ? 'Mensagem' : `Mensagem ${i + 1}`}
-                                </span>
-                                <span style={{ fontSize: 10, color: "#888", fontFamily: "ui-monospace, monospace" }}>
-                                  {m.at ? formatChatTimestamp(m.at) : 'sem data'}
-                                </span>
-                              </div>
-                              <div style={{ fontSize: 13, color: "#ddd", lineHeight: 1.55, whiteSpace: "pre-wrap" }}>{m.content}</div>
-                            </div>
+                            <ReplyThreadRow
+                              key={m.id}
+                              message={m}
+                              index={i}
+                              onDelete={m.legacy ? null : () => deleteMessage(m.id)}
+                              onRegenerate={m.legacy ? null : () => regenerateAi(m.id)}
+                              onMarkSent={m.legacy ? null : () => markSent(m.id)}
+                            />
                           ))}
                         </div>
                       )}
 
-                      {/* Composer */}
+                      {/* Composer · single primary button per the workflow-
+                          designed pattern. No more "Guardar" vs "Obter
+                          Resposta" decision — one stroke does both. */}
                       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
                         <span style={{ fontSize: 10, color: "#666" }}>
                           {messages.length === 0
-                            ? "Cola aqui o que o criador disse · partilhado com a equipa"
-                            : "Nova mensagem · cola e guarda · o input fica vazio para a próxima"}
+                            ? "Cola aqui o que o criador disse · ⌘+Enter guarda e sugere resposta"
+                            : "Nova resposta do criador · cola e ⌘+Enter para guardar + sugerir resposta"}
                         </span>
                         {replyText.trim() && (
                           <span style={{ fontSize: 9, color: "#eab308", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase" }}>● Por guardar</span>
@@ -2452,47 +2590,41 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
                         value={replyText}
                         onChange={e => setReplyText(e.target.value)}
                         onKeyDown={e => {
-                          // Cmd/Ctrl-Enter to save without leaving the keyboard.
                           if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
                             e.preventDefault();
-                            saveReplyMessage();
+                            saveAndClassify();
+                          }
+                          if (e.key === 'Escape') {
+                            e.preventDefault();
+                            setReplyText("");
                           }
                         }}
                         style={{ ...inputStyle, minHeight: 80, marginBottom: 10 }}
                       />
                       <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
                         <button
-                          onClick={saveReplyMessage}
+                          onClick={saveAndClassify}
                           disabled={replySaving || !replyText.trim()}
                           style={{
                             padding: "8px 20px", borderRadius: 6, border: "none",
-                            background: replyText.trim() ? "#22c55e" : "#333",
-                            color: replyText.trim() ? "#000" : "#666",
+                            background: replyText.trim() ? "#7A0E18" : "#333",
+                            color: replyText.trim() ? "#fff" : "#666",
                             fontSize: 12, fontWeight: 700,
                             cursor: replySaving ? "wait" : replyText.trim() ? "pointer" : "default",
                             fontFamily: "inherit",
+                            display: "flex", alignItems: "center", gap: 8,
                           }}
-                          title="⌘+Enter para guardar"
+                          title="⌘+Enter: guarda a mensagem e gera a sugestão de resposta no mesmo gesto"
                         >
-                          {replySaving ? "A guardar..." : "Guardar mensagem"}
-                        </button>
-                        <button onClick={handleReply} disabled={replyLoading || !replyText.trim()} style={{ padding: "8px 20px", borderRadius: 6, border: "none", background: replyText.trim() ? "#7A0E18" : "#333", color: replyText.trim() ? "#fff" : "#666", fontSize: 12, fontWeight: 600, cursor: replyLoading ? "wait" : replyText.trim() ? "pointer" : "default", fontFamily: "inherit" }}>
-                          {replyLoading ? "A classificar..." : "Obter Resposta"}
+                          {replySaving ? "A guardar..." : "Guardar + Sugerir resposta"}
+                          <span style={{ fontSize: 9, fontFamily: "ui-monospace, monospace", opacity: 0.6 }}>⌘↵</span>
                         </button>
                         {messages.length > 0 && (
                           <span style={{ marginLeft: "auto", fontSize: 10, color: "#666" }}>
-                            {messages.length} {messages.length === 1 ? "mensagem guardada" : "mensagens guardadas"}
+                            {messages.length} {messages.length === 1 ? "mensagem" : "mensagens"} no histórico
                           </span>
                         )}
                       </div>
-                      {replyError && <div style={{ marginTop: 8, padding: "8px 12px", borderRadius: 6, background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.2)", color: "#ef4444", fontSize: 11 }}>{replyError}</div>}
-                      {replyResult && (
-                        <div style={{ marginTop: 12, paddingTop: 12, borderTop: "1px solid rgba(255,255,255,0.06)" }}>
-                          <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "#7A0E18", marginBottom: 8 }}>{replyResult.category}</div>
-                          <div style={{ fontSize: 13, color: "#ccc", lineHeight: 1.7, whiteSpace: "pre-wrap", marginBottom: 8 }}>{replyResult.response}</div>
-                          <button onClick={() => navigator.clipboard.writeText(replyResult.response)} style={{ padding: "4px 10px", borderRadius: 4, border: "1px solid rgba(255,255,255,0.06)", background: "transparent", color: "#666", fontSize: 9, cursor: "pointer", fontFamily: "inherit" }}>Copy</button>
-                        </div>
-                      )}
                     </div>
                   );
                 })()}
@@ -7536,7 +7668,157 @@ function PivotTierModal({ creator, onClose, onComplete, mode = 'tier', fromCpId 
             50%      { opacity: 0.3; }
           }
         `}</style>
+
+        {/* Undo toast — pinned bottom-right, fades after 6s. Single global
+            slot (a second delete replaces it). Cmd+Z while visible also
+            triggers the undo (binding lives in the useEffect higher up). */}
+        {undoToast && (
+          <div style={{
+            position: "fixed", bottom: 24, right: 24, zIndex: 1000,
+            padding: "12px 16px", background: "#141414",
+            border: "1px solid rgba(122,14,24,0.4)", borderRadius: 10,
+            boxShadow: "0 8px 24px rgba(0,0,0,0.5)",
+            display: "flex", alignItems: "center", gap: 14,
+            maxWidth: 360,
+            animation: "sl-undo-slide 0.18s ease-out",
+          }}>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 11, color: "#f5f5f5", fontWeight: 600, marginBottom: 2 }}>Mensagem apagada</div>
+              {undoToast.preview && (
+                <div style={{ fontSize: 10, color: "#888", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                  &ldquo;{undoToast.preview}{undoToast.preview.length >= 60 ? '…' : ''}&rdquo;
+                </div>
+              )}
+            </div>
+            <button
+              onClick={() => undoDelete(undoToast.messageId)}
+              style={{ padding: "6px 12px", background: "rgba(122,14,24,0.2)", border: "1px solid rgba(122,14,24,0.5)", borderRadius: 5, color: "#f5b5bb", fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}
+            >
+              Anular
+            </button>
+            <span style={{ fontSize: 9, color: "#555", fontFamily: "ui-monospace, monospace" }}>⌘Z</span>
+          </div>
+        )}
+        <style>{`
+          @keyframes sl-undo-slide {
+            from { transform: translateY(10px); opacity: 0; }
+            to   { transform: translateY(0);    opacity: 1; }
+          }
+        `}</style>
       </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────
+// ReplyThreadRow · per-message card in the creator-reply log.
+// Renders the parent message + its anchored AI suggestion (if any) +
+// hover-revealed action chips. Drives delete / regenerate / mark-sent.
+//
+// Designed-by-workflow: AI lives anchored under its source message so
+// the thread reads as a real conversation history. Sent messages
+// collapse their AI sub-card to a single-line summary to compact long
+// threads.
+// ─────────────────────────────────────────────────────────────────
+function ReplyThreadRow({ message, index, onDelete, onRegenerate, onMarkSent }) {
+  const [hover, setHover] = useState(false);
+  const [copiedAt, setCopiedAt] = useState(0);
+  const ai = message.ai;
+  const isSent = !!message.sentAt;
+  const aiPending = ai?.status === 'pending';
+  const aiError   = ai?.status === 'error';
+  const hasAi     = ai?.response && !aiError && !aiPending;
+  const copyAi = async () => {
+    if (!ai?.response) return;
+    try { await navigator.clipboard.writeText(ai.response); } catch {}
+    setCopiedAt(Date.now());
+    setTimeout(() => setCopiedAt(0), 1500);
+  };
+  return (
+    <div
+      onMouseEnter={() => setHover(true)}
+      onMouseLeave={() => setHover(false)}
+      style={{ padding: "10px 12px", background: "rgba(34,197,94,0.05)", border: "1px solid rgba(34,197,94,0.15)", borderRadius: 8, position: "relative" }}
+    >
+      {/* Header: index + timestamp + (optional) sent chip + hover action chips */}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <span style={{ fontSize: 9, fontWeight: 700, color: "#22c55e", letterSpacing: "0.08em", textTransform: "uppercase" }}>
+            {message.legacy ? 'Mensagem' : `Mensagem ${index + 1}`}
+          </span>
+          {isSent && (
+            <span style={{ fontSize: 9, fontWeight: 700, color: "#888", letterSpacing: "0.08em", textTransform: "uppercase", padding: "1px 6px", borderRadius: 3, background: "rgba(255,255,255,0.04)" }}>
+              ✓ Enviada
+            </span>
+          )}
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <span style={{ fontSize: 10, color: "#888", fontFamily: "ui-monospace, monospace" }}>
+            {message.at ? formatChatTimestamp(message.at) : 'sem data'}
+          </span>
+          {/* Hover-revealed action chips. Hidden on legacy rows (no id). */}
+          {onDelete && (
+            <div style={{ display: "flex", gap: 4, opacity: hover ? 0.85 : 0, transition: "opacity 0.08s" }}>
+              <button
+                onClick={onDelete}
+                title="Apagar mensagem (⌘Z para anular)"
+                style={{ padding: "2px 7px", background: "transparent", border: "1px solid rgba(177,30,47,0.3)", borderRadius: 4, color: "#B11E2F", fontSize: 10, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}
+              >×</button>
+            </div>
+          )}
+        </div>
+      </div>
+      <div style={{ fontSize: 13, color: "#ddd", lineHeight: 1.55, whiteSpace: "pre-wrap" }}>{message.content}</div>
+
+      {/* Anchored AI sub-card */}
+      {(aiPending || aiError || hasAi) && (
+        <div style={{ marginTop: 10, marginLeft: 16, paddingLeft: 12, paddingTop: 8, paddingBottom: 8, paddingRight: 12, background: "rgba(122,14,24,0.05)", borderLeft: "2px solid #7A0E18", borderRadius: 4 }}>
+          {aiPending && (
+            <div style={{ fontSize: 11, color: "#888" }}>
+              <span style={{ animation: "pulse 1.4s ease-in-out infinite" }}>● A classificar resposta…</span>
+            </div>
+          )}
+          {aiError && (
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <span style={{ fontSize: 11, color: "#ef4444" }}>Falhou: {ai?.errorMessage || 'erro desconhecido'}</span>
+              <button onClick={onRegenerate} style={{ padding: "3px 9px", background: "rgba(177,30,47,0.15)", border: "1px solid rgba(177,30,47,0.4)", borderRadius: 4, color: "#f5b5bb", fontSize: 10, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>Tentar de novo</button>
+            </div>
+          )}
+          {hasAi && !isSent && (
+            <>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <span style={{ fontSize: 9, fontWeight: 700, color: "#B11E2F", letterSpacing: "0.1em", textTransform: "uppercase" }}>Sugestão Raul</span>
+                  {ai.category && (
+                    <span style={{ fontSize: 9, color: "#888", fontFamily: "ui-monospace, monospace" }}>· {ai.category}</span>
+                  )}
+                </div>
+                <span style={{ fontSize: 9, color: "#555", fontFamily: "ui-monospace, monospace" }}>{ai.at ? formatChatTimestamp(ai.at) : ''}</span>
+              </div>
+              <div style={{ fontSize: 13, color: "#ccc", lineHeight: 1.65, whiteSpace: "pre-wrap", marginBottom: 8 }}>{ai.response}</div>
+              <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                <button onClick={copyAi} style={{ padding: "4px 10px", background: copiedAt ? "rgba(34,197,94,0.15)" : "rgba(255,255,255,0.04)", border: `1px solid ${copiedAt ? "rgba(34,197,94,0.35)" : "rgba(255,255,255,0.08)"}`, borderRadius: 4, color: copiedAt ? "#86efac" : "#888", fontSize: 10, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>
+                  {copiedAt ? "Copiado ✓" : "Copiar"}
+                </button>
+                <button onClick={onRegenerate} style={{ padding: "4px 10px", background: "transparent", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 4, color: "#888", fontSize: 10, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>Regenerar</button>
+                <button onClick={onMarkSent} style={{ padding: "4px 10px", background: "transparent", border: "1px solid rgba(34,197,94,0.25)", borderRadius: 4, color: "#22c55e", fontSize: 10, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>✓ Marcar enviada</button>
+                {(message.aiHistory?.length || 0) > 0 && (
+                  <span style={{ fontSize: 9, color: "#555", alignSelf: "center" }}>{message.aiHistory.length} sugestão{message.aiHistory.length === 1 ? '' : 'ões'} anterior{message.aiHistory.length === 1 ? '' : 'es'}</span>
+                )}
+              </div>
+            </>
+          )}
+          {hasAi && isSent && (
+            <div style={{ fontSize: 11, color: "#666", display: "flex", alignItems: "center", gap: 8 }}>
+              <span style={{ color: "#22c55e" }}>✓</span>
+              <span>Resposta enviada · {formatChatTimestamp(message.sentAt)}</span>
+              <button onClick={copyAi} style={{ marginLeft: "auto", padding: "2px 8px", background: "transparent", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 3, color: "#666", fontSize: 9, cursor: "pointer", fontFamily: "inherit" }}>
+                {copiedAt ? "Copiado ✓" : "Copiar texto"}
+              </button>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
