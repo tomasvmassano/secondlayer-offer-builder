@@ -582,34 +582,10 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [creator?.id]);
   const [replySaving, setReplySaving] = useState(false);
-  const saveReplyMessage = useCallback(async () => {
-    const content = replyText.trim();
-    if (!content || replySaving) return;
-    setReplySaving(true);
-    try {
-      const existing = Array.isArray(creator?.outreach?.replyMessages) ? creator.outreach.replyMessages : [];
-      // Migrate legacy single-string replyContent into the array on first
-      // save so we don't lose old notes. After this, only replyMessages is used.
-      const seed = (existing.length === 0 && creator?.outreach?.replyContent)
-        ? [{ content: creator.outreach.replyContent, at: creator.outreach.replyContentAt || null, migrated: true }]
-        : existing;
-      const next = [...seed, { content, at: new Date().toISOString() }];
-      await patchCreator({
-        outreach: {
-          ...(creator.outreach || {}),
-          replyMessages: next,
-          // Keep replyContent in sync with the LATEST message so any legacy
-          // consumer (e.g. the existing dm-reply prompt that reads it) still
-          // works without changes.
-          replyContent: content,
-          replyContentAt: new Date().toISOString(),
-        },
-      });
-      setReplyText(""); // clear the input — operator can paste the next message right away
-    } finally {
-      setReplySaving(false);
-    }
-  }, [replyText, replySaving, creator, patchCreator]);
+  // saveReplyMessage is defined LATER in the file (after patchCreator is
+  // declared) to avoid a Temporal Dead Zone error — useCallback evaluates
+  // its deps array on every render, and reading patchCreator before its
+  // `const` declaration would throw ReferenceError, blanking the page.
   const [replyLoading, setReplyLoading] = useState(false);
   const [replyResult, setReplyResult] = useState(null);
   const [replyError, setReplyError] = useState(null);
@@ -761,6 +737,38 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
       setTimeout(() => setSaving(""), 2000);
     } catch { setSaving("Erro ao guardar"); setTimeout(() => setSaving(""), 3000); }
   }, [params]);
+
+  // Append the current draft to the creator's chat-style reply log, clear
+  // the input, and persist. Defined HERE (after patchCreator) so the deps
+  // array can reference patchCreator without a Temporal Dead Zone error.
+  const saveReplyMessage = useCallback(async () => {
+    const content = replyText.trim();
+    if (!content || replySaving) return;
+    setReplySaving(true);
+    try {
+      const existing = Array.isArray(creator?.outreach?.replyMessages) ? creator.outreach.replyMessages : [];
+      // Migrate legacy single-string replyContent into the array on first
+      // save so we don't lose old notes. After this, only replyMessages is used.
+      const seed = (existing.length === 0 && creator?.outreach?.replyContent)
+        ? [{ content: creator.outreach.replyContent, at: creator.outreach.replyContentAt || null, migrated: true }]
+        : existing;
+      const next = [...seed, { content, at: new Date().toISOString() }];
+      await patchCreator({
+        outreach: {
+          ...(creator.outreach || {}),
+          replyMessages: next,
+          // Keep replyContent in sync with the LATEST message so any legacy
+          // consumer (e.g. the existing dm-reply prompt that reads it) still
+          // works without changes.
+          replyContent: content,
+          replyContentAt: new Date().toISOString(),
+        },
+      });
+      setReplyText(""); // clear the input — operator can paste the next message right away
+    } finally {
+      setReplySaving(false);
+    }
+  }, [replyText, replySaving, creator, patchCreator]);
 
   const handleDelete = useCallback(async () => {
     if (!params?.id || !window.confirm("Tens a certeza que queres eliminar este creator?")) return;
