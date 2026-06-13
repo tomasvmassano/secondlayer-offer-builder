@@ -766,17 +766,27 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
   //
   // Replaces the old "Guardar" + "Obter Resposta" two-button pattern —
   // operators were losing messages by clicking the wrong button.
+  // Ref that always points to the LATEST creator state. writeRows reads
+  // from here instead of closing over creator, so a second writeRows call
+  // inside the same saveAndClassify (i.e. AFTER the optimistic step 1 has
+  // updated React state) sees the row it just added. Without this ref the
+  // closure captures the pre-save creator, the mutator finds no match for
+  // the new row's id, and the AI sub-card stays stuck at "A classificar
+  // resposta..." indefinitely.
+  const creatorRef = useRef(creator);
+  useEffect(() => { creatorRef.current = creator; }, [creator]);
   const writeRows = useCallback(async (mutator) => {
     // Helper: build a fresh replyMessages array by running `mutator` over
     // the current array, then PATCH. Centralises legacy migration + the
     // replyContent mirror for back-compat consumers (the /api/dm-reply
     // prompt and any stale code reading the single-string field).
-    const existing = Array.isArray(creator?.outreach?.replyMessages) ? creator.outreach.replyMessages : [];
-    const legacyAlreadyMigrated = !!creator?.outreach?.replyMessagesMigratedAt;
-    const seedSource = (existing.length === 0 && !legacyAlreadyMigrated && creator?.outreach?.replyContent)
+    const current = creatorRef.current;
+    const existing = Array.isArray(current?.outreach?.replyMessages) ? current.outreach.replyMessages : [];
+    const legacyAlreadyMigrated = !!current?.outreach?.replyMessagesMigratedAt;
+    const seedSource = (existing.length === 0 && !legacyAlreadyMigrated && current?.outreach?.replyContent)
       ? [{
-          content: creator.outreach.replyContent,
-          at: creator.outreach.replyContentAt || new Date().toISOString(),
+          content: current.outreach.replyContent,
+          at: current.outreach.replyContentAt || new Date().toISOString(),
           authorEmail: 'legacy',
         }]
       : existing;
@@ -792,14 +802,14 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
     const latest = [...next].reverse().find(m => !m.deletedAt);
     await patchCreator({
       outreach: {
-        ...(creator.outreach || {}),
+        ...(current?.outreach || {}),
         replyMessages: next,
-        replyMessagesMigratedAt: creator?.outreach?.replyMessagesMigratedAt || new Date().toISOString(),
+        replyMessagesMigratedAt: current?.outreach?.replyMessagesMigratedAt || new Date().toISOString(),
         replyContent: latest?.content ?? null,
         replyContentAt: latest?.at ?? null,
       },
     });
-  }, [creator, patchCreator]);
+  }, [patchCreator]);
 
   // saveOnly: persist the message without firing /api/dm-reply. Used when
   // the operator just wants the conversation logged without burning an AI
@@ -874,11 +884,13 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
 
   // Per-row handlers — keep them small, all routing through writeRows.
   const deleteMessage = useCallback(async (id) => {
-    const target = (creator?.outreach?.replyMessages || []).find(m => m.id === id);
+    const current = creatorRef.current;
+    const target = (current?.outreach?.replyMessages || []).find(m => m.id === id)
+      || (current?.outreach?.replyMessages || []).find(m => synthMessageId(m) === id);
     const preview = (target?.content || '').slice(0, 60);
-    await writeRows(rows => rows.map(m => m.id === id ? ({ ...m, deletedAt: new Date().toISOString() }) : m));
+    await writeRows(rows => rows.map(m => (m.id === id || synthMessageId(m) === id) ? ({ ...m, deletedAt: new Date().toISOString() }) : m));
     setUndoToast({ messageId: id, preview, deletedAtTs: Date.now() });
-  }, [creator, writeRows]);
+  }, [writeRows]);
   const undoDelete = useCallback(async (id) => {
     await writeRows(rows => rows.map(m => m.id === id ? ({ ...m, deletedAt: null, deletedBy: null }) : m));
     setUndoToast(t => (t && t.messageId === id ? null : t));
@@ -900,7 +912,10 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
     await writeRows(rows => rows.map(m => m.id === id ? ({ ...m, sentAt: new Date().toISOString() }) : m));
   }, [writeRows]);
   const regenerateAi = useCallback(async (id) => {
-    const target = (creator?.outreach?.replyMessages || []).find(m => m.id === id);
+    // Read via ref so we always look up against the LATEST state, not the
+    // creator captured when the row was rendered.
+    const current = creatorRef.current;
+    const target = (current?.outreach?.replyMessages || []).find(m => m.id === id);
     if (!target?.content) return;
     // 1. Stack current ai into history, mark new generation as pending.
     await writeRows(rows => rows.map(m => m.id === id ? ({
