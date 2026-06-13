@@ -545,7 +545,14 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
   const [rewritingDm, setRewritingDm] = useState(false);
   const [rewriteInstruction, setRewriteInstruction] = useState("");
   const [rewriteLoading, setRewriteLoading] = useState(false);
+  // replyText is the LOCAL working copy of the "what the creator said"
+  // notes. The canonical persisted value lives at creator.outreach.replyContent.
+  // We hydrate from there on creator change and save back on blur.
   const [replyText, setReplyText] = useState("");
+  useEffect(() => {
+    setReplyText(creator?.outreach?.replyContent || "");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [creator?.id]);
   const [replyLoading, setReplyLoading] = useState(false);
   const [replyResult, setReplyResult] = useState(null);
   const [replyError, setReplyError] = useState(null);
@@ -2237,14 +2244,10 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
                   );
                 })()}
 
-                {/* Conversation log — what the creator actually said. Any
-                    team member can paste replies here so the operator who
-                    records the personalised Loom has full context, even
-                    if they weren't the one who got the response. Visible
-                    once any outreach has been sent. Auto-saves on blur. */}
-                {(creator.outreach?.dmSentAt || creator.outreach?.emailSentAt) && (
-                  <ReplyNotesField creator={creator} patchCreator={patchCreator} />
-                )}
+                {/* (The persistent reply notes textarea now lives at the
+                    BOTTOM of this section — "Resposta do Criador" — sharing
+                    one field that both stores the conversation AND drives
+                    the /api/dm-reply tool. Single source of truth.) */}
 
                 {/* Cold outreach pair — the DM + Day 1 email say the same
                     thing in two formats. We pair them visually and share
@@ -2325,10 +2328,35 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
                   <PendingEmailCard label="Day 14 — Email" hint="Gera quando estiver na altura de mandar (~14 dias após o cold DM). Último toque." loading={dmLoading} onClick={() => generateDM('followup_14')} />
                 )}
 
-                {/* Reply Handler */}
+                {/* Reply Handler — the persistent "what the creator said"
+                    field. Lives at creator.outreach.replyContent so the
+                    whole team sees it (even after page reload, and on
+                    every device). Auto-saves on blur. "Obter Resposta"
+                    sends it to /api/dm-reply which classifies the
+                    intent and produces a tailored Raul-voice reply —
+                    including a value-add Loom offer when the creator
+                    says no. */}
                 <p style={{ ...sectionTitleStyle, marginTop: 24 }}>Resposta do Criador</p>
-                <div style={{ padding: "16px 18px", borderRadius: 8, background: "#141414", border: "1px solid rgba(255,255,255,0.04)" }}>
-                  <textarea placeholder="Cola aqui a resposta do criador..." value={replyText} onChange={e => setReplyText(e.target.value)} style={{ ...inputStyle, minHeight: 60, marginBottom: 10 }} />
+                <div style={{ padding: "16px 18px", borderRadius: 8, background: "#141414", border: "1px solid rgba(34,197,94,0.18)" }}>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+                    <span style={{ fontSize: 10, color: "#666" }}>Cola aqui o que o criador disse · partilhado com a equipa · guarda em blur</span>
+                    {(() => {
+                      const persisted = creator.outreach?.replyContent || '';
+                      const dirty = replyText !== persisted && replyText.trim();
+                      return dirty ? <span style={{ fontSize: 9, color: "#eab308", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase" }}>● Por guardar</span> : null;
+                    })()}
+                  </div>
+                  <textarea
+                    placeholder="Ex: 'Olá! Já vi a tua DM. Estou ocupada esta semana mas adoraria saber mais. Podes mandar um Loom a explicar?'"
+                    value={replyText}
+                    onChange={e => setReplyText(e.target.value)}
+                    onBlur={async () => {
+                      const persisted = creator.outreach?.replyContent || '';
+                      if (replyText === persisted) return;
+                      await patchCreator({ outreach: { ...(creator.outreach || {}), replyContent: replyText } });
+                    }}
+                    style={{ ...inputStyle, minHeight: 80, marginBottom: 10 }}
+                  />
                   <button onClick={handleReply} disabled={replyLoading || !replyText.trim()} style={{ padding: "8px 20px", borderRadius: 6, border: "none", background: replyText.trim() ? "#7A0E18" : "#333", color: replyText.trim() ? "#fff" : "#666", fontSize: 12, fontWeight: 600, cursor: replyLoading ? "wait" : replyText.trim() ? "pointer" : "default", fontFamily: "inherit" }}>
                     {replyLoading ? "A classificar..." : "Obter Resposta"}
                   </button>
@@ -7386,62 +7414,3 @@ function PivotTierModal({ creator, onClose, onComplete, mode = 'tier', fromCpId 
   );
 }
 
-// ─────────────────────────────────────────────────────────────────
-// ReplyNotesField — persistent textarea for what the creator actually
-// replied (and any back-and-forth notes). Shared across the team so
-// whoever records the personalised Loom has full conversation context
-// even if they weren't the one who sent the original DM.
-//
-// Lives at creator.outreach.replyContent (string). Auto-saves on blur
-// — keeping the operator in flow without a "Save" button. Shows a
-// green saved indicator briefly after each successful save.
-// ─────────────────────────────────────────────────────────────────
-function ReplyNotesField({ creator, patchCreator }) {
-  const persisted = creator?.outreach?.replyContent || '';
-  const [value, setValue] = useState(persisted);
-  const [savedAt, setSavedAt] = useState(null);
-
-  // Reset local value when the creator changes (navigating between profiles)
-  // or when an external update (e.g. a teammate's poll-sync) lands a fresher
-  // value than what we have locally. Don't reset while the operator is
-  // mid-typing — only on blur or initial mount of this creator.
-  useEffect(() => { setValue(persisted); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [creator?.id]);
-
-  const onBlur = async () => {
-    if (value === persisted) return;
-    await patchCreator({ outreach: { ...(creator.outreach || {}), replyContent: value } });
-    setSavedAt(Date.now());
-    setTimeout(() => setSavedAt(null), 2500);
-  };
-
-  return (
-    <div style={{ marginTop: 12, marginBottom: 12, padding: "12px 14px", background: "rgba(34,197,94,0.04)", border: "1px solid rgba(34,197,94,0.15)", borderRadius: 8 }}>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <span style={{ fontSize: 10, fontWeight: 700, color: "#22c55e", letterSpacing: "0.08em", textTransform: "uppercase" }}>
-            Resposta do creator
-          </span>
-          <span style={{ fontSize: 10, color: "#555" }}>Cola aqui o que o criador disse · partilhado com a equipa</span>
-        </div>
-        {savedAt && (
-          <span style={{ fontSize: 9, fontWeight: 700, color: "#22c55e", letterSpacing: "0.06em", textTransform: "uppercase" }}>
-            ✓ Guardado
-          </span>
-        )}
-      </div>
-      <textarea
-        value={value}
-        onChange={e => setValue(e.target.value)}
-        onBlur={onBlur}
-        placeholder="Ex: 'Olá! Já vi a tua DM. Estou ocupada esta semana mas adoraria saber mais. Podes mandar um Loom a explicar?'"
-        rows={Math.max(3, Math.min(12, Math.ceil((value || '').split('\n').length)))}
-        style={{
-          width: "100%", padding: "10px 12px",
-          background: "rgba(15,15,15,0.7)", border: "1px solid rgba(255,255,255,0.06)",
-          borderRadius: 6, color: "#f5f5f5", fontSize: 13, fontFamily: "inherit",
-          lineHeight: 1.5, outline: "none", resize: "vertical", boxSizing: "border-box",
-        }}
-      />
-    </div>
-  );
-}

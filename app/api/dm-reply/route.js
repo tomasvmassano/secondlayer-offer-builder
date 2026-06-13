@@ -81,8 +81,14 @@ Use "Mechanic Close" + "Surgeon Secretary".
 Use "It Doesn't Take Time, It Takes Information".
 "Claro. Só uma coisa, enquanto pensas, queres que te mande o vídeo à mesma? Assim pensas com dados concretos em vez de pensares no abstrato. Se depois disseres que não, fica por aí."
 
-### DIRECT NO ("não estou interessado") → DISQUALIFY
-"Sem problema, obrigado por responderes, muita gente nem isso faz. Boa sorte com o projeto, continua a mandar."
+### DIRECT NO ("não estou interessado") → VALUE-OUT
+A direct no isn't a dead end. Always offer a 3-minute Loom as a parting gift — they keep value, we keep the door open. If they refuse the Loom too, THEN walk away clean.
+
+First-pass response (offer the Loom regardless):
+"Sem problema, obrigado por responderes, muita gente nem isso faz. Vou-te mandar à mesma um Loom de 3 minutos com 1-2 ideias específicas que vi no teu perfil. Sem agenda nenhuma, é só para deixares a porta entreaberta caso mudes de ideias. Tá bem?"
+
+If they REJECT the Loom too (second refusal):
+"Tudo bem, respeito. Boa sorte com o projeto, continua a mandar."
 
 ### MEETING / CONTRACT REQUEST → HANDOFF
 "Boa, vou passar-te o contacto direto do Raul, ele responde-te hoje ainda."
