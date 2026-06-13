@@ -13,6 +13,29 @@ import { STAGES, computeOutreachStage, stagePatch } from "../../lib/outreachStag
 
 const LOGO_B64 = "data:image/png;base64,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";
 
+// Chat-style timestamp for the creator reply log. Today → "Hoje, HH:MM",
+// yesterday → "Ontem, HH:MM", older this year → "DD MMM, HH:MM", further
+// back → "DD/MM/YY, HH:MM". Matches what the operator expects from a
+// chat client (recency-first, no jargon).
+function formatChatTimestamp(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (!Number.isFinite(d.getTime())) return '';
+  const now = new Date();
+  const sameDay = d.toDateString() === now.toDateString();
+  const yesterday = new Date(now); yesterday.setDate(now.getDate() - 1);
+  const wasYesterday = d.toDateString() === yesterday.toDateString();
+  const hhmm = d.toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit' });
+  if (sameDay) return `Hoje, ${hhmm}`;
+  if (wasYesterday) return `Ontem, ${hhmm}`;
+  const sameYear = d.getFullYear() === now.getFullYear();
+  if (sameYear) {
+    const monthShort = d.toLocaleDateString('pt-PT', { day: '2-digit', month: 'short' });
+    return `${monthShort}, ${hhmm}`;
+  }
+  return `${d.toLocaleDateString('pt-PT', { day: '2-digit', month: '2-digit', year: '2-digit' })}, ${hhmm}`;
+}
+
 const MEETING_QUESTIONS = [
   { key: "brandDealPct", label: "Que percentagem vem de brand deals vs produtos próprios?" },
   { key: "previousSales", label: "Já vendeste algo diretamente? O quê, a que preço, quantos?" },
@@ -545,14 +568,48 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
   const [rewritingDm, setRewritingDm] = useState(false);
   const [rewriteInstruction, setRewriteInstruction] = useState("");
   const [rewriteLoading, setRewriteLoading] = useState(false);
-  // replyText is the LOCAL working copy of the "what the creator said"
-  // notes. The canonical persisted value lives at creator.outreach.replyContent.
-  // We hydrate from there on creator change and save back on blur.
+  // replyText is the draft text the operator is currently composing.
+  // The persisted CONVERSATION LOG lives at creator.outreach.replyMessages
+  // as an array of { content, at } entries. Saving pushes a new entry,
+  // empties the draft, and lets the operator paste the next message
+  // when the creator replies again. Legacy creator.outreach.replyContent
+  // (single string) is auto-migrated on first save below.
   const [replyText, setReplyText] = useState("");
   useEffect(() => {
-    setReplyText(creator?.outreach?.replyContent || "");
+    // New creator → reset the draft. Don't pre-fill from the log — the
+    // log is read-only history; the draft is for the NEXT message.
+    setReplyText("");
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [creator?.id]);
+  const [replySaving, setReplySaving] = useState(false);
+  const saveReplyMessage = useCallback(async () => {
+    const content = replyText.trim();
+    if (!content || replySaving) return;
+    setReplySaving(true);
+    try {
+      const existing = Array.isArray(creator?.outreach?.replyMessages) ? creator.outreach.replyMessages : [];
+      // Migrate legacy single-string replyContent into the array on first
+      // save so we don't lose old notes. After this, only replyMessages is used.
+      const seed = (existing.length === 0 && creator?.outreach?.replyContent)
+        ? [{ content: creator.outreach.replyContent, at: creator.outreach.replyContentAt || null, migrated: true }]
+        : existing;
+      const next = [...seed, { content, at: new Date().toISOString() }];
+      await patchCreator({
+        outreach: {
+          ...(creator.outreach || {}),
+          replyMessages: next,
+          // Keep replyContent in sync with the LATEST message so any legacy
+          // consumer (e.g. the existing dm-reply prompt that reads it) still
+          // works without changes.
+          replyContent: content,
+          replyContentAt: new Date().toISOString(),
+        },
+      });
+      setReplyText(""); // clear the input — operator can paste the next message right away
+    } finally {
+      setReplySaving(false);
+    }
+  }, [replyText, replySaving, creator, patchCreator]);
   const [replyLoading, setReplyLoading] = useState(false);
   const [replyResult, setReplyResult] = useState(null);
   const [replyError, setReplyError] = useState(null);
@@ -2328,47 +2385,109 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
                   <PendingEmailCard label="Day 14 — Email" hint="Gera quando estiver na altura de mandar (~14 dias após o cold DM). Último toque." loading={dmLoading} onClick={() => generateDM('followup_14')} />
                 )}
 
-                {/* Reply Handler — the persistent "what the creator said"
-                    field. Lives at creator.outreach.replyContent so the
-                    whole team sees it (even after page reload, and on
-                    every device). Auto-saves on blur. "Obter Resposta"
-                    sends it to /api/dm-reply which classifies the
-                    intent and produces a tailored Raul-voice reply —
-                    including a value-add Loom offer when the creator
-                    says no. */}
+                {/* Reply log — chat-style timeline of what the creator has
+                    said. Each new reply gets saved as its own timestamped
+                    entry. The input clears after save so the operator can
+                    paste the NEXT message right away without erasing the
+                    last one. Lives at creator.outreach.replyMessages =
+                    [{ content, at }]; legacy replyContent (single string)
+                    is auto-migrated into the array on first save. */}
                 <p style={{ ...sectionTitleStyle, marginTop: 24 }}>Resposta do Criador</p>
-                <div style={{ padding: "16px 18px", borderRadius: 8, background: "#141414", border: "1px solid rgba(34,197,94,0.18)" }}>
-                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
-                    <span style={{ fontSize: 10, color: "#666" }}>Cola aqui o que o criador disse · partilhado com a equipa · guarda em blur</span>
-                    {(() => {
-                      const persisted = creator.outreach?.replyContent || '';
-                      const dirty = replyText !== persisted && replyText.trim();
-                      return dirty ? <span style={{ fontSize: 9, color: "#eab308", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase" }}>● Por guardar</span> : null;
-                    })()}
-                  </div>
-                  <textarea
-                    placeholder="Ex: 'Olá! Já vi a tua DM. Estou ocupada esta semana mas adoraria saber mais. Podes mandar um Loom a explicar?'"
-                    value={replyText}
-                    onChange={e => setReplyText(e.target.value)}
-                    onBlur={async () => {
-                      const persisted = creator.outreach?.replyContent || '';
-                      if (replyText === persisted) return;
-                      await patchCreator({ outreach: { ...(creator.outreach || {}), replyContent: replyText } });
-                    }}
-                    style={{ ...inputStyle, minHeight: 80, marginBottom: 10 }}
-                  />
-                  <button onClick={handleReply} disabled={replyLoading || !replyText.trim()} style={{ padding: "8px 20px", borderRadius: 6, border: "none", background: replyText.trim() ? "#7A0E18" : "#333", color: replyText.trim() ? "#fff" : "#666", fontSize: 12, fontWeight: 600, cursor: replyLoading ? "wait" : replyText.trim() ? "pointer" : "default", fontFamily: "inherit" }}>
-                    {replyLoading ? "A classificar..." : "Obter Resposta"}
-                  </button>
-                  {replyError && <div style={{ marginTop: 8, padding: "8px 12px", borderRadius: 6, background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.2)", color: "#ef4444", fontSize: 11 }}>{replyError}</div>}
-                  {replyResult && (
-                    <div style={{ marginTop: 12, paddingTop: 12, borderTop: "1px solid rgba(255,255,255,0.06)" }}>
-                      <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "#7A0E18", marginBottom: 8 }}>{replyResult.category}</div>
-                      <div style={{ fontSize: 13, color: "#ccc", lineHeight: 1.7, whiteSpace: "pre-wrap", marginBottom: 8 }}>{replyResult.response}</div>
-                      <button onClick={() => navigator.clipboard.writeText(replyResult.response)} style={{ padding: "4px 10px", borderRadius: 4, border: "1px solid rgba(255,255,255,0.06)", background: "transparent", color: "#666", fontSize: 9, cursor: "pointer", fontFamily: "inherit" }}>Copy</button>
+                {(() => {
+                  // Build the log: prefer the array. Fall back to the legacy
+                  // single-string field for pre-migration creators so old
+                  // notes still appear.
+                  const messages = (() => {
+                    const arr = creator.outreach?.replyMessages;
+                    if (Array.isArray(arr) && arr.length > 0) return arr;
+                    if (creator.outreach?.replyContent) {
+                      return [{ content: creator.outreach.replyContent, at: creator.outreach.replyContentAt || null, legacy: true }];
+                    }
+                    return [];
+                  })();
+                  return (
+                    <div style={{ padding: "16px 18px", borderRadius: 8, background: "#141414", border: "1px solid rgba(34,197,94,0.18)" }}>
+                      {/* Chat log — most-recent message at the bottom. */}
+                      {messages.length > 0 && (
+                        <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 14, maxHeight: 320, overflowY: "auto" }}>
+                          {messages.map((m, i) => (
+                            <div key={i} style={{ padding: "10px 12px", background: "rgba(34,197,94,0.05)", border: "1px solid rgba(34,197,94,0.15)", borderRadius: 8 }}>
+                              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
+                                <span style={{ fontSize: 9, fontWeight: 700, color: "#22c55e", letterSpacing: "0.08em", textTransform: "uppercase" }}>
+                                  {m.legacy ? 'Mensagem' : `Mensagem ${i + 1}`}
+                                </span>
+                                <span style={{ fontSize: 10, color: "#888", fontFamily: "ui-monospace, monospace" }}>
+                                  {m.at ? formatChatTimestamp(m.at) : 'sem data'}
+                                </span>
+                              </div>
+                              <div style={{ fontSize: 13, color: "#ddd", lineHeight: 1.55, whiteSpace: "pre-wrap" }}>{m.content}</div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* Composer */}
+                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+                        <span style={{ fontSize: 10, color: "#666" }}>
+                          {messages.length === 0
+                            ? "Cola aqui o que o criador disse · partilhado com a equipa"
+                            : "Nova mensagem · cola e guarda · o input fica vazio para a próxima"}
+                        </span>
+                        {replyText.trim() && (
+                          <span style={{ fontSize: 9, color: "#eab308", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase" }}>● Por guardar</span>
+                        )}
+                      </div>
+                      <textarea
+                        placeholder={messages.length === 0
+                          ? "Ex: 'Olá! Já vi a tua DM. Estou ocupada esta semana mas adoraria saber mais. Podes mandar um Loom a explicar?'"
+                          : "Cola a próxima resposta do criador..."}
+                        value={replyText}
+                        onChange={e => setReplyText(e.target.value)}
+                        onKeyDown={e => {
+                          // Cmd/Ctrl-Enter to save without leaving the keyboard.
+                          if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+                            e.preventDefault();
+                            saveReplyMessage();
+                          }
+                        }}
+                        style={{ ...inputStyle, minHeight: 80, marginBottom: 10 }}
+                      />
+                      <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                        <button
+                          onClick={saveReplyMessage}
+                          disabled={replySaving || !replyText.trim()}
+                          style={{
+                            padding: "8px 20px", borderRadius: 6, border: "none",
+                            background: replyText.trim() ? "#22c55e" : "#333",
+                            color: replyText.trim() ? "#000" : "#666",
+                            fontSize: 12, fontWeight: 700,
+                            cursor: replySaving ? "wait" : replyText.trim() ? "pointer" : "default",
+                            fontFamily: "inherit",
+                          }}
+                          title="⌘+Enter para guardar"
+                        >
+                          {replySaving ? "A guardar..." : "Guardar mensagem"}
+                        </button>
+                        <button onClick={handleReply} disabled={replyLoading || !replyText.trim()} style={{ padding: "8px 20px", borderRadius: 6, border: "none", background: replyText.trim() ? "#7A0E18" : "#333", color: replyText.trim() ? "#fff" : "#666", fontSize: 12, fontWeight: 600, cursor: replyLoading ? "wait" : replyText.trim() ? "pointer" : "default", fontFamily: "inherit" }}>
+                          {replyLoading ? "A classificar..." : "Obter Resposta"}
+                        </button>
+                        {messages.length > 0 && (
+                          <span style={{ marginLeft: "auto", fontSize: 10, color: "#666" }}>
+                            {messages.length} {messages.length === 1 ? "mensagem guardada" : "mensagens guardadas"}
+                          </span>
+                        )}
+                      </div>
+                      {replyError && <div style={{ marginTop: 8, padding: "8px 12px", borderRadius: 6, background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.2)", color: "#ef4444", fontSize: 11 }}>{replyError}</div>}
+                      {replyResult && (
+                        <div style={{ marginTop: 12, paddingTop: 12, borderTop: "1px solid rgba(255,255,255,0.06)" }}>
+                          <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "#7A0E18", marginBottom: 8 }}>{replyResult.category}</div>
+                          <div style={{ fontSize: 13, color: "#ccc", lineHeight: 1.7, whiteSpace: "pre-wrap", marginBottom: 8 }}>{replyResult.response}</div>
+                          <button onClick={() => navigator.clipboard.writeText(replyResult.response)} style={{ padding: "4px 10px", borderRadius: 4, border: "1px solid rgba(255,255,255,0.06)", background: "transparent", color: "#666", fontSize: 9, cursor: "pointer", fontFamily: "inherit" }}>Copy</button>
+                        </div>
+                      )}
                     </div>
-                  )}
-                </div>
+                  );
+                })()}
               </div>
             );
           })()}
