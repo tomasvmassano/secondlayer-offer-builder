@@ -18,6 +18,15 @@ const LOGO_B64 = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAMgAAAAlCAAAAAAi
 // yesterday → "Ontem, HH:MM", older this year → "DD MMM, HH:MM", further
 // back → "DD/MM/YY, HH:MM". Matches what the operator expects from a
 // chat client (recency-first, no jargon).
+// Deterministic id for pre-refactor reply messages that have no id field.
+// Both the render layer and writeRows() call this so the same row gets the
+// same id in both places — otherwise a click handler's id wouldn't match
+// the row in raw data, and the mutation would silently do nothing.
+function synthMessageId(m) {
+  if (!m) return '';
+  return `seed-${(m.at || 'no-at').slice(0, 19)}-${(m.content || '').length}`;
+}
+
 function formatChatTimestamp(iso) {
   if (!iso) return '';
   const d = new Date(iso);
@@ -764,15 +773,19 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
     // prompt and any stale code reading the single-string field).
     const existing = Array.isArray(creator?.outreach?.replyMessages) ? creator.outreach.replyMessages : [];
     const legacyAlreadyMigrated = !!creator?.outreach?.replyMessagesMigratedAt;
-    const seed = (existing.length === 0 && !legacyAlreadyMigrated && creator?.outreach?.replyContent)
+    const seedSource = (existing.length === 0 && !legacyAlreadyMigrated && creator?.outreach?.replyContent)
       ? [{
-          id: nanoid(10),
           content: creator.outreach.replyContent,
           at: creator.outreach.replyContentAt || new Date().toISOString(),
           authorEmail: 'legacy',
-          legacy: true,
         }]
       : existing;
+    // ASSIGN STABLE IDS to any pre-id rows on every write. Use the SAME
+    // deterministic synthMessageId() the render uses, so the click handler
+    // calling deleteMessage(synthId) matches the row in the mutator. After
+    // this writeRows call persists, the row has the synth-id baked in and
+    // future operations work normally.
+    const seed = seedSource.map(m => m.id ? m : ({ ...m, id: synthMessageId(m) }));
     const next = mutator(seed);
     // Mirror the LATEST non-deleted message into replyContent for any
     // legacy consumer (e.g. the /api/dm-reply prompt) that still reads it.
@@ -787,6 +800,27 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
       },
     });
   }, [creator, patchCreator]);
+
+  // saveOnly: persist the message without firing /api/dm-reply. Used when
+  // the operator just wants the conversation logged without burning an AI
+  // call (e.g. a "thanks", a logistics question, anything already answered
+  // out-of-band). Same shape as saveAndClassify minus the classifier step.
+  const saveOnly = useCallback(async () => {
+    const content = replyText.trim();
+    if (!content || replySaving) return;
+    setReplySaving(true);
+    const id = nanoid(10);
+    const now = new Date().toISOString();
+    try {
+      await writeRows(seed => [...seed, { id, content, at: now }]);
+      setReplyText("");
+      if (!creator?.outreach?.repliedAt) {
+        await patchCreator({ outreach: { ...(creator.outreach || {}), repliedAt: now, repliedChannel: 'dm' } });
+      }
+    } finally {
+      setReplySaving(false);
+    }
+  }, [replyText, replySaving, creator, patchCreator, writeRows]);
 
   const saveAndClassify = useCallback(async () => {
     const content = replyText.trim();
@@ -2538,9 +2572,13 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
                   const raw = Array.isArray(creator.outreach?.replyMessages) ? creator.outreach.replyMessages : [];
                   const messages = (() => {
                     if (raw.length > 0) {
+                      // Pre-id rows get a DETERMINISTIC synth id via
+                      // synthMessageId(). writeRows() uses the same function,
+                      // so a click → mutator round-trip matches the row even
+                      // when the persisted data still has no real id yet.
                       return raw
                         .filter(m => !m.deletedAt)
-                        .map(m => ({ ...m, id: m.id || `legacy-${(m.at || '').slice(0, 19)}` }));
+                        .map(m => ({ ...m, id: m.id || synthMessageId(m) }));
                     }
                     if (creator.outreach?.replyContent) {
                       return [{
@@ -2602,6 +2640,8 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
                         style={{ ...inputStyle, minHeight: 80, marginBottom: 10 }}
                       />
                       <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                        {/* Primary action — save + classify in one stroke.
+                            Brand-red, ⌘+Enter as the default shortcut. */}
                         <button
                           onClick={saveAndClassify}
                           disabled={replySaving || !replyText.trim()}
@@ -2618,6 +2658,25 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
                         >
                           {replySaving ? "A guardar..." : "Guardar + Sugerir resposta"}
                           <span style={{ fontSize: 9, fontFamily: "ui-monospace, monospace", opacity: 0.6 }}>⌘↵</span>
+                        </button>
+                        {/* Secondary action — save only, no AI call. For when
+                            the operator wants the log but already knows what
+                            to send back (or already replied out-of-band). */}
+                        <button
+                          onClick={saveOnly}
+                          disabled={replySaving || !replyText.trim()}
+                          style={{
+                            padding: "8px 16px", borderRadius: 6,
+                            background: "transparent",
+                            border: `1px solid ${replyText.trim() ? "rgba(255,255,255,0.15)" : "rgba(255,255,255,0.06)"}`,
+                            color: replyText.trim() ? "#ccc" : "#555",
+                            fontSize: 12, fontWeight: 600,
+                            cursor: replySaving ? "wait" : replyText.trim() ? "pointer" : "default",
+                            fontFamily: "inherit",
+                          }}
+                          title="Guarda a mensagem no histórico sem gerar sugestão de resposta (não chama o AI)"
+                        >
+                          Só Guardar
                         </button>
                         {messages.length > 0 && (
                           <span style={{ marginLeft: "auto", fontSize: 10, color: "#666" }}>
