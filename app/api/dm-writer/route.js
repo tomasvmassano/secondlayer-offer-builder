@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { loadSkills, formatReferences } from '../../lib/skills';
 import { appendSignature } from '../../lib/operatorSignature';
+import { safeParse } from '../../lib/safeJson';
 
 // ─────────────────────────────────────────────────────────────────
 // DM WRITER — template-aware system prompts (A / B / C × PT / EN / ES).
@@ -851,8 +852,17 @@ export async function POST(request) {
     return NextResponse.json({ error: 'ANTHROPIC_API_KEY is not configured' }, { status: 500 });
   }
 
+  // Read the body as raw text and parse via safeParse — Next.js's built-in
+  // `request.json()` runs a strict UTF-16 validator that rejects unpaired
+  // surrogates (emoji-truncated scrape data). safeParse scrubs orphans
+  // first, then JSON.parses. Belt-and-suspenders alongside the client-side
+  // safeStringify: this route stays bulletproof even when an older client
+  // tab posts a body that still contains orphan surrogates.
   let body;
-  try { body = await request.json(); } catch {
+  try {
+    const raw = await request.text();
+    body = safeParse(raw);
+  } catch {
     return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 });
   }
 
