@@ -209,6 +209,11 @@ export async function GET(request) {
       igUrl,
       followUpDm,
       followUpEmail: storedFollowUpEmail,
+      // Milestone key drives the /r/follow-up redirect URLs in the email.
+      milestoneKey: matched.key,
+      // Has-email flag — controls whether the "Email reply" button is
+      // even shown in the digest. Avoids dead-end mailto links.
+      hasContactEmail: !!(c.contactEmail || c.email),
     });
 
     // Mark this reminder as sent for this creator → cron never re-pings the
@@ -326,7 +331,7 @@ const DM_TEMPLATES = {
   },
 };
 
-function buildFollowUpDm(milestoneKey, creatorFirstName, senderFirstName, langCode) {
+export function buildFollowUpDm(milestoneKey, creatorFirstName, senderFirstName, langCode) {
   const lang = DM_TEMPLATES[langCode] || DM_TEMPLATES.pt;
   const tpl = lang[milestoneKey] || lang.softNudge;
   return tpl
@@ -338,7 +343,7 @@ function buildFollowUpDm(milestoneKey, creatorFirstName, senderFirstName, langCo
 // dmSequence when one exists. dm-writer only generates these on demand
 // (stage='followup_7'/'followup_14') so most creators won't have one
 // pre-baked. Returns null when nothing's available.
-function pickStoredFollowUpEmail(creator, milestoneKey) {
+export function pickStoredFollowUpEmail(creator, milestoneKey) {
   const seq = creator?.dmSequence;
   if (!seq) return null;
   const slot = milestoneKey === 'valueDrop'  ? 'email_day7'
@@ -404,21 +409,39 @@ async function sendDigest(operator, buckets, stats, opts = {}) {
   };
 
   const fmtCardHtml = (c) => {
-    const igBtn = c.igUrl
-      ? `<a href="${c.igUrl}" style="display: inline-block; padding: 6px 10px; background: #18181b; color: #f5f5f5; text-decoration: none; border: 1px solid rgba(255,255,255,0.12); border-radius: 6px; font-size: 11px; font-weight: 600; margin-right: 6px;">↗ Instagram</a>`
+    // Primary buttons now point at the /r/follow-up redirect page.
+    // Click → copy text to clipboard → open Instagram or mailto:
+    // (mirrors the dm-writer page's "Open Profile" pattern). Removes
+    // the manual "select the DM text, copy, then click Instagram" step
+    // operators used to do every reminder.
+    const milestone = c.milestoneKey || 'softNudge';
+    const igRedirect = c.igUrl
+      ? `${HUB_BASE}/r/follow-up?cid=${c.id}&milestone=${milestone}&channel=dm`
+      : null;
+    const emailRedirect = c.hasContactEmail
+      ? `${HUB_BASE}/r/follow-up?cid=${c.id}&milestone=${milestone}&channel=email`
+      : null;
+    const igBtn = igRedirect
+      ? `<a href="${igRedirect}" style="display: inline-block; padding: 8px 14px; background: #7A0E18; color: #fff; text-decoration: none; border-radius: 6px; font-size: 12px; font-weight: 700; margin-right: 6px; margin-bottom: 6px;">↗ Copiar DM + abrir Instagram</a>`
       : '';
-    const hubBtn = `<a href="${HUB_BASE}/creators/${c.id}?tab=dm" style="display: inline-block; padding: 6px 10px; background: #B11E2F; color: #fff; text-decoration: none; border-radius: 6px; font-size: 11px; font-weight: 600;">↗ Abrir no Hub</a>`;
+    const emailBtn = emailRedirect
+      ? `<a href="${emailRedirect}" style="display: inline-block; padding: 8px 14px; background: #18181b; color: #eab308; text-decoration: none; border: 1px solid rgba(234,179,8,0.4); border-radius: 6px; font-size: 12px; font-weight: 700; margin-right: 6px; margin-bottom: 6px;">↗ Copiar email + abrir mail</a>`
+      : '';
+    const hubBtn = `<a href="${HUB_BASE}/creators/${c.id}?tab=dm" style="display: inline-block; padding: 8px 14px; background: transparent; color: #888; text-decoration: none; border: 1px solid rgba(255,255,255,0.12); border-radius: 6px; font-size: 12px; font-weight: 600; margin-bottom: 6px;">Perfil no Hub</a>`;
+    // Keep the DM text inline as a fallback (in case the redirect page
+    // is unreachable or the clipboard API is blocked by the operator's
+    // browser). Operator can always manually copy from here.
     const dmBlock = c.followUpDm ? `
-      <div style="font-size: 10px; color: #B11E2F; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; margin: 14px 0 4px;">DM follow-up · copia</div>
-      <pre style="font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; color: #f5f5f5; background: #050505; border: 1px solid rgba(255,255,255,0.06); border-radius: 6px; padding: 12px 14px; margin: 0; white-space: pre-wrap; line-height: 1.55;">${escape(c.followUpDm)}</pre>` : '';
+      <div style="font-size: 10px; color: #555; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; margin: 14px 0 4px;">DM follow-up · texto de fallback</div>
+      <pre style="font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; color: #aaa; background: #050505; border: 1px solid rgba(255,255,255,0.06); border-radius: 6px; padding: 12px 14px; margin: 0; white-space: pre-wrap; line-height: 1.55;">${escape(c.followUpDm)}</pre>` : '';
     const emailBlock = c.followUpEmail?.body ? `
-      <div style="font-size: 10px; color: #eab308; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; margin: 14px 0 4px;">Email follow-up · copia${c.followUpEmail.subject ? ' · ' + escape(c.followUpEmail.subject) : ''}</div>
-      <pre style="font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; color: #f5f5f5; background: #050505; border: 1px solid rgba(255,255,255,0.06); border-radius: 6px; padding: 12px 14px; margin: 0; white-space: pre-wrap; line-height: 1.55;">${escape(c.followUpEmail.body)}</pre>` : '';
+      <div style="font-size: 10px; color: #555; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; margin: 14px 0 4px;">Email follow-up · texto de fallback${c.followUpEmail.subject ? ' · ' + escape(c.followUpEmail.subject) : ''}</div>
+      <pre style="font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; color: #aaa; background: #050505; border: 1px solid rgba(255,255,255,0.06); border-radius: 6px; padding: 12px 14px; margin: 0; white-space: pre-wrap; line-height: 1.55;">${escape(c.followUpEmail.body)}</pre>` : '';
     return `
     <div style="background: #111; border: 1px solid rgba(255,255,255,0.06); border-radius: 10px; padding: 16px 18px; margin-bottom: 14px;">
       <div style="font-size: 16px; font-weight: 700; color: #f5f5f5;">${escape(c.name)}${c.ownerEmail ? '' : ' <span style="color:#eab308; font-size: 10px; font-weight: 700; letter-spacing: 0.1em;">⚠ SEM OWNER</span>'}</div>
-      <div style="font-size: 12px; color: #888; margin: 2px 0 10px;">${c.niche ? escape(c.niche) + ' · ' : ''}${c.followers ? c.followers.toLocaleString() + ' followers · ' : ''}DM há ${c.daysSinceDM} dias${c.followUpsDone ? ' · ' + c.followUpsDone + ' follow-ups' : ''}</div>
-      <div>${igBtn}${hubBtn}</div>
+      <div style="font-size: 12px; color: #888; margin: 2px 0 12px;">${c.niche ? escape(c.niche) + ' · ' : ''}${c.followers ? c.followers.toLocaleString() + ' followers · ' : ''}DM há ${c.daysSinceDM} dias${c.followUpsDone ? ' · ' + c.followUpsDone + ' follow-ups' : ''}</div>
+      <div>${igBtn}${emailBtn}${hubBtn}</div>
       ${dmBlock}
       ${emailBlock}
     </div>`;
