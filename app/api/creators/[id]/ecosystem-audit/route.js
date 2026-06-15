@@ -556,7 +556,7 @@ Return ONLY the JSON object matching the schema in your system prompt. Start you
       'anthropic-version': '2023-06-01',
     },
     body: JSON.stringify({
-      model: 'claude-sonnet-4-20250514',
+      model: 'claude-sonnet-4-5-20250929',
       // 4000 → 8000 (2026-05-19) → 12000 (2026-05-20). Creators with 5+ bio
       // links and no aggregator (forms.gle, YouTube, custom domains, etc.)
       // require 8+ web_search rounds before assembling the JSON; the model
@@ -601,7 +601,7 @@ Return ONLY the JSON object matching the schema in your system prompt. Start you
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01' },
         body: JSON.stringify({
-          model: 'claude-sonnet-4-20250514',
+          model: 'claude-sonnet-4-5-20250929',
           max_tokens: 4000,
           tools: [{ type: 'web_search_20250305', name: 'web_search' }],
           system: [{ type: 'text', text: SYSTEM_PROMPT, cache_control: { type: 'ephemeral' } }],

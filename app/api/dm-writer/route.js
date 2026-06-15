@@ -1099,7 +1099,7 @@ ${stageInstruction} Follow the output format exactly. ZERO em dashes.${notesRemi
       // we never POST an orphan upstream regardless of how the body got
       // built).
       body: safeStringify({
-        model: 'claude-sonnet-4-20250514',
+        model: 'claude-sonnet-4-5-20250929',
         max_tokens: 4000,
         system: [
           { type: 'text', text: systemPrompt, cache_control: { type: 'ephemeral' } },
@@ -1214,7 +1214,7 @@ Rules:
               'anthropic-version': '2023-06-01',
             },
             body: safeStringify({
-              model: 'claude-sonnet-4-20250514',
+              model: 'claude-sonnet-4-5-20250929',
               max_tokens: 1500,
               system: [{ type: 'text', text: shrinkSystem }],
               messages: [{ role: 'user', content: result.dm }],

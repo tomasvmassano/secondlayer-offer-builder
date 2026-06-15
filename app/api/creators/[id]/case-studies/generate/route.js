@@ -201,7 +201,7 @@ Find 3 REAL communities that match this creator's niche, scale, and pricing mode
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01' },
       body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
+        model: 'claude-sonnet-4-5-20250929',
         max_tokens: 3000,
         system: [{ type: 'text', text: SYSTEM_PROMPT.replace('{follower_count}', String(followers || 10000)).replace('{follower_count}', String(followers || 10000)).replace('{follower_count}', String(followers || 10000)), cache_control: { type: 'ephemeral' } }],
         messages: [{ role: 'user', content: userMessage }],

@@ -114,7 +114,7 @@ Output the three delimited sections in ${langLabel}. Nothing else.`;
         'anthropic-version': '2023-06-01',
       },
       body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
+        model: 'claude-sonnet-4-5-20250929',
         // Paired mode needs more output room: DM + subject + email body
         // ≈ 1500-2200 tokens. Single-message stays 1500.
         max_tokens: isPair ? 3000 : 1500,
@@ -150,7 +150,7 @@ Rules:
           'anthropic-version': '2023-06-01',
         },
         body: JSON.stringify({
-          model: 'claude-sonnet-4-20250514',
+          model: 'claude-sonnet-4-5-20250929',
           max_tokens: 1500,
           system: [{ type: 'text', text: compressSystem }],
           messages: [{ role: 'user', content: overLongDm }],

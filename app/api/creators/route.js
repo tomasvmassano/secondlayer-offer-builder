@@ -99,7 +99,7 @@ export async function POST(request) {
                 'anthropic-version': '2023-06-01',
               },
               body: JSON.stringify({
-                model: 'claude-sonnet-4-20250514',
+                model: 'claude-sonnet-4-5-20250929',
                 // Bumped 1500 → 2500 (2026-05-19) to fit BIO_PRODUCT_1-5 +
                 // COMPETITOR_1-3 alongside the existing audience/format
                 // output. Without the headroom these new fields get
@@ -301,7 +301,7 @@ ${postPerformanceData || 'No post data available'}`,
           'anthropic-version': '2023-06-01',
         },
         body: JSON.stringify({
-          model: 'claude-sonnet-4-20250514',
+          model: 'claude-sonnet-4-5-20250929',
           max_tokens: 4000,
           tools: [{ type: 'web_search_20250305', name: 'web_search' }],
           messages: [{
