@@ -49,6 +49,17 @@ export default function SupportPage() {
     submitter: "",
     priority: "medium",
   });
+  // Drag-and-drop file state. Each entry: { name, type, size, dataUrl }.
+  // Hard caps: 3 files per ticket, 1MB per file. Base64 inflates raw
+  // bytes by ~33% — three 1MB files plus the rest of the JSON envelope
+  // lands around 4MB, comfortably under Vercel's 4.5MB serverless body
+  // limit. If we later need bigger uploads, swap inline data URLs for
+  // Vercel Blob and lift the cap.
+  const MAX_FILES = 3;
+  const MAX_FILE_BYTES = 1_000_000; // 1 MB
+  const [attachmentFiles, setAttachmentFiles] = useState([]);
+  const [dragActive, setDragActive] = useState(false);
+  const [uploadError, setUploadError] = useState("");
 
   const fetchTickets = useCallback(async () => {
     try {
@@ -66,15 +77,70 @@ export default function SupportPage() {
     try {
       const r = await fetch("/api/tickets", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
+        // attachmentFiles travels inline as data URLs. Caps above keep
+        // the total body under Vercel's 4.5MB serverless limit.
+        body: JSON.stringify({ ...form, attachmentFiles }),
       });
       if (r.ok) {
         setForm({ type: "suggestion", area: "DM Writer", title: "", why: "", suggestion: "", example: "", attachments: "", submitter: form.submitter, priority: "medium" });
+        setAttachmentFiles([]);
+        setUploadError("");
         setView("list");
         fetchTickets();
       }
     } catch { /* ignore */ }
     finally { setSaving(false); }
+  };
+
+  // Convert a File → { name, type, size, dataUrl } using FileReader.
+  // Resolves to null when the file exceeds MAX_FILE_BYTES so the caller
+  // can show a single combined error rather than per-file noise.
+  const fileToRecord = (file) => new Promise((resolve) => {
+    if (file.size > MAX_FILE_BYTES) {
+      resolve({ rejected: true, name: file.name, size: file.size });
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => resolve({
+      name: file.name,
+      type: file.type || 'application/octet-stream',
+      size: file.size,
+      dataUrl: reader.result,
+    });
+    reader.onerror = () => resolve(null);
+    reader.readAsDataURL(file);
+  });
+
+  const ingestFiles = useCallback(async (fileList) => {
+    setUploadError("");
+    const remaining = MAX_FILES - attachmentFiles.length;
+    if (remaining <= 0) {
+      setUploadError(`Máximo ${MAX_FILES} ficheiros por ticket.`);
+      return;
+    }
+    const files = Array.from(fileList).slice(0, remaining);
+    if (files.length < fileList.length) {
+      setUploadError(`Máximo ${MAX_FILES} ficheiros — ignorados ${fileList.length - files.length}.`);
+    }
+    const records = await Promise.all(files.map(fileToRecord));
+    const accepted = records.filter(r => r && !r.rejected);
+    const rejected = records.filter(r => r?.rejected);
+    if (rejected.length) {
+      const names = rejected.map(r => `${r.name} (${(r.size / 1_000_000).toFixed(1)}MB)`).join(', ');
+      setUploadError(`Ficheiros > 1MB rejeitados: ${names}`);
+    }
+    if (accepted.length) setAttachmentFiles(prev => [...prev, ...accepted]);
+  }, [attachmentFiles.length]);
+
+  const onDrop = useCallback((e) => {
+    e.preventDefault();
+    setDragActive(false);
+    if (e.dataTransfer?.files?.length) ingestFiles(e.dataTransfer.files);
+  }, [ingestFiles]);
+
+  const removeFile = (idx) => {
+    setAttachmentFiles(prev => prev.filter((_, i) => i !== idx));
+    setUploadError("");
   };
 
   const updateStatus = async (id, newStatus) => {
@@ -219,10 +285,82 @@ export default function SupportPage() {
               <textarea style={{ ...inputStyle, minHeight: 70 }} placeholder={form.type === "bug" ? "Cola aqui o erro ou descreve o que vês no ecrã" : "Mostra um exemplo concreto do resultado final que esperas"} value={form.example} onChange={e => setForm(f => ({ ...f, example: e.target.value }))} />
             </div>
 
-            {/* 5. Attachments */}
+            {/* 5. Attachments — drag-drop files + optional URL */}
             <div style={{ marginBottom: 24 }}>
-              <label style={{ display: "block", fontSize: 10, fontWeight: 600, color: "#555", marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.05em" }}>Anexos <span style={{ fontWeight: 400, color: "#333" }}>(links para docs, screenshots, etc.)</span></label>
-              <input type="text" style={inputStyle} placeholder="https://drive.google.com/... ou https://notion.so/..." value={form.attachments} onChange={e => setForm(f => ({ ...f, attachments: e.target.value }))} />
+              <label style={{ display: "block", fontSize: 10, fontWeight: 600, color: "#555", marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                Anexos <span style={{ fontWeight: 400, color: "#333" }}>(arrasta ficheiros ou clica · max {MAX_FILES} ficheiros · 1MB cada)</span>
+              </label>
+
+              {/* Dropzone — clickable wrapper around a hidden <input type=file>. */}
+              <label
+                onDragEnter={(e) => { e.preventDefault(); setDragActive(true); }}
+                onDragOver={(e) => { e.preventDefault(); setDragActive(true); }}
+                onDragLeave={(e) => { e.preventDefault(); setDragActive(false); }}
+                onDrop={onDrop}
+                style={{
+                  display: "block",
+                  padding: "22px 18px",
+                  borderRadius: 8,
+                  border: `1.5px dashed ${dragActive ? "rgba(122,14,24,0.6)" : "rgba(255,255,255,0.12)"}`,
+                  background: dragActive ? "rgba(122,14,24,0.06)" : "#141414",
+                  textAlign: "center",
+                  cursor: "pointer",
+                  transition: "border-color 0.12s, background 0.12s",
+                }}
+              >
+                <input
+                  type="file"
+                  multiple
+                  style={{ display: "none" }}
+                  onChange={(e) => { if (e.target.files?.length) ingestFiles(e.target.files); e.target.value = ""; }}
+                />
+                <div style={{ fontSize: 13, color: dragActive ? "#f5f5f5" : "#888", fontWeight: 500 }}>
+                  {dragActive ? "Solta para anexar" : "Arrasta ficheiros aqui ou clica"}
+                </div>
+                <div style={{ fontSize: 10, color: "#555", marginTop: 4 }}>
+                  Screenshots, PDFs, logs, etc.
+                </div>
+              </label>
+
+              {/* File chip list */}
+              {attachmentFiles.length > 0 && (
+                <div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 10 }}>
+                  {attachmentFiles.map((f, i) => {
+                    const isImg = f.type?.startsWith("image/");
+                    return (
+                      <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 12px", background: "#1a1a1a", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 6 }}>
+                        {isImg ? (
+                          <img src={f.dataUrl} alt={f.name} style={{ width: 32, height: 32, objectFit: "cover", borderRadius: 4, flexShrink: 0 }} />
+                        ) : (
+                          <div style={{ width: 32, height: 32, borderRadius: 4, background: "#262626", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 9, fontWeight: 700, color: "#888", flexShrink: 0 }}>
+                            {(f.name.split(".").pop() || "?").slice(0, 4).toUpperCase()}
+                          </div>
+                        )}
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontSize: 12, color: "#ddd", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{f.name}</div>
+                          <div style={{ fontSize: 10, color: "#555" }}>{(f.size / 1024).toFixed(0)} KB</div>
+                        </div>
+                        <button type="button" onClick={() => removeFile(i)} style={{ padding: "4px 10px", borderRadius: 4, border: "1px solid rgba(255,255,255,0.08)", background: "transparent", color: "#888", fontSize: 10, cursor: "pointer", fontFamily: "inherit" }}>
+                          Remover
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {uploadError && (
+                <div style={{ marginTop: 8, fontSize: 11, color: "#ef4444" }}>{uploadError}</div>
+              )}
+
+              {/* Optional URL field — kept for Drive / Notion links. */}
+              <input
+                type="text"
+                style={{ ...inputStyle, marginTop: 10 }}
+                placeholder="Ou cola um link (Drive, Notion, Loom...)"
+                value={form.attachments}
+                onChange={e => setForm(f => ({ ...f, attachments: e.target.value }))}
+              />
             </div>
 
             <button onClick={submitTicket} disabled={saving || !form.title.trim()}
@@ -285,9 +423,38 @@ export default function SupportPage() {
                 </div>
               ))}
 
+              {/* Uploaded files (drag-drop). Click an image to enlarge,
+                  click a non-image to download. */}
+              {Array.isArray(t.attachmentFiles) && t.attachmentFiles.length > 0 && (
+                <div style={{ marginBottom: 16, padding: "16px 18px", borderRadius: 8, background: "#141414", border: "1px solid rgba(255,255,255,0.04)" }}>
+                  <p style={{ fontSize: 10, fontWeight: 600, color: "#555", textTransform: "uppercase", letterSpacing: "0.06em", margin: "0 0 10px" }}>Ficheiros anexados</p>
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
+                    {t.attachmentFiles.map((f, i) => {
+                      const isImg = f.type?.startsWith("image/");
+                      return (
+                        <a key={i} href={f.dataUrl} download={f.name} target="_blank" rel="noopener noreferrer"
+                          style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 12px", background: "#1a1a1a", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 6, textDecoration: "none", maxWidth: 280 }}>
+                          {isImg ? (
+                            <img src={f.dataUrl} alt={f.name} style={{ width: 40, height: 40, objectFit: "cover", borderRadius: 4, flexShrink: 0 }} />
+                          ) : (
+                            <div style={{ width: 40, height: 40, borderRadius: 4, background: "#262626", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, fontWeight: 700, color: "#888", flexShrink: 0 }}>
+                              {(f.name.split(".").pop() || "?").slice(0, 4).toUpperCase()}
+                            </div>
+                          )}
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ fontSize: 12, color: "#ddd", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{f.name}</div>
+                            <div style={{ fontSize: 10, color: "#555" }}>{((f.size || 0) / 1024).toFixed(0)} KB</div>
+                          </div>
+                        </a>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
               {t.attachments && (
                 <div style={{ marginBottom: 16, padding: "12px 18px", borderRadius: 8, background: "#141414", border: "1px solid rgba(255,255,255,0.04)" }}>
-                  <p style={{ fontSize: 10, fontWeight: 600, color: "#555", textTransform: "uppercase", letterSpacing: "0.06em", margin: "0 0 6px" }}>Anexos</p>
+                  <p style={{ fontSize: 10, fontWeight: 600, color: "#555", textTransform: "uppercase", letterSpacing: "0.06em", margin: "0 0 6px" }}>Link</p>
                   <a href={t.attachments} target="_blank" rel="noopener noreferrer" style={{ fontSize: 12, color: "#3b82f6", wordBreak: "break-all" }}>{t.attachments}</a>
                 </div>
               )}

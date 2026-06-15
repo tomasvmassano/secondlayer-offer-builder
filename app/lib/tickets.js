@@ -26,6 +26,15 @@ function getRedis() {
 export async function createTicket(data) {
   const id = nanoid(9);
   const now = new Date().toISOString();
+  // attachmentFiles: array of { name, type, size, dataUrl } from the
+  // drag-drop uploader on the support page. Stored inline so the support
+  // board can render previews; capped client-side at 1MB per file × 5
+  // files so we stay within Upstash's per-value limit comfortably.
+  const attachmentFiles = Array.isArray(data.attachmentFiles)
+    ? data.attachmentFiles
+        .filter(f => f && typeof f.dataUrl === 'string' && typeof f.name === 'string')
+        .slice(0, 5)
+    : [];
   const ticket = {
     id,
     type: data.type || 'suggestion', // 'bug' | 'suggestion'
@@ -35,7 +44,12 @@ export async function createTicket(data) {
     suggestion: data.suggestion || '',
     example: data.example || '',
     attachments: data.attachments || '',
+    attachmentFiles,
     submitter: data.submitter || 'Anónimo',
+    // submitterEmail captured at submission time from the signed-in
+    // session — the resolved-email notification uses this to tell the
+    // requester when their ticket lands.
+    submitterEmail: data.submitterEmail || null,
     priority: data.priority || 'medium',
     status: 'new', // new | reviewing | building | done | wont_do
     creatorId: data.creatorId || null,
