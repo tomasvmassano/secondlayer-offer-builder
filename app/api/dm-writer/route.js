@@ -1,7 +1,29 @@
 import { NextResponse } from 'next/server';
 import { loadSkills, formatReferences } from '../../lib/skills';
 import { appendSignature } from '../../lib/operatorSignature';
-import { safeParse } from '../../lib/safeJson';
+import { safeParse, sanitizeUnpairedSurrogates, safeStringify } from '../../lib/safeJson';
+
+// Read an outbound fetch Response that might carry orphan UTF-16
+// surrogates in its JSON body (e.g. an upstream API that echoes our
+// request back inside an error). Standard `response.json()` runs the
+// strict undici validator that throws on orphans; this helper reads
+// the body as text first, scrubs orphans, and only then parses.
+async function safeResponseJson(response) {
+  const text = await response.text();
+  // sanitizeUnpairedSurrogates handles raw orphan code units in the
+  // text (decoded from UTF-8 → some characters may still be orphans if
+  // the upstream emitted them as direct UTF-16 in the body).
+  const clean = sanitizeUnpairedSurrogates(text);
+  try { return JSON.parse(clean); }
+  catch {
+    // Last-ditch: replace any remaining \uXXXX orphan escapes too,
+    // then retry. If JSON is still bad, surface a clean error.
+    const escClean = clean
+      .replace(/\\u[Dd][89AaBb][0-9A-Fa-f]{2}(?!\\u[Dd][CcDdEeFf][0-9A-Fa-f]{2})/g, '\\uFFFD')
+      .replace(/(?<!\\u[Dd][89AaBb][0-9A-Fa-f]{2})\\u[Dd][CcDdEeFf][0-9A-Fa-f]{2}/g, '\\uFFFD');
+    return JSON.parse(escClean);
+  }
+}
 
 // ─────────────────────────────────────────────────────────────────
 // DM WRITER — template-aware system prompts (A / B / C × PT / EN / ES).
@@ -1071,7 +1093,12 @@ ${stageInstruction} Follow the output format exactly. ZERO em dashes.${notesRemi
         'x-api-key': apiKey,
         'anthropic-version': '2023-06-01',
       },
-      body: JSON.stringify({
+      // safeStringify scrubs any orphan UTF-16 surrogate that survived
+      // earlier scrubs (defence in depth — userMessage is built from the
+      // parsed body, which safeParse already cleaned, but this guarantees
+      // we never POST an orphan upstream regardless of how the body got
+      // built).
+      body: safeStringify({
         model: 'claude-sonnet-4-20250514',
         max_tokens: 4000,
         system: [
@@ -1081,13 +1108,18 @@ ${stageInstruction} Follow the output format exactly. ZERO em dashes.${notesRemi
       }),
     });
 
+    // safeResponseJson handles Anthropic responses that echo our request
+    // back inside an error body — those echoes carry our orphan
+    // surrogates verbatim, and the standard response.json() would throw
+    // "no low surrogate" with the exact column number we kept seeing in
+    // the UI (24323).
     let response = await callAnthropic();
-    let data = await response.json();
+    let data = await safeResponseJson(response);
 
     if (response.status === 429) {
       await new Promise(resolve => setTimeout(resolve, 65000));
       response = await callAnthropic();
-      data = await response.json();
+      data = await safeResponseJson(response);
       if (!response.ok) {
         return NextResponse.json({
           error: 'Rate limit persistente. O Anthropic limita a 30K tokens/min no teu plano. Espera 1-2 minutos antes de tentar de novo, ou considera upgrade.',
@@ -1181,7 +1213,7 @@ Rules:
               'x-api-key': apiKey,
               'anthropic-version': '2023-06-01',
             },
-            body: JSON.stringify({
+            body: safeStringify({
               model: 'claude-sonnet-4-20250514',
               max_tokens: 1500,
               system: [{ type: 'text', text: shrinkSystem }],
@@ -1189,7 +1221,7 @@ Rules:
             }),
           });
           if (compressRes.ok) {
-            const compressData = await compressRes.json();
+            const compressData = await safeResponseJson(compressRes);
             const shrunk = (compressData.content || [])
               .filter(b => b.type === 'text')
               .map(b => b.text)
@@ -1225,6 +1257,18 @@ Rules:
 
     return NextResponse.json(result);
   } catch (err) {
-    return NextResponse.json({ error: err.message }, { status: 502 });
+    // Replace V8's cryptic "no low/high surrogate in string" message
+    // with something operators can act on. We get here when an orphan
+    // UTF-16 surrogate survives every scrub layer and a downstream
+    // JSON.parse still rejects it — extremely unlikely now that
+    // safeParse + safeStringify + safeResponseJson all run, but if it
+    // happens at least the UI shows a useful message.
+    const msg = String(err?.message || '');
+    if (/no (low|high) surrogate in string/i.test(msg)) {
+      return NextResponse.json({
+        error: 'Dados do criador têm um carácter inválido (emoji truncado pelo scrape). Faz scrape novamente OU abre o perfil do criador uma vez antes de gerar o DM — abrir o perfil limpa o registo.',
+      }, { status: 502 });
+    }
+    return NextResponse.json({ error: msg || 'Generation failed' }, { status: 502 });
   }
 }
