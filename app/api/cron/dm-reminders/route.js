@@ -66,6 +66,21 @@ export async function GET(request) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
+  // CATCHUP MODE
+  // ?catchup=1&forEmail=<operator@informallabs.com> turns the daily cron
+  // into a one-off comprehensive backfill for a single operator:
+  //   • Ignores the remindersSent gate — surfaces EVERY overdue follow-up,
+  //     including ones the daily cron previously emailed about.
+  //   • READ-ONLY — does not mark remindersSent or auto-cold so future
+  //     daily runs are unaffected.
+  //   • Sends the digest only to the target operator. Subject prefixed
+  //     "[CATCHUP] " so it's obviously distinct from the daily one.
+  // Cold + signed + replied creators are excluded by the same filters
+  // the daily run uses — Frio creators never appear in the catchup either.
+  const { searchParams } = new URL(request.url);
+  const isCatchup = searchParams.get('catchup') === '1';
+  const forEmail = (searchParams.get('forEmail') || '').toLowerCase();
+
   const now = new Date();
   const summaries = await listCreators();
   // Active = prospect status, not signed, not already cold.
@@ -114,21 +129,30 @@ export async function GET(request) {
     const remindersSent = out.remindersSent || {};
 
     // Auto-cold: 21+ days, 3 follow-ups done OR exhausted reminders.
+    // In CATCHUP mode this is read-only — surface the bucket but don't
+    // mutate the creator (otherwise running catchup would silently mark
+    // a bunch of stale prospects cold, which the operator may want to
+    // review first).
     if (days >= AUTO_COLD_DAYS) {
       cooled.push({ id: c.id, name: c.name, daysSinceDM: days });
-      await updateCreator(c.id, {
-        pipelineStatus: 'cold',
-        outreach: { ...out, remindersSent: { ...remindersSent, autoCold: now.toISOString() } },
-      }).catch(() => null);
+      if (!isCatchup) {
+        await updateCreator(c.id, {
+          pipelineStatus: 'cold',
+          outreach: { ...out, remindersSent: { ...remindersSent, autoCold: now.toISOString() } },
+        }).catch(() => null);
+      }
       buckets.autoCold.push({ id: c.id, name: c.name, niche: c.niche, daysSinceDM: days, ownerEmail });
       continue;
     }
 
     // Pick the highest-priority bucket the creator qualifies for (last touch > value drop > soft nudge).
+    // CATCHUP MODE drops the remindersSent gate — we want to see every overdue
+    // follow-up even if the daily cron already emailed about it before.
     let matched = null;
     for (const key of ['lastTouch', 'valueDrop', 'softNudge']) {
       const cfg = CADENCE[key];
-      if (days >= cfg.day && followUpsDone <= cfg.followUpsDoneCap && !remindersSent[cfg.reminderKey]) {
+      const alreadyReminded = !isCatchup && remindersSent[cfg.reminderKey];
+      if (days >= cfg.day && followUpsDone <= cfg.followUpsDoneCap && !alreadyReminded) {
         matched = { key, cfg };
         break;
       }
@@ -167,12 +191,16 @@ export async function GET(request) {
 
     // Mark this reminder as sent for this creator → cron never re-pings the
     // same milestone (unless the operator advances follow-ups manually).
-    await updateCreator(c.id, {
-      outreach: {
-        ...out,
-        remindersSent: { ...remindersSent, [matched.cfg.reminderKey]: now.toISOString() },
-      },
-    }).catch(() => null);
+    // CATCHUP: skip this write so the catchup is fully read-only; the next
+    // daily run still sees the same state and behaves identically.
+    if (!isCatchup) {
+      await updateCreator(c.id, {
+        outreach: {
+          ...out,
+          remindersSent: { ...remindersSent, [matched.cfg.reminderKey]: now.toISOString() },
+        },
+      }).catch(() => null);
+    }
   }
 
   const totalDue = buckets.lastTouch.length + buckets.valueDrop.length + buckets.softNudge.length;
@@ -192,8 +220,16 @@ export async function GET(request) {
   // only the creators they own (addedBy.email match), PLUS any creators
   // with no owner attribution (those go to everyone so the gap stays
   // visible). Operators with nothing actionable skip the email entirely.
+  // CATCHUP MODE: restrict to a single operator (forEmail param) so we
+  // don't accidentally re-email everyone with a giant catchup.
   const perOperator = [];
-  for (const op of OPERATORS) {
+  const targetOps = isCatchup
+    ? OPERATORS.filter(op => op.email.toLowerCase() === forEmail)
+    : OPERATORS;
+  if (isCatchup && targetOps.length === 0) {
+    return NextResponse.json({ error: `catchup requires forEmail to match a known operator. got: ${forEmail || '(empty)'}` }, { status: 400 });
+  }
+  for (const op of targetOps) {
     const view = filterForOperator(buckets, op.email);
     const opTotalDue = view.lastTouch.length + view.valueDrop.length + view.softNudge.length;
     const actionable = opTotalDue > 0 || view.noDm.length > 0 || view.autoCold.length > 0;
@@ -202,7 +238,7 @@ export async function GET(request) {
       continue;
     }
     try {
-      await sendDigest(op, view, { ...stats, opTotalDue });
+      await sendDigest(op, view, { ...stats, opTotalDue }, { catchup: isCatchup });
       perOperator.push({
         email: op.email,
         sent: true,
@@ -298,7 +334,7 @@ function pickStoredFollowUpEmail(creator, milestoneKey) {
 // creators they own. The greeting + subject are personalised so the email
 // reads like it was written for that person. Ambiguous (no-owner) creators
 // are included in every operator's digest until somebody assigns them.
-async function sendDigest(operator, buckets, stats) {
+async function sendDigest(operator, buckets, stats, opts = {}) {
   const apiKey = process.env.RESEND_API_KEY;
   if (!apiKey) {
     console.warn(`[dm-reminders] RESEND_API_KEY missing — digest for ${operator.email} not sent`);
@@ -314,7 +350,8 @@ async function sendDigest(operator, buckets, stats) {
   if (buckets.valueDrop.length) subjectBits.push(`${buckets.valueDrop.length} value drops`);
   if (buckets.softNudge.length) subjectBits.push(`${buckets.softNudge.length} soft nudges`);
   if (buckets.autoCold.length)  subjectBits.push(`${buckets.autoCold.length} cooled`);
-  const subject = `[Second Layer] Os teus reminders · ${subjectBits.join(' · ') || 'apenas update'}`;
+  const subjectPrefix = opts.catchup ? '[CATCHUP] ' : '';
+  const subject = `${subjectPrefix}[Second Layer] Os teus reminders · ${subjectBits.join(' · ') || 'apenas update'}`;
 
   // Compact text row — used for noDm / autoCold sections that don't need
   // copy-paste payloads. The "due" sections render a richer per-creator
