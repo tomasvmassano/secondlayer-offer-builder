@@ -81,6 +81,28 @@ export async function GET(request) {
   const isCatchup = searchParams.get('catchup') === '1';
   const forEmail = (searchParams.get('forEmail') || '').toLowerCase();
 
+  // CATCHUP RATE-LIMIT.
+  // The catchup endpoint sends one email per invocation. A runaway client
+  // (e.g. a polling loop that hits the URL faster than Vercel's function
+  // duration) can cause N invocations all running to completion server-
+  // side, sending N emails to the operator. Happened once already — never
+  // again. Per-operator in-memory lock with 5min TTL, stored on globalThis
+  // so it survives across warm invocations on the same function instance.
+  // Not 100% reliable across cold starts / multi-instance routing, but
+  // catches the realistic accidental-burst case.
+  if (isCatchup && forEmail) {
+    globalThis.__slCatchupLocks ||= new Map();
+    const lastFiredAt = globalThis.__slCatchupLocks.get(forEmail);
+    if (lastFiredAt && (Date.now() - lastFiredAt) < 5 * 60 * 1000) {
+      const ageS = Math.round((Date.now() - lastFiredAt) / 1000);
+      return NextResponse.json({
+        error: `catchup recently fired for ${forEmail} (${ageS}s ago). Wait ${300 - ageS}s before retrying.`,
+        rateLimited: true,
+      }, { status: 429 });
+    }
+    globalThis.__slCatchupLocks.set(forEmail, Date.now());
+  }
+
   const now = new Date();
   const summaries = await listCreators();
   // Active = prospect status, not signed, not already cold.
