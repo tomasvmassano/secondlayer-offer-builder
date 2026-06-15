@@ -2,6 +2,45 @@ import { Redis } from '@upstash/redis';
 import { nanoid } from 'nanoid';
 import { calculateDealScore } from './dealScore';
 import { normalizeOperatorName } from './auth';
+import { sanitizeUnpairedSurrogates } from './safeJson';
+
+// Recursively scrub unpaired UTF-16 surrogates from every string in a
+// creator record. Apify occasionally truncates scraped Instagram strings
+// (bio, captions, comments) mid-emoji, leaving an orphan high or low
+// surrogate behind. That orphan survives storage in Redis and breaks
+// downstream JSON.parse on any route that POSTs the creator profile
+// (dm-writer first hit it). We heal at read time: walk the tree, replace
+// orphans with U+FFFD (◇), and report whether anything changed so the
+// caller can persist the cleaned record back. Mutates `node` in place
+// for efficiency. Returns `true` if any string was modified.
+function scrubSurrogatesInPlace(node, ctx = { changed: false }) {
+  if (node == null) return ctx.changed;
+  if (typeof node === 'string') return ctx.changed;
+  if (Array.isArray(node)) {
+    for (let i = 0; i < node.length; i++) {
+      const v = node[i];
+      if (typeof v === 'string') {
+        const cleaned = sanitizeUnpairedSurrogates(v);
+        if (cleaned !== v) { node[i] = cleaned; ctx.changed = true; }
+      } else if (v && typeof v === 'object') {
+        scrubSurrogatesInPlace(v, ctx);
+      }
+    }
+    return ctx.changed;
+  }
+  if (typeof node === 'object') {
+    for (const k of Object.keys(node)) {
+      const v = node[k];
+      if (typeof v === 'string') {
+        const cleaned = sanitizeUnpairedSurrogates(v);
+        if (cleaned !== v) { node[k] = cleaned; ctx.changed = true; }
+      } else if (v && typeof v === 'object') {
+        scrubSurrogatesInPlace(v, ctx);
+      }
+    }
+  }
+  return ctx.changed;
+}
 
 // Build the denormalised summary that goes into the creators:index sorted
 // set. This is what listCreators returns — keep it cheap to deserialise but
@@ -258,6 +297,21 @@ export async function getCreator(id) {
     creator = typeof raw === 'string' ? JSON.parse(raw) : raw;
   }
   if (!creator) return null;
+
+  // Heal orphan UTF-16 surrogates left in the record by emoji-truncated
+  // scrape data (see scrubSurrogatesInPlace above). Mutates the cloned
+  // object in place; if anything changed, persist back so the next read
+  // pays nothing and downstream consumers (dm-writer, audit, oferta) see
+  // clean data. Best-effort write — a failed persist still returns the
+  // clean in-memory copy to the caller.
+  const surrogateChanged = scrubSurrogatesInPlace(creator);
+  if (surrogateChanged) {
+    if (useMemory()) {
+      memStore.set(`creator:${id}`, JSON.stringify(creator));
+    } else {
+      try { await getRedis().set(`creator:${id}`, JSON.stringify(creator)); } catch { /* best-effort */ }
+    }
+  }
 
   // Backfill onboarding for legacy creators signed before Phase 1.
   if (!creator.onboarding?.token) {
