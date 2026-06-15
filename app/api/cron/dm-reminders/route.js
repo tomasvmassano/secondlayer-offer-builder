@@ -16,8 +16,9 @@ export const maxDuration = 60;
 // fell into the "no owner" bucket. Fix 2026-05-23: canonicalise the
 // firstName (lowercase + strip diacritics) and look up via FIRSTNAME_TO_EMAIL.
 const OPERATORS = [
-  { email: 'tomas@informallabs.com', firstName: 'Tomás' },
-  { email: 'raul@informallabs.com',  firstName: 'Raul'  },
+  { email: 'tomas@informallabs.com',    firstName: 'Tomás'    },
+  { email: 'raul@informallabs.com',     firstName: 'Raul'     },
+  { email: 'carolina@informallabs.com', firstName: 'Carolina' },
 ];
 // Lowercase + diacritics stripped, mirrors canonicalKey() in lib/teamStats so
 // "Tomás" and "Tomas" both resolve correctly regardless of which form the
