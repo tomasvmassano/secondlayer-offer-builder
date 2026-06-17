@@ -370,161 +370,80 @@ async function sendDigest(operator, buckets, stats, opts = {}) {
 
   const lisbonTime = new Date(stats.timestamp).toLocaleString('pt-PT', { timeZone: 'Europe/Lisbon', dateStyle: 'medium', timeStyle: 'short' });
 
-  // Subject summarises severity for THIS operator. Falls back to "apenas
-  // update" when only informational sections (noDm / autoCold) fired.
-  const subjectBits = [];
-  if (buckets.lastTouch.length) subjectBits.push(`${buckets.lastTouch.length} críticos`);
-  if (buckets.valueDrop.length) subjectBits.push(`${buckets.valueDrop.length} value drops`);
-  if (buckets.softNudge.length) subjectBits.push(`${buckets.softNudge.length} soft nudges`);
-  if (buckets.autoCold.length)  subjectBits.push(`${buckets.autoCold.length} cooled`);
+  // ── Email is now a REMINDER ONLY ──
+  // The actual click-to-copy + open-IG work moved into the in-app
+  // floating tray on /creators. The email's job is to surface the
+  // operator-specific count so they remember to open the hub. Keeps
+  // mobile inboxes uncluttered and removes the mismatch where clicking
+  // a stale email link could advance a creator twice.
+  const headlineCount = stats.opTotalDue ?? stats.totalDue ?? 0;
   const subjectPrefix = opts.catchup ? '[CATCHUP] ' : '';
-  const subject = `${subjectPrefix}[Second Layer] Os teus reminders · ${subjectBits.join(' · ') || 'apenas update'}`;
-
-  // Compact text row — used for noDm / autoCold sections that don't need
-  // copy-paste payloads. The "due" sections render a richer per-creator
-  // card via fmtCardText / fmtCardHtml below.
-  const fmtRow = (c) => `• ${c.name}${c.niche ? ' · ' + c.niche : ''}${c.followers ? ' · ' + c.followers.toLocaleString() + ' followers' : ''} · DM enviada há ${c.daysSinceDM} dias${c.followUpsDone ? ' · ' + c.followUpsDone + ' follow-ups feitos' : ''}${c.ownerEmail ? '' : ' · ⚠ sem owner'}`;
-  const fmtRowHtml = (c) => `<li style="margin-bottom: 6px;"><a href="${HUB_BASE}/creators/${c.id}?tab=dm" style="color: #f5f5f5; text-decoration: none; font-weight: 600;">${escape(c.name)}</a> <span style="color: #888;">${c.niche ? '· ' + escape(c.niche) : ''}${c.followers ? ' · ' + c.followers.toLocaleString() + ' followers' : ''} · DM há ${c.daysSinceDM} dias${c.followUpsDone ? ' · ' + c.followUpsDone + ' follow-ups' : ''}${c.ownerEmail ? '' : ' · <span style="color:#eab308;">⚠ sem owner</span>'}</span></li>`;
-
-  // Rich card — for soft-nudge / value-drop / last-touch creators. Includes
-  // an Instagram button (clickable on most mobile mail apps) and the
-  // pre-canned follow-up DM in a monospace box that's easy to copy.
-  // When a stored email (day 7 / day 14) exists, we also surface its
-  // subject + body in a second copy block.
-  const fmtCardText = (c) => {
-    const lines = [];
-    lines.push(`• ${c.name}${c.niche ? ' · ' + c.niche : ''}${c.followers ? ' · ' + c.followers.toLocaleString() + ' followers' : ''} · DM há ${c.daysSinceDM} dias${c.followUpsDone ? ' · ' + c.followUpsDone + ' follow-ups' : ''}${c.ownerEmail ? '' : ' · ⚠ sem owner'}`);
-    if (c.igUrl) lines.push(`  Instagram: ${c.igUrl}`);
-    lines.push(`  Hub: ${HUB_BASE}/creators/${c.id}?tab=dm`);
-    if (c.followUpDm) {
-      lines.push(`  ── DM follow-up (copia) ──`);
-      c.followUpDm.split('\n').forEach(l => lines.push(`  ${l}`));
-    }
-    if (c.followUpEmail?.body) {
-      lines.push(`  ── Email follow-up (copia) ──`);
-      if (c.followUpEmail.subject) lines.push(`  Subject: ${c.followUpEmail.subject}`);
-      c.followUpEmail.body.split('\n').forEach(l => lines.push(`  ${l}`));
-    }
-    return lines.join('\n');
-  };
-
-  const fmtCardHtml = (c) => {
-    // Primary buttons now point at the /r/follow-up redirect page.
-    // Click → copy text to clipboard → open Instagram or mailto:
-    // (mirrors the dm-writer page's "Open Profile" pattern). Removes
-    // the manual "select the DM text, copy, then click Instagram" step
-    // operators used to do every reminder.
-    const milestone = c.milestoneKey || 'softNudge';
-    const igRedirect = c.igUrl
-      ? `${HUB_BASE}/r/follow-up?cid=${c.id}&milestone=${milestone}&channel=dm`
-      : null;
-    const emailRedirect = c.hasContactEmail
-      ? `${HUB_BASE}/r/follow-up?cid=${c.id}&milestone=${milestone}&channel=email`
-      : null;
-    const igBtn = igRedirect
-      ? `<a href="${igRedirect}" style="display: inline-block; padding: 8px 14px; background: #7A0E18; color: #fff; text-decoration: none; border-radius: 6px; font-size: 12px; font-weight: 700; margin-right: 6px; margin-bottom: 6px;">↗ Copiar DM + abrir Instagram</a>`
-      : '';
-    const emailBtn = emailRedirect
-      ? `<a href="${emailRedirect}" style="display: inline-block; padding: 8px 14px; background: #18181b; color: #eab308; text-decoration: none; border: 1px solid rgba(234,179,8,0.4); border-radius: 6px; font-size: 12px; font-weight: 700; margin-right: 6px; margin-bottom: 6px;">↗ Copiar email + abrir mail</a>`
-      : '';
-    const hubBtn = `<a href="${HUB_BASE}/creators/${c.id}?tab=dm" style="display: inline-block; padding: 8px 14px; background: transparent; color: #888; text-decoration: none; border: 1px solid rgba(255,255,255,0.12); border-radius: 6px; font-size: 12px; font-weight: 600; margin-bottom: 6px;">Perfil no Hub</a>`;
-    // Keep the DM text inline as a fallback (in case the redirect page
-    // is unreachable or the clipboard API is blocked by the operator's
-    // browser). Operator can always manually copy from here.
-    const dmBlock = c.followUpDm ? `
-      <div style="font-size: 10px; color: #555; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; margin: 14px 0 4px;">DM follow-up · texto de fallback</div>
-      <pre style="font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; color: #aaa; background: #050505; border: 1px solid rgba(255,255,255,0.06); border-radius: 6px; padding: 12px 14px; margin: 0; white-space: pre-wrap; line-height: 1.55;">${escape(c.followUpDm)}</pre>` : '';
-    const emailBlock = c.followUpEmail?.body ? `
-      <div style="font-size: 10px; color: #555; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; margin: 14px 0 4px;">Email follow-up · texto de fallback${c.followUpEmail.subject ? ' · ' + escape(c.followUpEmail.subject) : ''}</div>
-      <pre style="font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; color: #aaa; background: #050505; border: 1px solid rgba(255,255,255,0.06); border-radius: 6px; padding: 12px 14px; margin: 0; white-space: pre-wrap; line-height: 1.55;">${escape(c.followUpEmail.body)}</pre>` : '';
-    return `
-    <div style="background: #111; border: 1px solid rgba(255,255,255,0.06); border-radius: 10px; padding: 16px 18px; margin-bottom: 14px;">
-      <div style="font-size: 16px; font-weight: 700; color: #f5f5f5;">${escape(c.name)}${c.ownerEmail ? '' : ' <span style="color:#eab308; font-size: 10px; font-weight: 700; letter-spacing: 0.1em;">⚠ SEM OWNER</span>'}</div>
-      <div style="font-size: 12px; color: #888; margin: 2px 0 12px;">${c.niche ? escape(c.niche) + ' · ' : ''}${c.followers ? c.followers.toLocaleString() + ' followers · ' : ''}DM há ${c.daysSinceDM} dias${c.followUpsDone ? ' · ' + c.followUpsDone + ' follow-ups' : ''}</div>
-      <div>${igBtn}${emailBtn}${hubBtn}</div>
-      ${dmBlock}
-      ${emailBlock}
-    </div>`;
-  };
+  const subject = headlineCount > 0
+    ? `${subjectPrefix}[Second Layer] ${headlineCount} follow-up${headlineCount === 1 ? '' : 's'} no hub`
+    : `${subjectPrefix}[Second Layer] Reminders · sem follow-ups hoje`;
 
   // ── Plain-text version ──
-  // Due-bucket creators render as cards (with IG link + copy-paste DM +
-  // copy-paste email when available). Informational sections (noDm /
-  // autoCold) stay compact rows. Blank line between cards for readability
-  // in plain-text mail clients.
-  const lines = [`Olá ${operator.firstName},`, ``, `Reminders dos teus creators corridos às ${lisbonTime} (Lisboa).`, ``];
-  if (buckets.lastTouch.length) {
-    lines.push(`⚠️  ÚLTIMO TOQUE — dia 14 (${buckets.lastTouch.length})`);
-    lines.push(`Envia DM #3 e Email #3 (último contacto). Se não responder até dia 21, vai automaticamente para cold.`);
+  const lines = [
+    `Olá ${operator.firstName},`,
+    ``,
+    headlineCount === 0
+      ? `Não tens follow-ups pendentes hoje.`
+      : `Tens ${headlineCount} follow-up${headlineCount === 1 ? '' : 's'} para fazer hoje.`,
+    ``,
+  ];
+  if (buckets.lastTouch.length) lines.push(`• ${buckets.lastTouch.length} dia 14 (último toque)`);
+  if (buckets.valueDrop.length) lines.push(`• ${buckets.valueDrop.length} dia 7 (value drop)`);
+  if (buckets.softNudge.length) lines.push(`• ${buckets.softNudge.length} dia 3 (soft nudge)`);
+  if (headlineCount > 0) {
     lines.push('');
-    buckets.lastTouch.forEach(c => { lines.push(fmtCardText(c)); lines.push(''); });
-  }
-  if (buckets.valueDrop.length) {
-    lines.push(`🟠 VALUE DROP — dia 7 (${buckets.valueDrop.length})`);
-    lines.push(`Envia DM #2 e Email #2. Drop de valor concreto (caso, número).`);
+    lines.push(`Abre o CRM e usa o widget no canto inferior direito — clica num follow-up para copiar a mensagem e abrir o Instagram automaticamente.`);
     lines.push('');
-    buckets.valueDrop.forEach(c => { lines.push(fmtCardText(c)); lines.push(''); });
-  }
-  if (buckets.softNudge.length) {
-    lines.push(`🟢 SOFT NUDGE — dia 3 (${buckets.softNudge.length})`);
-    lines.push(`Envia DM #1 follow-up + Email #1 follow-up. Referência um post recente, sem pressão.`);
-    lines.push('');
-    buckets.softNudge.forEach(c => { lines.push(fmtCardText(c)); lines.push(''); });
+    lines.push(`Hub: ${HUB_BASE}/creators`);
   }
   if (buckets.noDm.length) {
-    lines.push(`📭 SEM DM AINDA (${buckets.noDm.length})`);
-    lines.push(`Creators no CRM há ≥1 dia sem outreach. Gera DM ou marca como skip.`);
-    buckets.noDm.forEach(c => lines.push(`• ${c.name}${c.niche ? ' · ' + c.niche : ''}${c.followers ? ' · ' + c.followers.toLocaleString() + ' followers' : ''} · adicionado há ${c.ageDays} dias`));
     lines.push('');
+    lines.push(`📭 ${buckets.noDm.length} creator${buckets.noDm.length === 1 ? '' : 's'} sem DM ainda (informativo).`);
+    buckets.noDm.slice(0, 8).forEach(c => lines.push(`  • ${c.name}${c.niche ? ' · ' + c.niche : ''} · adicionado há ${c.ageDays}d`));
+    if (buckets.noDm.length > 8) lines.push(`  … e mais ${buckets.noDm.length - 8}`);
   }
   if (buckets.autoCold.length) {
-    lines.push(`❄️  AUTO-COLD (${buckets.autoCold.length})`);
-    lines.push(`Movidos para cold automaticamente — 21+ dias sem resposta. Já não aparecem em reminders.`);
-    buckets.autoCold.forEach(c => lines.push(`• ${c.name}${c.niche ? ' · ' + c.niche : ''} · DM há ${c.daysSinceDM} dias`));
     lines.push('');
+    lines.push(`❄️ ${buckets.autoCold.length} auto-cooled hoje (21+ dias sem resposta).`);
   }
-  lines.push(`Hub: ${HUB_BASE}/creators`);
   const text = lines.join('\n');
 
   // ── HTML version ──
-  // Two section renderers:
-  //   - `section()` for compact <li> rows (noDm / autoCold)
-  //   - `cardSection()` for the due-bucket cards with IG button + copy blocks
-  const section = (color, title, hint, items, fmt) => items.length === 0 ? '' : `
-    <h3 style="font-size: 11px; color: ${color}; letter-spacing: 0.16em; text-transform: uppercase; margin: 28px 0 4px;">${title} <span style="color: #888; font-weight: 400;">· ${items.length}</span></h3>
-    <p style="font-size: 13px; color: #888; margin: 0 0 12px;">${hint}</p>
-    <ul style="padding-left: 16px; margin: 0; list-style: disc; font-size: 13px; color: #f5f5f5;">${items.map(fmt).join('')}</ul>`;
+  // Big count, three counters, one button. That's the entire email now.
+  const counterRow = (color, label, n) => n === 0 ? '' : `
+    <div style="display: inline-block; padding: 10px 16px; margin: 0 8px 8px 0; background: rgba(255,255,255,0.03); border: 1px solid ${color}33; border-radius: 8px;">
+      <div style="font-size: 22px; font-weight: 700; color: ${color}; line-height: 1;">${n}</div>
+      <div style="font-size: 10px; color: #888; margin-top: 4px; letter-spacing: 0.06em; text-transform: uppercase;">${label}</div>
+    </div>`;
 
-  const cardSection = (color, title, hint, items) => items.length === 0 ? '' : `
-    <h3 style="font-size: 11px; color: ${color}; letter-spacing: 0.16em; text-transform: uppercase; margin: 28px 0 4px;">${title} <span style="color: #888; font-weight: 400;">· ${items.length}</span></h3>
-    <p style="font-size: 13px; color: #888; margin: 0 0 14px;">${hint}</p>
-    ${items.map(fmtCardHtml).join('')}`;
-
-  // Headline uses opTotalDue — the count for THIS operator's filtered view,
-  // not the team-wide total. Falls back to 0 for legacy callers that pass
-  // the old stats shape.
-  const headlineCount = stats.opTotalDue ?? stats.totalDue ?? 0;
-  const html = `<div style="font-family: -apple-system, BlinkMacSystemFont, 'Inter', sans-serif; color: #f5f5f5; background: #0a0a0a; padding: 32px 28px; max-width: 640px;">
+  const html = `<div style="font-family: -apple-system, BlinkMacSystemFont, 'Inter', sans-serif; color: #f5f5f5; background: #0a0a0a; padding: 32px 28px; max-width: 560px;">
   <div style="font-size: 9px; color: #B11E2F; font-weight: 700; letter-spacing: 0.18em; text-transform: uppercase;">● Reminders · ${escape(operator.firstName)}</div>
-  <h1 style="font-size: 32px; font-weight: 700; margin: 8px 0 4px; color: #f5f5f5; letter-spacing: -0.02em;">${headlineCount} follow-up${headlineCount === 1 ? '' : 's'} ${headlineCount === 1 ? 'devido hoje' : 'devidos hoje'}</h1>
-  <p style="font-size: 13px; color: #888; margin: 0;">${lisbonTime} · Lisboa · Só os teus creators</p>
+  <h1 style="font-size: 36px; font-weight: 700; margin: 8px 0 4px; color: #f5f5f5; letter-spacing: -0.02em;">${headlineCount === 0 ? 'Tudo em dia ✓' : `${headlineCount} follow-up${headlineCount === 1 ? '' : 's'} hoje`}</h1>
+  <p style="font-size: 13px; color: #888; margin: 0 0 24px;">${lisbonTime} · Lisboa · Só os teus creators</p>
 
-  ${cardSection('#ef4444', '⚠️ Último toque · dia 14', 'Envia DM #3 e Email #3. Se não responder em 7 dias, vai automaticamente para cold.', buckets.lastTouch)}
-  ${cardSection('#eab308', '🟠 Value drop · dia 7', 'Envia DM #2 e Email #2. Drop de valor concreto — caso, número, prova.', buckets.valueDrop)}
-  ${cardSection('#22c55e', '🟢 Soft nudge · dia 3', 'Envia DM #1 follow-up + Email #1 follow-up. Referência um post recente, sem pressão.', buckets.softNudge)}
+  ${headlineCount === 0 ? '' : `
+    <div style="margin: 4px 0 22px;">
+      ${counterRow('#ea580c', 'Dia 14',  buckets.lastTouch.length)}
+      ${counterRow('#f97316', 'Dia 7',   buckets.valueDrop.length)}
+      ${counterRow('#f59e0b', 'Dia 3',   buckets.softNudge.length)}
+    </div>
+    <p style="font-size: 14px; color: #ccc; margin: 0 0 22px; line-height: 1.55;">Abre o CRM e clica no widget no canto inferior direito. Cada follow-up copia a mensagem e abre o Instagram automaticamente — sem mais cliques.</p>
+    <p style="margin: 0 0 32px;"><a href="${HUB_BASE}/creators" style="display: inline-block; padding: 12px 22px; background: #B11E2F; color: #fff; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 14px;">Abrir CRM e fazer follow-ups</a></p>
+  `}
+  ${headlineCount === 0 ? `<p style="font-size: 14px; color: #888; margin: 0 0 24px;">Sem follow-ups pendentes para ti hoje. Bom dia.</p>` : ''}
 
   ${buckets.noDm.length === 0 ? '' : `
     <h3 style="font-size: 11px; color: #3b82f6; letter-spacing: 0.16em; text-transform: uppercase; margin: 28px 0 4px;">📭 Sem DM ainda <span style="color: #888; font-weight: 400;">· ${buckets.noDm.length}</span></h3>
-    <p style="font-size: 13px; color: #888; margin: 0 0 12px;">Creators no CRM há ≥1 dia sem outreach.</p>
-    <ul style="padding-left: 16px; margin: 0; list-style: disc; font-size: 13px; color: #f5f5f5;">${buckets.noDm.map(c => `<li style="margin-bottom: 6px;"><a href="${HUB_BASE}/creators/${c.id}?tab=dm" style="color: #f5f5f5; text-decoration: none; font-weight: 600;">${escape(c.name)}</a> <span style="color: #888;">${c.niche ? '· ' + escape(c.niche) : ''}${c.followers ? ' · ' + c.followers.toLocaleString() + ' followers' : ''} · adicionado há ${c.ageDays} dias</span></li>`).join('')}</ul>`}
+    <p style="font-size: 12px; color: #888; margin: 0 0 12px;">Creators no CRM há ≥1 dia sem outreach. Não contam como follow-ups mas vale a pena fechar.</p>
+    <ul style="padding-left: 16px; margin: 0; list-style: disc; font-size: 12px; color: #ccc;">${buckets.noDm.slice(0, 10).map(c => `<li style="margin-bottom: 4px;"><a href="${HUB_BASE}/creators/${c.id}?tab=dm" style="color: #ccc; text-decoration: none;">${escape(c.name)}</a> <span style="color: #666;">${c.niche ? '· ' + escape(c.niche) : ''} · há ${c.ageDays}d</span></li>`).join('')}${buckets.noDm.length > 10 ? `<li style="color:#555;">… e mais ${buckets.noDm.length - 10}</li>` : ''}</ul>`}
 
   ${buckets.autoCold.length === 0 ? '' : `
     <h3 style="font-size: 11px; color: #555; letter-spacing: 0.16em; text-transform: uppercase; margin: 28px 0 4px;">❄️ Auto-cold <span style="color: #555; font-weight: 400;">· ${buckets.autoCold.length}</span></h3>
-    <p style="font-size: 13px; color: #888; margin: 0 0 12px;">21+ dias sem resposta. Movidos automaticamente.</p>
-    <ul style="padding-left: 16px; margin: 0; list-style: disc; font-size: 12px; color: #888;">${buckets.autoCold.map(c => `<li>${escape(c.name)}${c.niche ? ' · ' + escape(c.niche) : ''} · DM há ${c.daysSinceDM} dias</li>`).join('')}</ul>`}
-
-  <p style="margin-top: 32px;"><a href="${HUB_BASE}/creators" style="display: inline-block; padding: 10px 18px; background: #B11E2F; color: #fff; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 13px;">Abrir CRM</a></p>
-  <p style="font-size: 11px; color: #555; margin-top: 24px;">Marcaste sent? Marca o follow-up no creator para a próxima rodada não voltar a aparecer. Quando o criador responder, clica em "Marcar respondeu" — pára todos os reminders desse creator.</p>
+    <p style="font-size: 12px; color: #888; margin: 0;">21+ dias sem resposta. Movidos automaticamente para Frio.</p>`}
 </div>`;
 
   const res = await fetch('https://api.resend.com/emails', {

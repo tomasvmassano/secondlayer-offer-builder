@@ -22,6 +22,13 @@
 export const STAGES = [
   { key: 'por_contactar',         label: 'Por contactar',         accent: '#666',    description: 'Add criado · sem outreach' },
   { key: 'em_outreach',           label: 'Em outreach',           accent: '#eab308', description: 'DM/email enviado · sem resposta' },
+  // Three follow-up windows BETWEEN initial outreach and a real reply.
+  // A card lands in the matching column the moment its follow-up message
+  // is copied — the in-app tray records the touch. The cron email is now
+  // just a per-operator reminder count; the work itself happens here.
+  { key: 'followup_3',            label: 'Follow-up · dia 3',     accent: '#f59e0b', description: '1º follow-up enviado · à espera' },
+  { key: 'followup_7',            label: 'Follow-up · dia 7',     accent: '#f97316', description: '2º follow-up enviado · à espera' },
+  { key: 'followup_14',           label: 'Follow-up · dia 14',    accent: '#ea580c', description: 'Último toque · 7 dias até Frio' },
   { key: 'contacto_feito',        label: 'Contacto feito',        accent: '#3b82f6', description: 'Respondeu · pronto para Loom' },
   { key: 'pediu_loom',            label: 'Pediu Loom',            accent: '#a855f7', description: 'Pediu Loom personalizado' },
   { key: 'loom_enviado',          label: 'Loom enviado',          accent: '#c084fc', description: 'Loom entregue · à espera de resposta' },
@@ -32,6 +39,23 @@ export const STAGES = [
 
 export const STAGE_KEYS = STAGES.map(s => s.key);
 export const STAGE_INDEX = Object.fromEntries(STAGES.map((s, i) => [s.key, i]));
+
+// Follow-up stage ↔ cron-milestone mapping. Single source of truth so
+// the tray, the Kanban, and the cron all agree which "dia X" matches
+// which template ('softNudge' / 'valueDrop' / 'lastTouch').
+export const FOLLOWUP_STAGE_TO_MILESTONE = {
+  followup_3:  'softNudge',
+  followup_7:  'valueDrop',
+  followup_14: 'lastTouch',
+};
+export const MILESTONE_TO_FOLLOWUP_STAGE = {
+  softNudge:  'followup_3',
+  valueDrop:  'followup_7',
+  lastTouch:  'followup_14',
+};
+// Day-14 follow-up + N days with no reply → silent move to Frio.
+// Drives the auto-Frio rule in computeOutreachStage AND the cron buckets.
+export const DAYS_FROM_DAY14_TO_FRIO = 7;
 
 /**
  * Compute current stage from creator data. Walk LATEST signal first so a
@@ -61,6 +85,11 @@ export function computeOutreachStage(creator) {
   const repliedAt       = o.repliedAt     || creator.repliedAt;
   const dmSentAt        = o.dmSentAt      || creator.dmSentAt;
   const emailSentAt     = o.emailSentAt   || creator.emailSentAt;
+  // Follow-up counter — tolerant of both shapes (summary flattens it,
+  // full record keeps it nested under outreach). Defaults to 0 so
+  // pre-follow-up records keep landing in em_outreach.
+  const followUpsDone   = Number(o.followUpsDone ?? creator.followUpsDone ?? 0);
+  const lastFollowUpAt  = o.lastFollowUpAt || creator.lastFollowUpAt || null;
 
   if (notInterestedAt)              return 'frio';
   if (pitchSentAt)                  return 'apresentacao_enviada';
@@ -69,6 +98,16 @@ export function computeOutreachStage(creator) {
   if (loomSentAt)                   return 'loom_enviado';
   if (loomRequestedAt)              return 'pediu_loom';
   if (repliedAt)                    return 'contacto_feito';
+  // Day-14 follow-up was sent and N days passed with no reply → Frio.
+  // This is the "silent move" the operator asked for: no manual action
+  // needed, the creator just slips into Frio after the cooling period.
+  if (followUpsDone >= 3 && lastFollowUpAt) {
+    const ms = Date.now() - new Date(lastFollowUpAt).getTime();
+    if (ms >= DAYS_FROM_DAY14_TO_FRIO * 86_400_000) return 'frio';
+  }
+  if (followUpsDone >= 3)           return 'followup_14';
+  if (followUpsDone === 2)          return 'followup_7';
+  if (followUpsDone === 1)          return 'followup_3';
   if (dmSentAt || emailSentAt)      return 'em_outreach';
   return 'por_contactar';
 }
@@ -103,6 +142,7 @@ export function stagePatch(creator, targetStage) {
         outreach: {
           dmSentAt: null, emailSentAt: null,
           repliedAt: null, repliedChannel: null,
+          followUps: [], followUpsDone: 0, lastFollowUpAt: null,
           loomRequestedAt: null, loomSentAt: null,
           callBookedAt: null, callAgreedAt: null, callHeldAt: null,
           notInterestedAt: null,
@@ -116,12 +156,52 @@ export function stagePatch(creator, targetStage) {
         outreach: {
           dmSentAt: getOutreach('dmSentAt') || now,
           repliedAt: null, repliedChannel: null,
+          // Drag back from any follow-up column → zero out follow-ups so
+          // computeOutreachStage classifies the card as em_outreach again.
+          followUps: [], followUpsDone: 0, lastFollowUpAt: null,
           loomRequestedAt: null, loomSentAt: null,
           callBookedAt: null, callAgreedAt: null, callHeldAt: null,
           notInterestedAt: null,
         },
         pitch: { sentAt: null },
       };
+    case 'followup_3':
+    case 'followup_7':
+    case 'followup_14': {
+      // Land the card with exactly the right follow-up count so the
+      // derivation in computeOutreachStage matches the target column.
+      // Drag forwards: append synthetic entries (channel='unknown').
+      // Drag backwards: truncate.
+      const targetLen = targetStage === 'followup_3' ? 1
+                       : targetStage === 'followup_7' ? 2 : 3;
+      const existing = Array.isArray(getOutreach('followUps')) ? getOutreach('followUps') : [];
+      const trimmed = existing.slice(0, targetLen);
+      const milestoneFor = ['softNudge', 'valueDrop', 'lastTouch'];
+      while (trimmed.length < targetLen) {
+        trimmed.push({
+          channel: 'unknown',
+          at: now,
+          by: null,
+          milestone: milestoneFor[trimmed.length],
+          source: 'drag',
+        });
+      }
+      const last = trimmed[trimmed.length - 1];
+      return {
+        pipelineStatus: 'prospect',
+        outreach: {
+          dmSentAt: getOutreach('dmSentAt') || now,
+          repliedAt: null, repliedChannel: null,
+          followUps: trimmed,
+          followUpsDone: trimmed.length,
+          lastFollowUpAt: last?.at || now,
+          loomRequestedAt: null, loomSentAt: null,
+          callBookedAt: null, callAgreedAt: null, callHeldAt: null,
+          notInterestedAt: null,
+        },
+        pitch: { sentAt: null },
+      };
+    }
     case 'contacto_feito':
       return {
         pipelineStatus: 'prospect',

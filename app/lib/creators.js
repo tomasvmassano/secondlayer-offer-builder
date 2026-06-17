@@ -75,10 +75,17 @@ function buildSummary(creator, createdAt) {
     notInterestedAt: creator.outreach?.notInterestedAt || null,
     pitchSentAt:     creator.pitch?.sentAt             || null,
     profilePicUrl:   creator.profilePicUrl             || null,
+    // Follow-up state — needed by the Kanban so cards land in the right
+    // dia-3/7/14 column without fetching the full record, and by the
+    // floating tray so it can filter to "what's due for me".
+    followUpsDone:   Number(creator.outreach?.followUpsDone) || (Array.isArray(creator.outreach?.followUps) ? creator.outreach.followUps.length : 0),
+    lastFollowUpAt:  creator.outreach?.lastFollowUpAt || null,
     // Filters — addedByFirstName goes through normalizeOperatorName so
     // legacy "Tomas"/"Raul" upgrade to "Tomás"/"Raúl". Idempotent on
-    // already-accented data.
+    // already-accented data. addedByUserId is the immutable JWT subject
+    // so the tray can scope "my creators" without name-collision risk.
     addedByFirstName: normalizeOperatorName(creator.addedBy?.firstName) || null,
+    addedByUserId:    creator.addedBy?.userId || null,
     dealScoreGrade,
     hasAudit: !!creator.offer?.internal_metadata?.ecosystem_audit,
     createdAt: createdAt || creator.createdAt || new Date().toISOString(),
