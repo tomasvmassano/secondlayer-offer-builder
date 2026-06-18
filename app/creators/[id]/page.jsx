@@ -4871,10 +4871,24 @@ function StrategicFramePanel({ creator, setCreator, running, setRunning, error, 
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(instruction ? { instruction } : {}),
       });
-      const data = await r.json();
-      if (!r.ok) {
-        const detail = data.errors?.length ? '\n\n' + data.errors.join('\n') : '';
-        throw new Error((data.error || 'Strategic frame failed') + detail);
+      // Read text first, then try JSON. When Sonnet + prompt size pushes
+      // the call past Vercel's 60s Hobby cap, the platform returns a
+      // plain-text "An error occurred with your deployment" page —
+      // res.json() on that throws "Unexpected token 'A'..." and the
+      // operator never sees the real cause. This pattern surfaces a
+      // useful message instead.
+      const rawText = await r.text();
+      let data = null;
+      try { data = rawText ? JSON.parse(rawText) : null; } catch { data = null; }
+      if (!r.ok || !data) {
+        if (data && data.error) {
+          const detail = data.errors?.length ? '\n\n' + data.errors.join('\n') : '';
+          throw new Error(data.error + detail);
+        }
+        const hint = r.status === 504 || r.status === 500
+          ? ' (provavelmente timeout do servidor — tenta de novo)'
+          : '';
+        throw new Error(`Strategic frame falhou · HTTP ${r.status}${hint}`);
       }
       setDiag(data._diagnostics || null);
       setCreator(prev => prev ? ({
