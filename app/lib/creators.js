@@ -96,6 +96,37 @@ function buildSummary(creator, createdAt) {
 const memStore = new Map();
 const memIndex = [];
 
+// ─────────────────────────────────────────────────────────────────
+// READ CACHE — Upstash quota saver
+//
+// Module-scoped, lives on each warm Vercel function instance. Caches:
+//   - the listCreators() result (single 'index' key)
+//   - per-creator getCreator() results (one key per creator id)
+//
+// TTL is 30s — short enough that any visible staleness is bounded and
+// matches our 60s real-time poll cadence. Writes invalidate immediately
+// so an operator drag or PATCH never sees stale data.
+//
+// Why it matters: /api/team-stats fan-outs 24 parallel aggregations that
+// each used to call listCreators + getCreator on their own. With this
+// cache, the second through 24th calls all hit memory and never touch
+// Redis. Likewise the floating tray, daily cron, and CRM kanban share
+// the same cached pool when they fire within 30s of each other.
+// ─────────────────────────────────────────────────────────────────
+const READ_CACHE_TTL_MS = 30_000;
+const _readCache = new Map(); // key → { val, expiresAt }
+function _cacheGet(key) {
+  const entry = _readCache.get(key);
+  if (!entry) return undefined;
+  if (entry.expiresAt < Date.now()) { _readCache.delete(key); return undefined; }
+  return entry.val;
+}
+function _cacheSet(key, val) {
+  _readCache.set(key, { val, expiresAt: Date.now() + READ_CACHE_TTL_MS });
+}
+function _cacheInvalidate(key) { _readCache.delete(key); }
+function _cacheInvalidateAll() { _readCache.clear(); }
+
 function getRedisConfig() {
   const url = process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL || null;
   const token = process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN || null;
@@ -275,6 +306,9 @@ export async function saveCreator(data) {
     await redis.zadd('creators:index', { score: Date.now(), member: JSON.stringify(summary) });
   }
 
+  // Bust the read cache so the next listCreators / getCreator returns
+  // the fresh record instead of a 30s-stale view.
+  _cacheInvalidateAll();
   return { id };
 }
 
@@ -293,6 +327,17 @@ export async function findByOnboardingToken(token) {
 }
 
 export async function getCreator(id) {
+  // 30s read cache — multiple getCreator(id) calls from the same warm
+  // function instance share a single Redis hit. The team-stats endpoint
+  // alone benefits enormously: its 24 aggregators used to each pull the
+  // same creator independently.
+  const cacheKey = `c:${id}`;
+  const cached = _cacheGet(cacheKey);
+  if (cached !== undefined) {
+    // Return a deep clone so downstream mutations (heal-in-place,
+    // backfills) don't leak across callers sharing the cache entry.
+    return cached ? JSON.parse(JSON.stringify(cached)) : null;
+  }
   let creator;
   if (useMemory()) {
     const raw = memStore.get(`creator:${id}`);
@@ -300,10 +345,10 @@ export async function getCreator(id) {
   } else {
     const redis = getRedis();
     const raw = await redis.get(`creator:${id}`);
-    if (!raw) return null;
+    if (!raw) { _cacheSet(cacheKey, null); return null; }
     creator = typeof raw === 'string' ? JSON.parse(raw) : raw;
   }
-  if (!creator) return null;
+  if (!creator) { _cacheSet(cacheKey, null); return null; }
 
   // Heal orphan UTF-16 surrogates left in the record by emoji-truncated
   // scrape data (see scrubSurrogatesInPlace above). Mutates the cloned
@@ -501,10 +546,23 @@ export async function getCreator(id) {
     }
   }
 
+  // Cache the fully-backfilled creator so subsequent reads within the
+  // TTL window skip Redis entirely. Store the deep-cloned shape so
+  // callers can mutate freely without poisoning the cache.
+  _cacheSet(`c:${id}`, creator ? JSON.parse(JSON.stringify(creator)) : null);
   return creator;
 }
 
 export async function listCreators() {
+  // 30s read cache — the index is hot and read by /equipa, /creators,
+  // the tray, and every team-stats aggregator. Caching the result
+  // collapses N independent zrange calls within the window into one.
+  const cached = _cacheGet('idx');
+  if (cached !== undefined) {
+    // Deep clone so each caller can transform freely (the listCreators
+    // contract returns plain objects, callers sometimes splice them).
+    return JSON.parse(JSON.stringify(cached));
+  }
   // Note for callers (e.g. the original raw zrange members) — we rewrite
   // the Redis index after enrichment, so the next listCreators call doesn't
   // re-enrich. To do that we need the ORIGINAL member string to call zrem
@@ -543,7 +601,10 @@ export async function listCreators() {
     || s.hasAudit === undefined
     || s.addedByFirstName === undefined
   );
-  if (!needsEnrich) return summaries;
+  if (!needsEnrich) {
+    _cacheSet('idx', summaries);
+    return summaries;
+  }
 
   const redis = useMemory() ? null : getRedis();
   const enriched = await Promise.all(summaries.map(async (s, i) => {
@@ -577,6 +638,7 @@ export async function listCreators() {
     }
     return rebuilt;
   }));
+  _cacheSet('idx', enriched);
   return enriched;
 }
 
@@ -681,6 +743,7 @@ export async function updateCreator(id, updates) {
     await redis.zadd('creators:index', { score: Date.now(), member: JSON.stringify(summary) });
   }
 
+  _cacheInvalidateAll();
   return updated;
 }
 
@@ -706,6 +769,7 @@ export async function deleteCreator(id) {
     }
   }
 
+  _cacheInvalidateAll();
   return true;
 }
 

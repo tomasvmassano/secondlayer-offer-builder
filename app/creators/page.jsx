@@ -140,7 +140,12 @@ export default function CreatorsPage() {
       fetchCreators(search, { silent: true });
       setSyncTick(t => t + 1);
     };
-    intervalId = setInterval(tick, 10_000);
+    // Was 10s — dropped to 60s (2026-06-18) to stay under the Upstash
+    // 500K/day cap. Each tick triggers a creators-index zrange + summary
+    // reads; at 10s × 3 operators that was ~25K reads/day from idle tabs
+    // alone. 60s keeps the "feels live" UX (teammates' drags still show
+    // up within a minute) at 6× lower cost.
+    intervalId = setInterval(tick, 60_000);
     return () => clearInterval(intervalId);
   }, [search, fetchCreators]);
 

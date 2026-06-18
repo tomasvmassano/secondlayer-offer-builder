@@ -10,6 +10,27 @@ import {
   getPipelineVelocity, getWinRateTrajectory,
 } from '../../lib/teamStats';
 
+// In-memory 5-min response cache, keyed by (window, target, quota).
+// Each /equipa load fan-outs 24 aggregations, each reading the creators
+// index + every full record. Five minutes of staleness on a leaderboard
+// dashboard is acceptable, and the cache slashes Redis traffic during
+// active sessions where one operator reloads the page repeatedly.
+//
+// Cache survives across requests on the same warm Vercel function
+// instance. Cold starts re-populate. Writes elsewhere (PATCH /api/creators/:id)
+// do NOT invalidate this — staleness is bounded by the 5-min TTL.
+const RESPONSE_TTL_MS = 5 * 60_000;
+const _respCache = new Map(); // key → { val, expiresAt }
+function _respGet(key) {
+  const e = _respCache.get(key);
+  if (!e) return undefined;
+  if (e.expiresAt < Date.now()) { _respCache.delete(key); return undefined; }
+  return e.val;
+}
+function _respSet(key, val) {
+  _respCache.set(key, { val, expiresAt: Date.now() + RESPONSE_TTL_MS });
+}
+
 // Read-only endpoint that backs the /equipa dashboard. Middleware ensures
 // the caller has a valid session — every team member sees everyone's stats
 // (it's a competition, transparency is the point).
@@ -32,6 +53,13 @@ export async function GET(request) {
     if (!valid.includes(window)) {
       return NextResponse.json({ error: `window must be one of ${valid.join('|')}` }, { status: 400 });
     }
+
+    // Serve from the 5-min response cache if we have a hit for this
+    // (window, target, quota) tuple. The dashboard refreshes every time
+    // the operator clicks a window chip, so deduplication matters.
+    const cacheKey = `${window}|${target}|${quotaEurPerQuarter}`;
+    const cachedResp = _respGet(cacheKey);
+    if (cachedResp) return NextResponse.json(cachedResp);
 
     // Run all aggregations in parallel.
     const [
@@ -84,14 +112,16 @@ export async function GET(request) {
       getWinRateTrajectory({ weeks: 8 }),
     ]);
 
-    return NextResponse.json({
+    const payload = {
       window, target, quotaEurPerQuarter,
       rows, scoreboard, funnels, streaks, pipeline, velocity, quality,
       monthlyTally, needsAttention, deltas, revenue, activity,
       heatmap, recentActivity, pacing,
       coverage, cac, touchpoints, showUp, lossReasons, followUpEff,
       pipelineVelocity, winRateTrajectory,
-    });
+    };
+    _respSet(cacheKey, payload);
+    return NextResponse.json(payload);
   } catch (err) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }

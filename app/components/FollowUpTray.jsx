@@ -50,11 +50,17 @@ export default function FollowUpTray({ onAfterCopy }) {
     finally { setLoading(false); }
   }, []);
 
-  useEffect(() => {
-    fetchDue();
-    const id = setInterval(fetchDue, 60_000);
-    return () => clearInterval(id);
-  }, [fetchDue]);
+  // No interval polling. We fetch:
+  //   - once on mount (so the badge count shows up)
+  //   - again every time the panel opens (so it's fresh when the
+  //     operator actually looks at it)
+  //   - again after a click (so the item that just got copied falls
+  //     off the list and a new one surfaces if one is due)
+  // This kills ~130K Redis reads/day vs the previous 60-second
+  // interval, which was the biggest contributor to the Upstash
+  // 500K/day cap incident.
+  useEffect(() => { fetchDue(); }, [fetchDue]);
+  useEffect(() => { if (open) fetchDue(); }, [open, fetchDue]);
 
   // Click → copy → open IG → record server-side → remove from list.
   // The full pipeline runs from this single handler so the operator
