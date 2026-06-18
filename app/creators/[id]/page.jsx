@@ -5416,7 +5416,7 @@ function StrategicFramePanel({ creator, setCreator, running, setRunning, error, 
 // edits + 2-3 brand partnerships") doesn't need a wizard-produced
 // schema to execute against.
 // ──────────────────────────────────────────────────────────────────────────
-function ThesisOnlyGate({ frame, onForceOverride }) {
+function ThesisOnlyGate({ frame, creator, setCreator, onForceOverride }) {
   if (!frame) return null;
   const archetype = frame.primary_offer_archetype;
   const label = OFFER_ARCHETYPE_LABELS[archetype] || archetype;
@@ -5424,6 +5424,97 @@ function ThesisOnlyGate({ frame, onForceOverride }) {
   const plays = Array.isArray(frame.sequenced_plays) ? frame.sequenced_plays : [];
   const primary = plays[0];
   const review = frame.adversarial_review;
+
+  const [copyStatus, setCopyStatus] = React.useState('idle'); // idle | copied | failed
+  const [lockStatus, setLockStatus] = React.useState('idle'); // idle | locking | locked | failed
+  const [lockErr, setLockErr] = React.useState(null);
+
+  // Build the thesis as a markdown block the operator can paste into a
+  // creator call doc / brief. Pulls every load-bearing field from the
+  // strategic frame so the doc is self-contained.
+  const buildThesisMarkdown = () => {
+    const lines = [];
+    lines.push(`# Tese estratégica — ${creator?.name || 'creator'}`);
+    lines.push('');
+    lines.push(`**Arquétipo:** ${label}`);
+    if (frame.archetype_rationale) lines.push(`**Por quê:** ${frame.archetype_rationale}`);
+    lines.push('');
+
+    if (primary) {
+      lines.push(`## Jogada #1 — executa primeiro`);
+      lines.push(`**${primary.name}**`);
+      if (primary.why_now) lines.push(primary.why_now);
+      const meta = [];
+      if (primary.time_to_first_revenue) meta.push(`time-to-cash: ${primary.time_to_first_revenue}`);
+      if (fmtRange(primary.realistic_monthly_low, primary.realistic_monthly_high)) meta.push(`range: ${fmtRange(primary.realistic_monthly_low, primary.realistic_monthly_high)}`);
+      if (primary.templatization_potential) meta.push(`templatização: ${primary.templatization_potential}`);
+      if (meta.length) lines.push(`_${meta.join(' · ')}_`);
+      if (primary.leverages) lines.push(`**Alavanca:** ${primary.leverages}`);
+      lines.push('');
+    }
+
+    if (frame.reflex_trap) {
+      lines.push(`## NÃO construir`);
+      if (frame.reflex_trap.default_move) lines.push(frame.reflex_trap.default_move);
+      if (frame.reflex_trap.why_wrong) lines.push(`_${frame.reflex_trap.why_wrong}_`);
+      lines.push('');
+    }
+
+    if (frame.binding_constraint) {
+      lines.push(`## Constrangimento`);
+      lines.push(`**${frame.binding_constraint.name}**`);
+      if (frame.binding_constraint.implication) lines.push(frame.binding_constraint.implication);
+      lines.push('');
+    }
+
+    if (frame.capture_gap) {
+      lines.push(`## Capture gap (fechar 1º)`);
+      lines.push(`**${frame.capture_gap.gap}**`);
+      if (frame.capture_gap.first_action) lines.push(`_Acção:_ ${frame.capture_gap.first_action}`);
+      lines.push('');
+    }
+
+    return lines.join('\n');
+  };
+
+  const copyThesis = async () => {
+    try {
+      await navigator.clipboard.writeText(buildThesisMarkdown());
+      setCopyStatus('copied');
+      setTimeout(() => setCopyStatus('idle'), 2000);
+    } catch (e) {
+      setCopyStatus('failed');
+      setTimeout(() => setCopyStatus('idle'), 2500);
+    }
+  };
+
+  // Locks CP1, which "closes the offer phase" for non-community archetypes.
+  // The strategic frame stays preserved; CP2-CP4 remain unlocked but the
+  // operator now has a clear "done here, move to Launch" signal.
+  const lockCp1AndClose = async () => {
+    if (!creator?.id || lockStatus === 'locking' || lockStatus === 'locked') return;
+    setLockStatus('locking');
+    setLockErr(null);
+    try {
+      const r = await fetch(`/api/creators/${creator.id}/wizard/checkpoint/1/lock`, { method: 'POST' });
+      const data = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(data.error || `Lock falhou · HTTP ${r.status}`);
+      setCreator?.(prev => prev ? ({
+        ...prev,
+        offer: {
+          ...(prev.offer || {}),
+          internal_metadata: {
+            ...((prev.offer || {}).internal_metadata || {}),
+            checkpoint_progress: data.checkpoint_progress,
+          },
+        },
+      }) : prev);
+      setLockStatus('locked');
+    } catch (e) {
+      setLockStatus('failed');
+      setLockErr(e.message || 'Lock falhou');
+    }
+  };
 
   // Money range helper — turns { realistic_monthly_low: 3000, ..._high: 6000 }
   // into "€3K–€6K/mês". Falls back to single bound or empty string.
@@ -5551,28 +5642,48 @@ function ThesisOnlyGate({ frame, onForceOverride }) {
         </div>
       )}
 
-      {/* Action buttons */}
-      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 14 }}>
+      {/* Action buttons. Primary path is "copy thesis" (the actual deliverable
+          for non-community archetypes) + "close offer phase" (lock CP1 so the
+          operator has a clear exit signal). Force-build is the escape hatch. */}
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 14, alignItems: "center" }}>
         <button
           type="button"
-          onClick={() => {
-            // "Build manually" is purely informational — no LLM call,
-            // no state change. Just nudges the operator to act on the
-            // thesis directly. Putting it as the primary button
-            // signals it's the recommended path here.
-            window.alert("A tese acima já é o entregável para este arquétipo. Copia o conteúdo para o doc do criador / agenda de call. Cada bloco (jogada #1, reflex_trap, capture_gap) é acionável tal como está.");
+          onClick={copyThesis}
+          disabled={copyStatus !== 'idle'}
+          style={{
+            padding: "10px 18px", borderRadius: 6,
+            border: "1px solid rgba(59,130,246,0.45)",
+            background: copyStatus === 'copied' ? "rgba(34,197,94,0.12)" : "rgba(59,130,246,0.08)",
+            color: copyStatus === 'copied' ? "#22c55e" : copyStatus === 'failed' ? "#ef4444" : "#3b82f6",
+            fontSize: 12, fontWeight: 700,
+            cursor: copyStatus === 'idle' ? "pointer" : "default", fontFamily: "inherit",
+            transition: "all 120ms ease",
           }}
+        >
+          {copyStatus === 'copied' ? '✓ Copiado!' : copyStatus === 'failed' ? '✕ Falha — copia manualmente' : '📋 Copiar tese (markdown)'}
+        </button>
+
+        <button
+          type="button"
+          onClick={lockCp1AndClose}
+          disabled={lockStatus === 'locking' || lockStatus === 'locked'}
           style={{
             padding: "10px 18px", borderRadius: 6,
             border: "1px solid rgba(34,197,94,0.45)",
-            background: "rgba(34,197,94,0.08)",
+            background: lockStatus === 'locked' ? "rgba(34,197,94,0.18)" : "rgba(34,197,94,0.08)",
             color: "#22c55e",
             fontSize: 12, fontWeight: 700,
-            cursor: "pointer", fontFamily: "inherit",
+            cursor: lockStatus === 'idle' || lockStatus === 'failed' ? "pointer" : "default",
+            fontFamily: "inherit",
+            opacity: lockStatus === 'locking' ? 0.6 : 1,
           }}
         >
-          ✓ Executar manualmente
+          {lockStatus === 'locking' ? 'A fechar...'
+            : lockStatus === 'locked' ? '✓ Fase de oferta fechada · vai ao Launch'
+            : lockStatus === 'failed' ? '↻ Tentar fechar de novo'
+            : '✓ Fechar fase de oferta (lock CP1)'}
         </button>
+
         <button
           type="button"
           onClick={() => {
@@ -5597,22 +5708,18 @@ function ThesisOnlyGate({ frame, onForceOverride }) {
         >
           ⚠ Forçar build de comunidade
         </button>
-        <button
-          type="button"
-          disabled
-          title={`Wizard dedicado para ${label} ainda não construído. Está no roadmap.`}
-          style={{
-            padding: "10px 16px", borderRadius: 6,
-            border: "1px solid rgba(255,255,255,0.06)",
-            background: "transparent",
-            color: "#444",
-            fontSize: 12, fontWeight: 500,
-            cursor: "not-allowed", fontFamily: "inherit",
-          }}
-        >
-          Wizard {label} (em breve)
-        </button>
       </div>
+
+      {lockErr && lockStatus === 'failed' && (
+        <div style={{ marginTop: 10, fontSize: 11, color: "#ef4444", padding: "8px 12px", background: "rgba(239,68,68,0.06)", borderRadius: 5, border: "1px solid rgba(239,68,68,0.2)" }}>
+          {lockErr}
+        </div>
+      )}
+      {lockStatus === 'locked' && (
+        <div style={{ marginTop: 10, fontSize: 11, color: "#22c55e", padding: "8px 12px", background: "rgba(34,197,94,0.06)", borderRadius: 5, border: "1px solid rgba(34,197,94,0.2)", lineHeight: 1.5 }}>
+          CP1 está locked. A tese ficou preservada como referência. Para este criador a fase de oferta acabou — vai ao separador <strong>LAUNCH</strong> para escrever DMs e arrancar.
+        </div>
+      )}
     </div>
   );
 }
@@ -5889,7 +5996,12 @@ function CoreOfferPanel({ creator, setCreator, running, setRunning, error, setEr
           the strategic frame's archetype isn't community_recurring. Operator
           can force-override (and then the picker re-appears below). */}
       {showThesisGate && (
-        <ThesisOnlyGate frame={frame} onForceOverride={() => setForceOverride(true)} />
+        <ThesisOnlyGate
+          frame={frame}
+          creator={creator}
+          setCreator={setCreator}
+          onForceOverride={() => setForceOverride(true)}
+        />
       )}
 
       {/* Tier picker — only when editable AND not gated by archetype */}
