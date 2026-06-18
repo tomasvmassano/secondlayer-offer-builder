@@ -4825,6 +4825,250 @@ function CheckpointStubPanel({ checkpoint }) {
 }
 
 // ──────────────────────────────────────────────────────────────────────────
+// Phase 5 · Offer Judgment Panel (Kill Test)
+// ──────────────────────────────────────────────────────────────────────────
+// Skeptical evaluation of the strategic_frame's sequenced_plays. Runs after
+// CP1 produces a frame, before CP2 starts generating offer details. Posts to
+// /api/creators/[id]/offer-judgment and persists at
+//   creator.offer.internal_metadata.offer_judgment
+//
+// v1 is WARN-ONLY: even if every offer is KILL'd, CP2 still unlocks. The
+// gate logic comes later once we trust the judgment quality. Operator sees
+// the verdicts and decides for themselves.
+// ──────────────────────────────────────────────────────────────────────────
+function OfferJudgmentPanel({ creator, setCreator }) {
+  const meta = creator?.offer?.internal_metadata || {};
+  const frame = meta.strategic_frame || null;
+  const judgment = meta.offer_judgment || null;
+  const runAt = meta.generation_timestamps?.offer_judgment || null;
+
+  const [running, setRunning] = React.useState(false);
+  const [error, setError] = React.useState(null);
+  const [expanded, setExpanded] = React.useState(true);
+
+  if (!frame) return null;
+  const playsCount = Array.isArray(frame.sequenced_plays) ? frame.sequenced_plays.length : 0;
+  if (playsCount === 0) return null;
+
+  const run = async () => {
+    if (!creator?.id || running) return;
+    setRunning(true);
+    setError(null);
+    try {
+      const r = await fetch(`/api/creators/${creator.id}/offer-judgment`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+      });
+      const rawText = await r.text();
+      let data = null;
+      try { data = rawText ? JSON.parse(rawText) : null; } catch { data = null; }
+      if (!r.ok || !data) {
+        if (data?.error) {
+          const detail = data.errors?.length ? '\n\n' + data.errors.join('\n') : '';
+          throw new Error(data.error + detail);
+        }
+        const hint = r.status === 504 || r.status === 500 ? ' (timeout — tenta de novo)' : '';
+        throw new Error(`Offer judgment falhou · HTTP ${r.status}${hint}`);
+      }
+      setCreator(prev => prev ? ({
+        ...prev,
+        offer: {
+          ...(prev.offer || {}),
+          internal_metadata: {
+            ...((prev.offer || {}).internal_metadata || {}),
+            offer_judgment: data.offer_judgment,
+            generation_timestamps: {
+              ...((prev.offer || {}).internal_metadata?.generation_timestamps || {}),
+              offer_judgment: new Date().toISOString(),
+            },
+          },
+        },
+      }) : prev);
+    } catch (e) {
+      setError(e.message || 'Unknown error');
+    } finally {
+      setRunning(false);
+    }
+  };
+
+  const allKilled = judgment && Array.isArray(judgment.offer_evaluations) && judgment.offer_evaluations.length > 0
+    && judgment.offer_evaluations.every(e => e.verdict === 'KILL');
+  const survivors = judgment?.offer_evaluations?.filter(e => e.verdict === 'SURVIVES') || [];
+
+  const postureColor = judgment?.audience_classification?.posture === 'ACTIVE' ? '#22c55e' : '#eab308';
+
+  return (
+    <div style={{
+      marginTop: 18, paddingTop: 18,
+      borderTop: "1px solid rgba(255,255,255,0.06)",
+    }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12, flexWrap: "wrap", gap: 8 }}>
+        <div>
+          <div style={{ fontSize: 9, fontWeight: 700, color: "#666", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 4 }}>
+            Phase 5 · Kill Test {judgment ? <span style={{ color: allKilled ? "#ef4444" : "#22c55e", marginLeft: 6 }}>· {survivors.length}/{judgment.offer_evaluations.length} sobrevivem</span> : null}
+          </div>
+          <div style={{ fontSize: 13, fontWeight: 600, color: "#f5f5f5" }}>
+            Adversarial judgment
+          </div>
+          <div style={{ fontSize: 11, color: "#888", marginTop: 2, lineHeight: 1.5 }}>
+            Skeptical scoring of cada sequenced_play. Job: matar ofertas más antes do CP2-CP4 perder tempo a construir.
+          </div>
+        </div>
+        <button
+          onClick={run}
+          disabled={running}
+          style={{
+            padding: "8px 14px",
+            borderRadius: 6,
+            border: "1px solid rgba(239,68,68,0.4)",
+            background: running ? "rgba(255,255,255,0.02)" : "rgba(239,68,68,0.06)",
+            color: running ? "#555" : "#ef4444",
+            fontSize: 11,
+            fontWeight: 600,
+            cursor: running ? "wait" : "pointer",
+            fontFamily: "inherit",
+            whiteSpace: "nowrap",
+          }}
+        >
+          {running ? "A julgar..." : judgment ? "↻ Re-run kill test" : "Run kill test (~$0.05)"}
+        </button>
+      </div>
+
+      {error && (
+        <div style={{ padding: "10px 14px", borderRadius: 6, background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.25)", color: "#ef4444", fontSize: 11, marginBottom: 12, whiteSpace: "pre-wrap" }}>{error}</div>
+      )}
+
+      {!judgment && !running && (
+        <div style={{ padding: "14px 16px", textAlign: "center", color: "#444", fontSize: 11.5, border: "1px dashed rgba(255,255,255,0.06)", borderRadius: 6 }}>
+          Sem julgamento ainda. Clica <strong style={{ color: "#888" }}>Run kill test</strong> (~30-50s, Sonnet).
+        </div>
+      )}
+
+      {judgment && (
+        <div>
+          {/* Audience classification — posture badge + trusted-for */}
+          <div style={{ padding: "14px 16px", background: "#0a0a0a", borderRadius: 8, border: "1px solid rgba(255,255,255,0.05)", marginBottom: 12 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8, flexWrap: "wrap" }}>
+              <span style={{
+                fontSize: 10, fontWeight: 700, letterSpacing: "0.12em",
+                padding: "3px 9px", borderRadius: 4,
+                background: `${postureColor}14`, color: postureColor, border: `1px solid ${postureColor}50`,
+              }}>
+                {judgment.audience_classification.posture}
+              </span>
+              <span style={{ fontSize: 11, color: "#888", lineHeight: 1.5 }}>{judgment.audience_classification.posture_rationale}</span>
+            </div>
+            <div style={{ fontSize: 9, fontWeight: 700, color: "#666", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 4 }}>Confiam no criador para</div>
+            <div style={{ fontSize: 12.5, color: "#f5f5f5", lineHeight: 1.55, fontStyle: "italic" }}>"{judgment.audience_classification.what_audience_trusts_creator_FOR}"</div>
+          </div>
+
+          {/* Per-offer scoring + kill test */}
+          {judgment.offer_evaluations.map((ev, i) => {
+            const killed = ev.verdict === 'KILL';
+            const accent = killed ? '#ef4444' : '#22c55e';
+            return (
+              <div key={i} style={{
+                padding: "14px 16px", marginBottom: 10,
+                background: killed ? "rgba(239,68,68,0.03)" : "rgba(34,197,94,0.03)",
+                borderRadius: 8, border: `1px solid ${accent}33`,
+              }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, marginBottom: 10, flexWrap: "wrap" }}>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: "#f5f5f5", lineHeight: 1.4 }}>{ev.offer_name}</div>
+                  <span style={{
+                    fontSize: 10, fontWeight: 700, letterSpacing: "0.14em",
+                    padding: "3px 10px", borderRadius: 4,
+                    background: `${accent}14`, color: accent, border: `1px solid ${accent}55`,
+                  }}>
+                    {killed ? '✕ KILL' : '✓ SURVIVES'}
+                  </span>
+                </div>
+
+                {/* Six-score table */}
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 6, marginBottom: 12, fontFamily: "'JetBrains Mono', ui-monospace, monospace" }}>
+                  {Object.entries(ev.scores).map(([k, v]) => {
+                    const scoreColor = v.score >= 4 ? '#22c55e' : v.score === 3 ? '#888' : '#ef4444';
+                    return (
+                      <div key={k} title={v.justification} style={{ padding: "6px 9px", background: "#0a0a0a", borderRadius: 4, border: "1px solid rgba(255,255,255,0.04)" }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
+                          <span style={{ fontSize: 9, color: "#666", letterSpacing: "0.06em" }}>{k}</span>
+                          <span style={{ fontSize: 12, fontWeight: 700, color: scoreColor }}>{v.score}</span>
+                        </div>
+                        <div style={{ fontSize: 9.5, color: "#777", lineHeight: 1.45, marginTop: 4, fontFamily: "inherit" }}>{v.justification}</div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Kill test block */}
+                <div style={{ padding: "10px 12px", background: "#0a0a0a", borderRadius: 6, border: "1px solid rgba(255,255,255,0.04)" }}>
+                  <div style={{ fontSize: 9, fontWeight: 700, color: accent, letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 4 }}>Strongest objection</div>
+                  <div style={{ fontSize: 11.5, color: "#ddd", lineHeight: 1.55, marginBottom: ev.kill_test.survives ? 8 : 0 }}>{ev.kill_test.strongest_failure_reason}</div>
+                  {ev.kill_test.survives && ev.kill_test.survival_reason && (
+                    <>
+                      <div style={{ fontSize: 9, fontWeight: 700, color: "#22c55e", letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 4, marginTop: 4 }}>Why it survives anyway</div>
+                      <div style={{ fontSize: 11.5, color: "#bbb", lineHeight: 1.55 }}>{ev.kill_test.survival_reason}</div>
+                    </>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+
+          {/* Ranking + launch-first pick */}
+          {judgment.ranking && (
+            <div style={{ padding: "14px 16px", background: "#0a0a0a", borderRadius: 8, border: "1px solid rgba(255,255,255,0.05)", marginBottom: 10 }}>
+              <div style={{ fontSize: 9, fontWeight: 700, color: "#666", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 8 }}>
+                Recomendação
+              </div>
+              <div style={{ fontSize: 10.5, color: "#888", lineHeight: 1.55, marginBottom: 10, fontStyle: "italic" }}>
+                Pesos: {judgment.ranking.weighting_explanation}
+              </div>
+
+              {allKilled ? (
+                <div style={{ padding: "12px 14px", background: "rgba(239,68,68,0.08)", borderRadius: 6, border: "1px solid rgba(239,68,68,0.3)", color: "#ef4444", fontSize: 12, fontWeight: 600, lineHeight: 1.5 }}>
+                  ⚠ Todas as ofertas falharam o kill test. A tese precisa de revisão antes de continuar para CP2.
+                  Considera re-fazer o Strategic Frame com instrução explícita ou questionar os inputs (audience_posture, trust_for).
+                </div>
+              ) : judgment.ranking.launch_first ? (
+                <>
+                  <div style={{ fontSize: 9, fontWeight: 700, color: "#22c55e", letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 6 }}>
+                    ▶ Launch first
+                  </div>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: "#f5f5f5", marginBottom: 6 }}>{judgment.ranking.launch_first.offer_name}</div>
+                  <div style={{ fontSize: 11.5, color: "#bbb", lineHeight: 1.55 }}>{judgment.ranking.launch_first.why_it_beats_others}</div>
+                </>
+              ) : null}
+
+              {Array.isArray(judgment.ranking.required_validation_tests) && judgment.ranking.required_validation_tests.length > 0 && (
+                <div style={{ marginTop: 14, paddingTop: 12, borderTop: "1px solid rgba(255,255,255,0.04)" }}>
+                  <div style={{ fontSize: 9, fontWeight: 700, color: "#eab308", letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 8 }}>
+                    Validação obrigatória antes de construir
+                  </div>
+                  {judgment.ranking.required_validation_tests.map((t, i) => (
+                    <div key={i} style={{ padding: "8px 10px", background: "rgba(234,179,8,0.04)", borderRadius: 5, marginBottom: 6, fontSize: 11, color: "#ccc", lineHeight: 1.5 }}>
+                      <div style={{ fontWeight: 700, color: "#eab308", marginBottom: 3 }}>{t.offer_name}</div>
+                      <div>{t.test}</div>
+                      <div style={{ fontSize: 10, color: "#888", marginTop: 3 }}><strong>GO/NO-GO:</strong> {t.threshold}</div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {runAt && (
+            <div style={{ fontSize: 10, color: "#333", marginTop: 10 }}>
+              Last run: {new Date(runAt).toLocaleString("pt-PT")}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ──────────────────────────────────────────────────────────────────────────
 // Phase 4 · CP1 — Strategic Frame Panel
 // ──────────────────────────────────────────────────────────────────────────
 // Renders the strategic_frame from internal_metadata + handles three actions:
@@ -5124,6 +5368,11 @@ function StrategicFramePanel({ creator, setCreator, running, setRunning, error, 
               </ul>
             </div>
           )}
+
+          {/* Phase 5 · Kill Test — skeptical evaluation of the
+              sequenced_plays. Runs after CP1 produces a frame, before CP2
+              starts. v1 is warn-only (CP2 still unlocks). */}
+          <OfferJudgmentPanel creator={creator} setCreator={setCreator} />
 
           {runAt && (
             <div style={{ fontSize: 10, color: "#333", paddingTop: 10, borderTop: "1px solid rgba(255,255,255,0.04)" }}>
