@@ -417,18 +417,26 @@ ${uniquenessCapped}
 
 Return ONLY the JSON object per the schema in the system prompt.${formatInstructionsReminder(extraInstruction)}`;
 
+  // Two-tier model strategy (2026-06-18):
+  //   - INITIAL generation (no operator instruction) → Haiku 4.5. The CP1
+  //     task is mostly structured extraction + classification (which
+  //     archetype, which moves apply). Haiku streams ~3× faster than
+  //     Sonnet, so 3500 max_tokens fits in ~17s wall-clock — leaving
+  //     plenty of headroom under Vercel's 60s Hobby cap even on cold
+  //     starts. ~5× cheaper output too.
+  //   - REGEN WITH INSTRUCTION (operator typed a nudge, or cascade
+  //     regenerating with refinement) → Sonnet 4.5. The operator is
+  //     deliberately invoking deeper reasoning, so we route to the
+  //     smarter model and accept the tighter latency budget.
+  const isInstructedRegen = !!extraInstruction;
+  const modelId = isInstructedRegen ? 'claude-sonnet-4-5-20250929' : 'claude-haiku-4-5-20251001';
+  const maxOut = isInstructedRegen ? 2500 : 3500;
   const resp = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01' },
     body: JSON.stringify({
-      model: 'claude-sonnet-4-5-20250929',
-      // Cost + latency budget. 2500 left enough headroom for Sonnet to over-
-      // write and cross Vercel's 60s cap; 1800 truncated the output mid-JSON
-      // (the six_moves schema has ~50-65 string fields once sequenced_plays
-      // is expanded — 3-5 plays × 7 fields). 2200 is the sweet spot: enough
-      // room for the full schema, tight enough to land cold-path calls under
-      // 50s with the input-block caps below.
-      max_tokens: 2200,
+      model: modelId,
+      max_tokens: maxOut,
       system: [{ type: 'text', text: SYSTEM_PROMPT, cache_control: { type: 'ephemeral' } }],
       messages: [{ role: 'user', content: userMessage }],
     }),
@@ -451,8 +459,9 @@ Return ONLY the JSON object per the schema in the system prompt.${formatInstruct
     const tail = rawText ? rawText.slice(-300) : '(empty rawText)';
     const head = rawText ? rawText.slice(0, 200) : '';
     const detail = [
+      `model: ${modelId}`,
       `stop_reason: ${stopReason}`,
-      `output_tokens: ${usage.output_tokens ?? '?'} (cap: 2200)`,
+      `output_tokens: ${usage.output_tokens ?? '?'} (cap: ${maxOut})`,
       `rawLen: ${rawText.length}`,
       head ? `head: ${head}` : null,
       `tail: ${tail}`,
