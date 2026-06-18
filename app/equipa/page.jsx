@@ -1065,43 +1065,98 @@ function ProgressRing({ value, size = 80, stroke = 8, color = ACCENT, centerLabe
   );
 }
 
+// ActivityBarChart — 7-day touches/day. Rebuilt as HTML/CSS divs
+// (2026-06-18) after the previous SVG version with
+// `preserveAspectRatio="none"` exploded vertically when the parent
+// card got wider in the 2-up hero strip. Divs always honor their
+// parent's box; SVG with that prop stretches both axes independently
+// and turns text + tracks into giant pills.
+//
+// Empty state: when every day is 0, render a single muted row + a
+// "Sem atividade ainda" caption instead of seven full-height empty
+// tracks (which read as a row of placeholders, not as "zero").
 function ActivityBarChart({ days = [], target = 30 }) {
   if (!days?.length) return null;
-  const max = Math.max(target * 0.6, ...days.map(d => d.dms), 1);
-  const W = 240, H = 80, gap = 6;
-  const barW = (W - gap * (days.length - 1)) / days.length;
+  const maxVal = Math.max(...days.map(d => d.dms), 0);
+  const isEmpty = maxVal === 0;
+  // Scale floor: target * 0.6 keeps bars proportional to the goal so
+  // a 5-DM day doesn't look like a peak just because the week was slow.
+  const max = Math.max(target * 0.6, maxVal, 1);
   const dayLabel = (dateStr) => {
     const d = new Date(dateStr + 'T12:00:00');
     return ['D','S','T','Q','Q','S','S'][d.getDay()];
   };
   const todayStr = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Lisbon' }).format(new Date());
+
+  if (isEmpty) {
+    return (
+      <div style={{
+        height: 70, display: "flex", alignItems: "center", justifyContent: "center",
+        border: `1px dashed ${BORDER}`, borderRadius: 8,
+        fontSize: 11, color: TEXT_DIM, letterSpacing: "0.04em",
+      }}>
+        Sem atividade ainda esta semana
+      </div>
+    );
+  }
+
   return (
-    <svg viewBox={`0 0 ${W} ${H + 18}`} preserveAspectRatio="none" style={{ width: "100%", height: 90 }}>
-      <defs>
-        <linearGradient id="bargrad" x1="0" x2="0" y1="0" y2="1">
-          <stop offset="0%" stopColor={ACCENT} stopOpacity={0.95} />
-          <stop offset="100%" stopColor={ACCENT_DEEP} stopOpacity={0.85} />
-        </linearGradient>
-      </defs>
-      {days.map((d, i) => {
-        const h = Math.max(2, (d.dms / max) * H);
-        const x = i * (barW + gap);
-        const y = H - h;
+    <div style={{ display: "flex", alignItems: "stretch", gap: 6, height: 70 }}>
+      {days.map(d => {
+        const pct = Math.min(100, (d.dms / max) * 100);
         const isToday = d.date === todayStr;
         return (
-          <g key={d.date}>
-            <rect x={x} y={0} width={barW} height={H} rx={Math.min(barW / 2, 6)} fill="rgba(255,255,255,0.04)" />
-            <rect x={x} y={y} width={barW} height={h} rx={Math.min(barW / 2, 6)} fill={isToday ? "url(#bargrad)" : "rgba(255,255,255,0.18)"} />
-            <text x={x + barW / 2} y={H + 14} fontSize="9" fill={isToday ? ACCENT : TEXT_LO} textAnchor="middle" fontFamily="Inter">{dayLabel(d.date)}</text>
-          </g>
+          <div key={d.date} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "stretch", minWidth: 0 }}>
+            <div style={{
+              position: "relative", flex: 1,
+              background: "rgba(255,255,255,0.03)",
+              borderRadius: 4, overflow: "hidden",
+            }}>
+              {/* Filled portion grows from the bottom up. Today's bar
+                  gets the brand red accent; other days are neutral
+                  white so today stands out at a glance. */}
+              <div style={{
+                position: "absolute", bottom: 0, left: 0, right: 0,
+                height: `${Math.max(2, pct)}%`,
+                background: isToday
+                  ? `linear-gradient(180deg, ${ACCENT}, ${ACCENT_DEEP})`
+                  : "rgba(255,255,255,0.20)",
+                borderRadius: 4,
+                transition: "height 600ms cubic-bezier(.2,.7,.2,1)",
+              }} />
+            </div>
+            <div style={{
+              fontSize: 9, fontWeight: 600, marginTop: 6, textAlign: "center",
+              color: isToday ? ACCENT : TEXT_LO, letterSpacing: "0.08em",
+            }}>
+              {dayLabel(d.date)}
+            </div>
+          </div>
         );
       })}
-    </svg>
+    </div>
   );
 }
 
+// Sparkline — 7-day mini line chart. Stays as SVG (curves need it),
+// but with two fixes that make it container-independent:
+//   - `display: block` on the SVG so it can't pick up inline-default
+//     whitespace from the parent flex/grid cell
+//   - `vectorEffect="non-scaling-stroke"` on every stroked path so
+//     lines stay 2px regardless of how the viewBox stretches. Without
+//     this, the line gets fatter when the cell is wide and thinner
+//     when narrow, which was visible after the people row became a
+//     table with variable column widths.
 function Sparkline({ days = [] }) {
   if (!days.length) return null;
+  const allZero = days.every(d => (d.dms || 0) === 0);
+  if (allZero) {
+    return (
+      <div style={{ height: 28, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, color: TEXT_DIM }}>
+        —
+      </div>
+    );
+  }
   const max = Math.max(1, ...days.map(d => d.dms));
   const W = 200, H = 36;
   const stepX = W / (days.length - 1 || 1);
@@ -1109,7 +1164,7 @@ function Sparkline({ days = [] }) {
   const path = points.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p[0]},${p[1]}`).join(' ');
   const areaPath = path + ` L ${W},${H} L 0,${H} Z`;
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" style={{ width: "100%", height: 40 }}>
+    <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" style={{ width: "100%", height: 28, display: "block" }}>
       <defs>
         <linearGradient id="sparkfill" x1="0" x2="0" y1="0" y2="1">
           <stop offset="0%" stopColor={ACCENT} stopOpacity={0.30} />
@@ -1117,10 +1172,10 @@ function Sparkline({ days = [] }) {
         </linearGradient>
       </defs>
       <path d={areaPath} fill="url(#sparkfill)" />
-      <path d={path} fill="none" stroke={ACCENT} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
-      {points.map((p, i) => (
-        <circle key={i} cx={p[0]} cy={p[1]} r={i === points.length - 1 ? 3 : 0} fill={ACCENT} />
-      ))}
+      <path d={path} fill="none" stroke={ACCENT} strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
+      {points.length > 0 && (
+        <circle cx={points[points.length - 1][0]} cy={points[points.length - 1][1]} r={2.5} fill={ACCENT} vectorEffect="non-scaling-stroke" />
+      )}
     </svg>
   );
 }
