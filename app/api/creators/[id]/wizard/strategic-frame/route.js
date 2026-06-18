@@ -230,50 +230,52 @@ Return ONLY a JSON object matching this schema. No prose, no markdown, no commen
   //     community-shaped output when the thesis pointed elsewhere. ───
 
   "primary_offer_archetype": "community_recurring" | "productized_service" | "commerce_affiliate" | "cohort_education" | "hybrid_stack",
-  "archetype_rationale": "string (1-2 sentences) — which play + which constraint forced this label. Reference sequenced_plays[0] by name.",
+  "archetype_rationale": "string ≤180 chars — which play + which constraint. Be terse, no preamble.",
 
   // ─── The six strategic moves (load-bearing). Every other field below
   //     must be justifiable by reference to one of these. Do NOT skip
   //     any of them — if a move genuinely doesn't apply, write that
-  //     down explicitly instead of inventing a generic answer. ───
+  //     down explicitly instead of inventing a generic answer.
+  //     HARD CHAR CAPS PER FIELD — go OVER cap and the output is invalid.
+  //     Aim 70-80% of cap; the cap is a ceiling, not a target. ───
 
   "audience_reframe": {
-    "raw_observation": "string (1-2 sentences) — what the demographics + geography + interests data literally shows. Cite numbers when available.",
-    "default_interpretation": "string (1 sentence) — what an inexperienced operator would conclude from the raw observation alone.",
-    "reframe": "string (1-2 sentences) — the non-obvious reinterpretation that flips the monetization conclusion. This must be a real reframe, not a restatement. If there is no genuine reframe, write 'No reframe — default reading holds' and justify in rationale."
+    "raw_observation": "string ≤200 chars — what the demographics data literally shows. Cite numbers.",
+    "default_interpretation": "string ≤140 chars — what an inexperienced operator would conclude.",
+    "reframe": "string ≤220 chars — the non-obvious flip. If no genuine reframe, write 'No reframe — default holds'."
   },
 
   "reflex_trap": {
-    "default_move": "string (1 sentence) — the obvious monetization move the operator would default to (course, community, agency, etc.)",
-    "why_wrong": "string (1-2 sentences) — why this addresses the wrong slice of the audience or hits the binding constraint head-on. Cite percentages or constraints."
+    "default_move": "string ≤120 chars — the obvious monetization default (course/community/agency/etc).",
+    "why_wrong": "string ≤220 chars — why it hits the wrong audience slice or the binding constraint."
   },
 
-  "sequenced_plays": [   // 3-5 plays in EXECUTION ORDER (fastest cash first). Each play funds the next.
+  "sequenced_plays": [   // EXACTLY 3 plays in EXECUTION ORDER (fastest cash first). Do NOT output 4 or 5.
     {
-      "name": "string — short title (e.g., 'Commerce: affiliate edits + brand partnerships')",
-      "why_now": "string (1-2 sentences) — why this play goes at THIS step, not earlier or later",
-      "time_to_first_revenue": "string — concrete estimate ('within a quarter', 'month 1', etc.)",
-      "realistic_monthly_low": number | null,    // monthly revenue floor in the creator's primary currency (EUR unless otherwise noted)
-      "realistic_monthly_high": number | null,   // monthly revenue ceiling, same currency
-      "leverages": "string — what existing asset/behaviour/skill this play piggybacks on (e.g., 'reels she already makes')",
+      "name": "string ≤80 chars — short title",
+      "why_now": "string ≤180 chars — why THIS step, not earlier or later",
+      "time_to_first_revenue": "string ≤40 chars — e.g. 'month 1' or 'within a quarter'",
+      "realistic_monthly_low": number | null,
+      "realistic_monthly_high": number | null,
+      "leverages": "string ≤120 chars — existing asset/behaviour piggybacked",
       "templatization_potential": "low" | "medium" | "high"
     }
   ],
 
   "binding_constraint": {
-    "name": "string — the actual bottleneck (operator time, capital, trust deficit, audience capture, etc.)",
-    "implication": "string (1-2 sentences) — what this constraint forces about the strategy (what's scalable vs not, what should be the ceiling vs the engine)"
+    "name": "string ≤80 chars — the actual bottleneck",
+    "implication": "string ≤200 chars — what this forces about the strategy"
   },
 
   "contrarian_bet": {
-    "conventional_wisdom": "string (1 sentence) — the default playbook for this creator type",
-    "bet": "string (1-2 sentences) — how this offer rejects that default",
-    "evidence": "string (1-2 sentences) — what in Phases 1-3 supports the bet"
+    "conventional_wisdom": "string ≤140 chars — the default playbook for this creator type",
+    "bet": "string ≤200 chars — how this offer rejects that default",
+    "evidence": "string ≤200 chars — what in Phases 1-3 supports the bet"
   },
 
   "capture_gap": {
-    "gap": "string (1 sentence) — the specific owned-audience or operational hole to close first (usually email capture)",
-    "first_action": "string (1 sentence) — the concrete first step (e.g., 'free room-by-room before/after PDF as a lead magnet')"
+    "gap": "string ≤140 chars — the owned-audience hole to close first",
+    "first_action": "string ≤180 chars — the concrete first step"
   },
 
   // ─── The original strategic-frame fields. These FLOW OUT of the six
@@ -430,7 +432,11 @@ Return ONLY the JSON object per the schema in the system prompt.${formatInstruct
   //     smarter model and accept the tighter latency budget.
   const isInstructedRegen = !!extraInstruction;
   const modelId = isInstructedRegen ? 'claude-sonnet-4-5-20250929' : 'claude-haiku-4-5-20251001';
-  const maxOut = isInstructedRegen ? 2500 : 3500;
+  // With the schema char caps + exactly-3 sequenced_plays, expected output
+  // is ~2500-2800 tokens. 4000 on Haiku is comfortable headroom (Haiku 4.5
+  // caps at 8192) and still streams in well under 20s. Sonnet stays at
+  // 2500 since the instructed-regen path uses the same tightened schema.
+  const maxOut = isInstructedRegen ? 2500 : 4000;
   const resp = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01' },
