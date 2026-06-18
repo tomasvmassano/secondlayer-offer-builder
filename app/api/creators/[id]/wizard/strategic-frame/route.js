@@ -412,7 +412,13 @@ Return ONLY the JSON object per the schema in the system prompt.${formatInstruct
     headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01' },
     body: JSON.stringify({
       model: 'claude-sonnet-4-5-20250929',
-      max_tokens: 4000,
+      // 4000 was too generous — Sonnet 4.5 at that ceiling against the
+      // big audit+archetype+uniqueness prompt ran 60-80s, blowing past
+      // Vercel's 60s Hobby maxDuration. 2500 keeps the output rich
+      // enough for the six moves + archetype + originals while landing
+      // calls in 30-45s. If a creator's thesis genuinely needs more,
+      // the prompt caps per-field length so this still fits.
+      max_tokens: 2500,
       system: [{ type: 'text', text: SYSTEM_PROMPT, cache_control: { type: 'ephemeral' } }],
       messages: [{ role: 'user', content: userMessage }],
     }),
@@ -431,33 +437,11 @@ Return ONLY the JSON object per the schema in the system prompt.${formatInstruct
 
   const validation = validateStrategicFrame(parsed);
   if (!validation.valid) {
-    if (retryCount < 1) {
-      // Same retry pattern as Phase 3 — feed errors back via a follow-up.
-      const retryResp = await fetch('https://api.anthropic.com/v1/messages', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01' },
-        body: JSON.stringify({
-          model: 'claude-sonnet-4-5-20250929',
-          max_tokens: 4000,
-          system: [{ type: 'text', text: SYSTEM_PROMPT, cache_control: { type: 'ephemeral' } }],
-          messages: [
-            { role: 'user', content: userMessage },
-            { role: 'assistant', content: rawText },
-            { role: 'user', content: `Your output failed schema validation. Fix and resend ONLY the JSON.\n\nErrors:\n${validation.errors.map(e => '- ' + e).join('\n')}` },
-          ],
-        }),
-      });
-      const retryData = await retryResp.json();
-      if (retryResp.ok) {
-        const retryText = (retryData.content || []).filter(b => b.type === 'text').map(b => b.text).join('\n');
-        const retryParsed = tryParseJson(retryText);
-        if (retryParsed) {
-          const retryValidation = validateStrategicFrame(retryParsed);
-          if (retryValidation.valid) return enrich(retryParsed, audit, archetype, uniqueness, retryCount + 1);
-          return { error: 'Schema validation failed twice', errors: retryValidation.errors, raw: retryText, retries: retryCount + 1 };
-        }
-      }
-    }
+    // No inline retry on validation failure — used to run a second
+    // Anthropic call feeding back the errors, but two Sonnet 4.5
+    // calls against this prompt size regularly crossed Vercel's 60s
+    // Hobby maxDuration cap. Fail fast and let the operator re-run
+    // the wizard manually (which is cheap — single click).
     return { error: 'Schema validation failed', errors: validation.errors, raw: rawText, retries: retryCount };
   }
 
