@@ -7677,8 +7677,22 @@ function PivotTierModal({ creator, onClose, onComplete, mode = 'tier', fromCpId 
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(body),
         });
-        const regenData = await regenRes.json();
-        if (!regenRes.ok) throw new Error(regenData.error || `${CP_LABELS_FULL[cp]} failed (${regenRes.status})`);
+        // Read as text first, then try JSON. Vercel timeouts and unhandled
+        // exceptions in the route return plain text or HTML ("An error
+        // occurred..."), which the old `await res.json()` choked on with
+        // "Unexpected token 'A', 'An error o'... is not valid JSON" —
+        // an unhelpful surface error that hid the actual cause (usually
+        // a 60s Hobby-tier maxDuration timeout).
+        const regenText = await regenRes.text();
+        let regenData = null;
+        try { regenData = JSON.parse(regenText); }
+        catch { /* keep null — non-JSON body */ }
+        if (!regenRes.ok) {
+          const hint = regenRes.status === 504 || /An error occurred/i.test(regenText)
+            ? ' (provavelmente timeout do servidor — tenta de novo)'
+            : '';
+          throw new Error(regenData?.error || `${CP_LABELS_FULL[cp]} falhou (${regenRes.status})${hint}`);
+        }
         updateStep(`cp${cp}`, 'done');
 
         updateStep(`lock${cp}`, 'running');

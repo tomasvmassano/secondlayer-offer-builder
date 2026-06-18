@@ -63,27 +63,13 @@ export async function POST(request, { params }) {
       return NextResponse.json({ error: result.error, errors: result.errors, raw: result.raw }, { status: 502 });
     }
 
-    // ─── ADVERSARIAL REVIEW PASS ───────────────────────────────────
-    // A second LLM call argues AGAINST the thesis we just generated.
-    // Designed to surface the assumptions that must hold, the failure
-    // modes, and the weakest of the six strategic moves. Attached to
-    // the frame so the operator reads the critique alongside the
-    // strategy itself.
-    //
-    // Best-effort: if the adversarial pass fails for any reason, the
-    // main thesis still ships. An operator reviewing a thesis WITHOUT
-    // a critique is no worse off than the pre-2026-06-18 state.
-    let adversarial_review = null;
-    try {
-      const reviewResult = await runAdversarialReview(apiKey, creator, result.data);
-      if (reviewResult?.data) adversarial_review = reviewResult.data;
-    } catch (err) {
-      console.warn('[strategic-frame] adversarial review failed (non-fatal):', err.message);
-    }
-    // Merge the review into the strategic_frame object so downstream
-    // consumers (UI, CP2 prompt, future export) can read it from one
-    // place. Stored as null when the pass failed — easy to detect.
-    const finalFrame = { ...result.data, adversarial_review };
+    // Adversarial review is no longer inlined here — it lives at
+    // /api/creators/:id/wizard/strategic-frame/review and the client
+    // calls it AFTER this endpoint returns. The previous inline call
+    // pushed total time past Vercel's 60s Hobby cap, which surfaced
+    // as a plain-text Vercel timeout response that the cascade modal
+    // couldn't parse. Decoupling fixes that.
+    const finalFrame = { ...result.data, adversarial_review: null };
 
     const existingOffer = creator.offer || {};
     const existingMeta = existingOffer.internal_metadata || {};
@@ -109,7 +95,6 @@ export async function POST(request, { params }) {
         archetype_used: result.archetypeUsed,
         uniqueness_elements_input: result.uniquenessElementsInput,
         retries: result.retries,
-        adversarial_review_present: !!adversarial_review,
       },
     });
   } catch (err) {
@@ -510,27 +495,23 @@ function tryParseJson(text) {
 }
 
 // ─────────────────────────────────────────────────────────────────
-// ADVERSARIAL REVIEW PASS
+// ADVERSARIAL REVIEW — moved to its own endpoint (2026-06-18)
 //
-// After the Strategic Frame is generated and schema-validated, a second
-// LLM call argues AGAINST the thesis. The goal is to surface:
-//   - the weakest of the six strategic moves
-//   - assumptions baked into the thesis that, if wrong, kill it
-//   - concrete failure modes (operator-execution, market, audience)
-//   - a counter-thesis (alternative strategic shape that might fit better)
-//   - a verdict (strong / moderate / weak)
-//   - must-fix items before the operator proceeds to CP2
+// The function + prompt below USED to run inline at the end of the
+// POST handler above. With the prompt + output bumps for the six
+// moves + archetype, the combined main-thesis + review call regularly
+// crossed Vercel's 60s Hobby maxDuration, which surfaced as a plain
+// text "An error o..." response that the cascade modal couldn't
+// JSON-parse.
 //
-// This is the cheapest, highest-leverage "make the system think like a
-// strategist" move — a senior strategist always plays devil's advocate
-// against their own conclusions before committing. The LLM doesn't,
-// unless forced.
-//
-// Best-effort: failures (timeouts, parse errors, 5xx) return null and
-// the caller carries on. The main thesis still ships.
+// They now live at /api/creators/:id/wizard/strategic-frame/review
+// (separate endpoint, separate 30s budget). The functions are kept
+// here as dead code for one commit so the next session can diff them
+// against the new endpoint if needed. Remove on next cleanup pass.
 // ─────────────────────────────────────────────────────────────────
 
-const ADVERSARIAL_SYSTEM_PROMPT = `# STRATEGIC FRAME · ADVERSARIAL REVIEW
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+const _DEAD_ADVERSARIAL_SYSTEM_PROMPT = `# STRATEGIC FRAME · ADVERSARIAL REVIEW
 
 You are an experienced strategist asked to STRESS-TEST a strategic thesis that another strategist just produced for a creator-monetization offer.
 
@@ -584,7 +565,8 @@ Return ONLY a JSON object matching this schema. No prose, no markdown.
   ]
 }`;
 
-async function runAdversarialReview(apiKey, creator, frame) {
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+async function _dead_runAdversarialReview(apiKey, creator, frame) {
   // Trim the frame down to just what the adversarial reviewer needs.
   // The full creator/audit context is too much; the thesis itself plus
   // a brief creator anchor is enough to argue against.
