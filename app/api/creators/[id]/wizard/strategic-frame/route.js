@@ -422,12 +422,13 @@ Return ONLY the JSON object per the schema in the system prompt.${formatInstruct
     headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01' },
     body: JSON.stringify({
       model: 'claude-sonnet-4-5-20250929',
-      // Cost + latency budget: the six-moves schema + archetype + originals
-      // fits comfortably in 1800 (each field has a hard per-field cap in
-      // the prompt). 2500 was leaving headroom that Sonnet would fill, and
-      // with the 34K-char system prompt + ~3-5K input, the call regularly
-      // crossed Vercel's 60s Hobby cap on cold path — operator saw HTTP 504.
-      max_tokens: 1800,
+      // Cost + latency budget. 2500 left enough headroom for Sonnet to over-
+      // write and cross Vercel's 60s cap; 1800 truncated the output mid-JSON
+      // (the six_moves schema has ~50-65 string fields once sequenced_plays
+      // is expanded — 3-5 plays × 7 fields). 2200 is the sweet spot: enough
+      // room for the full schema, tight enough to land cold-path calls under
+      // 50s with the input-block caps below.
+      max_tokens: 2200,
       system: [{ type: 'text', text: SYSTEM_PROMPT, cache_control: { type: 'ephemeral' } }],
       messages: [{ role: 'user', content: userMessage }],
     }),
