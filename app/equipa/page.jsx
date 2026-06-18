@@ -3,17 +3,29 @@
 import { useState, useEffect, useMemo } from "react";
 
 // ─────────────────────────────────────────────────────────────────────
-// /equipa — premium operational dashboard. Dark mode, big rounded cards,
-// SVG charts (bars + rings + sparklines), brand red accent only on
-// highlights. No external chart lib, no Tailwind — inline styles match
-// the rest of the codebase. Hover states via CSS transitions only.
+// /equipa — operational dashboard, Linear/Vercel aesthetic on dark.
+//
+// Design system (rewritten 2026-06-18):
+//   - Hairline section blocks instead of card containers for everything
+//     except the two hero cards. 1px borders, no shadows, no big radii.
+//   - Tabular monospace for every number (counts, percentages, deltas).
+//     Mono uses the system stack so we don't load another font.
+//   - Tighter type scale: hero values 36px, labels 9-10px uppercase,
+//     body 12px. Hierarchy comes from weight + color, not scale.
+//   - Per-operator leaderboard is a bordered TABLE with column headers
+//     instead of a grid of vertical cards. Same data, side-by-side at
+//     a glance — built for morning-standup reading.
+//   - One accent (brand red #B11E2F) for highlights; status uses
+//     green/amber/red only when a value crosses a threshold.
+//   - Motion intentionally restrained: fade-up on initial mount, no
+//     hover-lift on non-interactive surfaces.
 // ─────────────────────────────────────────────────────────────────────
 
 const ACCENT = '#B11E2F';
 const ACCENT_DEEP = '#7A0E18';
 const SURFACE_0 = '#0a0a0a';
-const SURFACE_1 = '#141414';
-const SURFACE_2 = '#1a1a1a';
+const SURFACE_1 = '#0f0f0f';   // section blocks (subtly elevated)
+const SURFACE_2 = '#161616';   // nested rows / inputs
 const BORDER = 'rgba(255,255,255,0.05)';
 const BORDER_HI = 'rgba(255,255,255,0.10)';
 const TEXT_HI = '#f5f5f5';
@@ -23,6 +35,16 @@ const TEXT_DIM = '#444';
 const GREEN = '#22c55e';
 const AMBER = '#eab308';
 const RED = '#ef4444';
+
+// Tabular-mono stack for every number on the page. Uses the system
+// monospace (no extra font load) and forces equal-width digits so
+// numbers stack into a clean grid.
+const MONO_STACK = 'ui-monospace, "SF Mono", Menlo, Consolas, monospace';
+const monoNum = {
+  fontFamily: MONO_STACK,
+  fontVariantNumeric: 'tabular-nums',
+  fontFeatureSettings: '"tnum"',
+};
 
 const WINDOWS = [
   { key: 'today',     label: 'Hoje' },
@@ -143,30 +165,30 @@ export default function EquipaPage() {
         .eq-fade { animation: fadeUp 320ms cubic-bezier(.2,.7,.2,1) both; }
       `}</style>
 
-      {/* Sticky top bar */}
-      <div className="sl-tabs" style={{ position: "sticky", top: 0, zIndex: 10, padding: "16px 32px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, background: "rgba(10,10,10,0.85)", backdropFilter: "blur(10px)", WebkitBackdropFilter: "blur(10px)", borderBottom: `1px solid ${BORDER}` }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
-          <a href="/creators" style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.12em", textTransform: "uppercase", color: TEXT_LO, textDecoration: "none" }}>← Voltar</a>
-          <div className="sl-hide-mobile" style={{ width: 1, height: 14, background: BORDER_HI }} />
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <div style={{ width: 8, height: 8, borderRadius: '50%', background: ACCENT, boxShadow: `0 0 12px ${ACCENT}` }} />
-            <span style={{ fontSize: 14, fontWeight: 700, letterSpacing: "0.02em" }}>Quadro de equipa</span>
+      {/* Sticky top bar — slimmer, hairline border, smaller window chips. */}
+      <div className="sl-tabs" style={{ position: "sticky", top: 0, zIndex: 10, padding: "12px 28px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, background: "rgba(10,10,10,0.78)", backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)", borderBottom: `1px solid ${BORDER}` }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+          <a href="/creators" style={{ fontSize: 10, fontWeight: 600, letterSpacing: "0.14em", textTransform: "uppercase", color: TEXT_LO, textDecoration: "none" }}>← Voltar</a>
+          <div className="sl-hide-mobile" style={{ width: 1, height: 12, background: BORDER_HI }} />
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <div style={{ width: 6, height: 6, borderRadius: '50%', background: ACCENT }} />
+            <span style={{ fontSize: 12, fontWeight: 600, letterSpacing: "0.02em", color: TEXT_HI }}>Quadro de equipa</span>
           </div>
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 2, flexWrap: "wrap" }}>
           {WINDOWS.map(w => (
             <button
               key={w.key}
               onClick={() => setWindowKey(w.key)}
               data-sl-compact
               style={{
-                padding: "6px 12px",
-                background: windowKey === w.key ? "rgba(177,30,47,0.10)" : "transparent",
-                border: `1px solid ${windowKey === w.key ? "rgba(177,30,47,0.40)" : BORDER}`,
-                borderRadius: 8,
+                padding: "5px 10px",
+                background: windowKey === w.key ? "rgba(177,30,47,0.12)" : "transparent",
+                border: `1px solid ${windowKey === w.key ? "rgba(177,30,47,0.35)" : "transparent"}`,
+                borderRadius: 6,
                 color: windowKey === w.key ? ACCENT : TEXT_LO,
-                fontSize: 11, fontWeight: 600, letterSpacing: "0.04em", textTransform: "uppercase",
-                cursor: "pointer", fontFamily: "inherit", transition: "all 150ms",
+                fontSize: 10, fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase",
+                cursor: "pointer", fontFamily: "inherit", transition: "color 120ms, background 120ms, border-color 120ms",
               }}
             >
               {w.label}
@@ -175,7 +197,7 @@ export default function EquipaPage() {
         </div>
       </div>
 
-      <div className="sl-page" style={{ maxWidth: 1440, margin: "0 auto", padding: "32px 32px 64px" }}>
+      <div className="sl-page" style={{ maxWidth: 1400, margin: "0 auto", padding: "28px 28px 80px" }}>
 
         {loading && <div style={{ color: TEXT_DIM, fontSize: 13, padding: 40, textAlign: "center" }}>A carregar…</div>}
         {error && <div style={{ color: RED, fontSize: 13 }}>Erro: {error}</div>}
@@ -251,79 +273,103 @@ export default function EquipaPage() {
               </HeroCard>
             </div>
 
-            {/* PEOPLE ROW — leaderboard cards with rings + sparklines */}
-            <div className="eq-fade sl-grid" style={{ display: "grid", gridTemplateColumns: `repeat(${Math.max(1, Math.min(data.rows.length, 3))}, 1fr)`, gap: 18, marginBottom: 18 }}>
-              {data.rows.length === 0 ? (
-                <div style={{ gridColumn: '1 / -1', padding: "60px 20px", textAlign: "center", border: `1px dashed ${BORDER}`, borderRadius: 24, color: TEXT_DIM }}>
-                  Sem atividade nesta janela
+            {/* OPERADORES TABLE — horizontal-row leaderboard.
+                Replaces the previous grid of vertical PersonCard cells
+                (2026-06-18). Each operator is now one row across every
+                metric so a morning glance answers "who did how much"
+                without column-scanning. */}
+            <div className="eq-fade" style={{ marginBottom: 22 }}>
+              <div style={{
+                border: `1px solid ${BORDER}`, borderRadius: 12, overflow: "hidden", background: SURFACE_1,
+              }}>
+                {/* Header */}
+                <div style={{
+                  padding: "12px 20px",
+                  borderBottom: `1px solid ${BORDER}`,
+                  display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12,
+                  background: "rgba(255,255,255,0.012)",
+                }}>
+                  <div>
+                    <div style={{ fontSize: 10, fontWeight: 600, color: TEXT_HI, letterSpacing: "0.16em", textTransform: "uppercase" }}>Operadores</div>
+                    <div style={{ fontSize: 11, color: TEXT_LO, marginTop: 3 }}>
+                      {windowKey === 'today' ? 'Hoje · vs ontem' :
+                       windowKey === 'yesterday' ? 'Ontem · fechado' :
+                       windowKey === 'week' ? 'Esta semana' :
+                       windowKey === 'month' ? 'Este mês' : 'Histórico completo'}
+                    </div>
+                  </div>
+                  <div style={{ fontSize: 9, fontWeight: 600, color: TEXT_DIM, letterSpacing: "0.12em", textTransform: "uppercase" }}>
+                    {data.rows.length} {data.rows.length === 1 ? 'operador' : 'operadores'}
+                  </div>
                 </div>
-              ) : data.rows.map((row, i) => {
-                const sbRow = data.scoreboard?.find(s => s.userId === row.userId);
-                const streak = data.streaks?.find(s => s.userId === row.userId);
-                const pipe = data.pipeline?.find(p => p.userId === row.userId);
-                const vel = data.velocity?.find(v => v.userId === row.userId);
-                const delta = data.deltas?.find(d => d.userId === row.userId);
-                const monthly = data.monthlyTally?.find(m => m.userId === row.userId);
-                const activity = data.activity?.find(a => a.userId === row.userId);
-                const isLeader = i === 0 && data.rows.length > 1 && row.dmsSent > 0;
-                const isLoser = !!sbRow?.missedGoal;
-                const goalPct = sbRow ? Math.min(100, Math.round((row.dmsSent / sbRow.target) * 100)) : null;
-                const yRow = yesterdayByUser?.[row.userId] || null;
-                return (
-                  <PersonCard
-                    key={row.userId}
-                    row={row}
-                    sbRow={sbRow}
-                    streak={streak}
-                    pipe={pipe}
-                    vel={vel}
-                    delta={delta}
-                    yesterdayRow={yRow}
-                    monthly={monthly}
-                    activity={activity}
-                    isLeader={isLeader}
-                    isLoser={isLoser}
-                    goalPct={goalPct}
-                    windowKey={windowKey}
-                  />
-                );
-              })}
+                {/* Rows */}
+                {data.rows.length === 0 ? (
+                  <div style={{ padding: "60px 20px", textAlign: "center", color: TEXT_DIM, fontSize: 12 }}>
+                    Sem atividade nesta janela
+                  </div>
+                ) : data.rows.map((row, i) => {
+                  const sbRow = data.scoreboard?.find(s => s.userId === row.userId);
+                  const streak = data.streaks?.find(s => s.userId === row.userId);
+                  const delta = data.deltas?.find(d => d.userId === row.userId);
+                  const activity = data.activity?.find(a => a.userId === row.userId);
+                  const isLeader = i === 0 && data.rows.length > 1 && row.dmsSent > 0;
+                  const isLoser = !!sbRow?.missedGoal;
+                  const goalPct = sbRow ? Math.min(100, Math.round((row.dmsSent / sbRow.target) * 100)) : null;
+                  const yRow = yesterdayByUser?.[row.userId] || null;
+                  return (
+                    <PersonRow
+                      key={row.userId}
+                      row={row}
+                      sbRow={sbRow}
+                      streak={streak}
+                      delta={delta}
+                      yesterdayRow={yRow}
+                      activity={activity}
+                      isLeader={isLeader}
+                      isLoser={isLoser}
+                      goalPct={goalPct}
+                      windowKey={windowKey}
+                      last={i === data.rows.length - 1}
+                    />
+                  );
+                })}
+              </div>
             </div>
 
-            {/* SECONDARY ROW — Funnel only (Pipeline donut removed 2026-06-18) */}
-            <div className="eq-fade" style={{ marginBottom: 18 }}>
-              <Card title="Funil de conversão" subtitle="Por pessoa · sempre">
-                <div className="sl-grid" style={{ display: "grid", gridTemplateColumns: `repeat(${Math.max(1, data.funnels?.length || 1)}, 1fr)`, gap: 14 }}>
+            {/* Funil — hairline section block (Pipeline donut removed 2026-06-18) */}
+            <div style={{ marginBottom: 18 }}>
+              <SectionBlock title="Funil de conversão" subtitle="Por pessoa · sempre">
+                <div className="sl-grid" style={{ display: "grid", gridTemplateColumns: `repeat(${Math.max(1, data.funnels?.length || 1)}, 1fr)`, gap: 18 }}>
                   {(data.funnels || []).map(f => <FunnelChart key={f.userId} funnel={f} />)}
                 </div>
-              </Card>
+              </SectionBlock>
             </div>
 
             {/* HEATMAP + RECENT ACTIVITY side by side */}
             <div className="eq-fade sl-grid-2" style={{ display: "grid", gridTemplateColumns: "1.4fr 1fr", gap: 18, marginBottom: 18 }}>
-              <Card title="Padrão de atividade" subtitle="Onde a equipa concentra DMs · últimas 4 semanas">
+              <SectionBlock title="Padrão de atividade" subtitle="Onde a equipa concentra DMs · últimas 4 semanas">
                 <Heatmap data={data.heatmap} />
-              </Card>
-              <Card title="Atividade recente" subtitle={`Últimos ${data.recentActivity?.length || 0} eventos`}>
+              </SectionBlock>
+              <SectionBlock title="Atividade recente" subtitle={`Últimos ${data.recentActivity?.length || 0} eventos`}>
                 <RecentActivityFeed events={data.recentActivity || []} />
-              </Card>
+              </SectionBlock>
             </div>
 
             {/* QUALITY ROW */}
             {data.quality?.some(q => q.byTemplate.length + q.byLanguage.length + q.byTier.length > 0) && (
-              <div className="eq-fade" style={{ marginBottom: 18 }}>
-                <Card title="Qualidade" subtitle="Taxa de resposta por dimensão">
-                  <div className="sl-grid" style={{ display: "grid", gridTemplateColumns: `repeat(${Math.max(1, data.quality.length)}, 1fr)`, gap: 18 }}>
+              <div style={{ marginBottom: 18 }}>
+                <SectionBlock title="Qualidade" subtitle="Taxa de resposta por dimensão">
+                  <div className="sl-grid" style={{ display: "grid", gridTemplateColumns: `repeat(${Math.max(1, data.quality.length)}, 1fr)`, gap: 22 }}>
                     {data.quality.map(q => (
                       <div key={q.userId}>
-                        <div style={{ fontSize: 12, fontWeight: 700, color: TEXT_HI, marginBottom: 12 }}>{q.firstName}</div>
+                        <div style={{ fontSize: 12, fontWeight: 600, color: TEXT_HI, marginBottom: 14, letterSpacing: "-0.005em" }}>{q.firstName}</div>
                         <QualityBars title="Template" items={q.byTemplate} />
                         <QualityBars title="Idioma" items={q.byLanguage} />
                         <QualityBars title="Tier" items={q.byTier} />
                       </div>
                     ))}
                   </div>
-                </Card>
+                </SectionBlock>
               </div>
             )}
 
@@ -372,20 +418,20 @@ export default function EquipaPage() {
                       </div>
                     );
                     return (
-                      <div key={userId} style={{ padding: 18, background: SURFACE_0, border: `1px solid ${BORDER}`, borderRadius: 16 }}>
-                        <div style={{ fontSize: 13, fontWeight: 700, color: TEXT_HI, marginBottom: 10 }}>{c.firstName}</div>
-                        <div style={{ fontSize: 32, fontWeight: 800, color: TEXT_HI, letterSpacing: "-0.025em", marginBottom: 4 }}>
+                      <div key={userId} style={{ padding: 16, background: SURFACE_0, border: `1px solid ${BORDER}`, borderRadius: 10 }}>
+                        <div style={{ fontSize: 12, fontWeight: 600, color: TEXT_HI, marginBottom: 12 }}>{c.firstName}</div>
+                        <div style={{ ...monoNum, fontSize: 26, fontWeight: 600, color: TEXT_HI, letterSpacing: "-0.02em", marginBottom: 4, lineHeight: 1 }}>
                           {c.cacEur == null ? '—' : fmtEur(c.cacEur)}
                         </div>
-                        <div style={{ fontSize: 11, color: TEXT_LO, marginBottom: 10 }}>por deal assinado</div>
+                        <div style={{ fontSize: 11, color: TEXT_LO, marginBottom: 12 }}>por deal assinado</div>
                         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, paddingTop: 10, borderTop: `1px solid ${BORDER}` }}>
                           <div>
-                            <div style={{ fontSize: 9, fontWeight: 600, color: TEXT_DIM, letterSpacing: "0.10em", textTransform: "uppercase", marginBottom: 3 }}>Spend</div>
-                            <div style={{ fontSize: 13, fontWeight: 700, color: TEXT_MID }}>{fmtEur(c.spendEur)}</div>
+                            <div style={{ fontSize: 9, fontWeight: 600, color: TEXT_DIM, letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 4 }}>Spend</div>
+                            <div style={{ ...monoNum, fontSize: 13, fontWeight: 600, color: TEXT_MID }}>{fmtEur(c.spendEur)}</div>
                           </div>
                           <div>
-                            <div style={{ fontSize: 9, fontWeight: 600, color: TEXT_DIM, letterSpacing: "0.10em", textTransform: "uppercase", marginBottom: 3 }}>Payback</div>
-                            <div style={{ fontSize: 13, fontWeight: 700, color: c.paybackRatio && c.paybackRatio >= 5 ? GREEN : TEXT_MID }}>
+                            <div style={{ fontSize: 9, fontWeight: 600, color: TEXT_DIM, letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 4 }}>Payback</div>
+                            <div style={{ ...monoNum, fontSize: 13, fontWeight: 600, color: c.paybackRatio && c.paybackRatio >= 5 ? GREEN : TEXT_MID }}>
                               {c.paybackRatio == null ? '—' : `${c.paybackRatio}×`}
                             </div>
                           </div>
@@ -403,7 +449,7 @@ export default function EquipaPage() {
                 <div style={{ marginBottom: 16, paddingBottom: 16, borderBottom: `1px solid ${BORDER}` }}>
                   <div style={{ fontSize: 11, color: TEXT_LO, marginBottom: 4 }}>Equipa</div>
                   <div style={{ display: "flex", alignItems: "baseline", gap: 12 }}>
-                    <span style={{ fontSize: 40, fontWeight: 800, color: data.showUp?.teamRate == null ? TEXT_DIM : data.showUp.teamRate >= 70 ? GREEN : data.showUp.teamRate >= 50 ? AMBER : RED, letterSpacing: "-0.025em" }}>
+                    <span style={{ ...monoNum, fontSize: 28, fontWeight: 600, color: data.showUp?.teamRate == null ? TEXT_DIM : data.showUp.teamRate >= 70 ? GREEN : data.showUp.teamRate >= 50 ? AMBER : RED, letterSpacing: "-0.02em" }}>
                       {data.showUp?.teamRate == null ? '—' : `${data.showUp.teamRate}%`}
                     </span>
                     <span style={{ fontSize: 12, color: TEXT_LO }}>
@@ -476,9 +522,9 @@ export default function EquipaPage() {
                       </div>
                     );
                     return (
-                      <div key={userId} style={{ padding: 18, background: SURFACE_0, border: `1px solid ${BORDER}`, borderRadius: 16 }}>
-                        <div style={{ fontSize: 13, fontWeight: 700, color: TEXT_HI, marginBottom: 10 }}>{v.firstName}</div>
-                        <div style={{ fontSize: 28, fontWeight: 800, color: TEXT_HI, letterSpacing: "-0.025em", marginBottom: 4 }}>
+                      <div key={userId} style={{ padding: 16, background: SURFACE_0, border: `1px solid ${BORDER}`, borderRadius: 10 }}>
+                        <div style={{ fontSize: 12, fontWeight: 600, color: TEXT_HI, marginBottom: 12 }}>{v.firstName}</div>
+                        <div style={{ ...monoNum, fontSize: 22, fontWeight: 600, color: TEXT_HI, letterSpacing: "-0.02em", marginBottom: 4, lineHeight: 1 }}>
                           {v.velocityEurPerDay == null ? '—' : `${fmtEur(v.velocityEurPerDay)}/dia`}
                         </div>
                         <div style={{ fontSize: 11, color: TEXT_LO, marginBottom: 12 }}>velocidade</div>
@@ -563,13 +609,22 @@ export default function EquipaPage() {
 
 // ─────────────────────────── PRIMITIVES ───────────────────────────
 
+// Standard card — used as fallback for sections that still benefit from
+// elevation (e.g. inside the collapsed Avançadas block). Tightened from
+// 26px/24r/8px-shadow to 20px/12r/no-shadow. Most secondary sections
+// have moved to <SectionBlock> (below) and skip Card entirely.
 function Card({ title, subtitle, children }) {
   return (
-    <div className="eq-card sl-card" style={{ padding: 26, background: SURFACE_1, border: `1px solid ${BORDER}`, borderRadius: 24, boxShadow: "0 1px 0 rgba(255,255,255,0.03) inset, 0 8px 32px rgba(0,0,0,0.4)" }}>
+    <div className="eq-card sl-card" style={{
+      padding: 20,
+      background: SURFACE_1,
+      border: `1px solid ${BORDER}`,
+      borderRadius: 12,
+    }}>
       {title && (
-        <div style={{ marginBottom: 20 }}>
-          <div style={{ fontSize: 14, fontWeight: 700, color: TEXT_HI }}>{title}</div>
-          {subtitle && <div style={{ fontSize: 11, color: TEXT_LO, marginTop: 2 }}>{subtitle}</div>}
+        <div style={{ marginBottom: 18 }}>
+          <div style={{ fontSize: 13, fontWeight: 600, color: TEXT_HI, letterSpacing: "-0.005em" }}>{title}</div>
+          {subtitle && <div style={{ fontSize: 11, color: TEXT_LO, marginTop: 3, lineHeight: 1.5 }}>{subtitle}</div>}
         </div>
       )}
       {children}
@@ -577,33 +632,78 @@ function Card({ title, subtitle, children }) {
   );
 }
 
+// Hairline section block — the new default for non-hero surfaces.
+// Replaces Card for everything except heroes + nested elevation. Uses
+// a 1px border + the section's own typography hierarchy instead of a
+// shadow + bigger radius. Lets adjacent sections breathe via gap
+// instead of card-stacking.
+function SectionBlock({ title, subtitle, action, children, padded = true }) {
+  return (
+    <div className="eq-fade" style={{
+      border: `1px solid ${BORDER}`,
+      borderRadius: 12,
+      overflow: "hidden",
+      background: SURFACE_1,
+    }}>
+      {(title || action) && (
+        <div style={{
+          padding: "14px 18px",
+          borderBottom: `1px solid ${BORDER}`,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 12,
+          background: "rgba(255,255,255,0.012)",
+        }}>
+          <div>
+            {title && <div style={{ fontSize: 10, fontWeight: 600, color: TEXT_HI, letterSpacing: "0.14em", textTransform: "uppercase" }}>{title}</div>}
+            {subtitle && <div style={{ fontSize: 11, color: TEXT_LO, marginTop: 4, lineHeight: 1.5 }}>{subtitle}</div>}
+          </div>
+          {action}
+        </div>
+      )}
+      <div style={{ padding: padded ? "18px" : 0 }}>
+        {children}
+      </div>
+    </div>
+  );
+}
+
 function HeroCard({ label, value, hint, accent, progress, deltaChip, children }) {
   return (
     <div className="eq-card" style={{
-      padding: 28,
-      background: accent
-        ? `radial-gradient(120% 100% at 0% 0%, rgba(177,30,47,0.18) 0%, ${SURFACE_1} 55%)`
-        : `radial-gradient(120% 100% at 100% 0%, rgba(255,255,255,0.03) 0%, ${SURFACE_1} 60%)`,
-      border: `1px solid ${accent ? "rgba(177,30,47,0.28)" : BORDER}`,
-      borderRadius: 24,
-      boxShadow: accent
-        ? "0 1px 0 rgba(255,255,255,0.04) inset, 0 8px 40px rgba(177,30,47,0.12)"
-        : "0 1px 0 rgba(255,255,255,0.04) inset, 0 8px 32px rgba(0,0,0,0.4)",
-      minHeight: 220,
+      padding: 22,
+      background: SURFACE_1,
+      // Hairline-only borders for the new design; the accent card gets a
+      // slightly warmer red-tinted edge instead of the old big shadow.
+      border: `1px solid ${accent ? "rgba(177,30,47,0.22)" : BORDER}`,
+      borderRadius: 12,
+      minHeight: 200,
       display: "flex",
       flexDirection: "column",
     }}>
-      <div style={{ fontSize: 11, fontWeight: 600, color: accent ? ACCENT : TEXT_LO, letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 14 }}>{label}</div>
+      <div style={{
+        fontSize: 9, fontWeight: 600,
+        color: accent ? ACCENT : TEXT_LO,
+        letterSpacing: "0.16em", textTransform: "uppercase",
+        marginBottom: 18,
+      }}>{label}</div>
       {/* Value + vs-yesterday chip on the same row so the comparison
-          reads as a sentence ("47 ↑3 vs ontem") instead of stacked. */}
-      <div style={{ display: "flex", alignItems: "baseline", gap: 12, flexWrap: "wrap", marginBottom: 8 }}>
-        <div style={{ fontSize: 52, fontWeight: 800, color: TEXT_HI, letterSpacing: "-0.03em", lineHeight: 1 }}>{value}</div>
+          reads as a sentence ("47 ↑3 vs ontem") instead of stacked.
+          Hero numbers now render in tabular mono so they sit on a digit
+          grid — Linear/Vercel/Grafana convention. */}
+      <div style={{ display: "flex", alignItems: "baseline", gap: 10, flexWrap: "wrap", marginBottom: 6 }}>
+        <div style={{
+          ...monoNum,
+          fontSize: 36, fontWeight: 600,
+          color: TEXT_HI, letterSpacing: "-0.02em", lineHeight: 1,
+        }}>{value}</div>
         {deltaChip && <div style={{ display: "inline-flex", alignSelf: "center" }}>{deltaChip}</div>}
       </div>
-      {hint && <div style={{ fontSize: 12, color: TEXT_MID, marginBottom: 4 }}>{hint}</div>}
+      {hint && <div style={{ fontSize: 11, color: TEXT_MID, marginBottom: 4, lineHeight: 1.5 }}>{hint}</div>}
       {progress != null && (
-        <div style={{ marginTop: 8, marginBottom: 4, height: 6, background: "rgba(255,255,255,0.05)", borderRadius: 6, overflow: "hidden" }}>
-          <div style={{ height: 6, width: `${progress}%`, background: `linear-gradient(90deg, ${ACCENT_DEEP}, ${ACCENT})`, borderRadius: 6, transition: "width 600ms cubic-bezier(.2,.7,.2,1)" }} />
+        <div style={{ marginTop: 10, marginBottom: 4, height: 3, background: "rgba(255,255,255,0.04)", borderRadius: 2, overflow: "hidden" }}>
+          <div style={{ height: 3, width: `${progress}%`, background: ACCENT, borderRadius: 2, transition: "width 600ms cubic-bezier(.2,.7,.2,1)" }} />
         </div>
       )}
       {children && <div style={{ marginTop: "auto", paddingTop: 16 }}>{children}</div>}
@@ -614,8 +714,8 @@ function HeroCard({ label, value, hint, accent, progress, deltaChip, children })
 function MicroStat({ label, value, accent }) {
   return (
     <div>
-      <div style={{ fontSize: 9, fontWeight: 600, color: TEXT_LO, letterSpacing: "0.10em", textTransform: "uppercase", marginBottom: 4 }}>{label}</div>
-      <div style={{ fontSize: 18, fontWeight: 700, color: accent || TEXT_HI }}>{value}</div>
+      <div style={{ fontSize: 9, fontWeight: 600, color: TEXT_LO, letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 4 }}>{label}</div>
+      <div style={{ ...monoNum, fontSize: 16, fontWeight: 600, color: accent || TEXT_HI, letterSpacing: "-0.01em" }}>{value}</div>
     </div>
   );
 }
@@ -744,11 +844,128 @@ function PersonCard({ row, sbRow, streak, pipe, vel, delta, yesterdayRow, monthl
   );
 }
 
+// ─────────────────────────────────────────────────────────────────
+// PersonRow — horizontal table-row leaderboard cell.
+//
+// Replaces the old vertical PersonCard grid. Each operator becomes one
+// row across columns: Operador · Touches · Reply% · Respostas · Fechados
+// · Follow-ups · 7-day sparkline · Streak · Goal-ring (Hoje only).
+//
+// Rationale: a morning-standup view should answer "who did how much
+// today" at a single glance. Tables make side-by-side comparison
+// instant; cards force the eye to scan column-by-column. Each number
+// renders in tabular monospace so columns align as a digit grid.
+//
+// Grid columns ordered by importance (most-scanned on the left).
+// Mobile fallback handled via CSS in the parent (PersonRowTable) — at
+// < 900px the row flips to a vertical stack.
+// ─────────────────────────────────────────────────────────────────
+const PERSON_ROW_COLS = "200px 1fr 100px 110px 90px 90px 100px 120px 60px";
+function PersonRow({ row, sbRow, streak, delta, yesterdayRow, activity, isLeader, isLoser, goalPct, windowKey, last }) {
+  const series = activity?.days || [];
+  const replyRate = row.replyRate;
+  const showVsYesterday = windowKey === 'today' && yesterdayRow;
+  const signedAccent = row.signed > 0 ? GREEN : TEXT_HI;
+  const replyAccent = replyRate >= 15 ? GREEN : replyRate >= 5 ? AMBER : TEXT_HI;
+  return (
+    <div className="eq-person-row" style={{
+      display: "grid",
+      gridTemplateColumns: PERSON_ROW_COLS,
+      alignItems: "center",
+      gap: 16,
+      padding: "16px 20px",
+      borderBottom: last ? "none" : `1px solid ${BORDER}`,
+      background: isLeader ? "rgba(34,197,94,0.025)" : "transparent",
+      transition: "background 150ms",
+    }}>
+      {/* Operador — avatar + name + leader/atrás chip */}
+      <div style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0 }}>
+        <div style={{
+          width: 30, height: 30, borderRadius: "50%",
+          background: isLeader ? `linear-gradient(135deg, ${ACCENT_DEEP}, ${ACCENT})` : "rgba(255,255,255,0.04)",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          fontSize: 11, fontWeight: 600, color: isLeader ? "#fff" : TEXT_MID,
+          border: `1px solid ${BORDER_HI}`,
+          flexShrink: 0,
+        }}>
+          {initials(row.firstName)}
+        </div>
+        <div style={{ minWidth: 0 }}>
+          <div style={{ fontSize: 13, fontWeight: 600, color: TEXT_HI, letterSpacing: "-0.005em", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{row.firstName}</div>
+          <div style={{ display: "flex", gap: 6, marginTop: 3, alignItems: "center" }}>
+            {isLeader && <span style={{ fontSize: 8, fontWeight: 600, color: GREEN, letterSpacing: "0.10em", textTransform: "uppercase" }}>Líder</span>}
+            {isLoser  && <span style={{ fontSize: 8, fontWeight: 600, color: RED,   letterSpacing: "0.10em", textTransform: "uppercase" }}>Atrás</span>}
+            {!isLeader && !isLoser && <span style={{ fontSize: 8, fontWeight: 600, color: TEXT_DIM, letterSpacing: "0.10em", textTransform: "uppercase" }}>Operador</span>}
+          </div>
+        </div>
+      </div>
+
+      {/* Streak — text-only, no emoji. Active days under 30 only mention
+          when there's a real streak; renders dimly otherwise so the
+          column still aligns. */}
+      <div style={{ textAlign: "left" }}>
+        {streak?.streak > 0 ? (
+          <div>
+            <div style={{ ...monoNum, fontSize: 15, fontWeight: 600, color: AMBER, lineHeight: 1 }}>{streak.streak}d</div>
+            <div style={{ fontSize: 9, color: TEXT_LO, letterSpacing: "0.12em", textTransform: "uppercase", marginTop: 3 }}>Streak</div>
+          </div>
+        ) : (
+          <div style={{ fontSize: 9, color: TEXT_DIM, letterSpacing: "0.12em", textTransform: "uppercase" }}>Sem streak</div>
+        )}
+      </div>
+
+      {/* Touches — primary metric */}
+      <PersonRowCell label="Touches" value={row.touchesSent} accent={TEXT_HI} delta={showVsYesterday ? (row.touchesSent - (yesterdayRow.touchesSent || 0)) : null} />
+
+      {/* Reply % — color-coded */}
+      <PersonRowCell label="Reply %" value={`${replyRate}%`} accent={replyAccent} delta={showVsYesterday ? (replyRate - (yesterdayRow.replyRate || 0)) : null} deltaSuffix="pp" />
+
+      {/* Respostas absolutas */}
+      <PersonRowCell label="Respostas" value={row.repliesReceived} accent={TEXT_HI} delta={showVsYesterday ? (row.repliesReceived - (yesterdayRow.repliesReceived || 0)) : null} />
+
+      {/* Fechados */}
+      <PersonRowCell label="Fechados" value={row.signed} accent={signedAccent} delta={delta?.deltaSigned} />
+
+      {/* Follow-ups */}
+      <PersonRowCell label="F-up" value={row.followUpsDone} accent={TEXT_MID} />
+
+      {/* 7-day sparkline */}
+      <div style={{ alignSelf: "center" }}>
+        <div style={{ fontSize: 9, fontWeight: 600, color: TEXT_LO, letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 6 }}>7 dias</div>
+        {series.length > 0 ? <Sparkline days={series} /> : <div style={{ fontSize: 10, color: TEXT_DIM }}>—</div>}
+      </div>
+
+      {/* Goal ring — only on Hoje view, shows DMs/target progress */}
+      <div style={{ alignSelf: "center", justifySelf: "end" }}>
+        {windowKey === 'today' && sbRow ? (
+          <ProgressRing value={goalPct} size={44} stroke={4} color={goalPct >= 100 ? GREEN : ACCENT} centerLabel={`${row.dmsSent}/${sbRow.target}`} />
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
+function PersonRowCell({ label, value, accent, delta, deltaSuffix = '' }) {
+  return (
+    <div>
+      <div style={{ fontSize: 9, fontWeight: 600, color: TEXT_LO, letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 6 }}>{label}</div>
+      <div style={{ display: "flex", alignItems: "baseline", gap: 6 }}>
+        <div style={{ ...monoNum, fontSize: 18, fontWeight: 600, color: accent || TEXT_HI, lineHeight: 1, letterSpacing: "-0.01em" }}>{value}</div>
+        {delta != null && delta !== 0 && (
+          <span style={{ ...monoNum, fontSize: 10, fontWeight: 600, color: delta > 0 ? GREEN : RED }}>
+            {delta > 0 ? '+' : ''}{delta}{deltaSuffix}
+          </span>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function StatTile({ label, value, accent, delta, deltaSuffix = '' }) {
   return (
-    <div style={{ padding: "10px 12px", background: SURFACE_0, borderRadius: 12, border: `1px solid ${BORDER}` }}>
-      <div style={{ fontSize: 9, fontWeight: 600, color: TEXT_LO, letterSpacing: "0.10em", textTransform: "uppercase", marginBottom: 4, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{label}</div>
-      <div style={{ display: "flex", alignItems: "baseline", gap: 4 }}>
+    <div style={{ padding: "8px 10px", background: SURFACE_0, borderRadius: 8, border: `1px solid ${BORDER}` }}>
+      <div style={{ fontSize: 9, fontWeight: 600, color: TEXT_LO, letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 4, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{label}</div>
+      <div style={{ display: "flex", alignItems: "baseline", gap: 4, ...monoNum }}>
         <div style={{ fontSize: 17, fontWeight: 700, color: accent || TEXT_HI, letterSpacing: "-0.01em" }}>{value}</div>
         {delta != null && delta !== 0 && (
           <span style={{ fontSize: 9, fontWeight: 700, color: delta > 0 ? GREEN : RED }}>
@@ -773,23 +990,20 @@ function DeltaBadge({ value }) {
   const positive = value > 0;
   return (
     <span style={{
-      display: "inline-flex", alignItems: "center", gap: 3,
-      padding: "2px 8px", borderRadius: 999,
+      ...monoNum,
+      display: "inline-flex", alignItems: "center", gap: 2,
+      padding: "1px 6px", borderRadius: 4,
       background: positive ? "rgba(34,197,94,0.10)" : "rgba(239,68,68,0.10)",
-      border: `1px solid ${positive ? "rgba(34,197,94,0.30)" : "rgba(239,68,68,0.30)"}`,
       color: positive ? GREEN : RED,
-      fontSize: 10, fontWeight: 700, letterSpacing: "0.02em",
+      fontSize: 10, fontWeight: 600,
     }}>
-      {positive ? '↑' : '↓'} {Math.abs(value)}
+      {positive ? '+' : '−'}{Math.abs(value)}
     </span>
   );
 }
 
-// "↑3 vs ontem" — same vibe as DeltaBadge but renders the comparison
-// inline with the word "ontem" so it reads as a sentence rather than a
-// floating number. Used in the Hoje hero strip + per-person cards when
-// the server ships vsYesterday data. `suffix` differentiates raw count
-// deltas ("") from percentage-point deltas ("pp").
+// "+3 vs ontem" — minimal mono chip, less rounded than the old pill.
+// Reads as a single line of telemetry rather than a bubbly badge.
 function VsYesterdayChip({ current, previous, suffix = '', invertColor = false }) {
   if (typeof previous !== 'number') return null;
   const diff = (current || 0) - previous;
@@ -797,27 +1011,27 @@ function VsYesterdayChip({ current, previous, suffix = '', invertColor = false }
     return (
       <span style={{
         display: "inline-flex", alignItems: "center",
-        padding: "2px 8px", borderRadius: 999,
-        background: "rgba(255,255,255,0.03)",
-        border: "1px solid rgba(255,255,255,0.06)",
-        color: TEXT_LO, fontSize: 10, fontWeight: 600,
+        padding: "1px 6px", borderRadius: 4,
+        background: "rgba(255,255,255,0.025)",
+        color: TEXT_LO, fontSize: 10, fontWeight: 500,
       }}>
-        = ontem
+        <span style={{ ...monoNum, marginRight: 5 }}>=</span>
+        <span style={{ fontWeight: 500, letterSpacing: "0.04em" }}>ontem</span>
       </span>
     );
   }
   const positive = invertColor ? diff < 0 : diff > 0;
-  const arrow = diff > 0 ? '↑' : '↓';
+  const sign = diff > 0 ? '+' : '−';
   return (
     <span style={{
-      display: "inline-flex", alignItems: "center", gap: 4,
-      padding: "2px 8px", borderRadius: 999,
+      display: "inline-flex", alignItems: "center", gap: 5,
+      padding: "1px 6px", borderRadius: 4,
       background: positive ? "rgba(34,197,94,0.10)" : "rgba(239,68,68,0.10)",
-      border: `1px solid ${positive ? "rgba(34,197,94,0.30)" : "rgba(239,68,68,0.30)"}`,
       color: positive ? GREEN : RED,
-      fontSize: 10, fontWeight: 700, letterSpacing: "0.02em",
+      fontSize: 10, fontWeight: 600,
     }}>
-      {arrow} {Math.abs(diff)}{suffix} <span style={{ opacity: 0.7, fontWeight: 500 }}>vs ontem</span>
+      <span style={monoNum}>{sign}{Math.abs(diff)}{suffix}</span>
+      <span style={{ opacity: 0.7, fontWeight: 500, letterSpacing: "0.04em" }}>vs ontem</span>
     </span>
   );
 }
