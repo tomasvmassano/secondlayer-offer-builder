@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getCreator, updateCreator } from '../../../../../lib/creators';
 import { validateCoreOffer, VALID_PRICING_TIERS, TIER_PRICE_HINTS, revenuePriceMatchesTier } from '../../../../../lib/schemas/coreOffer';
+import { formatStrategicFrameForPrompt } from '../../../../../lib/schemas/strategicFrame';
 import { parseTargetPriceToStructured } from '../../../../../lib/currency';
 import { readCheckpointProgress } from '../../../../../lib/offerSchema';
 import { OPERATOR_INSTRUCTIONS_RULE, formatInstructionsBlock, formatInstructionsReminder } from '../../../../../lib/operatorInstructions';
@@ -371,17 +372,10 @@ async function runCoreOffer(apiKey, creator, pricingTier, pricingModelOverride =
   const uniqueness = meta.uniqueness_extraction || null;
 
   // ── Phase 4 CP1 — the locked strategic commit
-  let frameBlock = '';
-  if (frame) {
-    frameBlock = `## STRATEGIC FRAME (CP1 · LOCKED — cite by signal, never copy verbatim into creator-facing fields)
-Confirmed role: ${frame.confirmed_role}
-Dominant transformation (operator language): ${frame.dominant_transformation}
-Audience segment: ${frame.audience_segment?.description}
-Audience anchor: ${frame.audience_segment?.demographics_anchor}
-Negative qualifiers (translate these into "not for" bullets — REWRITE in creator voice):
-${(frame.negative_qualifiers || []).map(q => '  - ' + q).join('\n')}
-Positioning tension: ${frame.positioning_tension}`;
-  }
+  // Uses the shared formatter so the six load-bearing moves + the
+  // adversarial review reach this wizard. Replaces the bespoke
+  // 5-field block that ignored the thesis's strongest signals.
+  const frameBlock = formatStrategicFrameForPrompt(frame);
 
   // ── Phase 1 — existing price points anchor pricing decisions
   // For the high-tier hardening (cannibalisation check, ladder coherence), the

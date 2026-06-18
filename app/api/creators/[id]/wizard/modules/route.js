@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getCreator, updateCreator } from '../../../../../lib/creators';
 import { validateModules } from '../../../../../lib/schemas/modules';
+import { formatStrategicFrameForPrompt } from '../../../../../lib/schemas/strategicFrame';
 import { readCheckpointProgress } from '../../../../../lib/offerSchema';
 import { OPERATOR_INSTRUCTIONS_RULE, formatInstructionsBlock, formatInstructionsReminder } from '../../../../../lib/operatorInstructions';
 
@@ -262,13 +263,10 @@ async function runModules(apiKey, creator, retryCount = 0, extraInstruction = nu
     `  [${i}] (${e.category} · ${e.monetization_potential}$${e.usable_in_modules ? ' · MOD' : ''}) ${e.element}\n      evidence: ${e.evidence_source}`
   ).join('\n');
 
-  let frameBlock = '';
-  if (frame) {
-    frameBlock = `## CP1 STRATEGIC FRAME (LOCKED)
-Role: ${frame.confirmed_role}
-Dominant transformation (internal): ${frame.dominant_transformation}
-Positioning tension: ${frame.positioning_tension}`;
-  }
+  // Shared formatter — surfaces the six load-bearing moves + the
+  // adversarial review. Replaces a tiny 3-field block that wasn't
+  // pulling the thesis's strongest signals into modules generation.
+  const frameBlock = formatStrategicFrameForPrompt(frame);
 
   const offerBlock = `## CP2 CORE OFFER (LOCKED)
 Community name: ${client.community_name || '?'}

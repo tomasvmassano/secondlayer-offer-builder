@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getCreator, updateCreator } from '../../../../../lib/creators';
 import { validateValueStack } from '../../../../../lib/schemas/valueStack';
+import { formatStrategicFrameForPrompt } from '../../../../../lib/schemas/strategicFrame';
 import { readCheckpointProgress } from '../../../../../lib/offerSchema';
 import { OPERATOR_INSTRUCTIONS_RULE, formatInstructionsBlock, formatInstructionsReminder } from '../../../../../lib/operatorInstructions';
 
@@ -243,13 +244,9 @@ async function runValueStack(apiKey, creator, retryCount = 0, extraInstruction =
   const audit = meta.ecosystem_audit || null;
   const modules = Array.isArray(client.modules) ? client.modules : [];
 
-  // ── CP1 frame
-  let frameBlock = '';
-  if (frame) {
-    frameBlock = `## CP1 STRATEGIC FRAME (LOCKED)
-Role: ${frame.confirmed_role}
-Positioning tension: ${frame.positioning_tension}`;
-  }
+  // ── CP1 frame — shared formatter so the six moves + adversarial
+  //     review reach value-stack generation (previously only 2 fields).
+  const frameBlock = formatStrategicFrameForPrompt(frame);
 
   // ── CP2 core offer
   const offerBlock = `## CP2 CORE OFFER (LOCKED — actualPrice in value_stack MUST match target_price)

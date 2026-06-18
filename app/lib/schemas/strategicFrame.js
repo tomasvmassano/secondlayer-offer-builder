@@ -29,6 +29,137 @@ export const VALID_CONFIRMED_ROLES = [
   'standalone',
 ];
 
+/**
+ * Format the Strategic Frame for inclusion in a downstream wizard's
+ * user-message context. Replaces the bespoke inline blocks that each
+ * wizard route used to build by hand (which only included 5 of the
+ * 11+ fields and ignored the six load-bearing moves entirely).
+ *
+ * Returns an empty string when the frame is missing — caller can just
+ * concatenate the result with their other context.
+ *
+ * Output is operator-facing prompt context, not creator-facing copy.
+ * The trailing CONSTRAINT block tells the downstream LLM to treat the
+ * thesis as the boss — if the offer it's about to write contradicts
+ * the reflex_trap or undermines the binding_constraint, it must
+ * reconsider rather than charge ahead.
+ */
+export function formatStrategicFrameForPrompt(frame) {
+  if (!frame || typeof frame !== 'object') return '';
+  const lines = [];
+  lines.push('## STRATEGIC FRAME (CP1 · LOCKED — this is the boss)');
+  lines.push('Every downstream choice must align with the six moves below. Cite the move you derived from when justifying a decision. Do NOT recommend what reflex_trap.default_move rejected — that path was explicitly ruled out.');
+  lines.push('');
+
+  if (frame.confirmed_role) lines.push(`Confirmed role: ${frame.confirmed_role}`);
+  if (frame.dominant_transformation) lines.push(`Dominant transformation: ${frame.dominant_transformation}`);
+
+  // ── The six moves ─────────────────────────────────────────────
+  const ar = frame.audience_reframe;
+  if (ar) {
+    lines.push('');
+    lines.push('### Move 1 — Audience reframe');
+    if (ar.raw_observation)         lines.push(`Raw observation: ${ar.raw_observation}`);
+    if (ar.default_interpretation)  lines.push(`Default reading (REJECTED): ${ar.default_interpretation}`);
+    if (ar.reframe)                 lines.push(`Reframe (USE THIS): ${ar.reframe}`);
+  }
+
+  const rt = frame.reflex_trap;
+  if (rt) {
+    lines.push('');
+    lines.push('### Move 2 — Reflex trap (DO NOT BUILD THIS)');
+    if (rt.default_move) lines.push(`Default move to AVOID: ${rt.default_move}`);
+    if (rt.why_wrong)    lines.push(`Why wrong: ${rt.why_wrong}`);
+  }
+
+  const plays = Array.isArray(frame.sequenced_plays) ? frame.sequenced_plays : [];
+  if (plays.length) {
+    lines.push('');
+    lines.push('### Move 3 — Sequenced plays (execution order, fastest cash first)');
+    plays.forEach((p, i) => {
+      const range = (p.realistic_monthly_low != null || p.realistic_monthly_high != null)
+        ? ` · €${p.realistic_monthly_low ?? '?'}–${p.realistic_monthly_high ?? '?'}/mo`
+        : '';
+      lines.push(`  ${i + 1}. ${p.name || '(unnamed)'}${range}`);
+      if (p.why_now)               lines.push(`     why now: ${p.why_now}`);
+      if (p.time_to_first_revenue) lines.push(`     time-to-revenue: ${p.time_to_first_revenue}`);
+      if (p.leverages)             lines.push(`     leverages: ${p.leverages}`);
+      if (p.templatization_potential) lines.push(`     templatization: ${p.templatization_potential}`);
+    });
+    lines.push(`>>> The CURRENT offer being built should implement play #1 (${plays[0]?.name || 'the first play'}) — that's the one this wizard is sizing for. Later plays are downstream business, not this round.`);
+  }
+
+  const bc = frame.binding_constraint;
+  if (bc) {
+    lines.push('');
+    lines.push('### Move 4 — Binding constraint');
+    if (bc.name)        lines.push(`Constraint: ${bc.name}`);
+    if (bc.implication) lines.push(`Implication: ${bc.implication}`);
+  }
+
+  const cb = frame.contrarian_bet;
+  if (cb) {
+    lines.push('');
+    lines.push('### Move 5 — Contrarian bet');
+    if (cb.conventional_wisdom) lines.push(`Conventional: ${cb.conventional_wisdom}`);
+    if (cb.bet)                 lines.push(`Bet: ${cb.bet}`);
+    if (cb.evidence)            lines.push(`Evidence: ${cb.evidence}`);
+  }
+
+  const cg = frame.capture_gap;
+  if (cg) {
+    lines.push('');
+    lines.push('### Move 6 — Capture gap (close this FIRST)');
+    if (cg.gap)          lines.push(`Gap: ${cg.gap}`);
+    if (cg.first_action) lines.push(`First action: ${cg.first_action}`);
+  }
+
+  // ── Existing strategic-frame fields ───────────────────────────
+  if (frame.audience_segment?.description || frame.audience_segment?.demographics_anchor) {
+    lines.push('');
+    lines.push('### Audience segment');
+    if (frame.audience_segment?.description)         lines.push(`Description: ${frame.audience_segment.description}`);
+    if (frame.audience_segment?.demographics_anchor) lines.push(`Anchor: ${frame.audience_segment.demographics_anchor}`);
+  }
+  if (Array.isArray(frame.negative_qualifiers) && frame.negative_qualifiers.length) {
+    lines.push('');
+    lines.push('### Negative qualifiers (NOT for)');
+    frame.negative_qualifiers.forEach(q => lines.push(`  - ${q}`));
+  }
+  if (frame.positioning_tension) {
+    lines.push('');
+    lines.push(`### Positioning tension`);
+    lines.push(frame.positioning_tension);
+  }
+  if (frame.differentiation_from_existing) {
+    lines.push('');
+    lines.push(`### Differentiation from existing communities`);
+    lines.push(frame.differentiation_from_existing);
+  }
+
+  // ── Adversarial review — flag any must-fix items so the
+  //     downstream wizard knows where the thesis is weakest. We
+  //     don't BLOCK on a weak verdict (the operator can choose to
+  //     proceed) but the LLM sees the verdict and the critique.
+  const ar2 = frame.adversarial_review;
+  if (ar2 && (ar2.verdict || ar2.weakest_move || (ar2.must_fix_before_proceeding || []).length)) {
+    lines.push('');
+    lines.push('### Adversarial review (skeptic\'s critique of the thesis)');
+    if (ar2.verdict) lines.push(`Verdict: ${ar2.verdict.toUpperCase()}`);
+    if (ar2.weakest_move?.move_name) {
+      lines.push(`Weakest move: ${ar2.weakest_move.move_name}`);
+      if (ar2.weakest_move.why_weakest) lines.push(`Why: ${ar2.weakest_move.why_weakest}`);
+    }
+    const mf = Array.isArray(ar2.must_fix_before_proceeding) ? ar2.must_fix_before_proceeding : [];
+    if (mf.length) {
+      lines.push('Must-fix flags (address in this output if possible):');
+      mf.forEach(s => lines.push(`  - ${s}`));
+    }
+  }
+
+  return lines.join('\n');
+}
+
 function isStr(v) { return typeof v === 'string' && v.length > 0; }
 
 export function validateStrategicFrame(obj) {

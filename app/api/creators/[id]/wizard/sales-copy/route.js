@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getCreator, updateCreator } from '../../../../../lib/creators';
 import { validateSalesCopy } from '../../../../../lib/schemas/salesCopy';
+import { formatStrategicFrameForPrompt } from '../../../../../lib/schemas/strategicFrame';
 import { readCheckpointProgress } from '../../../../../lib/offerSchema';
 import { OPERATOR_INSTRUCTIONS_RULE, formatInstructionsBlock, formatInstructionsReminder } from '../../../../../lib/operatorInstructions';
 
@@ -206,16 +207,10 @@ async function runSalesCopy(apiKey, creator, retryCount = 0, extraInstruction = 
   const archetype = meta.archetype_classification || null;
   const uniqueness = meta.uniqueness_extraction || null;
 
-  // CP1
-  let frameBlock = '';
-  if (frame) {
-    frameBlock = `## CP1 STRATEGIC FRAME (LOCKED — internal only, cite for objection material)
-Role: ${frame.confirmed_role}
-Dominant transformation (internal): ${frame.dominant_transformation}
-Positioning tension: ${frame.positioning_tension}
-Negative qualifiers (objection seeds):
-${(frame.negative_qualifiers || []).map(q => '  - ' + q).join('\n')}`;
-  }
+  // CP1 — shared formatter. Sales copy in particular benefits from
+  // reflex_trap (the wrong frame to AVOID in headlines), audience_reframe
+  // (the actual hook), and contrarian_bet (the differentiation angle).
+  const frameBlock = formatStrategicFrameForPrompt(frame);
 
   // CP2
   const offerBlock = `## CP2 CORE OFFER (LOCKED)
