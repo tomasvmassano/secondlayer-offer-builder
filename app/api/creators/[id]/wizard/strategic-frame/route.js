@@ -62,6 +62,28 @@ export async function POST(request, { params }) {
       return NextResponse.json({ error: result.error, errors: result.errors, raw: result.raw }, { status: 502 });
     }
 
+    // ─── ADVERSARIAL REVIEW PASS ───────────────────────────────────
+    // A second LLM call argues AGAINST the thesis we just generated.
+    // Designed to surface the assumptions that must hold, the failure
+    // modes, and the weakest of the six strategic moves. Attached to
+    // the frame so the operator reads the critique alongside the
+    // strategy itself.
+    //
+    // Best-effort: if the adversarial pass fails for any reason, the
+    // main thesis still ships. An operator reviewing a thesis WITHOUT
+    // a critique is no worse off than the pre-2026-06-18 state.
+    let adversarial_review = null;
+    try {
+      const reviewResult = await runAdversarialReview(apiKey, creator, result.data);
+      if (reviewResult?.data) adversarial_review = reviewResult.data;
+    } catch (err) {
+      console.warn('[strategic-frame] adversarial review failed (non-fatal):', err.message);
+    }
+    // Merge the review into the strategic_frame object so downstream
+    // consumers (UI, CP2 prompt, future export) can read it from one
+    // place. Stored as null when the pass failed — easy to detect.
+    const finalFrame = { ...result.data, adversarial_review };
+
     const existingOffer = creator.offer || {};
     const existingMeta = existingOffer.internal_metadata || {};
     await updateCreator(id, {
@@ -69,7 +91,7 @@ export async function POST(request, { params }) {
         ...existingOffer,
         internal_metadata: {
           ...existingMeta,
-          strategic_frame: result.data,
+          strategic_frame: finalFrame,
           generation_timestamps: {
             ...(existingMeta.generation_timestamps || {}),
             strategic_frame: new Date().toISOString(),
@@ -80,12 +102,13 @@ export async function POST(request, { params }) {
 
     return NextResponse.json({
       ok: true,
-      strategic_frame: result.data,
+      strategic_frame: finalFrame,
       _diagnostics: {
         audit_role_input: result.auditRoleInput,
         archetype_used: result.archetypeUsed,
         uniqueness_elements_input: result.uniquenessElementsInput,
         retries: result.retries,
+        adversarial_review_present: !!adversarial_review,
       },
     });
   } catch (err) {
@@ -460,4 +483,174 @@ function tryParseJson(text) {
     }
   }
   return null;
+}
+
+// ─────────────────────────────────────────────────────────────────
+// ADVERSARIAL REVIEW PASS
+//
+// After the Strategic Frame is generated and schema-validated, a second
+// LLM call argues AGAINST the thesis. The goal is to surface:
+//   - the weakest of the six strategic moves
+//   - assumptions baked into the thesis that, if wrong, kill it
+//   - concrete failure modes (operator-execution, market, audience)
+//   - a counter-thesis (alternative strategic shape that might fit better)
+//   - a verdict (strong / moderate / weak)
+//   - must-fix items before the operator proceeds to CP2
+//
+// This is the cheapest, highest-leverage "make the system think like a
+// strategist" move — a senior strategist always plays devil's advocate
+// against their own conclusions before committing. The LLM doesn't,
+// unless forced.
+//
+// Best-effort: failures (timeouts, parse errors, 5xx) return null and
+// the caller carries on. The main thesis still ships.
+// ─────────────────────────────────────────────────────────────────
+
+const ADVERSARIAL_SYSTEM_PROMPT = `# STRATEGIC FRAME · ADVERSARIAL REVIEW
+
+You are an experienced strategist asked to STRESS-TEST a strategic thesis that another strategist just produced for a creator-monetization offer.
+
+Your job is NOT to write a new thesis. Your job is to find every reason the existing one might fail. You are paid to be skeptical, not constructive. Default to skepticism; if you cannot find a real weakness in a move, say so explicitly rather than fabricating one.
+
+## WHAT YOU MUST DO
+
+For the thesis you receive, run six checks:
+
+1. **Identify the weakest move.** Of the six moves in the thesis (audience_reframe, reflex_trap, sequenced_plays, binding_constraint, contrarian_bet, capture_gap), name the ONE that's most vulnerable to being wrong and explain why in 2-3 sentences. "Vulnerable" means: the strategy fails hard if this move is wrong, AND the move was stated with thin evidence.
+
+2. **Surface 2-4 assumptions that MUST hold for this thesis to work.** Things the thesis takes for granted without proof. Each assumption: 1 sentence stating the assumption, 1 sentence explaining what breaks if it's false.
+
+3. **Name 2-4 concrete failure modes.** Specific ways the strategy could fail in execution. Not generic "the market shifts" — concrete things like "operator burns out at month 3 because productized e-design at 30 rooms/mo means 30 design calls a month they didn't anticipate" or "the affiliate revenue assumed in play #1 requires 6 months of relationship-building with brands; the thesis treats it as immediate."
+
+4. **State a counter-thesis.** 2-3 sentences. If you had to argue for a DIFFERENT strategic shape entirely, what would you say? Not a refinement — a genuine alternative. ("Counter: the creator's real asset is her teaching, not her practice. The Spanish home market is saturated with cheap influencers; the European-Spanish-language-design-education TAM is wide open at premium prices.") If you can't construct a credible counter, say "No credible counter — the thesis is well-anchored" and justify in 1 sentence.
+
+5. **Issue a verdict.** One of:
+   - **strong**   — the thesis is well-evidenced, internally consistent, and the failure modes are manageable. Proceed to CP2.
+   - **moderate** — the thesis is plausible but has 1-2 must-fix items the operator should address before committing. Specify them.
+   - **weak**     — the thesis has structural problems (contradictions, missing evidence, default consensus dressed up). The operator should regenerate or rework before proceeding.
+
+6. **List 0-3 must-fix items.** Concrete things the operator should clarify, validate, or change BEFORE moving to CP2. Empty array = nothing critical. Each item: 1-2 sentences, actionable.
+
+## STYLE
+
+- Sharp, declarative. No hedging language ("might", "could perhaps", "it's possible that"). Either you have a concrete critique or you don't.
+- Reference SPECIFIC fields in the thesis when you critique them (e.g., "sequenced_plays[1].realistic_monthly_high of €20K assumes 30-50 rooms/month closed at €290-490 — at that volume, what's the customer acquisition cost?").
+- Operator language, no marketing fluff.
+- Match the thesis's output language (Portuguese, English, or Spanish — same as the input).
+
+## OUTPUT
+
+Return ONLY a JSON object matching this schema. No prose, no markdown.
+
+{
+  "weakest_move": {
+    "move_name": "audience_reframe | reflex_trap | sequenced_plays | binding_constraint | contrarian_bet | capture_gap",
+    "why_weakest": "string (2-3 sentences)"
+  },
+  "assumptions_that_must_hold": [   // 2-4 items
+    { "assumption": "string", "if_false": "string" }
+  ],
+  "failure_modes": [                // 2-4 items
+    { "mode": "string", "trigger": "string" }
+  ],
+  "counter_thesis": "string (2-3 sentences)",
+  "verdict": "strong" | "moderate" | "weak",
+  "must_fix_before_proceeding": [   // 0-3 items
+    "string"
+  ]
+}`;
+
+async function runAdversarialReview(apiKey, creator, frame) {
+  // Trim the frame down to just what the adversarial reviewer needs.
+  // The full creator/audit context is too much; the thesis itself plus
+  // a brief creator anchor is enough to argue against.
+  const meta = creator.offer?.internal_metadata || {};
+  const audit = meta.ecosystem_audit || null;
+  const archetype = meta.archetype_classification || null;
+
+  const anchor = [
+    `Creator: ${creator.name || 'Unknown'} · ${creator.niche || 'Unknown niche'}`,
+    `Followers: IG ${creator.platforms?.instagram?.followers || 0}${creator.platforms?.tiktok?.followers ? `, TT ${creator.platforms.tiktok.followers}` : ''}${creator.platforms?.youtube?.subscribers ? `, YT ${creator.platforms.youtube.subscribers}` : ''}`,
+    audit?.ecosystem_map?.community_cannibalization_risk
+      ? `Cannibalization risk: ${audit.ecosystem_map.community_cannibalization_risk}`
+      : null,
+    archetype?.primary_archetype
+      ? `Archetype: ${archetype.primary_archetype} (${archetype.primary_confidence}%)`
+      : null,
+  ].filter(Boolean).join('\n');
+
+  // Strip the adversarial_review field if it's somehow already on the
+  // frame (re-runs). Reviewing your own previous review is a bad loop.
+  const { adversarial_review: _ignored, ...frameForReview } = frame || {};
+
+  const langHint = creator?.primaryLanguage === 'en'
+    ? 'LANGUAGE: critique strings in English.'
+    : creator?.primaryLanguage === 'es'
+    ? 'LANGUAGE: critique strings in Castilian Spanish ("tú" form).'
+    : 'LANGUAGE: critique strings in Portuguese (PT-PT).';
+
+  const userMessage = `${langHint}
+
+## CREATOR ANCHOR
+${anchor}
+
+## THESIS TO STRESS-TEST
+\`\`\`json
+${JSON.stringify(frameForReview, null, 2)}
+\`\`\`
+
+Run the six checks. Return the JSON critique only.`;
+
+  const resp = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01' },
+    body: JSON.stringify({
+      model: 'claude-sonnet-4-5-20250929',
+      max_tokens: 2000,
+      system: [{ type: 'text', text: ADVERSARIAL_SYSTEM_PROMPT, cache_control: { type: 'ephemeral' } }],
+      messages: [{ role: 'user', content: userMessage }],
+    }),
+  });
+  if (!resp.ok) {
+    const errBody = await resp.text();
+    return { error: `adversarial review ${resp.status}: ${errBody.slice(0, 200)}`, data: null };
+  }
+  const data = await resp.json();
+  const rawText = (data.content || []).filter(b => b.type === 'text').map(b => b.text).join('\n');
+  const parsed = tryParseJson(rawText);
+  if (!parsed) return { error: 'adversarial review non-JSON', data: null };
+
+  // Shape-check + dimensional caps. We're lenient — partial reviews are
+  // better than no review. Anything malformed gets normalized to a
+  // safe-default null/empty value so the UI can render without surprises.
+  const validVerdicts = new Set(['strong', 'moderate', 'weak']);
+  const validMoves = new Set([
+    'audience_reframe', 'reflex_trap', 'sequenced_plays',
+    'binding_constraint', 'contrarian_bet', 'capture_gap',
+  ]);
+  const normalized = {
+    weakest_move: parsed.weakest_move && typeof parsed.weakest_move === 'object'
+      ? {
+          move_name: validMoves.has(parsed.weakest_move.move_name) ? parsed.weakest_move.move_name : null,
+          why_weakest: typeof parsed.weakest_move.why_weakest === 'string' ? parsed.weakest_move.why_weakest : '',
+        }
+      : null,
+    assumptions_that_must_hold: Array.isArray(parsed.assumptions_that_must_hold)
+      ? parsed.assumptions_that_must_hold
+          .filter(a => a && typeof a === 'object' && typeof a.assumption === 'string' && typeof a.if_false === 'string')
+          .slice(0, 4)
+      : [],
+    failure_modes: Array.isArray(parsed.failure_modes)
+      ? parsed.failure_modes
+          .filter(f => f && typeof f === 'object' && typeof f.mode === 'string' && typeof f.trigger === 'string')
+          .slice(0, 4)
+      : [],
+    counter_thesis: typeof parsed.counter_thesis === 'string' ? parsed.counter_thesis : '',
+    verdict: validVerdicts.has(parsed.verdict) ? parsed.verdict : null,
+    must_fix_before_proceeding: Array.isArray(parsed.must_fix_before_proceeding)
+      ? parsed.must_fix_before_proceeding.filter(s => typeof s === 'string').slice(0, 3)
+      : [],
+    generated_at: new Date().toISOString(),
+  };
+  return { data: normalized };
 }
