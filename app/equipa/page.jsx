@@ -860,7 +860,15 @@ function PersonCard({ row, sbRow, streak, pipe, vel, delta, yesterdayRow, monthl
 // Mobile fallback handled via CSS in the parent (PersonRowTable) — at
 // < 900px the row flips to a vertical stack.
 // ─────────────────────────────────────────────────────────────────
-const PERSON_ROW_COLS = "200px 1fr 100px 110px 90px 90px 100px 120px 60px";
+// Column widths for the operator table. DMs + Emails sit right after
+// Touches so the channel split is readable without an extra hover —
+// Touches is "unique creators touched today", DMs/Emails are the
+// underlying send counts (DM+Email to the same creator counts as one
+// Touch but two sends). All numeric columns share the same compact
+// width so the digit grid stays clean.
+//
+// Order: Operador · Streak · Touches · DMs · Emails · Reply % · Respostas · Fechados · F-up · 7-day spark · Goal ring
+const PERSON_ROW_COLS = "180px 80px 90px 70px 70px 100px 80px 80px 70px 110px 50px";
 function PersonRow({ row, sbRow, streak, delta, yesterdayRow, activity, isLeader, isLoser, goalPct, windowKey, last }) {
   const series = activity?.days || [];
   const replyRate = row.replyRate;
@@ -914,8 +922,14 @@ function PersonRow({ row, sbRow, streak, delta, yesterdayRow, activity, isLeader
         )}
       </div>
 
-      {/* Touches — primary metric */}
+      {/* Touches — primary metric (unique creators reached today) */}
       <PersonRowCell label="Touches" value={row.touchesSent} accent={TEXT_HI} delta={showVsYesterday ? (row.touchesSent - (yesterdayRow.touchesSent || 0)) : null} />
+
+      {/* DMs — channel-specific send count */}
+      <PersonRowCell label="DMs" value={row.dmsSent} accent={TEXT_MID} delta={showVsYesterday ? (row.dmsSent - (yesterdayRow.dmsSent || 0)) : null} />
+
+      {/* Emails — channel-specific send count */}
+      <PersonRowCell label="Emails" value={row.emailsSent} accent={TEXT_MID} delta={showVsYesterday ? (row.emailsSent - (yesterdayRow.emailsSent || 0)) : null} />
 
       {/* Reply % — color-coded */}
       <PersonRowCell label="Reply %" value={`${replyRate}%`} accent={replyAccent} delta={showVsYesterday ? (replyRate - (yesterdayRow.replyRate || 0)) : null} deltaSuffix="pp" />
