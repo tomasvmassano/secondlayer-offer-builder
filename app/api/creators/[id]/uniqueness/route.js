@@ -252,7 +252,8 @@ ${extraInstruction ? `## ADDITIONAL INSTRUCTION\n${extraInstruction}\n\n` : ''}R
 
   const validation = validateUniqueness(parsed);
   if (!validation.valid) {
-    if (retryCount < 1) {
+    // Retry-on-validation-failure removed 2026-06-18 (emergency cost cut).
+    if (false) {
       // Retry with errors fed back via a follow-up user message — keeps the
       // earlier assistant turn intact so the model doesn't re-search context.
       const retryResp = await fetch('https://api.anthropic.com/v1/messages', {

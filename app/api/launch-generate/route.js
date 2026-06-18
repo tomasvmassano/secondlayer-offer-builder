@@ -149,7 +149,10 @@ export async function POST(request) {
       },
       body: JSON.stringify({
         model: 'claude-sonnet-4-5-20250929',
-        max_tokens: 8000,
+        // 8000 → 5000 (2026-06-18 emergency cost cut). Launch assets
+        // are big but rarely use the full budget; 5000 still fits a
+        // full sales-page draft or 6-email sequence comfortably.
+        max_tokens: 5000,
         stream: true,
         system: [{ type: 'text', text: fullSystem, cache_control: { type: 'ephemeral' } }],
         messages: [{ role: 'user', content: userMessage }],

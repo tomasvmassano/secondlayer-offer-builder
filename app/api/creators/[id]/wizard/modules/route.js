@@ -323,7 +323,9 @@ Return ONLY the JSON object per the schema in the system prompt.${formatInstruct
     headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01' },
     body: JSON.stringify({
       model: 'claude-sonnet-4-5-20250929',
-      max_tokens: 5500,
+      // 5500 → 4000 (2026-06-18 emergency cost cut). 5500 was burning
+      // ~$0.083/call; 4000 fits 4-8 modules comfortably and saves $0.03.
+      max_tokens: 4000,
       system: [{ type: 'text', text: MODULES_SYSTEM_PROMPT, cache_control: { type: 'ephemeral' } }],
       messages: [{ role: 'user', content: userMessage }],
     }),
@@ -342,13 +344,16 @@ Return ONLY the JSON object per the schema in the system prompt.${formatInstruct
 
   const validation = validateModules(parsed, usableCount);
   if (!validation.valid) {
-    if (retryCount < 1) {
+    // Validation-failure retry removed 2026-06-18 (emergency cost cut).
+    // Was firing a second 4000-token Anthropic call (~$0.06) even on
+    // small schema mismatches. Fail fast — operator can re-run.
+    if (false) {
       const retryResp = await fetch('https://api.anthropic.com/v1/messages', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01' },
         body: JSON.stringify({
           model: 'claude-sonnet-4-5-20250929',
-          max_tokens: 5500,
+          max_tokens: 4000,
           system: [{ type: 'text', text: MODULES_SYSTEM_PROMPT, cache_control: { type: 'ephemeral' } }],
           messages: [
             { role: 'user', content: userMessage },

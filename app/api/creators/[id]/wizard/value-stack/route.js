@@ -333,7 +333,8 @@ Return ONLY the JSON object per the schema in the system prompt.${formatInstruct
     headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01' },
     body: JSON.stringify({
       model: 'claude-sonnet-4-5-20250929',
-      max_tokens: 5000,
+      // 5000 → 3500 (2026-06-18 emergency cost cut).
+      max_tokens: 3500,
       system: [{ type: 'text', text: SYSTEM_PROMPT, cache_control: { type: 'ephemeral' } }],
       messages: [{ role: 'user', content: userMessage }],
     }),
@@ -357,13 +358,15 @@ Return ONLY the JSON object per the schema in the system prompt.${formatInstruct
 
   const validation = validateValueStack(parsed);
   if (!validation.valid) {
-    if (retryCount < 1) {
+    // Retry-on-validation-failure removed 2026-06-18 (emergency cost cut).
+    if (false) {
       const retryResp = await fetch('https://api.anthropic.com/v1/messages', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01' },
         body: JSON.stringify({
           model: 'claude-sonnet-4-5-20250929',
-          max_tokens: 5000,
+          // 5000 → 3500 (2026-06-18 emergency cost cut).
+      max_tokens: 3500,
           system: [{ type: 'text', text: SYSTEM_PROMPT, cache_control: { type: 'ephemeral' } }],
           messages: [
             { role: 'user', content: userMessage },

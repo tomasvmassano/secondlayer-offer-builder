@@ -54,7 +54,11 @@ export async function POST(request) {
       },
       body: JSON.stringify({
         model: 'claude-sonnet-4-5-20250929',
-        max_tokens: 16000,
+        // 16000 → 4000 (2026-06-18 emergency cost cut). Sonnet 4.5 was
+        // filling the 16K budget on most calls — ~$0.24 per call. This
+        // legacy "Force generate" path is rarely used; 4000 fits the
+        // full offer block the button is designed for.
+        max_tokens: 4000,
         system: [{ type: 'text', text: composedSystem, cache_control: { type: 'ephemeral' } }],
         messages: [{ role: 'user', content: message }],
       }),

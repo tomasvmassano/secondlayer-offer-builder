@@ -280,7 +280,8 @@ Return ONLY the JSON object. No code fences, no preamble.`;
 
   const validation = validateArchetype(parsed);
   if (!validation.valid) {
-    if (retryCount < 1) {
+    // Retry-on-validation-failure removed 2026-06-18 (emergency cost cut).
+    if (false) {
       // Retry with errors fed back
       const retryResp = await fetch('https://api.anthropic.com/v1/messages', {
         method: 'POST',

@@ -557,12 +557,15 @@ Return ONLY the JSON object matching the schema in your system prompt. Start you
     },
     body: JSON.stringify({
       model: 'claude-sonnet-4-5-20250929',
-      // 4000 → 8000 (2026-05-19) → 12000 (2026-05-20). Creators with 5+ bio
-      // links and no aggregator (forms.gle, YouTube, custom domains, etc.)
-      // require 8+ web_search rounds before assembling the JSON; the model
-      // was still truncating at 8K on those (e.g. Paras Madan). Each
-      // additional 4K of headroom costs ~$0.06 — cheap for reliability.
-      max_tokens: 12000,
+      // 4000 → 8000 (2026-05-19) → 12000 (2026-05-20) → 6000 (2026-06-18).
+      // The 12000 ceiling was burning ~$0.40-0.50 per audit with Sonnet 4.5
+      // filling the budget. 6000 still fits the JSON for the
+      // overwhelming majority of creators and slashes per-call cost by
+      // ~50%. If a specific dense-bio creator truncates at 6K, the
+      // operator can retry — cheaper than paying the bloat for every
+      // run, and the validator now FAILS FAST instead of doing a second
+      // 4000-token retry call (~$0.06 extra per audit saved).
+      max_tokens: 6000,
       tools: [{ type: 'web_search_20250305', name: 'web_search' }],
       system: [{ type: 'text', text: SYSTEM_PROMPT, cache_control: { type: 'ephemeral' } }],
       messages: [{ role: 'user', content: userMessage }],
@@ -595,8 +598,15 @@ Return ONLY the JSON object matching the schema in your system prompt. Start you
 
   const validation = validateEcosystemAudit(parsed);
   if (!validation.valid) {
-    if (retryCount < 1) {
-      // Retry once with the validation errors fed back to the model.
+    // Validation-failure retry was removed 2026-06-18 as part of an
+    // emergency cost-reduction pass. Each retry fired another
+    // ~$0.10-0.15 Anthropic call (4000 tokens + web_search rounds)
+    // even when the original output was 95% correct. Now: fail fast,
+    // return the validator errors to the operator, let them re-run
+    // manually if needed. Net per-audit cost halved.
+    if (false) {
+      // legacy retry block — preserved for one commit so we can revive
+      // if fail-fast turns out too aggressive.
       const retryResp = await fetch('https://api.anthropic.com/v1/messages', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01' },

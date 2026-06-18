@@ -535,7 +535,8 @@ Return ONLY the JSON object per the schema in the system prompt.${formatInstruct
 
   const validation = validateCoreOffer(parsed);
   if (!validation.valid) {
-    if (retryCount < 1) {
+    // Retry-on-validation-failure removed 2026-06-18 (emergency cost cut).
+    if (false) {
       const retryResp = await fetch('https://api.anthropic.com/v1/messages', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01' },
