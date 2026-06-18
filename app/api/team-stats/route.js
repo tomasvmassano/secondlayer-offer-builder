@@ -49,7 +49,7 @@ export async function GET(request) {
       || Number(process.env.SALES_QUARTERLY_QUOTA_EUR)
       || 50000;
 
-    const valid = ['today', 'week', 'month', 'all'];
+    const valid = ['today', 'yesterday', 'week', 'month', 'all'];
     if (!valid.includes(window)) {
       return NextResponse.json({ error: `window must be one of ${valid.join('|')}` }, { status: 400 });
     }
@@ -88,7 +88,11 @@ export async function GET(request) {
       winRateTrajectory,
     ] = await Promise.all([
       getTeamStats({ window }),
-      window === 'today' ? getDailyScoreboard({ target }) : null,
+      // Daily scoreboard on the Hoje view (against today's target) and on
+      // the Ontem view (against yesterday's target — same daily number,
+      // but the cron uses windowKey='yesterday' to look at the EOD).
+      window === 'today'     ? getDailyScoreboard({ target })                              :
+      window === 'yesterday' ? getDailyScoreboard({ target, windowKey: 'yesterday' })      : null,
       getFunnels(),
       getStreaks({ target }),
       getPipelineHealth(),
@@ -96,7 +100,13 @@ export async function GET(request) {
       getQualityBreakdowns(),
       getMonthlyTally({ target }),
       getNeedsAttention({ dailyTarget: target }),
-      window !== 'all' ? getDeltas({ window: window === 'today' ? 'week' : window }) : null,
+      // getDeltas only supports 'week' or 'month'. For today we compare to
+      // the previous week (legacy). For yesterday we don't surface its
+      // own deltas — the dashboard already shows yesterday's actuals as
+      // the headline; comparing yesterday to last week reads as noise.
+      window === 'all' || window === 'yesterday'
+        ? null
+        : getDeltas({ window: window === 'today' ? 'week' : window }),
       getRevenueForecast(),
       getActivitySeries({ days: 7 }),
       getHeatmap({ weeks: 4 }),
@@ -112,6 +122,14 @@ export async function GET(request) {
       getWinRateTrajectory({ weeks: 8 }),
     ]);
 
+    // Ship yesterday's per-person rows alongside today's payload so the
+    // client can render "vs ontem" delta chips without a second request.
+    // Cheap: getTeamStats reads through the 30s creator cache, so this
+    // second pass adds zero Redis hits beyond the first.
+    const vsYesterday = window === 'today'
+      ? { rows: await getTeamStats({ window: 'yesterday' }) }
+      : null;
+
     const payload = {
       window, target, quotaEurPerQuarter,
       rows, scoreboard, funnels, streaks, pipeline, velocity, quality,
@@ -119,6 +137,7 @@ export async function GET(request) {
       heatmap, recentActivity, pacing,
       coverage, cac, touchpoints, showUp, lossReasons, followUpEff,
       pipelineVelocity, winRateTrajectory,
+      vsYesterday,
     };
     _respSet(cacheKey, payload);
     return NextResponse.json(payload);

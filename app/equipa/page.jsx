@@ -25,10 +25,11 @@ const AMBER = '#eab308';
 const RED = '#ef4444';
 
 const WINDOWS = [
-  { key: 'today', label: 'Hoje' },
-  { key: 'week', label: 'Semana' },
-  { key: 'month', label: 'Mês' },
-  { key: 'all', label: 'Sempre' },
+  { key: 'today',     label: 'Hoje' },
+  { key: 'yesterday', label: 'Ontem' },
+  { key: 'week',      label: 'Semana' },
+  { key: 'month',     label: 'Mês' },
+  { key: 'all',       label: 'Sempre' },
 ];
 
 const fmtEur = (n) => '€' + Math.round(n).toLocaleString();
@@ -41,6 +42,12 @@ export default function EquipaPage() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  // Strategic block (CAC, show-up, touchpoints, pipeline velocity, loss
+  // reasons, follow-up effectiveness, win rate trajectory) is hidden by
+  // default — operators reach for it occasionally, not every visit.
+  // Tapping the section header expands it. State is page-local; not
+  // worth persisting to localStorage for now.
+  const [advancedOpen, setAdvancedOpen] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -93,9 +100,36 @@ export default function EquipaPage() {
     }
     // Goal % now gates on touches (the new daily-rule unit) instead of DMs.
     const goalPct = totalTarget > 0 ? Math.min(100, Math.round((sumTouches / totalTarget) * 100)) : 0;
-    const projectedPipeline = (data.revenue || []).reduce((s, r) => s + (r.pipelineWeightedAnnualEur || 0), 0);
-    const signedAnnual = (data.revenue || []).reduce((s, r) => s + (r.signedAnnualEur || 0), 0);
-    return { sumDms, sumEmails, sumTouches, sumReplies, sumRepliesDm, sumRepliesEmail, sumCreators, sumSigned, replyRate, dmReplyRate, emailReplyRate, totalTarget, goalPct, projectedPipeline, signedAnnual };
+    return { sumDms, sumEmails, sumTouches, sumReplies, sumRepliesDm, sumRepliesEmail, sumCreators, sumSigned, replyRate, dmReplyRate, emailReplyRate, totalTarget, goalPct };
+  }, [data, windowKey]);
+
+  // Yesterday totals — only populated when windowKey === 'today' AND the
+  // server shipped a vsYesterday block. Used to render "↑3 vs ontem" delta
+  // chips next to each hero number. Same reduce shape as heroStats so the
+  // numbers are directly comparable.
+  const yesterdayTotals = useMemo(() => {
+    const yRows = data?.vsYesterday?.rows;
+    if (!Array.isArray(yRows) || windowKey !== 'today') return null;
+    const sumDms = yRows.reduce((s, r) => s + (r.dmsSent || 0), 0);
+    const sumEmails = yRows.reduce((s, r) => s + (r.emailsSent || 0), 0);
+    const sumTouches = yRows.reduce((s, r) => s + (r.touchesSent || 0), 0);
+    const sumReplies = yRows.reduce((s, r) => s + (r.repliesReceived || 0), 0);
+    const sumRepliesDm = yRows.reduce((s, r) => s + (r.repliesViaDm || 0), 0);
+    const sumRepliesEmail = yRows.reduce((s, r) => s + (r.repliesViaEmail || 0), 0);
+    const sumCreators = yRows.reduce((s, r) => s + (r.creatorsAdded || 0), 0);
+    const sumSigned = yRows.reduce((s, r) => s + (r.signed || 0), 0);
+    const replyRate = sumTouches > 0 ? Math.round((sumReplies / sumTouches) * 100) : 0;
+    const dmReplyRate = sumDms > 0 ? Math.round((sumRepliesDm / sumDms) * 100) : 0;
+    const emailReplyRate = sumEmails > 0 ? Math.round((sumRepliesEmail / sumEmails) * 100) : 0;
+    return { sumDms, sumEmails, sumTouches, sumReplies, sumRepliesDm, sumRepliesEmail, sumCreators, sumSigned, replyRate, dmReplyRate, emailReplyRate };
+  }, [data, windowKey]);
+
+  // Map yesterday rows by userId for per-person delta lookups in the
+  // leaderboard cards.
+  const yesterdayByUser = useMemo(() => {
+    const yRows = data?.vsYesterday?.rows;
+    if (!Array.isArray(yRows) || windowKey !== 'today') return null;
+    return Object.fromEntries(yRows.map(r => [r.userId, r]));
   }, [data, windowKey]);
 
   return (
@@ -166,16 +200,25 @@ export default function EquipaPage() {
               </div>
             )}
 
-            {/* HERO STRIP — 3 large cards */}
-            <div className="eq-fade sl-grid-3" style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1.4fr", gap: 18, marginBottom: 18 }}>
+            {/* HERO STRIP — 2 wide cards (Outreach + Taxa de resposta).
+                Dropped from 3 to 2 (2026-06-18) after removing the
+                "Receita projetada" forecast. Wider cards = bigger
+                headline numbers, less micro-stat clutter. */}
+            <div className="eq-fade" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 18, marginBottom: 18 }}>
               {/* Outreach touches hero — primary metric. DM+Email same
                   creator = 1 touch. Sub-stats show the channel split. */}
               <HeroCard
-                label={windowKey === 'today' ? 'Outreach hoje' : windowKey === 'week' ? 'Outreach esta semana' : windowKey === 'month' ? 'Outreach este mês' : 'Outreach sempre'}
+                label={
+                  windowKey === 'today'     ? 'Outreach hoje'      :
+                  windowKey === 'yesterday' ? 'Outreach ontem'     :
+                  windowKey === 'week'      ? 'Outreach esta semana' :
+                  windowKey === 'month'     ? 'Outreach este mês'  : 'Outreach sempre'
+                }
                 value={fmtNum(heroStats.sumTouches)}
                 hint={heroStats.totalTarget > 0 ? `${heroStats.totalTarget} alvo (${heroStats.goalPct}%) · DM+Email = 1 toque` : 'DM+Email mesmo creator = 1 toque'}
                 accent
                 progress={heroStats.totalTarget > 0 ? heroStats.goalPct : null}
+                deltaChip={yesterdayTotals && <VsYesterdayChip current={heroStats.sumTouches} previous={yesterdayTotals.sumTouches} />}
               >
                 <ActivityBarChart days={data.activity?.flatMap(u => u.days).reduce((acc, d) => {
                   const i = acc.findIndex(x => x.date === d.date);
@@ -196,6 +239,7 @@ export default function EquipaPage() {
                 label="Taxa de resposta"
                 value={`${heroStats.replyRate}%`}
                 hint={`${heroStats.sumReplies} respostas · ${heroStats.sumRepliesDm} via DM · ${heroStats.sumRepliesEmail} via Email`}
+                deltaChip={yesterdayTotals && <VsYesterdayChip current={heroStats.replyRate} previous={yesterdayTotals.replyRate} suffix="pp" />}
               >
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "center", marginTop: 10 }}>
                   <ProgressRing value={heroStats.replyRate} size={88} stroke={8} color={ACCENT} />
@@ -203,16 +247,6 @@ export default function EquipaPage() {
                 <div className="sl-grid-2" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginTop: 12 }}>
                   <MicroStat label="DM reply rate" value={heroStats.sumDms > 0 ? `${heroStats.dmReplyRate}%` : '—'} accent={heroStats.dmReplyRate >= heroStats.emailReplyRate ? GREEN : null} />
                   <MicroStat label="Email reply rate" value={heroStats.sumEmails > 0 ? `${heroStats.emailReplyRate}%` : '—'} accent={heroStats.emailReplyRate > heroStats.dmReplyRate ? GREEN : null} />
-                </div>
-              </HeroCard>
-
-              {/* Revenue forecast hero */}
-              <HeroCard label="Receita projetada" value={fmtEur(heroStats.projectedPipeline)} hint="anual · pipeline ponderado">
-                <div className="sl-grid-2" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginTop: 12 }}>
-                  <MicroStat label="Assinados (anual)" value={fmtEur(heroStats.signedAnnual)} accent={GREEN} />
-                  <MicroStat label="Criadores adicionados" value={fmtNum(heroStats.sumCreators)} />
-                  <MicroStat label="Fechados" value={fmtNum(heroStats.sumSigned)} accent={GREEN} />
-                  <MicroStat label="Respostas" value={fmtNum(heroStats.sumReplies)} />
                 </div>
               </HeroCard>
             </div>
@@ -234,6 +268,7 @@ export default function EquipaPage() {
                 const isLeader = i === 0 && data.rows.length > 1 && row.dmsSent > 0;
                 const isLoser = !!sbRow?.missedGoal;
                 const goalPct = sbRow ? Math.min(100, Math.round((row.dmsSent / sbRow.target) * 100)) : null;
+                const yRow = yesterdayByUser?.[row.userId] || null;
                 return (
                   <PersonCard
                     key={row.userId}
@@ -243,6 +278,7 @@ export default function EquipaPage() {
                     pipe={pipe}
                     vel={vel}
                     delta={delta}
+                    yesterdayRow={yRow}
                     monthly={monthly}
                     activity={activity}
                     isLeader={isLeader}
@@ -254,100 +290,11 @@ export default function EquipaPage() {
               })}
             </div>
 
-            {/* SECONDARY ROW — Funnel + Pipeline donut */}
-            <div className="eq-fade sl-grid-2" style={{ display: "grid", gridTemplateColumns: "1.4fr 1fr", gap: 18, marginBottom: 18 }}>
+            {/* SECONDARY ROW — Funnel only (Pipeline donut removed 2026-06-18) */}
+            <div className="eq-fade" style={{ marginBottom: 18 }}>
               <Card title="Funil de conversão" subtitle="Por pessoa · sempre">
                 <div className="sl-grid" style={{ display: "grid", gridTemplateColumns: `repeat(${Math.max(1, data.funnels?.length || 1)}, 1fr)`, gap: 14 }}>
                   {(data.funnels || []).map(f => <FunnelChart key={f.userId} funnel={f} />)}
-                </div>
-              </Card>
-              <Card title="Pipeline · estado atual" subtitle="Todas as conversas em curso">
-                <PipelineDonut pipeline={data.pipeline} />
-              </Card>
-            </div>
-
-            {/* STANDINGS — monthly leaderboard with €50 net + pacing.
-                Column position locked to userOrder; #N rank is computed
-                from net €50 desc and shown as a badge. */}
-            {data.monthlyTally?.length > 0 && (
-              <div className="eq-fade" style={{ marginBottom: 18 }}>
-                <Card title="Classificação · Mês" subtitle="€50 acumulado · ritmo a 30/dia">
-                  <div className="sl-grid" style={{ display: "grid", gridTemplateColumns: `repeat(${Math.max(1, userOrder.length)}, 1fr)`, gap: 14 }}>
-                    {(() => {
-                      const ranked = [...data.monthlyTally].sort((a, b) => b.netEur - a.netEur).map(r => r.userId);
-                      return userOrder.map(({ userId, firstName }) => {
-                        const row = data.monthlyTally.find(m => m.userId === userId) || { userId, firstName, netEur: 0, daysHit: 0, daysMissed: 0 };
-                        const rank = ranked.indexOf(userId);
-                        const i = rank;
-                        const pace = data.pacing?.find(p => p.userId === userId);
-                        const isWinner = rank === 0 && data.monthlyTally.length > 1 && row.netEur > 0;
-                        const onTrack = pace ? pace.pacePct >= 90 : null;
-                        return (
-                        <div key={row.userId} style={{
-                          padding: 20,
-                          background: isWinner ? `linear-gradient(135deg, rgba(34,197,94,0.08), ${SURFACE_1})` : SURFACE_1,
-                          border: `1px solid ${isWinner ? "rgba(34,197,94,0.30)" : BORDER}`,
-                          borderRadius: 20,
-                        }}>
-                          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
-                            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                              <span style={{ fontSize: 11, fontWeight: 700, color: TEXT_LO }}>#{i + 1}</span>
-                              <span style={{ fontSize: 15, fontWeight: 700, color: TEXT_HI }}>{row.firstName}</span>
-                            </div>
-                            {isWinner && <span style={{ fontSize: 9, fontWeight: 700, padding: "2px 7px", borderRadius: 999, background: "rgba(34,197,94,0.10)", color: GREEN, border: "1px solid rgba(34,197,94,0.30)", letterSpacing: "0.04em", textTransform: "uppercase" }}>● 1º</span>}
-                          </div>
-                          <div style={{ fontSize: 28, fontWeight: 800, letterSpacing: "-0.025em", color: row.netEur >= 0 ? GREEN : RED, marginBottom: 4 }}>
-                            {row.netEur >= 0 ? '+' : ''}{fmtEur(row.netEur)}
-                          </div>
-                          <div style={{ fontSize: 11, color: TEXT_LO, marginBottom: 14 }}>
-                            <span style={{ color: GREEN }}>{row.daysHit}✓</span> · <span style={{ color: RED }}>{row.daysMissed}✗</span> · saldo do mês
-                          </div>
-                          {pace && (
-                            <div style={{ padding: "10px 12px", background: SURFACE_0, borderRadius: 12, border: `1px solid ${BORDER}` }}>
-                              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 6 }}>
-                                <span style={{ fontSize: 9, fontWeight: 600, color: TEXT_LO, letterSpacing: "0.10em", textTransform: "uppercase" }}>Ritmo</span>
-                                <span style={{ fontSize: 11, fontWeight: 700, color: onTrack ? GREEN : AMBER }}>{pace.pacePct}%</span>
-                              </div>
-                              <div style={{ fontSize: 12, color: TEXT_MID }}>
-                                <strong style={{ color: TEXT_HI }}>{pace.monthSoFar}</strong> / {pace.monthGoal} DMs · projeção <strong style={{ color: TEXT_HI }}>{pace.projectedTotal}</strong>
-                              </div>
-                              <div style={{ marginTop: 8, height: 4, background: "rgba(255,255,255,0.05)", borderRadius: 4, overflow: "hidden" }}>
-                                <div style={{ height: 4, width: `${Math.min(100, pace.pacePct)}%`, background: onTrack ? GREEN : AMBER, borderRadius: 4, transition: "width 600ms" }} />
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      );
-                      });
-                    })()}
-                  </div>
-                </Card>
-              </div>
-            )}
-
-            {/* REVENUE FORECAST PER PERSON — restored from v2. Column order
-                locked to userOrder so the same person stays on the same side
-                as the other cards. */}
-            <div className="eq-fade" style={{ marginBottom: 18 }}>
-              <Card title="Receita projetada · por pessoa" subtitle="Assinados + pipeline ponderado por estágio">
-                <div className="sl-grid" style={{ display: "grid", gridTemplateColumns: `repeat(${Math.max(1, userOrder.length)}, 1fr)`, gap: 14 }}>
-                  {userOrder.map(({ userId, firstName }) => {
-                    const r = data.revenue?.find(x => x.userId === userId) || { userId, firstName, signedAnnualEur: 0, pipelineWeightedAnnualEur: 0 };
-                    return (
-                      <div key={userId} style={{ padding: 18, background: SURFACE_0, border: `1px solid ${BORDER}`, borderRadius: 16 }}>
-                        <div style={{ fontSize: 13, fontWeight: 700, color: TEXT_HI, marginBottom: 14 }}>{r.firstName}</div>
-                        <div style={{ marginBottom: 12 }}>
-                          <div style={{ fontSize: 9, fontWeight: 600, color: GREEN, letterSpacing: "0.10em", textTransform: "uppercase", marginBottom: 4 }}>Assinados · anual</div>
-                          <div style={{ fontSize: 22, fontWeight: 800, color: GREEN, letterSpacing: "-0.02em" }}>{fmtEur(r.signedAnnualEur)}</div>
-                        </div>
-                        <div>
-                          <div style={{ fontSize: 9, fontWeight: 600, color: TEXT_LO, letterSpacing: "0.10em", textTransform: "uppercase", marginBottom: 4 }}>Pipeline ponderado</div>
-                          <div style={{ fontSize: 18, fontWeight: 700, color: TEXT_MID }}>{fmtEur(r.pipelineWeightedAnnualEur)}</div>
-                          <div style={{ fontSize: 10, color: TEXT_DIM, marginTop: 4 }}>Soma anual × prob. estágio</div>
-                        </div>
-                      </div>
-                    );
-                  })}
                 </div>
               </Card>
             </div>
@@ -380,52 +327,40 @@ export default function EquipaPage() {
               </div>
             )}
 
-            {/* SECTION HEADER — strategic sales metrics start here */}
-            <div className="eq-fade" style={{ marginTop: 28, marginBottom: 14, paddingLeft: 4 }}>
-              <div style={{ fontSize: 10, fontWeight: 700, color: ACCENT, letterSpacing: "0.18em", textTransform: "uppercase", marginBottom: 4 }}>Métricas estratégicas</div>
-              <div style={{ fontSize: 12, color: TEXT_LO }}>Coverage, CAC, ciclo de venda · respondem a "estou em ritmo para bater a meta?"</div>
-            </div>
+            {/* COLLAPSIBLE STRATEGIC BLOCK — header acts as toggle.
+                Hidden by default; click to expand. */}
+            <button
+              type="button"
+              onClick={() => setAdvancedOpen(o => !o)}
+              className="eq-fade"
+              style={{
+                width: "100%",
+                marginTop: 28, marginBottom: advancedOpen ? 14 : 28,
+                padding: "16px 22px",
+                background: advancedOpen ? "rgba(177,30,47,0.06)" : SURFACE_1,
+                border: `1px solid ${advancedOpen ? "rgba(177,30,47,0.22)" : BORDER}`,
+                borderRadius: 16,
+                cursor: "pointer", textAlign: "left", fontFamily: "inherit",
+                display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16,
+                transition: "background 200ms, border-color 200ms",
+              }}
+            >
+              <div>
+                <div style={{ fontSize: 10, fontWeight: 700, color: ACCENT, letterSpacing: "0.18em", textTransform: "uppercase", marginBottom: 4 }}>Métricas avançadas</div>
+                <div style={{ fontSize: 12, color: TEXT_LO }}>CAC, show-up, ciclo de venda · respondem a "estou em ritmo para bater a meta?"</div>
+              </div>
+              <span style={{
+                fontSize: 18, color: TEXT_MID,
+                transform: advancedOpen ? "rotate(180deg)" : "rotate(0deg)",
+                transition: "transform 200ms cubic-bezier(.2,.7,.2,1)",
+                lineHeight: 1, marginRight: 4,
+              }}>⌃</span>
+            </button>
 
-            {/* EFFICIENCY ROW — Pipeline coverage + CAC per person */}
-            <div className="eq-fade sl-grid-2" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 18, marginBottom: 18 }}>
-              <Card title="Pipeline coverage" subtitle={`Quota trimestral · ${fmtEur(data.quotaEurPerQuarter || 50000)} por pessoa`}>
-                <div className="sl-grid" style={{ display: "grid", gridTemplateColumns: `repeat(${Math.max(1, userOrder.length)}, 1fr)`, gap: 14 }}>
-                  {userOrder.map(({ userId, firstName }) => {
-                    const c = data.coverage?.find(x => x.userId === userId);
-                    if (!c) return (
-                      <div key={userId} style={{ padding: 18, background: SURFACE_0, border: `1px solid ${BORDER}`, borderRadius: 16, color: TEXT_DIM, fontSize: 12 }}>
-                        <div style={{ fontSize: 13, fontWeight: 700, color: TEXT_HI, marginBottom: 8 }}>{firstName}</div>
-                        Sem pipeline
-                      </div>
-                    );
-                    const statusColor = c.status === 'safe' ? GREEN : c.status === 'adequate' ? AMBER : RED;
-                    const statusLabel = c.status === 'safe' ? 'Confortável' : c.status === 'adequate' ? 'Adequado' : c.status === 'thin' ? 'Insuficiente' : '—';
-                    return (
-                      <div key={userId} style={{ padding: 18, background: SURFACE_0, border: `1px solid ${BORDER}`, borderRadius: 16 }}>
-                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 10 }}>
-                          <span style={{ fontSize: 13, fontWeight: 700, color: TEXT_HI }}>{c.firstName}</span>
-                          <span style={{ fontSize: 9, fontWeight: 700, padding: "2px 8px", borderRadius: 999, background: `${statusColor}1a`, color: statusColor, border: `1px solid ${statusColor}40`, letterSpacing: "0.04em", textTransform: "uppercase" }}>{statusLabel}</span>
-                        </div>
-                        <div style={{ fontSize: 32, fontWeight: 800, color: statusColor, letterSpacing: "-0.025em", marginBottom: 4 }}>
-                          {c.coverageRatio == null ? '—' : `${c.coverageRatio}×`}
-                        </div>
-                        <div style={{ fontSize: 11, color: TEXT_LO, marginBottom: 10 }}>cobertura · pipeline ÷ quota restante</div>
-                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, paddingTop: 10, borderTop: `1px solid ${BORDER}` }}>
-                          <div>
-                            <div style={{ fontSize: 9, fontWeight: 600, color: TEXT_DIM, letterSpacing: "0.10em", textTransform: "uppercase", marginBottom: 3 }}>Assinado</div>
-                            <div style={{ fontSize: 13, fontWeight: 700, color: GREEN }}>{fmtEur(c.signedThisQuarterEur)}</div>
-                          </div>
-                          <div>
-                            <div style={{ fontSize: 9, fontWeight: 600, color: TEXT_DIM, letterSpacing: "0.10em", textTransform: "uppercase", marginBottom: 3 }}>Em falta</div>
-                            <div style={{ fontSize: 13, fontWeight: 700, color: TEXT_MID }}>{fmtEur(c.quotaRemainingEur)}</div>
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </Card>
+            {advancedOpen && (<>
 
+            {/* EFFICIENCY ROW — CAC per person (Pipeline coverage removed 2026-06-18) */}
+            <div className="eq-fade" style={{ marginBottom: 18 }}>
               <Card title="CAC · custo por aquisição" subtitle="Proxy de esforço · €0.50/DM, €1/email, €0.75/follow-up, €15/call">
                 <div className="sl-grid" style={{ display: "grid", gridTemplateColumns: `repeat(${Math.max(1, userOrder.length)}, 1fr)`, gap: 14 }}>
                   {userOrder.map(({ userId, firstName }) => {
@@ -616,6 +551,9 @@ export default function EquipaPage() {
                 <WinRateTrajectory data={data.winRateTrajectory || []} />
               </Card>
             </div>
+
+            </>)}
+            {/* end advancedOpen block */}
           </>
         )}
       </div>
@@ -639,10 +577,10 @@ function Card({ title, subtitle, children }) {
   );
 }
 
-function HeroCard({ label, value, hint, accent, progress, children }) {
+function HeroCard({ label, value, hint, accent, progress, deltaChip, children }) {
   return (
     <div className="eq-card" style={{
-      padding: 26,
+      padding: 28,
       background: accent
         ? `radial-gradient(120% 100% at 0% 0%, rgba(177,30,47,0.18) 0%, ${SURFACE_1} 55%)`
         : `radial-gradient(120% 100% at 100% 0%, rgba(255,255,255,0.03) 0%, ${SURFACE_1} 60%)`,
@@ -651,19 +589,24 @@ function HeroCard({ label, value, hint, accent, progress, children }) {
       boxShadow: accent
         ? "0 1px 0 rgba(255,255,255,0.04) inset, 0 8px 40px rgba(177,30,47,0.12)"
         : "0 1px 0 rgba(255,255,255,0.04) inset, 0 8px 32px rgba(0,0,0,0.4)",
-      minHeight: 200,
+      minHeight: 220,
       display: "flex",
       flexDirection: "column",
     }}>
-      <div style={{ fontSize: 11, fontWeight: 600, color: accent ? ACCENT : TEXT_LO, letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 12 }}>{label}</div>
-      <div style={{ fontSize: 44, fontWeight: 800, color: TEXT_HI, letterSpacing: "-0.025em", lineHeight: 1, marginBottom: 6 }}>{value}</div>
+      <div style={{ fontSize: 11, fontWeight: 600, color: accent ? ACCENT : TEXT_LO, letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 14 }}>{label}</div>
+      {/* Value + vs-yesterday chip on the same row so the comparison
+          reads as a sentence ("47 ↑3 vs ontem") instead of stacked. */}
+      <div style={{ display: "flex", alignItems: "baseline", gap: 12, flexWrap: "wrap", marginBottom: 8 }}>
+        <div style={{ fontSize: 52, fontWeight: 800, color: TEXT_HI, letterSpacing: "-0.03em", lineHeight: 1 }}>{value}</div>
+        {deltaChip && <div style={{ display: "inline-flex", alignSelf: "center" }}>{deltaChip}</div>}
+      </div>
       {hint && <div style={{ fontSize: 12, color: TEXT_MID, marginBottom: 4 }}>{hint}</div>}
       {progress != null && (
         <div style={{ marginTop: 8, marginBottom: 4, height: 6, background: "rgba(255,255,255,0.05)", borderRadius: 6, overflow: "hidden" }}>
           <div style={{ height: 6, width: `${progress}%`, background: `linear-gradient(90deg, ${ACCENT_DEEP}, ${ACCENT})`, borderRadius: 6, transition: "width 600ms cubic-bezier(.2,.7,.2,1)" }} />
         </div>
       )}
-      {children && <div style={{ marginTop: "auto", paddingTop: 14 }}>{children}</div>}
+      {children && <div style={{ marginTop: "auto", paddingTop: 16 }}>{children}</div>}
     </div>
   );
 }
@@ -677,9 +620,13 @@ function MicroStat({ label, value, accent }) {
   );
 }
 
-function PersonCard({ row, sbRow, streak, pipe, vel, delta, monthly, activity, isLeader, isLoser, goalPct, windowKey }) {
+function PersonCard({ row, sbRow, streak, pipe, vel, delta, yesterdayRow, monthly, activity, isLeader, isLoser, goalPct, windowKey }) {
   const series = activity?.days || [];
   const replyRate = row.replyRate;
+  // Only render the vs-ontem chip on the Hoje view and only when we have
+  // a matched yesterday row for this operator. Touches is the headline
+  // (DM+Email = 1 toque) so that's the most meaningful comparison.
+  const showVsYesterday = windowKey === 'today' && yesterdayRow;
   return (
     <div className="eq-card" style={{
       padding: 26,
@@ -714,13 +661,19 @@ function PersonCard({ row, sbRow, streak, pipe, vel, delta, monthly, activity, i
         )}
       </div>
 
-      {/* DMs + delta */}
+      {/* DMs + delta. On the Hoje view we also surface a "vs ontem"
+          chip below — same operator, comparing today's count to their
+          own yesterday. The week/month deltaDmsSent chip stays as-is for
+          longer windows where vs-ontem doesn't apply. */}
       <div style={{ marginBottom: 18 }}>
         <div style={{ fontSize: 10, fontWeight: 600, color: TEXT_LO, letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 6 }}>DMs enviadas</div>
-        <div style={{ display: "flex", alignItems: "baseline", gap: 10 }}>
+        <div style={{ display: "flex", alignItems: "baseline", gap: 10, flexWrap: "wrap" }}>
           <span style={{ fontSize: 40, fontWeight: 800, color: TEXT_HI, letterSpacing: "-0.025em", lineHeight: 1 }}>{row.dmsSent}</span>
           {delta?.deltaDmsSent != null && delta.deltaDmsSent !== 0 && (
             <DeltaBadge value={delta.deltaDmsSent} />
+          )}
+          {showVsYesterday && (
+            <VsYesterdayChip current={row.dmsSent} previous={yesterdayRow.dmsSent || 0} />
           )}
         </div>
       </div>
@@ -828,6 +781,43 @@ function DeltaBadge({ value }) {
       fontSize: 10, fontWeight: 700, letterSpacing: "0.02em",
     }}>
       {positive ? '↑' : '↓'} {Math.abs(value)}
+    </span>
+  );
+}
+
+// "↑3 vs ontem" — same vibe as DeltaBadge but renders the comparison
+// inline with the word "ontem" so it reads as a sentence rather than a
+// floating number. Used in the Hoje hero strip + per-person cards when
+// the server ships vsYesterday data. `suffix` differentiates raw count
+// deltas ("") from percentage-point deltas ("pp").
+function VsYesterdayChip({ current, previous, suffix = '', invertColor = false }) {
+  if (typeof previous !== 'number') return null;
+  const diff = (current || 0) - previous;
+  if (diff === 0) {
+    return (
+      <span style={{
+        display: "inline-flex", alignItems: "center",
+        padding: "2px 8px", borderRadius: 999,
+        background: "rgba(255,255,255,0.03)",
+        border: "1px solid rgba(255,255,255,0.06)",
+        color: TEXT_LO, fontSize: 10, fontWeight: 600,
+      }}>
+        = ontem
+      </span>
+    );
+  }
+  const positive = invertColor ? diff < 0 : diff > 0;
+  const arrow = diff > 0 ? '↑' : '↓';
+  return (
+    <span style={{
+      display: "inline-flex", alignItems: "center", gap: 4,
+      padding: "2px 8px", borderRadius: 999,
+      background: positive ? "rgba(34,197,94,0.10)" : "rgba(239,68,68,0.10)",
+      border: `1px solid ${positive ? "rgba(34,197,94,0.30)" : "rgba(239,68,68,0.30)"}`,
+      color: positive ? GREEN : RED,
+      fontSize: 10, fontWeight: 700, letterSpacing: "0.02em",
+    }}>
+      {arrow} {Math.abs(diff)}{suffix} <span style={{ opacity: 0.7, fontWeight: 500 }}>vs ontem</span>
     </span>
   );
 }

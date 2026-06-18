@@ -90,7 +90,7 @@ function lisbonOffsetMs(now) {
   return new Date(localStr).getTime() - new Date(utcStr).getTime();
 }
 
-function inWindow(iso, startMs) {
+function inWindow(iso, startMs, endMs = null) {
   if (!iso) return false;
   const t = new Date(iso).getTime();
   if (!Number.isFinite(t)) return false;
@@ -98,7 +98,12 @@ function inWindow(iso, startMs) {
   // the dashboard's competition view clean of legacy data even when
   // a window like 'all' would otherwise include everything.
   if (t < statsResetMs()) return false;
-  return t >= startMs;
+  if (t < startMs) return false;
+  // Strict upper bound — only set for 'yesterday', so events that
+  // crossed midnight don't double-count between today's and yesterday's
+  // views on the dashboard. Open-ended (null) for today/week/month/all.
+  if (endMs !== null && t >= endMs) return false;
+  return true;
 }
 
 // Same as inWindow but without the upper window — for aggregations that
@@ -173,6 +178,11 @@ function bumpRow(rows, actor, metricKey, increment = 1) {
  */
 export async function getTeamStats({ window = 'today', now = new Date() } = {}) {
   const startMs = windowStart(window, now);
+  // Yesterday is the ONLY window that needs a strict upper bound — events
+  // after midnight today should belong to today's view, not yesterday's.
+  // All other windows are open-ended (today/week/month run to "now",
+  // 'all' has no bound).
+  const endMs = window === 'yesterday' ? windowStart('today', now) : null;
   const summaries = await listCreators();
   // We need the FULL creator to access outreach + addedBy. Summaries don't
   // carry those fields, so fetch each one. This is O(N) reads but for a
@@ -185,16 +195,16 @@ export async function getTeamStats({ window = 'today', now = new Date() } = {}) 
     if (!c) continue;
     const o = c.outreach || {};
     // Creators added
-    if (c.addedBy?.userId && inWindow(c.addedBy.at, startMs)) {
+    if (c.addedBy?.userId && inWindow(c.addedBy.at, startMs, endMs)) {
       bumpRow(rows, c.addedBy, 'creatorsAdded');
     }
     // DMs sent
-    const dmInWindow = o.dmSentAt && inWindow(o.dmSentAt, startMs);
+    const dmInWindow = o.dmSentAt && inWindow(o.dmSentAt, startMs, endMs);
     if (dmInWindow) {
       bumpRow(rows, o.dmSentBy || c.addedBy, 'dmsSent');
     }
     // Emails sent
-    const emailInWindow = o.emailSentAt && inWindow(o.emailSentAt, startMs);
+    const emailInWindow = o.emailSentAt && inWindow(o.emailSentAt, startMs, endMs);
     if (emailInWindow) {
       bumpRow(rows, o.emailSentBy || c.addedBy, 'emailsSent');
     }
@@ -213,25 +223,25 @@ export async function getTeamStats({ window = 'today', now = new Date() } = {}) 
     // that haven't been backfilled yet.
     if (Array.isArray(o.followUps) && o.followUps.length > 0) {
       for (const f of o.followUps) {
-        if (!f?.at || !inWindow(f.at, startMs)) continue;
+        if (!f?.at || !inWindow(f.at, startMs, endMs)) continue;
         const actor = f.by || c.addedBy;
         bumpRow(rows, actor, 'followUpsDone');
         if (f.channel === 'dm') bumpRow(rows, actor, 'followUpsDm');
         else if (f.channel === 'email') bumpRow(rows, actor, 'followUpsEmail');
         // channel === 'unknown' (legacy backfill) only bumps followUpsDone
       }
-    } else if (o.lastFollowUpAt && inWindow(o.lastFollowUpAt, startMs)) {
+    } else if (o.lastFollowUpAt && inWindow(o.lastFollowUpAt, startMs, endMs)) {
       bumpRow(rows, o.lastFollowUpBy || c.addedBy, 'followUpsDone');
     }
     // Replies received (operator-marked). Split by channel.
-    if (o.repliedAt && inWindow(o.repliedAt, startMs)) {
+    if (o.repliedAt && inWindow(o.repliedAt, startMs, endMs)) {
       const actor = o.repliedMarkedBy || c.addedBy;
       bumpRow(rows, actor, 'repliesReceived');
       if (o.repliedChannel === 'dm') bumpRow(rows, actor, 'repliesViaDm');
       else if (o.repliedChannel === 'email') bumpRow(rows, actor, 'repliesViaEmail');
     }
     // Signed — attributed to whoever added the creator (handoffs aren't tracked).
-    if (c.pipelineStatus === 'signed' && c.signedAt && inWindow(c.signedAt, startMs)) {
+    if (c.pipelineStatus === 'signed' && c.signedAt && inWindow(c.signedAt, startMs, endMs)) {
       bumpRow(rows, c.addedBy, 'signed');
     }
   }
