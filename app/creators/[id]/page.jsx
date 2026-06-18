@@ -11,6 +11,7 @@ import { legacyParsedToOfferState, CHECKPOINTS, readCheckpointProgress, readOffe
 import { OFFER_SYSTEM_PROMPT } from "../../lib/systemPrompt";
 import WorkspaceDashboard from "./workspace/WorkspaceDashboard";
 import { STAGES, computeOutreachStage, stagePatch } from "../../lib/outreachStages";
+import { OFFER_ARCHETYPE_LABELS, OFFER_ARCHETYPE_DESCRIPTIONS } from "../../lib/schemas/offerArchetypes";
 import { safeStringify } from "../../lib/safeJson";
 
 const LOGO_B64 = "data:image/png;base64,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";
@@ -5127,6 +5128,233 @@ function StrategicFramePanel({ creator, setCreator, running, setRunning, error, 
 // ──────────────────────────────────────────────────────────────────────────
 // Phase 4 · CP2 — Core Offer Panel
 // ──────────────────────────────────────────────────────────────────────────
+// ThesisOnlyGate — replaces the CP2 generation flow when CP1's
+// primary_offer_archetype is NOT community_recurring.
+//
+// The hub's CP2/CP3/CP4/sales-copy wizards are all wired to build a
+// community offer — community_name, weekly_rhythm, modules, value
+// stack, community-shaped sales copy. When the strategic frame chooses
+// a different archetype (productized_service, commerce_affiliate,
+// cohort_education, hybrid_stack), running CP2 anyway produces a
+// community-shaped output with cosmetically relabeled fields — a hack
+// the previous "semantic shift" instructions in
+// formatStrategicFrameForPrompt only partially mitigates.
+//
+// Instead of producing the wrong shape, this gate:
+//   - Surfaces the thesis (archetype, sequenced_plays[0], reflex_trap,
+//     binding_constraint, capture_gap, adversarial review verdict)
+//   - Gives three escape hatches: build manually from the thesis, force
+//     the community build anyway (with a warning), or wait for the
+//     archetype-specific wizard (not built yet).
+//
+// Result: zero LLM tokens wasted on guaranteed-wrong outputs, and the
+// thesis itself becomes the deliverable — which IS already actionable
+// for archetypes like commerce_affiliate where the strategy ("affiliate
+// edits + 2-3 brand partnerships") doesn't need a wizard-produced
+// schema to execute against.
+// ──────────────────────────────────────────────────────────────────────────
+function ThesisOnlyGate({ frame, onForceOverride }) {
+  if (!frame) return null;
+  const archetype = frame.primary_offer_archetype;
+  const label = OFFER_ARCHETYPE_LABELS[archetype] || archetype;
+  const description = OFFER_ARCHETYPE_DESCRIPTIONS[archetype] || '';
+  const plays = Array.isArray(frame.sequenced_plays) ? frame.sequenced_plays : [];
+  const primary = plays[0];
+  const review = frame.adversarial_review;
+
+  // Money range helper — turns { realistic_monthly_low: 3000, ..._high: 6000 }
+  // into "€3K–€6K/mês". Falls back to single bound or empty string.
+  const fmtRange = (lo, hi) => {
+    const fmt = n => n >= 1000 ? `€${Math.round(n / 100) / 10}K` : `€${n}`;
+    if (lo == null && hi == null) return '';
+    if (lo != null && hi != null) return `${fmt(lo)}–${fmt(hi)}/mês`;
+    return fmt(lo ?? hi) + '/mês';
+  };
+
+  const verdictColor = review?.verdict === 'strong' ? '#22c55e'
+    : review?.verdict === 'moderate' ? '#eab308'
+    : review?.verdict === 'weak' ? '#ef4444' : '#666';
+
+  return (
+    <div style={{
+      padding: "20px 22px",
+      background: "rgba(234,179,8,0.04)",
+      border: "1px solid rgba(234,179,8,0.25)",
+      borderRadius: 10,
+      marginBottom: 16,
+    }}>
+      <div style={{ marginBottom: 14 }}>
+        <div style={{ fontSize: 9, fontWeight: 700, color: "#eab308", letterSpacing: "0.16em", textTransform: "uppercase", marginBottom: 6 }}>
+          ⚠ Esta tese não é uma comunidade
+        </div>
+        <div style={{ fontSize: 16, fontWeight: 700, color: "#f5f5f5", letterSpacing: "-0.005em", marginBottom: 8 }}>
+          {label}
+        </div>
+        <div style={{ fontSize: 12, color: "#aaa", lineHeight: 1.6 }}>
+          {description}
+        </div>
+        {frame.archetype_rationale && (
+          <div style={{ marginTop: 10, padding: "10px 14px", background: "#0a0a0a", borderRadius: 6, border: "1px solid rgba(255,255,255,0.04)", fontSize: 12, color: "#ccc", lineHeight: 1.55 }}>
+            <span style={{ fontSize: 9, fontWeight: 700, color: "#666", letterSpacing: "0.12em", textTransform: "uppercase", marginRight: 8 }}>Por quê:</span>
+            {frame.archetype_rationale}
+          </div>
+        )}
+      </div>
+
+      <div style={{ padding: "12px 14px", background: "#0a0a0a", borderRadius: 6, border: "1px solid rgba(255,255,255,0.04)", marginBottom: 12, fontSize: 12, color: "#ddd", lineHeight: 1.6 }}>
+        O wizard CP2 está desenhado para construir comunidades.
+        Para este formato, o wizard ainda não existe — mas a tese acima
+        já contém o suficiente para executar manualmente.
+      </div>
+
+      {/* Primary play — the actionable "what to actually build" */}
+      {primary && (
+        <div style={{ padding: "14px 16px", background: "#0a0a0a", borderRadius: 8, border: "1px solid rgba(34,197,94,0.20)", marginBottom: 12 }}>
+          <div style={{ fontSize: 9, fontWeight: 700, color: "#22c55e", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 8 }}>
+            ► Jogada #1 · executa primeiro
+          </div>
+          <div style={{ fontSize: 14, fontWeight: 600, color: "#f5f5f5", marginBottom: 8, lineHeight: 1.4 }}>
+            {primary.name}
+          </div>
+          {primary.why_now && (
+            <div style={{ fontSize: 12, color: "#bbb", lineHeight: 1.6, marginBottom: 10 }}>{primary.why_now}</div>
+          )}
+          <div style={{ display: "flex", gap: 14, flexWrap: "wrap", fontSize: 11, color: "#888" }}>
+            {primary.time_to_first_revenue && (
+              <span><strong style={{ color: "#ddd" }}>Time-to-cash:</strong> {primary.time_to_first_revenue}</span>
+            )}
+            {fmtRange(primary.realistic_monthly_low, primary.realistic_monthly_high) && (
+              <span><strong style={{ color: "#22c55e" }}>Range:</strong> {fmtRange(primary.realistic_monthly_low, primary.realistic_monthly_high)}</span>
+            )}
+            {primary.templatization_potential && (
+              <span><strong style={{ color: "#ddd" }}>Templatização:</strong> {primary.templatization_potential}</span>
+            )}
+          </div>
+          {primary.leverages && (
+            <div style={{ marginTop: 10, paddingTop: 10, borderTop: "1px solid rgba(255,255,255,0.04)", fontSize: 11, color: "#888", lineHeight: 1.5 }}>
+              <strong style={{ color: "#aaa" }}>Alavanca:</strong> {primary.leverages}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Reflex trap — what NOT to build (crucial here since they might
+          otherwise hit "Force community build" out of habit) */}
+      {frame.reflex_trap && (
+        <div style={{ padding: "12px 14px", background: "#0a0a0a", borderRadius: 8, border: "1px solid rgba(239,68,68,0.20)", marginBottom: 12 }}>
+          <div style={{ fontSize: 9, fontWeight: 700, color: "#ef4444", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 6 }}>
+            ✕ Não construir isto
+          </div>
+          {frame.reflex_trap.default_move && (
+            <div style={{ fontSize: 12, color: "#ddd", marginBottom: 6, lineHeight: 1.5 }}>{frame.reflex_trap.default_move}</div>
+          )}
+          {frame.reflex_trap.why_wrong && (
+            <div style={{ fontSize: 11, color: "#888", lineHeight: 1.55 }}>{frame.reflex_trap.why_wrong}</div>
+          )}
+        </div>
+      )}
+
+      {/* Two secondary context blocks: binding constraint + capture gap */}
+      <div className="sl-grid-2" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 12 }}>
+        {frame.binding_constraint && (
+          <div style={{ padding: "10px 12px", background: "#0a0a0a", borderRadius: 6, border: "1px solid rgba(255,255,255,0.04)" }}>
+            <div style={{ fontSize: 9, fontWeight: 700, color: "#666", letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 4 }}>Constrangimento</div>
+            <div style={{ fontSize: 11, color: "#ddd", lineHeight: 1.5, marginBottom: 4, fontWeight: 600 }}>{frame.binding_constraint.name}</div>
+            {frame.binding_constraint.implication && (
+              <div style={{ fontSize: 10.5, color: "#888", lineHeight: 1.5 }}>{frame.binding_constraint.implication}</div>
+            )}
+          </div>
+        )}
+        {frame.capture_gap && (
+          <div style={{ padding: "10px 12px", background: "#0a0a0a", borderRadius: 6, border: "1px solid rgba(255,255,255,0.04)" }}>
+            <div style={{ fontSize: 9, fontWeight: 700, color: "#666", letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 4 }}>Capture gap (fechar 1º)</div>
+            <div style={{ fontSize: 11, color: "#ddd", lineHeight: 1.5, marginBottom: 4, fontWeight: 600 }}>{frame.capture_gap.gap}</div>
+            {frame.capture_gap.first_action && (
+              <div style={{ fontSize: 10.5, color: "#888", lineHeight: 1.5 }}>{frame.capture_gap.first_action}</div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Adversarial review verdict — quick sanity flag */}
+      {review?.verdict && (
+        <div style={{ padding: "10px 14px", background: "#0a0a0a", borderRadius: 6, border: `1px solid ${verdictColor}33`, marginBottom: 12, fontSize: 11, color: "#aaa", lineHeight: 1.5 }}>
+          <span style={{ fontSize: 9, fontWeight: 700, color: verdictColor, letterSpacing: "0.12em", textTransform: "uppercase", marginRight: 8 }}>● Crítica · veredicto {review.verdict}</span>
+          {Array.isArray(review.must_fix_before_proceeding) && review.must_fix_before_proceeding.length > 0 && (
+            <div style={{ marginTop: 6, color: "#bbb" }}>
+              Resolver antes: {review.must_fix_before_proceeding.join(' · ')}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Action buttons */}
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 14 }}>
+        <button
+          type="button"
+          onClick={() => {
+            // "Build manually" is purely informational — no LLM call,
+            // no state change. Just nudges the operator to act on the
+            // thesis directly. Putting it as the primary button
+            // signals it's the recommended path here.
+            window.alert("A tese acima já é o entregável para este arquétipo. Copia o conteúdo para o doc do criador / agenda de call. Cada bloco (jogada #1, reflex_trap, capture_gap) é acionável tal como está.");
+          }}
+          style={{
+            padding: "10px 18px", borderRadius: 6,
+            border: "1px solid rgba(34,197,94,0.45)",
+            background: "rgba(34,197,94,0.08)",
+            color: "#22c55e",
+            fontSize: 12, fontWeight: 700,
+            cursor: "pointer", fontFamily: "inherit",
+          }}
+        >
+          ✓ Executar manualmente
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            if (window.confirm(
+              "Forçar build de comunidade mesmo com a tese a dizer " +
+              (label || archetype) + "?\n\n" +
+              "O CP2 vai produzir um schema de comunidade (nome, ritmo semanal, módulos, value stack). " +
+              "Vai NÃO encaixar com esta tese — o output vai precisar de muito edit manual.\n\n" +
+              "Custo: ~$0.06 por geração. Aceitas?"
+            )) {
+              onForceOverride?.();
+            }
+          }}
+          style={{
+            padding: "10px 16px", borderRadius: 6,
+            border: "1px solid rgba(122,14,24,0.35)",
+            background: "transparent",
+            color: "#B11E2F",
+            fontSize: 12, fontWeight: 600,
+            cursor: "pointer", fontFamily: "inherit",
+          }}
+        >
+          ⚠ Forçar build de comunidade
+        </button>
+        <button
+          type="button"
+          disabled
+          title={`Wizard dedicado para ${label} ainda não construído. Está no roadmap.`}
+          style={{
+            padding: "10px 16px", borderRadius: 6,
+            border: "1px solid rgba(255,255,255,0.06)",
+            background: "transparent",
+            color: "#444",
+            fontSize: 12, fontWeight: 500,
+            cursor: "not-allowed", fontFamily: "inherit",
+          }}
+        >
+          Wizard {label} (em breve)
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ──────────────────────────────────────────────────────────────────────────
 // First creator-facing checkpoint. Renders the offer spine from
 // client_facing_output + lets the operator pick the pricing tier BEFORE
 // generation (the tier shapes the entire output).
@@ -5136,6 +5364,12 @@ function StrategicFramePanel({ creator, setCreator, running, setRunning, error, 
 //   2. Review the output (community name, transformation, pricing, mechanic)
 //   3. Approve & Continue → locks CP2, advances to CP3
 //   4. To edit → Unlock (cascades to CP3-5)
+//
+// Gate (2026-06-18): when frame.primary_offer_archetype is anything
+// other than 'community_recurring', the tier picker + generate flow is
+// replaced by a ThesisOnlyGate panel. Operator can force-override to
+// run the community wizard anyway, but the default is to treat the
+// thesis itself as the deliverable for non-community archetypes.
 function CoreOfferPanel({ creator, setCreator, running, setRunning, error, setError, diag, setDiag }) {
   const meta = creator?.offer?.internal_metadata || {};
   const client = creator?.offer?.client_facing_output || {};
@@ -5144,9 +5378,32 @@ function CoreOfferPanel({ creator, setCreator, running, setRunning, error, setEr
   const runAt = meta.generation_timestamps?.core_offer || null;
   const frame = meta.strategic_frame || null;
 
+  // Force-override for the ThesisOnlyGate. Session-local — when the
+  // operator clicks "Forçar build de comunidade" on the gate, this
+  // flips true and the normal tier picker + generate flow renders
+  // even though the archetype isn't community_recurring. Not persisted
+  // (cleared on refresh) — the gate re-appears on next session.
+  const [forceOverride, setForceOverride] = useState(false);
+
   // Has CP2 produced its required fields? central_promise is the canonical
   // sentinel — if it exists, CP2 has run at least once.
   const hasOutput = !!client.central_promise;
+
+  // Gate: when CP1's archetype is anything other than community_recurring,
+  // CP2's community-shaped wizard doesn't fit. Show the thesis-only deliverable
+  // instead of the tier picker + generate button, unless the operator forces
+  // an override OR CP2 was already generated/locked.
+  //
+  // NOTE: named `frameArchetype` because there's already an `archetype` const
+  // below pointing to meta.archetype_classification (a different concept —
+  // the auto-classifier output from the archetype route).
+  const frameArchetype = frame?.primary_offer_archetype || null;
+  const showThesisGate =
+    !cp2Locked &&
+    !hasOutput &&
+    !forceOverride &&
+    !!frameArchetype &&
+    frameArchetype !== 'community_recurring';
 
   // Operator picks pricing_tier BEFORE generation. Default suggestion logic:
   //   1. CANNIBALIZATION-AWARE: if the ecosystem audit reports an existing
@@ -5365,8 +5622,15 @@ function CoreOfferPanel({ creator, setCreator, running, setRunning, error, setEr
         <div style={{ padding: "10px 14px", borderRadius: 6, background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.25)", color: "#ef4444", fontSize: 11, marginBottom: 12, whiteSpace: "pre-wrap" }}>{error}</div>
       )}
 
-      {/* Tier picker — only when editable */}
-      {!cp2Locked && (
+      {/* Thesis-only gate — replaces the tier picker + generate flow when
+          the strategic frame's archetype isn't community_recurring. Operator
+          can force-override (and then the picker re-appears below). */}
+      {showThesisGate && (
+        <ThesisOnlyGate frame={frame} onForceOverride={() => setForceOverride(true)} />
+      )}
+
+      {/* Tier picker — only when editable AND not gated by archetype */}
+      {!cp2Locked && !showThesisGate && (
         <div style={{ marginBottom: 16, padding: "12px 14px", background: "rgba(255,255,255,0.02)", borderRadius: 8, border: "1px solid rgba(255,255,255,0.05)" }}>
           <div style={{ fontSize: 9, fontWeight: 700, color: "#666", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 8 }}>
             Pricing tier {pendingTier === suggestedTier ? <span style={{ color: "#888", fontWeight: 500, letterSpacing: 0, textTransform: "none" }}>· suggested based on frame + archetype</span> : null}
@@ -5459,7 +5723,7 @@ function CoreOfferPanel({ creator, setCreator, running, setRunning, error, setEr
         </div>
       )}
 
-      {!hasOutput && !running && (
+      {!hasOutput && !running && !showThesisGate && (
         <div style={{ padding: "20px 16px", textAlign: "center", color: "#444", fontSize: 12, border: "1px dashed rgba(255,255,255,0.06)", borderRadius: 6 }}>
           No core offer yet. Pick a tier above, then click <strong style={{ color: "#888" }}>Generate</strong> (~15-25s, Sonnet only).
         </div>
