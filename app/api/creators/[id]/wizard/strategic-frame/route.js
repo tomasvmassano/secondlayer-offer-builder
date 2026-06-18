@@ -439,13 +439,25 @@ Return ONLY the JSON object per the schema in the system prompt.${formatInstruct
   }
 
   const rawText = (data.content || []).filter(b => b.type === 'text').map(b => b.text).join('\n');
+  const stopReason = data.stop_reason || 'unknown';
+  const usage = data.usage || {};
   const parsed = tryParseJson(rawText);
   if (!parsed) {
-    // No inline parse-retry. Sonnet 4.5 with cache-controlled schema +
-    // "Return ONLY the JSON object" reliably emits JSON; a second call
-    // here would double latency and push us over Vercel's 60s cap.
-    // Fail fast and let the operator re-click — cheaper and faster.
-    return { error: 'Model returned non-JSON output (re-clica Generate)', raw: rawText, errors: [], retries: retryCount };
+    // Surface the actual failure mode so we stop guessing:
+    //   - stop_reason: "max_tokens" → bump max_tokens or shrink schema
+    //   - stop_reason: "end_turn" + invalid JSON → model wrapped in prose
+    //                  or tryParseJson has a bug (braces inside strings)
+    //   - empty rawText → API content array empty
+    const tail = rawText ? rawText.slice(-300) : '(empty rawText)';
+    const head = rawText ? rawText.slice(0, 200) : '';
+    const detail = [
+      `stop_reason: ${stopReason}`,
+      `output_tokens: ${usage.output_tokens ?? '?'} (cap: 2200)`,
+      `rawLen: ${rawText.length}`,
+      head ? `head: ${head}` : null,
+      `tail: ${tail}`,
+    ].filter(Boolean).join('\n');
+    return { error: 'Model returned non-JSON output', errors: [detail], raw: rawText, retries: retryCount };
   }
 
   const validation = validateStrategicFrame(parsed);
