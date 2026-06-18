@@ -1548,7 +1548,7 @@ function CrmKanban({ creators, setCreators, onDragChange }) {
       // Flatten outreach fields onto the summary's top level. Any key
       // present in patch.outreach gets applied (null included → clears).
       for (const k of ['dmSentAt', 'emailSentAt', 'repliedAt', 'repliedChannel',
-                       'loomRequestedAt', 'loomSentAt',
+                       'loomRequestedAt', 'proposalReadyAt', 'loomSentAt',
                        'callBookedAt', 'callAgreedAt', 'callHeldAt',
                        'notInterestedAt']) {
         if (k in o) updated[k] = o[k];

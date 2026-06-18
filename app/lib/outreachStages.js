@@ -31,6 +31,11 @@ export const STAGES = [
   { key: 'followup_14',           label: 'Follow-up · dia 14',    accent: '#ea580c', description: 'Último toque · 7 dias até Frio' },
   { key: 'contacto_feito',        label: 'Contacto feito',        accent: '#3b82f6', description: 'Respondeu · pronto para Loom' },
   { key: 'pediu_loom',            label: 'Pediu Loom',            accent: '#a855f7', description: 'Pediu Loom personalizado' },
+  // After the creator asks for a Loom, the operator needs to build the
+  // actual proposal (offer wizard outputs + deck) before recording the
+  // Loom around it. This stage marks "proposal is finished, ready to
+  // record the Loom". Triggered by outreach.proposalReadyAt.
+  { key: 'proposta_terminada',    label: 'Proposta terminada',    accent: '#8b5cf6', description: 'Oferta + deck prontos · gravar Loom' },
   { key: 'loom_enviado',          label: 'Loom enviado',          accent: '#c084fc', description: 'Loom entregue · à espera de resposta' },
   { key: 'reuniao_marcada',       label: 'Reunião marcada',       accent: '#22c55e', description: 'Call de descoberta agendada' },
   { key: 'apresentacao_enviada',  label: 'Apresentação enviada',  accent: '#7A0E18', description: 'Deck partilhado · à espera de decisão' },
@@ -81,6 +86,7 @@ export function computeOutreachStage(creator) {
   const callHeldAt      = o.callHeldAt    || creator.callHeldAt;
   const callBookedAt    = o.callBookedAt  || o.callAgreedAt || creator.callBookedAt;
   const loomSentAt      = o.loomSentAt    || creator.loomSentAt;
+  const proposalReadyAt = o.proposalReadyAt || creator.proposalReadyAt;
   const loomRequestedAt = o.loomRequestedAt || creator.loomRequestedAt;
   const repliedAt       = o.repliedAt     || creator.repliedAt;
   const dmSentAt        = o.dmSentAt      || creator.dmSentAt;
@@ -96,6 +102,11 @@ export function computeOutreachStage(creator) {
   if (callHeldAt)                   return 'apresentacao_enviada';
   if (callBookedAt)                 return 'reuniao_marcada';
   if (loomSentAt)                   return 'loom_enviado';
+  // proposalReadyAt sits between pediu_loom and loom_enviado: the
+  // proposal is finished and the operator is about to record the Loom.
+  // Checked AFTER loomSentAt so once the Loom ships, the card advances
+  // past this stage even if proposalReadyAt is still set.
+  if (proposalReadyAt)              return 'proposta_terminada';
   if (loomRequestedAt)              return 'pediu_loom';
   if (repliedAt)                    return 'contacto_feito';
   // Day-14 follow-up was sent and N days passed with no reply → Frio.
@@ -143,7 +154,7 @@ export function stagePatch(creator, targetStage) {
           dmSentAt: null, emailSentAt: null,
           repliedAt: null, repliedChannel: null,
           followUps: [], followUpsDone: 0, lastFollowUpAt: null,
-          loomRequestedAt: null, loomSentAt: null,
+          loomRequestedAt: null, proposalReadyAt: null, loomSentAt: null,
           callBookedAt: null, callAgreedAt: null, callHeldAt: null,
           notInterestedAt: null,
         },
@@ -159,7 +170,7 @@ export function stagePatch(creator, targetStage) {
           // Drag back from any follow-up column → zero out follow-ups so
           // computeOutreachStage classifies the card as em_outreach again.
           followUps: [], followUpsDone: 0, lastFollowUpAt: null,
-          loomRequestedAt: null, loomSentAt: null,
+          loomRequestedAt: null, proposalReadyAt: null, loomSentAt: null,
           callBookedAt: null, callAgreedAt: null, callHeldAt: null,
           notInterestedAt: null,
         },
@@ -195,7 +206,7 @@ export function stagePatch(creator, targetStage) {
           followUps: trimmed,
           followUpsDone: trimmed.length,
           lastFollowUpAt: last?.at || now,
-          loomRequestedAt: null, loomSentAt: null,
+          loomRequestedAt: null, proposalReadyAt: null, loomSentAt: null,
           callBookedAt: null, callAgreedAt: null, callHeldAt: null,
           notInterestedAt: null,
         },
@@ -208,7 +219,7 @@ export function stagePatch(creator, targetStage) {
         outreach: {
           dmSentAt: getOutreach('dmSentAt') || now,
           repliedAt: getOutreach('repliedAt') || now,
-          loomRequestedAt: null, loomSentAt: null,
+          loomRequestedAt: null, proposalReadyAt: null, loomSentAt: null,
           callBookedAt: null, callAgreedAt: null, callHeldAt: null,
           notInterestedAt: null,
         },
@@ -221,6 +232,26 @@ export function stagePatch(creator, targetStage) {
           dmSentAt: getOutreach('dmSentAt') || now,
           repliedAt: getOutreach('repliedAt') || now,
           loomRequestedAt: getOutreach('loomRequestedAt') || now,
+          // Clear proposalReadyAt + loomSentAt — backward drag from a
+          // later stage should land here, not in proposta_terminada.
+          proposalReadyAt: null, loomSentAt: null,
+          callBookedAt: null, callAgreedAt: null, callHeldAt: null,
+          notInterestedAt: null,
+        },
+        pitch: { sentAt: null },
+      };
+    case 'proposta_terminada':
+      // Operator marked the proposal/deck as ready. Stamp
+      // proposalReadyAt and stash loomRequestedAt if absent (the
+      // proposal usually exists because the creator asked for a Loom).
+      // Forward field is loomSentAt — must be null to stay in this stage.
+      return {
+        pipelineStatus: 'prospect',
+        outreach: {
+          dmSentAt: getOutreach('dmSentAt') || now,
+          repliedAt: getOutreach('repliedAt') || now,
+          loomRequestedAt: getOutreach('loomRequestedAt') || now,
+          proposalReadyAt: getOutreach('proposalReadyAt') || now,
           loomSentAt: null,
           callBookedAt: null, callAgreedAt: null, callHeldAt: null,
           notInterestedAt: null,
@@ -234,6 +265,9 @@ export function stagePatch(creator, targetStage) {
           dmSentAt: getOutreach('dmSentAt') || now,
           repliedAt: getOutreach('repliedAt') || now,
           loomRequestedAt: getOutreach('loomRequestedAt') || now,
+          // Preserve proposalReadyAt — the proposal IS still ready;
+          // we just shipped the Loom on top of it.
+          proposalReadyAt: getOutreach('proposalReadyAt') || null,
           loomSentAt: getOutreach('loomSentAt') || now,
           callBookedAt: null, callAgreedAt: null, callHeldAt: null,
           notInterestedAt: null,
@@ -246,6 +280,11 @@ export function stagePatch(creator, targetStage) {
         outreach: {
           dmSentAt: getOutreach('dmSentAt') || now,
           repliedAt: getOutreach('repliedAt') || now,
+          // Preserve any loom/proposal history — they don't go back to null
+          // just because the call got booked.
+          loomRequestedAt: getOutreach('loomRequestedAt') || null,
+          proposalReadyAt: getOutreach('proposalReadyAt') || null,
+          loomSentAt: getOutreach('loomSentAt') || null,
           callBookedAt: getOutreach('callBookedAt') || getOutreach('callAgreedAt') || now,
           callHeldAt: null,
           notInterestedAt: null,
@@ -258,6 +297,9 @@ export function stagePatch(creator, targetStage) {
         outreach: {
           dmSentAt: getOutreach('dmSentAt') || now,
           repliedAt: getOutreach('repliedAt') || now,
+          loomRequestedAt: getOutreach('loomRequestedAt') || null,
+          proposalReadyAt: getOutreach('proposalReadyAt') || null,
+          loomSentAt: getOutreach('loomSentAt') || null,
           callBookedAt: getOutreach('callBookedAt') || getOutreach('callAgreedAt') || now,
           callHeldAt: getOutreach('callHeldAt') || now,
           notInterestedAt: null,

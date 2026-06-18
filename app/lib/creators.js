@@ -69,6 +69,7 @@ function buildSummary(creator, createdAt) {
     // Kanban-stage signals — surface here so the CRM Kanban can place each
     // card in the right column without fetching the full creator record.
     loomRequestedAt: creator.outreach?.loomRequestedAt || null,
+    proposalReadyAt: creator.outreach?.proposalReadyAt || null,
     loomSentAt:      creator.outreach?.loomSentAt      || null,
     callBookedAt:    creator.outreach?.callBookedAt    || creator.outreach?.callAgreedAt || null,
     callHeldAt:      creator.outreach?.callHeldAt      || null,
