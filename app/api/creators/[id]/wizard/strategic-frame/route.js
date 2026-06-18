@@ -393,17 +393,27 @@ Audience: ${audienceLine}`;
     ? `LANGUAGE: Output every string field in Castilian Spanish (España, "tú" form). The Phase 1-3 inputs above may be in English or Portuguese — translate the strategic substance into Spanish for the output. Do NOT mix languages.`
     : `LANGUAGE: Output every string field in PORTUGUESE (PT-PT). The Phase 1-3 inputs above may be in English — translate the strategic substance into Portuguese for the output. Do NOT mix languages.`;
 
+  // Hard char caps per block. Verbose creators (rich audit + 8-12 unique
+  // elements + long evidence) used to push the user message past 6K tokens,
+  // which combined with the 8-9K-token system prompt and 1800-token output
+  // crossed Vercel's 60s cap on cold path. The caps below trim the tail
+  // of each block — the head (most important signals) is preserved.
+  const TRUNC = (s, max) => s.length <= max ? s : s.slice(0, max) + '\n  ... (truncated for latency)';
+  const auditCapped = TRUNC(auditBlock, 3500);
+  const archetypeCapped = TRUNC(archetypeBlock, 1200);
+  const uniquenessCapped = TRUNC(uniquenessBlock, 3500);
+
   const userMessage = `Synthesise the three internal analyses below into the strategic frame for this creator's new offer.
 
 ${formatInstructionsBlock(extraInstruction)}${langHint}
 
 ${creatorBlock}
 
-${auditBlock}
+${auditCapped}
 
-${archetypeBlock}
+${archetypeCapped}
 
-${uniquenessBlock}
+${uniquenessCapped}
 
 Return ONLY the JSON object per the schema in the system prompt.${formatInstructionsReminder(extraInstruction)}`;
 
@@ -412,13 +422,12 @@ Return ONLY the JSON object per the schema in the system prompt.${formatInstruct
     headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01' },
     body: JSON.stringify({
       model: 'claude-sonnet-4-5-20250929',
-      // 4000 was too generous — Sonnet 4.5 at that ceiling against the
-      // big audit+archetype+uniqueness prompt ran 60-80s, blowing past
-      // Vercel's 60s Hobby maxDuration. 2500 keeps the output rich
-      // enough for the six moves + archetype + originals while landing
-      // calls in 30-45s. If a creator's thesis genuinely needs more,
-      // the prompt caps per-field length so this still fits.
-      max_tokens: 2500,
+      // Cost + latency budget: the six-moves schema + archetype + originals
+      // fits comfortably in 1800 (each field has a hard per-field cap in
+      // the prompt). 2500 was leaving headroom that Sonnet would fill, and
+      // with the 34K-char system prompt + ~3-5K input, the call regularly
+      // crossed Vercel's 60s Hobby cap on cold path — operator saw HTTP 504.
+      max_tokens: 1800,
       system: [{ type: 'text', text: SYSTEM_PROMPT, cache_control: { type: 'ephemeral' } }],
       messages: [{ role: 'user', content: userMessage }],
     }),
@@ -431,8 +440,11 @@ Return ONLY the JSON object per the schema in the system prompt.${formatInstruct
   const rawText = (data.content || []).filter(b => b.type === 'text').map(b => b.text).join('\n');
   const parsed = tryParseJson(rawText);
   if (!parsed) {
-    if (retryCount < 1) return runStrategicFrame(apiKey, creator, retryCount + 1, 'Your previous response was not parseable JSON. Return ONLY a JSON object — no prose, no markdown fences.');
-    return { error: 'Model returned non-JSON output after retry', raw: rawText, errors: [], retries: retryCount };
+    // No inline parse-retry. Sonnet 4.5 with cache-controlled schema +
+    // "Return ONLY the JSON object" reliably emits JSON; a second call
+    // here would double latency and push us over Vercel's 60s cap.
+    // Fail fast and let the operator re-click — cheaper and faster.
+    return { error: 'Model returned non-JSON output (re-clica Generate)', raw: rawText, errors: [], retries: retryCount };
   }
 
   const validation = validateStrategicFrame(parsed);
