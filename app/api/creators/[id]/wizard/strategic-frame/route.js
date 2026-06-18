@@ -283,16 +283,16 @@ Return ONLY a JSON object matching this schema. No prose, no markdown, no commen
   //     moves win — rewrite the lower field, don't fudge the move. ───
 
   "confirmed_role": "entry_point" | "continuity" | "premium_upsell" | "standalone",
-  "dominant_transformation": "string (max ~240 chars)",
+  "dominant_transformation": "string ≤220 chars — terse, internal phrasing",
   "audience_segment": {
-    "description": "string",
-    "demographics_anchor": "string"
+    "description": "string ≤180 chars",
+    "demographics_anchor": "string ≤120 chars"
   },
-  "negative_qualifiers": ["string", "string", ...],   // 2-5 items
-  "positioning_tension": "string (max ~400 chars)",
-  "rationale": ["string", ...],                        // 3-5 bullets — each must cite which of the 6 moves it derives from
-  "differentiation_from_existing": "string or null",   // required when cannibalization_risk ∈ {high, medium}; null otherwise
-  "ecosystem_impact": ["string", ...]                  // 3-5 bullets, ≤320 chars each, money-anchored
+  "negative_qualifiers": ["string ≤120 chars each", ...],   // 2-5 items
+  "positioning_tension": "string ≤360 chars — the conflict the offer resolves",
+  "rationale": ["string ≤200 chars each", ...],             // 3-5 bullets — each must cite which of the 6 moves it derives from
+  "differentiation_from_existing": "string ≤400 chars OR null",   // required when cannibalization_risk ∈ {high, medium}; null otherwise
+  "ecosystem_impact": ["string ≤290 chars each", ...]      // 3-5 bullets, money-anchored
 }
 
 ${OPERATOR_INSTRUCTIONS_RULE}`;

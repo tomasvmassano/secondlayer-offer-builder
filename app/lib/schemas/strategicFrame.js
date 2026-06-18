@@ -231,8 +231,8 @@ export function validateStrategicFrame(obj) {
 
   if (!isStr(obj.dominant_transformation)) {
     push('dominant_transformation', 'required non-empty string (short, internal phrasing — sales copy comes later)');
-  } else if (obj.dominant_transformation.length > 240) {
-    push('dominant_transformation', `should be at most ~240 chars (got ${obj.dominant_transformation.length}) — tighten`);
+  } else if (obj.dominant_transformation.length > 280) {
+    push('dominant_transformation', `should be at most ~280 chars (got ${obj.dominant_transformation.length}) — tighten`);
   }
 
   // audience_segment — object with description + a demographics anchor.
@@ -257,8 +257,8 @@ export function validateStrategicFrame(obj) {
 
   if (!isStr(obj.positioning_tension)) {
     push('positioning_tension', 'required non-empty string (the conflict the offer resolves — without tension there is no offer)');
-  } else if (obj.positioning_tension.length > 400) {
-    push('positioning_tension', `should be at most ~400 chars (got ${obj.positioning_tension.length})`);
+  } else if (obj.positioning_tension.length > 460) {
+    push('positioning_tension', `should be at most ~460 chars (got ${obj.positioning_tension.length})`);
   }
 
   // differentiation_from_existing — REQUIRED when the ecosystem audit
@@ -286,7 +286,7 @@ export function validateStrategicFrame(obj) {
   } else {
     obj.ecosystem_impact.forEach((s, i) => {
       if (!isStr(s)) push(`ecosystem_impact[${i}]`, 'must be a non-empty string');
-      else if (s.length > 320) push(`ecosystem_impact[${i}]`, `should be ≤320 chars (got ${s.length}) — punchy, scannable`);
+      else if (s.length > 360) push(`ecosystem_impact[${i}]`, `should be ≤360 chars (got ${s.length}) — punchy, scannable`);
     });
   }
 
