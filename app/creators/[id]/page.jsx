@@ -3425,6 +3425,43 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
               }}
             />
           )}
+
+          {/* Undo toast — pinned bottom-right, fades after 6s. Single
+              global slot (a second delete replaces it). Cmd+Z while
+              visible also triggers the undo (binding lives in a
+              useEffect higher up in this component). Lives here in
+              CreatorProfilePageImpl because the undoToast state +
+              undoDelete handler are declared in this scope — was
+              previously orphaned inside PivotTierModal, which crashed
+              the whole page with "undoToast is not defined" the first
+              time anyone opened the cascade modal. */}
+          {undoToast && (
+            <div style={{
+              position: "fixed", bottom: 24, right: 24, zIndex: 1000,
+              padding: "12px 16px", background: "#141414",
+              border: "1px solid rgba(122,14,24,0.4)", borderRadius: 10,
+              boxShadow: "0 8px 24px rgba(0,0,0,0.5)",
+              display: "flex", alignItems: "center", gap: 14,
+              maxWidth: 360,
+              animation: "sl-undo-slide 0.18s ease-out",
+            }}>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 11, color: "#f5f5f5", fontWeight: 600, marginBottom: 2 }}>Mensagem apagada</div>
+                {undoToast.preview && (
+                  <div style={{ fontSize: 10, color: "#888", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    &ldquo;{undoToast.preview}{undoToast.preview.length >= 60 ? '…' : ''}&rdquo;
+                  </div>
+                )}
+              </div>
+              <button
+                onClick={() => undoDelete(undoToast.messageId)}
+                style={{ padding: "6px 12px", background: "rgba(122,14,24,0.2)", border: "1px solid rgba(122,14,24,0.5)", borderRadius: 5, color: "#f5b5bb", fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}
+              >
+                Anular
+              </button>
+              <span style={{ fontSize: 9, color: "#555", fontFamily: "ui-monospace, monospace" }}>⌘Z</span>
+            </div>
+          )}
         </>)}
 
         {/* ════════════ LAUNCH TAB ════════════ */}
@@ -7831,36 +7868,6 @@ function PivotTierModal({ creator, onClose, onComplete, mode = 'tier', fromCpId 
           }
         `}</style>
 
-        {/* Undo toast — pinned bottom-right, fades after 6s. Single global
-            slot (a second delete replaces it). Cmd+Z while visible also
-            triggers the undo (binding lives in the useEffect higher up). */}
-        {undoToast && (
-          <div style={{
-            position: "fixed", bottom: 24, right: 24, zIndex: 1000,
-            padding: "12px 16px", background: "#141414",
-            border: "1px solid rgba(122,14,24,0.4)", borderRadius: 10,
-            boxShadow: "0 8px 24px rgba(0,0,0,0.5)",
-            display: "flex", alignItems: "center", gap: 14,
-            maxWidth: 360,
-            animation: "sl-undo-slide 0.18s ease-out",
-          }}>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 11, color: "#f5f5f5", fontWeight: 600, marginBottom: 2 }}>Mensagem apagada</div>
-              {undoToast.preview && (
-                <div style={{ fontSize: 10, color: "#888", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                  &ldquo;{undoToast.preview}{undoToast.preview.length >= 60 ? '…' : ''}&rdquo;
-                </div>
-              )}
-            </div>
-            <button
-              onClick={() => undoDelete(undoToast.messageId)}
-              style={{ padding: "6px 12px", background: "rgba(122,14,24,0.2)", border: "1px solid rgba(122,14,24,0.5)", borderRadius: 5, color: "#f5b5bb", fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}
-            >
-              Anular
-            </button>
-            <span style={{ fontSize: 9, color: "#555", fontFamily: "ui-monospace, monospace" }}>⌘Z</span>
-          </div>
-        )}
         <style>{`
           @keyframes sl-undo-slide {
             from { transform: translateY(10px); opacity: 0; }
