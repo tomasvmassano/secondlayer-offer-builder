@@ -557,15 +557,16 @@ Return ONLY the JSON object matching the schema in your system prompt. Start you
     },
     body: JSON.stringify({
       model: 'claude-sonnet-4-5-20250929',
-      // 4000 → 8000 (2026-05-19) → 12000 (2026-05-20) → 6000 (2026-06-18).
-      // The 12000 ceiling was burning ~$0.40-0.50 per audit with Sonnet 4.5
-      // filling the budget. 6000 still fits the JSON for the
-      // overwhelming majority of creators and slashes per-call cost by
-      // ~50%. If a specific dense-bio creator truncates at 6K, the
-      // operator can retry — cheaper than paying the bloat for every
-      // run, and the validator now FAILS FAST instead of doing a second
-      // 4000-token retry call (~$0.06 extra per audit saved).
-      max_tokens: 6000,
+      // 4000 → 8000 (2026-05-19) → 12000 (2026-05-20) → 6000 (2026-06-18
+      // emergency cut) → 8000 (2026-06-18, same day).
+      //
+      // 12000 was burning $0.18 in output tokens alone — Sonnet 4.5 filled
+      // the budget. 6000 was too aggressive: original comment specifically
+      // said 8000 wasn't enough for creators with 5+ bio links + no
+      // aggregator, and we want this route to NOT truncate JSON on dense
+      // Instagram bios. 8000 is the sweet spot: cuts ~$0.06 vs the old
+      // 12000 cap but keeps headroom for the JSON to actually finish.
+      max_tokens: 8000,
       tools: [{ type: 'web_search_20250305', name: 'web_search' }],
       system: [{ type: 'text', text: SYSTEM_PROMPT, cache_control: { type: 'ephemeral' } }],
       messages: [{ role: 'user', content: userMessage }],
