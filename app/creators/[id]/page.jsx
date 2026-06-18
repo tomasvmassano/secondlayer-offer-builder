@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef, Suspense } from "react";
+import React, { useState, useEffect, useCallback, useRef, Suspense } from "react";
 import { nanoid } from "nanoid";
 import { useRouter, useSearchParams } from "next/navigation";
 import { calculateDealScore } from "../../lib/dealScore";
@@ -3414,7 +3414,14 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
               fromCpId={cascadeFromCp}
               onClose={() => setCascadeFromCp(null)}
               onComplete={(fresh) => {
-                if (fresh) setCreator(fresh);
+                // Only adopt the fresh creator if it actually looks like
+                // a creator. Truthy-checks would let an error stub (e.g.
+                // { error: "..." } from a 5xx) overwrite the working
+                // state and crash every downstream component that reads
+                // creator.offer / creator.platforms / etc.
+                if (fresh && typeof fresh === 'object' && fresh.id && !fresh.error) {
+                  setCreator(fresh);
+                }
               }}
             />
           )}
@@ -3596,11 +3603,75 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
   );
 }
 
+// Class component (React still requires class for error boundaries in
+// componentDidCatch). Wraps the page content so a render-time exception
+// in any child shows a recoverable error screen instead of the generic
+// "Application error" white-screen that Next.js falls back to.
+//
+// The boundary surfaces:
+//   - The actual error message + first line of the stack (so the operator
+//     can paste it back to me when reporting)
+//   - A "Force reload" button that does a hard refresh of the page
+//   - A link back to the CRM so the operator isn't trapped on a dead page
+//
+// Reset on prop change isn't ideal (you'd want it on navigation), but
+// this is good enough — operators rarely need to recover from this state
+// more than once per session, and the reload button covers it.
+class CreatorPageErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { error: null, info: null };
+  }
+  static getDerivedStateFromError(error) {
+    return { error };
+  }
+  componentDidCatch(error, info) {
+    console.error('[CreatorProfilePage] render error:', error, info);
+    this.setState({ error, info });
+  }
+  render() {
+    if (this.state.error) {
+      const msg = String(this.state.error?.message || this.state.error);
+      const stackLine = String(this.state.error?.stack || '').split('\n').slice(0, 4).join('\n');
+      return (
+        <div style={{ minHeight: "100vh", background: "#0a0a0a", color: "#f5f5f5", padding: "60px 24px", fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif" }}>
+          <div style={{ maxWidth: 640, margin: "0 auto" }}>
+            <div style={{ fontSize: 10, fontWeight: 700, color: "#ef4444", letterSpacing: "0.16em", textTransform: "uppercase", marginBottom: 12 }}>● Erro a renderizar o perfil</div>
+            <h1 style={{ fontSize: 22, fontWeight: 700, margin: "0 0 16px", letterSpacing: "-0.01em" }}>
+              Algo crashou ao carregar este criador
+            </h1>
+            <p style={{ fontSize: 13, color: "#aaa", lineHeight: 1.6, marginBottom: 18 }}>
+              Os dados do criador podem estar num estado intermédio (ex: cascade de Reset interrompido a meio). A informação NÃO foi apagada — só não consegue renderizar como está.
+            </p>
+            <pre style={{ fontSize: 11, color: "#f5b3b8", background: "rgba(122,14,24,0.08)", border: "1px solid rgba(239,68,68,0.25)", borderRadius: 8, padding: 14, overflow: "auto", marginBottom: 18, fontFamily: "ui-monospace, monospace", lineHeight: 1.5 }}>{msg}{stackLine ? '\n\n' + stackLine : ''}</pre>
+            <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+              <button
+                onClick={() => { if (typeof window !== 'undefined') window.location.reload(); }}
+                style={{ padding: "10px 18px", borderRadius: 6, border: "1px solid rgba(122,14,24,0.35)", background: "rgba(122,14,24,0.08)", color: "#B11E2F", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}
+              >Recarregar página</button>
+              <a
+                href="/creators"
+                style={{ padding: "10px 18px", borderRadius: 6, border: "1px solid rgba(255,255,255,0.08)", background: "transparent", color: "#888", fontSize: 12, fontWeight: 600, textDecoration: "none", fontFamily: "inherit", display: "inline-flex", alignItems: "center" }}
+              >← Voltar ao CRM</a>
+            </div>
+            <div style={{ marginTop: 28, fontSize: 11, color: "#555", lineHeight: 1.55 }}>
+              Se o erro continuar, copia a mensagem acima e manda. A maioria das vezes é resolvido com um refresh; se não for, há um campo do creator que precisa de ser limpo manualmente no Redis.
+            </div>
+          </div>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 export default function CreatorProfilePage(props) {
   return (
-    <Suspense fallback={<div style={{ minHeight: "100vh", background: "#0a0a0a", color: "#555", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif" }}>A carregar...</div>}>
-      <CreatorProfilePageImpl {...props} />
-    </Suspense>
+    <CreatorPageErrorBoundary>
+      <Suspense fallback={<div style={{ minHeight: "100vh", background: "#0a0a0a", color: "#555", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif" }}>A carregar...</div>}>
+        <CreatorProfilePageImpl {...props} />
+      </Suspense>
+    </CreatorPageErrorBoundary>
   );
 }
 
@@ -7580,8 +7651,17 @@ function PivotTierModal({ creator, onClose, onComplete, mode = 'tier', fromCpId 
       }
 
       // All done — pull the fresh creator record so the page re-renders
-      // with the new offer.
-      const fresh = await fetch(`/api/creators/${cid}`).then(r => r.json());
+      // with the new offer. Be defensive about the refetch: if the API
+      // returns an error payload (Upstash quota, transient 5xx, even a
+      // 404 if the creator was deleted mid-cascade), we MUST NOT pass
+      // that body to onComplete — it would overwrite the React creator
+      // state with an error-stub object and crash every component that
+      // reads creator.offer / creator.platforms / etc.
+      const freshRes = await fetch(`/api/creators/${cid}`);
+      const fresh = await freshRes.json().catch(() => null);
+      if (!freshRes.ok || !fresh || fresh.error || !fresh.id) {
+        throw new Error(fresh?.error || `Refetch after cascade failed (${freshRes.status}). The cascade completed but the page could not reload — refresh manually.`);
+      }
       onComplete?.(fresh);
     } catch (err) {
       // Mark the currently-running step as failed so the operator can see
