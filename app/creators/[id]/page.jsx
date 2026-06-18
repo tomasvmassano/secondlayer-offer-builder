@@ -2746,16 +2746,16 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
                 )}
                 <button
                   onClick={() => {
-                    if (window.confirm('Tens a certeza? Vai apagar TODOS os CPs (CP1-CP4) e regenerar do zero. Edits inline são perdidos.')) {
+                    if (window.confirm('Apagar todos os CPs (CP1-CP4) deste criador? Edits inline e overrides perdem-se. O audit / archetype / uniqueness ficam intactos. Não corre nenhuma LLM — zero custo. Podes depois gerar cada CP manualmente.')) {
                       setCascadeFromCp(1);
                     }
                   }}
-                  title="Apaga CP1-CP4 e regenera tudo do zero. Mantém apenas Phase 1 (audit), Phase 2 (archetype) e Phase 3 (uniqueness)."
+                  title="Apaga CP1-CP4 sem regenerar. Mantém Phase 1/2/3 intactos. Zero custo. Cada CP pode ser gerado manualmente depois."
                   style={{
                     padding: "8px 14px",
                     background: "transparent",
                     color: "#888",
-                    border: "1px solid rgba(239,68,68,0.25)",
+                    border: "1px solid rgba(234,179,8,0.30)",
                     borderRadius: 6,
                     fontSize: 11,
                     fontWeight: 700,
@@ -2763,7 +2763,7 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
                     cursor: "pointer",
                     fontFamily: "inherit",
                   }}
-                >⚠ Reset tudo</button>
+                >Apagar tudo (sem regen)</button>
               </div>
             );
           })()}
@@ -7604,7 +7604,17 @@ function PivotTierModal({ creator, onClose, onComplete, mode = 'tier', fromCpId 
   // Step list depends on where we start. Each CP contributes 2 steps
   // (regen + lock). The initial unlock cascades down so it's a single
   // entry regardless of how many CPs follow.
+  // 'reset' mode now stops AFTER the unlock — the cascade was running 4
+  // big LLM calls every time, costing ~$0.30 per Reset Tudo, even when
+  // the operator just wanted a clean canvas to re-run analysis manually.
+  // Now the button just clears the offer state; each CP can be
+  // re-generated from its own panel when actually needed. 'cascade' and
+  // 'tier' modes keep the original behaviour (operator deliberately
+  // chose to regenerate from a specific CP).
   const initialSteps = () => {
+    if (mode === 'reset') {
+      return [{ id: 'unlock', label: 'Apagar CP1-4 do criador', status: 'pending' }];
+    }
     const out = [{ id: 'unlock', label: `Reset CP${startCp}-4`, status: 'pending' }];
     const labels = { 1: 'CP1 · Strategic Frame', 2: 'CP2 · Core Offer', 3: 'CP3 · Modules', 4: 'CP4 · Value Stack' };
     for (let i = startCp; i <= 4; i++) {
@@ -7660,6 +7670,22 @@ function PivotTierModal({ creator, onClose, onComplete, mode = 'tier', fromCpId 
       const unlockRes = await fetch(`/api/creators/${cid}/wizard/checkpoint/${startCp}/unlock`, { method: 'POST' });
       if (!unlockRes.ok) throw new Error(`Unlock failed (${unlockRes.status})`);
       updateStep('unlock', 'done');
+
+      // 'reset' mode stops here — clean canvas, no LLM calls.
+      // Refetch the creator so the page re-renders with the cleared
+      // offer state, then return. The 4 CP regens that used to run
+      // here cost ~$0.30 every Reset Tudo; the operator can now
+      // regen each CP manually from its own panel when actually
+      // needed, instead of paying for all four every time.
+      if (mode === 'reset') {
+        const freshRes = await fetch(`/api/creators/${cid}`);
+        const fresh = await freshRes.json().catch(() => null);
+        if (freshRes.ok && fresh && fresh.id && !fresh.error) {
+          onComplete?.(fresh);
+        }
+        setRunning(false);
+        return;
+      }
 
       // Loop through each CP from startCp to 4: regenerate, then lock.
       // CP2 alone receives the tier/model override (only meaningful field
@@ -7746,7 +7772,7 @@ function PivotTierModal({ creator, onClose, onComplete, mode = 'tier', fromCpId 
             {mode === 'tier'
               ? 'Mudar tier da oferta'
               : mode === 'reset'
-              ? 'Reset completo da oferta'
+              ? 'Apagar oferta (CP1-4)'
               : `Regenerar a partir de CP${startCp}`}
           </h2>
           {!running && (
@@ -7757,12 +7783,12 @@ function PivotTierModal({ creator, onClose, onComplete, mode = 'tier', fromCpId 
           {mode === 'tier'
             ? 'Regenera CP2 → CP3 → CP4 com o novo tier. Apaga modules, value stack e pricing antigos (mantém apenas o frame estratégico de CP1). ~2-3 minutos. Não feches esta janela durante o processo.'
             : mode === 'reset'
-            ? 'Apaga TUDO (CP1, CP2, CP3, CP4) e regenera do zero. Mantém apenas Phase 1 (audit), Phase 2 (archetype) e Phase 3 (uniqueness). ~3-4 minutos. Não feches esta janela durante o processo.'
+            ? 'Apaga CP1, CP2, CP3 e CP4 do criador. Mantém intactos Phase 1 (audit), Phase 2 (archetype) e Phase 3 (uniqueness). Não corre nenhuma chamada LLM — zero custo. Depois, podes gerar cada CP manualmente quando precisares.'
             : `Regenera CP${startCp}${startCp < 4 ? ' até CP4' : ''} em cascata. ${startCp > 1 ? `Mantém intactos CP1${startCp > 2 ? '/CP2' : ''}${startCp > 3 ? '/CP3' : ''}.` : ''} ~${Math.max(1, (5 - startCp))} minutos. Não feches esta janela durante o processo.`}
         </p>
         {mode === 'reset' && !running && (
-          <div style={{ padding: '10px 14px', background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.25)', borderRadius: 6, marginBottom: 18, fontSize: 12, color: '#ef4444', lineHeight: 1.5 }}>
-            ⚠ Esta ação não tem undo. Todos os edits inline e overrides de campos vão ser substituídos por geração nova.
+          <div style={{ padding: '10px 14px', background: 'rgba(234,179,8,0.06)', border: '1px solid rgba(234,179,8,0.25)', borderRadius: 6, marginBottom: 18, fontSize: 12, color: '#eab308', lineHeight: 1.5 }}>
+            ⚠ Não tem undo. Todos os edits inline e overrides de campos do CP1-4 vão ser apagados. Os 3 inputs (audit, archetype, uniqueness) ficam intactos.
           </div>
         )}
 
@@ -7814,7 +7840,7 @@ function PivotTierModal({ creator, onClose, onComplete, mode = 'tier', fromCpId 
               <button
                 onClick={run}
                 style={{ padding: '10px 18px', background: '#7A0E18', color: '#fff', border: '1px solid #7A0E18', borderRadius: 6, fontSize: 12, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}
-              >↻ Regenerar tudo</button>
+              >{mode === 'reset' ? 'Apagar CP1-4' : '↻ Regenerar tudo'}</button>
             </div>
           </>
         )}
