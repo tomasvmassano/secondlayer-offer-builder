@@ -117,5 +117,83 @@ export function validateStrategicFrame(obj) {
     });
   }
 
+  // ─────────────────────────────────────────────────────────────────
+  // THE SIX STRATEGIC MOVES (2026-06-18). Each one is load-bearing —
+  // the offer downstream needs all six to be filled non-generically
+  // for the strategy to actually be a strategy. Validator enforces
+  // PRESENCE; the prompt enforces non-generic CONTENT.
+  // ─────────────────────────────────────────────────────────────────
+
+  // Move 1 — Audience reframe. Raw observation → default reading → reframe.
+  if (!obj.audience_reframe || typeof obj.audience_reframe !== 'object' || Array.isArray(obj.audience_reframe)) {
+    push('audience_reframe', 'required object { raw_observation, default_interpretation, reframe }');
+  } else {
+    if (!isStr(obj.audience_reframe.raw_observation))        push('audience_reframe.raw_observation', 'required non-empty string (what the data literally shows)');
+    if (!isStr(obj.audience_reframe.default_interpretation)) push('audience_reframe.default_interpretation', 'required non-empty string (the naive reading)');
+    if (!isStr(obj.audience_reframe.reframe))                push('audience_reframe.reframe', 'required non-empty string (the load-bearing reinterpretation)');
+  }
+
+  // Move 2 — Reflex trap.
+  if (!obj.reflex_trap || typeof obj.reflex_trap !== 'object' || Array.isArray(obj.reflex_trap)) {
+    push('reflex_trap', 'required object { default_move, why_wrong }');
+  } else {
+    if (!isStr(obj.reflex_trap.default_move)) push('reflex_trap.default_move', 'required non-empty string (the obvious monetization move)');
+    if (!isStr(obj.reflex_trap.why_wrong))    push('reflex_trap.why_wrong', 'required non-empty string (why it addresses the wrong audience slice or hits the constraint)');
+  }
+
+  // Move 3 — Sequenced plays. 3-5 ordered, fastest cash first.
+  if (!Array.isArray(obj.sequenced_plays)) {
+    push('sequenced_plays', 'must be an array of 3-5 plays in execution order (fastest cash first)');
+  } else if (obj.sequenced_plays.length < 3 || obj.sequenced_plays.length > 5) {
+    push('sequenced_plays', `must contain 3-5 plays (got ${obj.sequenced_plays.length})`);
+  } else {
+    const validTemplatization = new Set(['low', 'medium', 'high']);
+    obj.sequenced_plays.forEach((p, i) => {
+      if (!p || typeof p !== 'object' || Array.isArray(p)) {
+        push(`sequenced_plays[${i}]`, 'must be an object');
+        return;
+      }
+      if (!isStr(p.name))                  push(`sequenced_plays[${i}].name`, 'required non-empty string');
+      if (!isStr(p.why_now))               push(`sequenced_plays[${i}].why_now`, 'required non-empty string (why THIS step)');
+      if (!isStr(p.time_to_first_revenue)) push(`sequenced_plays[${i}].time_to_first_revenue`, 'required non-empty string');
+      if (!isStr(p.leverages))             push(`sequenced_plays[${i}].leverages`, 'required non-empty string (existing asset/behaviour)');
+      if (!validTemplatization.has(p.templatization_potential)) push(`sequenced_plays[${i}].templatization_potential`, `must be one of low|medium|high (got ${p.templatization_potential})`);
+      if (p.realistic_monthly_low  != null && typeof p.realistic_monthly_low  !== 'number') push(`sequenced_plays[${i}].realistic_monthly_low`,  'must be number or null');
+      if (p.realistic_monthly_high != null && typeof p.realistic_monthly_high !== 'number') push(`sequenced_plays[${i}].realistic_monthly_high`, 'must be number or null');
+      if (
+        typeof p.realistic_monthly_low === 'number' &&
+        typeof p.realistic_monthly_high === 'number' &&
+        p.realistic_monthly_low > p.realistic_monthly_high
+      ) {
+        push(`sequenced_plays[${i}].realistic_monthly_low`, 'must be ≤ realistic_monthly_high');
+      }
+    });
+  }
+
+  // Move 4 — Binding constraint.
+  if (!obj.binding_constraint || typeof obj.binding_constraint !== 'object' || Array.isArray(obj.binding_constraint)) {
+    push('binding_constraint', 'required object { name, implication }');
+  } else {
+    if (!isStr(obj.binding_constraint.name))        push('binding_constraint.name', 'required non-empty string (operator time, capital, trust, etc.)');
+    if (!isStr(obj.binding_constraint.implication)) push('binding_constraint.implication', 'required non-empty string (what it forces about strategy)');
+  }
+
+  // Move 5 — Contrarian bet.
+  if (!obj.contrarian_bet || typeof obj.contrarian_bet !== 'object' || Array.isArray(obj.contrarian_bet)) {
+    push('contrarian_bet', 'required object { conventional_wisdom, bet, evidence }');
+  } else {
+    if (!isStr(obj.contrarian_bet.conventional_wisdom)) push('contrarian_bet.conventional_wisdom', 'required non-empty string (default playbook)');
+    if (!isStr(obj.contrarian_bet.bet))                 push('contrarian_bet.bet', 'required non-empty string (how this offer rejects the default)');
+    if (!isStr(obj.contrarian_bet.evidence))            push('contrarian_bet.evidence', 'required non-empty string (what supports the bet)');
+  }
+
+  // Move 6 — Capture gap.
+  if (!obj.capture_gap || typeof obj.capture_gap !== 'object' || Array.isArray(obj.capture_gap)) {
+    push('capture_gap', 'required object { gap, first_action }');
+  } else {
+    if (!isStr(obj.capture_gap.gap))          push('capture_gap.gap', 'required non-empty string (owned-audience or operational hole)');
+    if (!isStr(obj.capture_gap.first_action)) push('capture_gap.first_action', 'required non-empty string (concrete first step)');
+  }
+
   return { valid: errors.length === 0, errors };
 }

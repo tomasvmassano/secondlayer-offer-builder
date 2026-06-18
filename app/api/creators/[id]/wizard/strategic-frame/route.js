@@ -119,6 +119,28 @@ If community_cannibalization_risk is "low" or "none":
   - differentiation_from_existing may be left empty / null.
   - confirmed_role can match Phase 1's strategic_role suggestion.
 
+## THINKING DISCIPLINE — DO THIS FIRST
+
+Before you fill any field, force yourself through five strategic moves. Each one of them is a load-bearing claim — if your output skips them or fills them generically, the offer downstream collapses into the same generic course/community that a junior operator would produce.
+
+**Move 1 — Audience reframe.** Look at the demographics + geography + interests. State what the data literally says. Then state what an inexperienced operator would conclude from it. Then state the NON-OBVIOUS reinterpretation that flips the monetization conclusion. Example: a Spanish interior designer's 409K audience is 80% Spain, 75% women 30-45 — default interpretation is "designer audience, sell a course teaching design." Reframe: "this is a CONSUMER audience watching before/afters and dreaming about their own homes — the money is in fixing THEIR space, not training them to do design." That single sentence collapses an entire monetization branch.
+
+**Move 2 — Reflex trap.** Name the obvious move the operator would default to. Then name why it's wrong — usually because it addresses the wrong slice of the audience, or hits the binding constraint head-on. Example: "Default move = course teaching interior design fundamentals. Wrong because it serves the 5% of the 409K who want to become designers; the other 95% want their home fixed."
+
+**Move 3 — Sequenced plays.** Order the monetization plays by TIME-TO-CASH, fastest first. Each play funds the next. Don't list a flat menu of options; list a phased execution plan. Each play needs: what it is, why it goes at THIS step, realistic monthly revenue range in the creator's currency, and what existing behaviour/asset it leverages. Example sequence for a consumer-audience interior designer:
+  1. Commerce now (affiliate edits + brand partnerships) — zero new product, leverages content she's already making, €3-6K/mo within a quarter
+  2. Productized e-design (€290-490/room async) — bridges "I admire her" → "I can never afford her", 30-50 rooms/mo = €10-20K
+  3. "Diseña tu casa" community (€19-29/mo for homeowners, NOT designers) — recurring, doubles as lead pool for #2
+  4. Designer education (PR/visibility positioning) — later, different audience, different product
+
+**Move 4 — Binding constraint.** Say the constraint out loud. Usually it's operator time. Sometimes capital, sometimes trust deficit, sometimes audience capture. Once you name it, the scalable plays fall out naturally and the un-scalable ones get demoted. Example: "Operator's time. Reforma Integral can never scale past her hours, so it sits at the top as a ceiling but the funnel does NOT feed into it as the destination."
+
+**Move 5 — Contrarian bet.** State the conventional wisdom for this creator type, then state the bet this offer makes against it. Without naming the contrarian view, you can't tell whether the offer is differentiated or just default consensus dressed up. Example: "Conventional wisdom = high-ticket DFY sits at the top of the funnel as the goal. Bet = high-ticket DFY is the CEILING but commerce + productized + recurring are the engine; only a small number of community members graduate into DFY rather than the whole audience funnelling toward it."
+
+**Move 6 — Capture gap.** Name ONE specific owned-audience or operational gap that must be closed first because every euro built above is more durable once it's closed. Most often this is email capture (lead magnet). Sometimes it's a specific platform pivot or a CRM hole. One sentence on what + one sentence on the specific first step.
+
+These six moves go into named output fields below. The rest of the output (confirmed_role, dominant_transformation, audience_segment, etc.) flows OUT of these — you should be able to justify every other field by pointing back to one of the six.
+
 ## WHAT YOU MUST DECIDE
 
 1. **confirmed_role** — One of: entry_point | continuity | premium_upsell | standalone
@@ -178,6 +200,54 @@ If community_cannibalization_risk is "low" or "none":
 Return ONLY a JSON object matching this schema. No prose, no markdown, no commentary.
 
 {
+  // ─── The six strategic moves (load-bearing). Every other field below
+  //     must be justifiable by reference to one of these. Do NOT skip
+  //     any of them — if a move genuinely doesn't apply, write that
+  //     down explicitly instead of inventing a generic answer. ───
+
+  "audience_reframe": {
+    "raw_observation": "string (1-2 sentences) — what the demographics + geography + interests data literally shows. Cite numbers when available.",
+    "default_interpretation": "string (1 sentence) — what an inexperienced operator would conclude from the raw observation alone.",
+    "reframe": "string (1-2 sentences) — the non-obvious reinterpretation that flips the monetization conclusion. This must be a real reframe, not a restatement. If there is no genuine reframe, write 'No reframe — default reading holds' and justify in rationale."
+  },
+
+  "reflex_trap": {
+    "default_move": "string (1 sentence) — the obvious monetization move the operator would default to (course, community, agency, etc.)",
+    "why_wrong": "string (1-2 sentences) — why this addresses the wrong slice of the audience or hits the binding constraint head-on. Cite percentages or constraints."
+  },
+
+  "sequenced_plays": [   // 3-5 plays in EXECUTION ORDER (fastest cash first). Each play funds the next.
+    {
+      "name": "string — short title (e.g., 'Commerce: affiliate edits + brand partnerships')",
+      "why_now": "string (1-2 sentences) — why this play goes at THIS step, not earlier or later",
+      "time_to_first_revenue": "string — concrete estimate ('within a quarter', 'month 1', etc.)",
+      "realistic_monthly_low": number | null,    // monthly revenue floor in the creator's primary currency (EUR unless otherwise noted)
+      "realistic_monthly_high": number | null,   // monthly revenue ceiling, same currency
+      "leverages": "string — what existing asset/behaviour/skill this play piggybacks on (e.g., 'reels she already makes')",
+      "templatization_potential": "low" | "medium" | "high"
+    }
+  ],
+
+  "binding_constraint": {
+    "name": "string — the actual bottleneck (operator time, capital, trust deficit, audience capture, etc.)",
+    "implication": "string (1-2 sentences) — what this constraint forces about the strategy (what's scalable vs not, what should be the ceiling vs the engine)"
+  },
+
+  "contrarian_bet": {
+    "conventional_wisdom": "string (1 sentence) — the default playbook for this creator type",
+    "bet": "string (1-2 sentences) — how this offer rejects that default",
+    "evidence": "string (1-2 sentences) — what in Phases 1-3 supports the bet"
+  },
+
+  "capture_gap": {
+    "gap": "string (1 sentence) — the specific owned-audience or operational hole to close first (usually email capture)",
+    "first_action": "string (1 sentence) — the concrete first step (e.g., 'free room-by-room before/after PDF as a lead magnet')"
+  },
+
+  // ─── The original strategic-frame fields. These FLOW OUT of the six
+  //     moves above. If any of them contradicts the six moves, the six
+  //     moves win — rewrite the lower field, don't fudge the move. ───
+
   "confirmed_role": "entry_point" | "continuity" | "premium_upsell" | "standalone",
   "dominant_transformation": "string (max ~240 chars)",
   "audience_segment": {
@@ -186,7 +256,7 @@ Return ONLY a JSON object matching this schema. No prose, no markdown, no commen
   },
   "negative_qualifiers": ["string", "string", ...],   // 2-5 items
   "positioning_tension": "string (max ~400 chars)",
-  "rationale": ["string", ...],                        // 3-5 bullets
+  "rationale": ["string", ...],                        // 3-5 bullets — each must cite which of the 6 moves it derives from
   "differentiation_from_existing": "string or null",   // required when cannibalization_risk ∈ {high, medium}; null otherwise
   "ecosystem_impact": ["string", ...]                  // 3-5 bullets, ≤320 chars each, money-anchored
 }
@@ -310,7 +380,7 @@ Return ONLY the JSON object per the schema in the system prompt.${formatInstruct
     headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01' },
     body: JSON.stringify({
       model: 'claude-sonnet-4-5-20250929',
-      max_tokens: 2500,
+      max_tokens: 4000,
       system: [{ type: 'text', text: SYSTEM_PROMPT, cache_control: { type: 'ephemeral' } }],
       messages: [{ role: 'user', content: userMessage }],
     }),
@@ -336,7 +406,7 @@ Return ONLY the JSON object per the schema in the system prompt.${formatInstruct
         headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01' },
         body: JSON.stringify({
           model: 'claude-sonnet-4-5-20250929',
-          max_tokens: 2500,
+          max_tokens: 4000,
           system: [{ type: 'text', text: SYSTEM_PROMPT, cache_control: { type: 'ephemeral' } }],
           messages: [
             { role: 'user', content: userMessage },
