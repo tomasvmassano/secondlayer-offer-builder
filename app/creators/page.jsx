@@ -48,6 +48,11 @@ function mergeCreatorLists(local, server) {
 export default function CreatorsPage() {
   const [creators, setCreators] = useState([]);
   const [loading, setLoading] = useState(true);
+  // Holds the actual server error message ("ERR max requests limit
+  // exceeded...", "Redis not configured", etc.) so the UI can surface it
+  // instead of silently rendering an empty Kanban that looks like the
+  // CRM lost all its data.
+  const [fetchError, setFetchError] = useState(null);
   const [search, setSearch] = useState("");
   const [showAdd, setShowAdd] = useState(false);
   const [addInstagramUrl, setAddInstagramUrl] = useState("");
@@ -108,6 +113,19 @@ export default function CreatorsPage() {
       const url = q ? `/api/creators?q=${encodeURIComponent(q)}` : "/api/creators";
       const res = await fetch(url);
       const data = await res.json();
+      // Surface server-side errors loudly instead of silently rendering an
+      // empty board. The previous `data.creators || []` fallback made an
+      // Upstash quota outage look identical to "no creators", which led to
+      // a panicked "all my data is gone!" — when in fact the data is fine,
+      // just temporarily unreachable.
+      if (!res.ok || data.error) {
+        if (!opts.silent) {
+          setFetchError(data.error || `HTTP ${res.status}`);
+          setCreators([]);
+        }
+        return;
+      }
+      if (!opts.silent) setFetchError(null);
       // Silent polls preserve any locally-applied optimistic edits — if the
       // server hasn't caught up yet, don't blow away the operator's
       // just-completed drag move.
@@ -116,8 +134,11 @@ export default function CreatorsPage() {
       } else {
         setCreators(data.creators || []);
       }
-    } catch {
-      if (!opts.silent) setCreators([]);
+    } catch (e) {
+      if (!opts.silent) {
+        setFetchError(e?.message || 'Falha de rede');
+        setCreators([]);
+      }
     } finally {
       if (!opts.silent) setLoading(false);
     }
@@ -603,6 +624,46 @@ export default function CreatorsPage() {
             ⚙ Bulk Audit
           </a>
         </div>
+
+        {/* Visible error banner. Surfaces server-side failures (Upstash
+            quota exhaustion, Redis unconfigured, etc.) so an empty
+            Kanban doesn't look like the CRM lost everyone's data. */}
+        {fetchError && (
+          <div style={{
+            margin: "0 0 20px",
+            padding: "14px 18px",
+            background: "rgba(122,14,24,0.10)",
+            border: "1px solid rgba(122,14,24,0.35)",
+            borderRadius: 10,
+            color: "#f5b3b8",
+            fontSize: 13,
+            lineHeight: 1.55,
+          }}>
+            <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "#ef4444", marginBottom: 6 }}>
+              Dados temporariamente indisponíveis
+            </div>
+            <div style={{ color: "#ddd", marginBottom: 6 }}>
+              {/[Mm]ax requests limit/i.test(fetchError)
+                ? "Atingimos o limite diário de leituras do Upstash Redis (500K/dia). Os teus dados ESTÃO no Redis — só não podem ser lidos até ao reset, à meia-noite UTC. Volta amanhã ou faz upgrade do plano no dashboard do Upstash."
+                : "O servidor devolveu um erro a tentar ler os criadores. Os dados estão no Redis; quando a leitura voltar a passar, a página enche outra vez."}
+            </div>
+            <div style={{ fontSize: 11, color: "#888", fontFamily: "ui-monospace, monospace", wordBreak: "break-all" }}>
+              {fetchError}
+            </div>
+            <button
+              type="button"
+              onClick={() => fetchCreators(search)}
+              style={{
+                marginTop: 10, padding: "6px 14px", borderRadius: 6,
+                border: "1px solid rgba(239,68,68,0.4)", background: "transparent",
+                color: "#ef4444", fontSize: 11, fontWeight: 600,
+                cursor: "pointer", fontFamily: "inherit",
+              }}
+            >
+              Tentar novamente
+            </button>
+          </div>
+        )}
 
         {/* Add Creator Form */}
         {showAdd && (
