@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getCreator, updateCreator } from '../../../../../lib/creators';
 import { validateStrategicFrame, VALID_CONFIRMED_ROLES } from '../../../../../lib/schemas/strategicFrame';
+import { OFFER_ARCHETYPES, archetypeEnumForPrompt } from '../../../../../lib/schemas/offerArchetypes';
 import { readCheckpointProgress } from '../../../../../lib/offerSchema';
 import { OPERATOR_INSTRUCTIONS_RULE, formatInstructionsBlock, formatInstructionsReminder } from '../../../../../lib/operatorInstructions';
 
@@ -218,11 +219,34 @@ These six moves go into named output fields below. The rest of the output (confi
 - Cite Phase signals when possible ("Phase 2 archetype=builder_operator implies...")
 - If Phase 1, 2, or 3 is missing, work with what's there and add a rationale bullet noting the gap
 
+## OFFER ARCHETYPE — LABEL THE OFFER SHAPE
+
+Until 2026-06-18 the hub assumed every offer was a paid community / monthly recurring. That assumption was wrong for ~30% of creators where the audience or constraint pointed elsewhere. You now MUST label the offer shape your sequenced_plays[0] implies, so the downstream wizards (CP2-CP4, sales copy, pitch deck) can adapt.
+
+Pick one of:
+
+${archetypeEnumForPrompt()}
+
+Rules:
+- The archetype labels sequenced_plays[0] — the play this offer round will actually implement. Later plays in the array can be different shapes (the strategic frame is multi-play), but the field describes THIS offer.
+- If your binding_constraint is "operator time" and sequenced_plays[0] is a high-volume async deliverable, that's productized_service.
+- If sequenced_plays[0] is "curated edits + brand partnerships" with zero new product to build, that's commerce_affiliate.
+- If reflex_trap.default_move was "build a paid community" AND you rejected it, the offer is almost certainly NOT community_recurring.
+- hybrid_stack is for when sequenced_plays[0] is genuinely a combination (e.g. "commerce engine + low-tier community in tandem"). Don't pick hybrid_stack just because there are later plays in the sequence — every thesis has those.
+- archetype_rationale (1-2 sentences): cite the play + the constraint that forced this label.
+
 ## OUTPUT
 
 Return ONLY a JSON object matching this schema. No prose, no markdown, no commentary.
 
 {
+  // ─── Offer archetype — what SHAPE the sequenced_plays[0] offer takes.
+  //     Drives downstream CP2-CP4 prompts so they don't default to
+  //     community-shaped output when the thesis pointed elsewhere. ───
+
+  "primary_offer_archetype": "community_recurring" | "productized_service" | "commerce_affiliate" | "cohort_education" | "hybrid_stack",
+  "archetype_rationale": "string (1-2 sentences) — which play + which constraint forced this label. Reference sequenced_plays[0] by name.",
+
   // ─── The six strategic moves (load-bearing). Every other field below
   //     must be justifiable by reference to one of these. Do NOT skip
   //     any of them — if a move genuinely doesn't apply, write that

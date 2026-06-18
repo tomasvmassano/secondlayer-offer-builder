@@ -29,6 +29,11 @@ export const VALID_CONFIRMED_ROLES = [
   'standalone',
 ];
 
+// Imported lazily inside the validator (top-level import would create
+// a circular dependency between this file and offerArchetypes if the
+// latter ever needs frame helpers). The string match is what matters.
+import { OFFER_ARCHETYPES, OFFER_ARCHETYPE_LABELS } from './offerArchetypes';
+
 /**
  * Format the Strategic Frame for inclusion in a downstream wizard's
  * user-message context. Replaces the bespoke inline blocks that each
@@ -50,6 +55,56 @@ export function formatStrategicFrameForPrompt(frame) {
   lines.push('## STRATEGIC FRAME (CP1 · LOCKED — this is the boss)');
   lines.push('Every downstream choice must align with the six moves below. Cite the move you derived from when justifying a decision. Do NOT recommend what reflex_trap.default_move rejected — that path was explicitly ruled out.');
   lines.push('');
+
+  // ── Offer archetype — surface this PROMINENTLY at the top so the
+  //    downstream wizard immediately knows whether it's building a
+  //    community-shaped offer, a productized service, a commerce play,
+  //    a cohort course, or a hybrid. Fields below (community_name,
+  //    weekly_rhythm, etc.) still exist but their semantics shift
+  //    based on the archetype.
+  const arch = frame.primary_offer_archetype;
+  if (arch && OFFER_ARCHETYPES.includes(arch)) {
+    lines.push(`### >>> OFFER ARCHETYPE: ${arch.toUpperCase()} (${OFFER_ARCHETYPE_LABELS[arch]})`);
+    if (frame.archetype_rationale) lines.push(`Why this archetype: ${frame.archetype_rationale}`);
+    if (arch !== 'community_recurring') {
+      // The hub's current schemas were built assuming community_recurring.
+      // For other shapes we tell the LLM to REUSE the existing fields
+      // with shifted semantics — until separate schemas land in a
+      // future commit, this is the bridge that keeps non-community
+      // outputs coherent.
+      lines.push('');
+      lines.push('SEMANTIC SHIFT — this is NOT a community offer. Reuse the existing schema fields with these adjusted meanings:');
+      if (arch === 'productized_service') {
+        lines.push('  - community_name → product/service name (e.g. "El Salón Edit")');
+        lines.push('  - central_promise → outcome the deliverable produces, not "community vibe"');
+        lines.push('  - weekly_rhythm → delivery cadence per buyer (e.g. "questionnaire → mood board in 5 days → call → revisions")');
+        lines.push('  - core_mechanic → the templatized production method, not group rituals');
+        lines.push('  - modules → stages of the delivery process, not curriculum weeks');
+        lines.push('  - pricing_model is almost always "one_time" per delivery');
+      } else if (arch === 'commerce_affiliate') {
+        lines.push('  - community_name → the curated edit / shop concept name (e.g. "El Salón de Leyre")');
+        lines.push('  - central_promise → "the rooms she shows, ready to buy" — taste-curation, not transformation');
+        lines.push('  - weekly_rhythm → posting/edit-drop cadence');
+        lines.push('  - core_mechanic → the curation method (taste filter + brand-partnership flow)');
+        lines.push('  - modules → likely fewer/lighter — focus on the curated catalog, anchor partnerships, content flywheel');
+        lines.push('  - pricing_model is "one_time" per affiliate sale (revenue is per-purchase, not per-member)');
+      } else if (arch === 'cohort_education') {
+        lines.push('  - community_name → the program/course name');
+        lines.push('  - central_promise → the practitioner-level capability built (NOT consumer transformation)');
+        lines.push('  - weekly_rhythm → the cohort schedule (weeks 1-N)');
+        lines.push('  - core_mechanic → the teaching method (live cohorts, recorded, etc.)');
+        lines.push('  - modules → curriculum weeks, fixed sequence');
+        lines.push('  - pricing_model is "one_time" — cohort tuition, not subscription');
+      } else if (arch === 'hybrid_stack') {
+        lines.push('  - You are building a STACK. Use pricing tiers to express each shape side-by-side.');
+        lines.push('  - central_promise must work for the WHOLE stack, not just one tier.');
+        lines.push('  - modules can be archetype-mixed (some delivery-process, some curriculum, some content-edit).');
+      }
+    } else {
+      lines.push('(Community-shaped — the schema fields apply with their original meanings.)');
+    }
+    lines.push('');
+  }
 
   if (frame.confirmed_role) lines.push(`Confirmed role: ${frame.confirmed_role}`);
   if (frame.dominant_transformation) lines.push(`Dominant transformation: ${frame.dominant_transformation}`);
@@ -324,6 +379,17 @@ export function validateStrategicFrame(obj) {
   } else {
     if (!isStr(obj.capture_gap.gap))          push('capture_gap.gap', 'required non-empty string (owned-audience or operational hole)');
     if (!isStr(obj.capture_gap.first_action)) push('capture_gap.first_action', 'required non-empty string (concrete first step)');
+  }
+
+  // Offer archetype — labels sequenced_plays[0]'s offer shape so CP2-CP4
+  // can adapt. Required since 2026-06-18; falling back to
+  // community_recurring on unknown values is the caller's choice, not
+  // the validator's. archetype_rationale ties the label to the play.
+  if (!OFFER_ARCHETYPES.includes(obj.primary_offer_archetype)) {
+    push('primary_offer_archetype', `must be one of ${OFFER_ARCHETYPES.join('|')}`);
+  }
+  if (!isStr(obj.archetype_rationale)) {
+    push('archetype_rationale', 'required non-empty string (cite sequenced_plays[0] by name + the constraint that forced this archetype)');
   }
 
   return { valid: errors.length === 0, errors };
