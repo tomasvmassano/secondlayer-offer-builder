@@ -248,19 +248,26 @@ export async function POST(request, { params }) {
 
     const userMessage = buildUserMessage(creator, instruction);
 
+    // Two-tier model strategy, mirroring the strategic-frame route:
+    //   - Initial generation (no instruction) → Haiku 4.5 with bigger
+    //     token budget. The kill-test schema is mostly structured
+    //     scoring against a tight framework (6 numeric scores +
+    //     bounded prose justifications + verdict). Haiku follows the
+    //     schema reliably and streams ~3× faster than Sonnet, fitting
+    //     well under Vercel's 60s cap. ~5× cheaper too.
+    //   - Re-run with operator instruction → Sonnet 4.5 with tighter
+    //     budget. Operator is deliberately invoking deeper reasoning
+    //     for refinement, so we route to the smarter model and accept
+    //     the tighter latency margin.
+    const isInstructedRegen = !!instruction;
+    const modelId = isInstructedRegen ? 'claude-sonnet-4-5-20250929' : 'claude-haiku-4-5-20251001';
+    const maxOut = isInstructedRegen ? 3500 : 4500;
     const resp = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01' },
       body: JSON.stringify({
-        // Sonnet 4.5 — the skeptical role and the kill-test require nuance
-        // Haiku won't carry consistently. Cost: ~$0.05/run.
-        // max_tokens 2500 was too tight: 3 plays × 6 score objects (~70
-        // tok each) + kill_test + ranking pushed past the ceiling on
-        // verbose Spanish creators. 3500 gives headroom; combined with
-        // the schema char caps + input-block caps the call still lands
-        // well under Vercel's 60s cap.
-        model: 'claude-sonnet-4-5-20250929',
-        max_tokens: 3500,
+        model: modelId,
+        max_tokens: maxOut,
         system: [{ type: 'text', text: SYSTEM_PROMPT, cache_control: { type: 'ephemeral' } }],
         messages: [{ role: 'user', content: userMessage }],
       }),
@@ -279,7 +286,8 @@ export async function POST(request, { params }) {
         error: 'Model returned non-JSON output (re-clica Run kill test)',
         errors: [
           `stop_reason: ${data.stop_reason || '?'}`,
-          `output_tokens: ${data.usage?.output_tokens ?? '?'} (cap: 3500)`,
+          `model: ${modelId}`,
+          `output_tokens: ${data.usage?.output_tokens ?? '?'} (cap: ${maxOut})`,
           `tail: ${rawText.slice(-300)}`,
         ],
       }, { status: 502 });
