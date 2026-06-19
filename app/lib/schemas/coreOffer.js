@@ -280,8 +280,8 @@ export function validateCoreOffer(obj) {
   // Core mechanic — short prose describing the weekly rhythm.
   if (!isStr(obj.core_mechanic)) {
     push('core_mechanic', 'required non-empty string (1-3 sentences on what happens weekly)');
-  } else if (obj.core_mechanic.length > 500) {
-    push('core_mechanic', `should be at most ~500 chars (got ${obj.core_mechanic.length})`);
+  } else if (obj.core_mechanic.length > 580) {
+    push('core_mechanic', `should be at most ~580 chars (got ${obj.core_mechanic.length})`);
   }
 
   // Weekly rhythm — short bullets that complement core_mechanic.
@@ -320,16 +320,16 @@ export function validateCoreOffer(obj) {
     for (const [field, desc] of Object.entries(HIGH_TIER_FIELDS)) {
       if (!isStr(obj[field])) push(field, `required non-empty string at high tier — ${desc}`);
     }
-    // Optional sanity: at high tier, audience_fit.for should include at
-    // least one bullet mentioning a revenue/business floor or a quantified
-    // pain. We don't strictly enforce wording but we surface a hint.
-    if (Array.isArray(obj.audience_fit?.for)) {
-      const blob = obj.audience_fit.for.join(' ').toLowerCase();
-      const hasFloor = /(\d+[\s,.]?\d*k|\d{4,}|mrr|arr|revenue|receita|faturação|faturas|monthly|mês|month|funcionários|employees|equipa|team|customers|clientes)/.test(blob);
-      if (!hasFloor) {
-        push('audience_fit.for', 'at high tier, at least one "for" bullet should anchor an existing business (revenue floor, team size, recurring customers) so the audience can self-qualify');
-      }
-    }
+    // NOTE: This used to enforce a business-anchor rule on at least one
+    // "for" bullet at high tier (revenue floor / team size / recurring
+    // customers). Removed 2026-06-19: the rule assumed B2B/SaaS buyers
+    // and failed every high-tier B2C offer (premium fitness, premium
+    // coaching for individuals, high-ticket consumer education, etc.)
+    // where the buyer is a person not a business. The original comment
+    // already said "Optional sanity ... we don't strictly enforce
+    // wording" — but the code was pushing to errors, blocking the
+    // generation. Trust the strategic frame's audience_segment to
+    // carry the qualification signal instead.
     // Format → price coherence check.
     const check = checkHighTierFormat(obj);
     if (!check.ok) {
