@@ -79,28 +79,30 @@ Blunt, evidence-led, operator-facing. No optimism for its own sake. If the best 
     {
       "offer_name": "string (must match a sequenced_plays[i].name exactly)",
       "scores": {
-        "buyer_intent_density": { "score": 1-5, "justification": "string ≤180 chars" },
-        "audience_offer_fit":   { "score": 1-5, "justification": "string ≤180 chars" },
-        "creator_time_cost":    { "score": 1-5, "justification": "string ≤180 chars" },
-        "friction":             { "score": 1-5, "justification": "string ≤180 chars" },
-        "market_validation":    { "score": 1-5, "justification": "string ≤180 chars" },
-        "defensibility":        { "score": 1-5, "justification": "string ≤180 chars" }
+        "buyer_intent_density": { "score": 1-5, "justification": "string ≤120 chars" },
+        "audience_offer_fit":   { "score": 1-5, "justification": "string ≤120 chars" },
+        "creator_time_cost":    { "score": 1-5, "justification": "string ≤120 chars" },
+        "friction":             { "score": 1-5, "justification": "string ≤120 chars" },
+        "market_validation":    { "score": 1-5, "justification": "string ≤120 chars" },
+        "defensibility":        { "score": 1-5, "justification": "string ≤120 chars" }
       },
       "kill_test": {
-        "strongest_failure_reason": "string ≤220 chars",
+        "strongest_failure_reason": "string ≤180 chars",
         "survives": true | false,
-        "survival_reason": "string ≤220 chars OR null (required when survives=true)"
+        "survival_reason": "string ≤180 chars OR null (required when survives=true)"
       },
       "verdict": "KILL" | "SURVIVES"
     }
   ],
   "ranking": {
-    "weighting_explanation": "string ≤220 chars",
+    "weighting_explanation": "string ≤160 chars",
     "ranked_offers": [ { "offer_name": "string", "weighted_score": number, "rank": integer } ],
-    "launch_first": { "offer_name": "string", "why_it_beats_others": "string ≤300 chars" } | null,
-    "required_validation_tests": [ { "offer_name": "string", "test": "string ≤180 chars", "threshold": "string ≤140 chars" } ]
+    "launch_first": { "offer_name": "string", "why_it_beats_others": "string ≤240 chars" } | null,
+    "required_validation_tests": [ { "offer_name": "string", "test": "string ≤140 chars", "threshold": "string ≤100 chars" } ]
   }
 }
+
+HARD CHAR CAPS: the ≤N values above are ceilings, not targets. Aim 70-80% of cap. Going over wastes tokens and risks truncation mid-JSON.
 
 ${OPERATOR_INSTRUCTIONS_RULE}`;
 
@@ -194,19 +196,29 @@ audience: ${audienceLine}`;
     ? 'LANGUAGE: Output every string field in Castilian Spanish (España, "tú" form).'
     : 'LANGUAGE: Output every string field in PORTUGUESE (PT-PT).';
 
+  // Hard char caps per block — verbose creators with rich prior CPs were
+  // pushing the user message big enough that Sonnet's TTFT + the schema
+  // output crossed Vercel's 60s cap. Trim the tail; the head (most
+  // important signals) is preserved.
+  const TRUNC = (s, max) => s.length <= max ? s : s.slice(0, max) + '\n  ... (truncated for latency)';
+  const frameCapped = TRUNC(frameBlock, 2200);
+  const auditCapped = TRUNC(auditBlock, 1600);
+  const archetypeCapped = TRUNC(archetypeBlock, 800);
+  const uniquenessCapped = TRUNC(uniquenessBlock, 1800);
+
   return `Judge the candidate offers in the strategic frame below. Be skeptical. Default to KILL.
 
 ${formatInstructionsBlock(extraInstruction)}${langHint}
 
 ${creatorBlock}
 
-${frameBlock}
+${frameCapped}
 
-${auditBlock}
+${auditCapped}
 
-${archetypeBlock}
+${archetypeCapped}
 
-${uniquenessBlock}
+${uniquenessCapped}
 
 Return ONLY the JSON object per the schema in the system prompt.${formatInstructionsReminder(extraInstruction)}`;
 }
@@ -242,8 +254,13 @@ export async function POST(request, { params }) {
       body: JSON.stringify({
         // Sonnet 4.5 — the skeptical role and the kill-test require nuance
         // Haiku won't carry consistently. Cost: ~$0.05/run.
+        // max_tokens 2500 was too tight: 3 plays × 6 score objects (~70
+        // tok each) + kill_test + ranking pushed past the ceiling on
+        // verbose Spanish creators. 3500 gives headroom; combined with
+        // the schema char caps + input-block caps the call still lands
+        // well under Vercel's 60s cap.
         model: 'claude-sonnet-4-5-20250929',
-        max_tokens: 2500,
+        max_tokens: 3500,
         system: [{ type: 'text', text: SYSTEM_PROMPT, cache_control: { type: 'ephemeral' } }],
         messages: [{ role: 'user', content: userMessage }],
       }),
@@ -262,7 +279,7 @@ export async function POST(request, { params }) {
         error: 'Model returned non-JSON output (re-clica Run kill test)',
         errors: [
           `stop_reason: ${data.stop_reason || '?'}`,
-          `output_tokens: ${data.usage?.output_tokens ?? '?'} (cap: 2500)`,
+          `output_tokens: ${data.usage?.output_tokens ?? '?'} (cap: 3500)`,
           `tail: ${rawText.slice(-300)}`,
         ],
       }, { status: 502 });
