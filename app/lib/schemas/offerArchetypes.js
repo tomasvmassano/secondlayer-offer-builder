@@ -52,6 +52,10 @@ export const OFFER_ARCHETYPES = [
   'hybrid_stack',
 ];
 
+// LLM-facing labels + descriptions. Used inside the Strategic Frame system
+// prompt (archetypeEnumForPrompt) and the downstream formatter
+// (formatStrategicFrameForPrompt in strategicFrame.js). Stay in English —
+// the LLM reads them as schema documentation.
 export const OFFER_ARCHETYPE_LABELS = {
   community_recurring: 'Community · recurring',
   productized_service: 'Productized service',
@@ -60,10 +64,6 @@ export const OFFER_ARCHETYPE_LABELS = {
   hybrid_stack:        'Hybrid stack',
 };
 
-// Prompt-friendly descriptions. Used inside the Strategic Frame
-// system prompt so the LLM understands which shape to label its
-// own output with, AND inside the downstream wizards' context
-// so they know what KIND of offer they're sizing for.
 export const OFFER_ARCHETYPE_DESCRIPTIONS = {
   community_recurring:
     'Paid community / monthly recurring revenue. Members pay a recurring fee for access to a space + cadenced content + rituals. Cohort-based or evergreen. The classic creator-MRR model.',
@@ -75,6 +75,31 @@ export const OFFER_ARCHETYPE_DESCRIPTIONS = {
     'Fixed-cohort course or program. Time-bound (4-12 weeks typically), premium-priced (€500-3K), often delivered live in cohorts of 30-80. Sells to a DIFFERENT audience than the recurring community — usually practitioners or aspiring practitioners.',
   hybrid_stack:
     'Two or more of the above running in parallel as an explicit combination. E.g. commerce engine layered on top of a productized service, OR a recurring community feeding into a productized service. Pricing tiers map to different shapes.',
+};
+
+// PT-PT labels + descriptions for the operator-facing hub UI. The hub is
+// internal Portuguese-only — these are what render in panels, gates, and
+// summary cards. Keep semantic meaning identical to the EN versions above
+// so swapping consumers between locales doesn't shift behaviour.
+export const OFFER_ARCHETYPE_LABELS_PT = {
+  community_recurring: 'Comunidade · recorrente',
+  productized_service: 'Serviço productizado',
+  commerce_affiliate:  'Commerce + afiliados',
+  cohort_education:    'Curso em cohort',
+  hybrid_stack:        'Stack híbrida',
+};
+
+export const OFFER_ARCHETYPE_DESCRIPTIONS_PT = {
+  community_recurring:
+    'Comunidade paga / receita recorrente mensal. Os membros pagam mensalmente para aceder a um espaço + conteúdo cadenciado + rituais. Em cohort ou evergreen. O modelo clássico de MRR de criadora.',
+  productized_service:
+    "Entregável assíncrono a preço fixo. A criadora (ou a equipa) produz UM artefacto por comprador com um processo templatizado — moodboard, design de divisão, relatório de auditoria, plano personalizado, etc. Templatizável mas limitado pelo tempo da operadora. Faz a ponte 'admiro o trabalho dela' → 'consigo pagar' para criadoras cujo DFY completo está fora do alcance.",
+  commerce_affiliate:
+    'Conteúdo shoppable curado + 2-3 partnerships com marcas-âncora. A criadora captura intenção que já está a sair do conteúdo gratuitamente. Zero produto novo para construir, aproveita a cadência de conteúdo que já mantém.',
+  cohort_education:
+    'Curso ou programa em cohort fixo. Time-bound (4-12 semanas tipicamente), preço premium (€500-3K), frequentemente entregue ao vivo em cohorts de 30-80. Vende para uma audiência DIFERENTE da comunidade recorrente — geralmente praticantes ou aspirantes a praticantes.',
+  hybrid_stack:
+    'Duas ou mais das opções acima a correr em paralelo como combinação explícita. Ex: motor de commerce sobreposto a um serviço productizado, OU uma comunidade recorrente a alimentar um serviço productizado. Os tiers de pricing mapeiam para shapes diferentes.',
 };
 
 /**

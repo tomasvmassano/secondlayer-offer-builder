@@ -11,7 +11,7 @@ import { legacyParsedToOfferState, CHECKPOINTS, readCheckpointProgress, readOffe
 import { OFFER_SYSTEM_PROMPT } from "../../lib/systemPrompt";
 import WorkspaceDashboard from "./workspace/WorkspaceDashboard";
 import { STAGES, computeOutreachStage, stagePatch } from "../../lib/outreachStages";
-import { OFFER_ARCHETYPE_LABELS, OFFER_ARCHETYPE_DESCRIPTIONS } from "../../lib/schemas/offerArchetypes";
+import { OFFER_ARCHETYPE_LABELS_PT as OFFER_ARCHETYPE_LABELS, OFFER_ARCHETYPE_DESCRIPTIONS_PT as OFFER_ARCHETYPE_DESCRIPTIONS } from "../../lib/schemas/offerArchetypes";
 import { safeStringify } from "../../lib/safeJson";
 
 const LOGO_B64 = "data:image/png;base64,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";
@@ -2896,7 +2896,7 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
               <div style={{ width: 44, height: 44, margin: "0 auto 16px", borderRadius: 10, background: "rgba(122,14,24,0.08)", border: "1px solid rgba(122,14,24,0.25)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, color: "#B11E2F", fontWeight: 700 }}>1</div>
               <p style={{ fontSize: 14, color: "#bbb", margin: "0 0 6px" }}>No offer yet for {creator.name}.</p>
               <p style={{ fontSize: 11, color: "#666", margin: 0, lineHeight: 1.55, maxWidth: 480, marginLeft: "auto", marginRight: "auto" }}>
-                Run the wizard above — Strategic Frame → Core Offer → Modules → Value Stack.
+                Corre o wizard acima — Frame estratégico → Oferta principal → Módulos → Stack de valor.
                 Each checkpoint locks before the next one runs so you can review the operator-language strategic decisions before they turn into creator-facing copy.
               </p>
             </div>
@@ -3872,7 +3872,7 @@ function EcosystemAuditPanel({ creator, setCreator, running, error, diag, onRun 
               whiteSpace: "nowrap",
             }}
           >
-            {running ? "A correr audit..." : audit ? "↻ Re-run audit" : "Run audit"}
+            {running ? "A correr audit..." : audit ? "↻ Voltar a correr" : "Correr audit"}
           </button>
         </div>
       </div>
@@ -3893,7 +3893,7 @@ function EcosystemAuditPanel({ creator, setCreator, running, error, diag, onRun 
 
       {!audit && !running && (
         <div style={{ padding: "20px 16px", textAlign: "center", color: "#444", fontSize: 12, border: "1px dashed rgba(255,255,255,0.06)", borderRadius: 6 }}>
-          No audit yet. Click <strong style={{ color: "#888" }}>Run audit</strong> to inspect the creator's product ecosystem (~60-90s, uses web_search).
+          Ainda não há audit. Clica <strong style={{ color: "#888" }}>Correr audit</strong> para inspeccionar o ecossistema de produtos da criadora (~60-90s, usa web_search).
         </div>
       )}
 
@@ -4415,7 +4415,7 @@ function ArchetypePanel({ creator, running, error, diag, onRun }) {
             whiteSpace: "nowrap",
           }}
         >
-          {running ? "A classificar..." : c ? "↻ Re-run" : "Run classifier"}
+          {running ? "A classificar..." : c ? "↻ Voltar a correr" : "Correr classificador"}
         </button>
       </div>
 
@@ -4430,7 +4430,7 @@ function ArchetypePanel({ creator, running, error, diag, onRun }) {
 
       {!c && !running && (
         <div style={{ padding: "20px 16px", textAlign: "center", color: "#444", fontSize: 12, border: "1px dashed rgba(255,255,255,0.06)", borderRadius: 6 }}>
-          No archetype yet. Click <strong style={{ color: "#888" }}>Run classifier</strong> (~30-60s, uses web_search for fame signals).
+          Ainda não há arquétipo. Clica <strong style={{ color: "#888" }}>Correr classificador</strong> (~30-60s, usa web_search para sinais de fama).
         </div>
       )}
 
@@ -4572,7 +4572,7 @@ function UniquenessPanel({ creator, running, error, diag, onRun }) {
             whiteSpace: "nowrap",
           }}
         >
-          {running ? "A extrair..." : u ? "↻ Re-run" : "Run extractor"}
+          {running ? "A extrair..." : u ? "↻ Voltar a correr" : "Correr extractor"}
         </button>
       </div>
 
@@ -4587,7 +4587,7 @@ function UniquenessPanel({ creator, running, error, diag, onRun }) {
 
       {!u && !running && (
         <div style={{ padding: "20px 16px", textAlign: "center", color: "#444", fontSize: 12, border: "1px dashed rgba(255,255,255,0.06)", borderRadius: 6 }}>
-          No uniqueness yet. Click <strong style={{ color: "#888" }}>Run extractor</strong> (~15-30s, Sonnet only, uses Phase 1+2 outputs).
+          Ainda não há uniqueness. Clica <strong style={{ color: "#888" }}>Correr extractor</strong> (~15-30s, Sonnet, usa outputs das Fases 1+2).
         </div>
       )}
 
@@ -4897,6 +4897,17 @@ function OfferJudgmentPanel({ creator, setCreator }) {
   const survivors = judgment?.offer_evaluations?.filter(e => e.verdict === 'SURVIVES') || [];
 
   const postureColor = judgment?.audience_classification?.posture === 'ACTIVE' ? '#22c55e' : '#eab308';
+  // PT labels for the six score keys. The data keys stay in English (schema
+  // contract), but operator UI shows the readable PT version.
+  const SCORE_LABELS_PT = {
+    buyer_intent_density: 'intenção de compra',
+    audience_offer_fit:   'fit audiência↔oferta',
+    creator_time_cost:    'custo de tempo',
+    friction:             'fricção do comprador',
+    market_validation:    'validação de mercado',
+    defensibility:        'defensabilidade',
+  };
+  const POSTURE_LABEL_PT = { ACTIVE: 'ACTIVA', PASSIVE: 'PASSIVA' };
 
   return (
     <div style={{
@@ -4906,13 +4917,13 @@ function OfferJudgmentPanel({ creator, setCreator }) {
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12, flexWrap: "wrap", gap: 8 }}>
         <div>
           <div style={{ fontSize: 9, fontWeight: 700, color: "#666", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 4 }}>
-            Phase 5 · Kill Test {judgment ? <span style={{ color: allKilled ? "#ef4444" : "#22c55e", marginLeft: 6 }}>· {survivors.length}/{judgment.offer_evaluations.length} sobrevivem</span> : null}
+            Fase 5 · Kill Test {judgment ? <span style={{ color: allKilled ? "#ef4444" : "#22c55e", marginLeft: 6 }}>· {survivors.length}/{judgment.offer_evaluations.length} sobrevivem</span> : null}
           </div>
           <div style={{ fontSize: 13, fontWeight: 600, color: "#f5f5f5" }}>
-            Adversarial judgment
+            Julgamento adversarial
           </div>
           <div style={{ fontSize: 11, color: "#888", marginTop: 2, lineHeight: 1.5 }}>
-            Skeptical scoring of cada sequenced_play. Job: matar ofertas más antes do CP2-CP4 perder tempo a construir.
+            Scoring cético de cada jogada. Função: matar ofertas más antes do CP2-CP4 perder tempo a construir.
           </div>
         </div>
         <button
@@ -4931,7 +4942,7 @@ function OfferJudgmentPanel({ creator, setCreator }) {
             whiteSpace: "nowrap",
           }}
         >
-          {running ? "A julgar..." : judgment ? "↻ Re-run kill test" : "Run kill test (~$0.05)"}
+          {running ? "A julgar..." : judgment ? "↻ Voltar a correr" : "Correr kill test (~$0.05)"}
         </button>
       </div>
 
@@ -4941,7 +4952,7 @@ function OfferJudgmentPanel({ creator, setCreator }) {
 
       {!judgment && !running && (
         <div style={{ padding: "14px 16px", textAlign: "center", color: "#444", fontSize: 11.5, border: "1px dashed rgba(255,255,255,0.06)", borderRadius: 6 }}>
-          Sem julgamento ainda. Clica <strong style={{ color: "#888" }}>Run kill test</strong> (~30-50s, Sonnet).
+          Sem julgamento ainda. Clica <strong style={{ color: "#888" }}>Correr kill test</strong> (~30-50s, Sonnet).
         </div>
       )}
 
@@ -4955,7 +4966,7 @@ function OfferJudgmentPanel({ creator, setCreator }) {
                 padding: "3px 9px", borderRadius: 4,
                 background: `${postureColor}14`, color: postureColor, border: `1px solid ${postureColor}50`,
               }}>
-                {judgment.audience_classification.posture}
+                {POSTURE_LABEL_PT[judgment.audience_classification.posture] || judgment.audience_classification.posture}
               </span>
               <span style={{ fontSize: 11, color: "#888", lineHeight: 1.5 }}>{judgment.audience_classification.posture_rationale}</span>
             </div>
@@ -4980,7 +4991,7 @@ function OfferJudgmentPanel({ creator, setCreator }) {
                     padding: "3px 10px", borderRadius: 4,
                     background: `${accent}14`, color: accent, border: `1px solid ${accent}55`,
                   }}>
-                    {killed ? '✕ KILL' : '✓ SURVIVES'}
+                    {killed ? '✕ MORRE' : '✓ SOBREVIVE'}
                   </span>
                 </div>
 
@@ -4991,7 +5002,7 @@ function OfferJudgmentPanel({ creator, setCreator }) {
                     return (
                       <div key={k} title={v.justification} style={{ padding: "6px 9px", background: "#0a0a0a", borderRadius: 4, border: "1px solid rgba(255,255,255,0.04)" }}>
                         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
-                          <span style={{ fontSize: 9, color: "#666", letterSpacing: "0.06em" }}>{k}</span>
+                          <span style={{ fontSize: 9, color: "#666", letterSpacing: "0.06em" }}>{SCORE_LABELS_PT[k] || k}</span>
                           <span style={{ fontSize: 12, fontWeight: 700, color: scoreColor }}>{v.score}</span>
                         </div>
                         <div style={{ fontSize: 9.5, color: "#777", lineHeight: 1.45, marginTop: 4, fontFamily: "inherit" }}>{v.justification}</div>
@@ -5002,11 +5013,11 @@ function OfferJudgmentPanel({ creator, setCreator }) {
 
                 {/* Kill test block */}
                 <div style={{ padding: "10px 12px", background: "#0a0a0a", borderRadius: 6, border: "1px solid rgba(255,255,255,0.04)" }}>
-                  <div style={{ fontSize: 9, fontWeight: 700, color: accent, letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 4 }}>Strongest objection</div>
+                  <div style={{ fontSize: 9, fontWeight: 700, color: accent, letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 4 }}>Objecção mais forte</div>
                   <div style={{ fontSize: 11.5, color: "#ddd", lineHeight: 1.55, marginBottom: ev.kill_test.survives ? 8 : 0 }}>{ev.kill_test.strongest_failure_reason}</div>
                   {ev.kill_test.survives && ev.kill_test.survival_reason && (
                     <>
-                      <div style={{ fontSize: 9, fontWeight: 700, color: "#22c55e", letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 4, marginTop: 4 }}>Why it survives anyway</div>
+                      <div style={{ fontSize: 9, fontWeight: 700, color: "#22c55e", letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 4, marginTop: 4 }}>Porque sobrevive na mesma</div>
                       <div style={{ fontSize: 11.5, color: "#bbb", lineHeight: 1.55 }}>{ev.kill_test.survival_reason}</div>
                     </>
                   )}
@@ -5033,7 +5044,7 @@ function OfferJudgmentPanel({ creator, setCreator }) {
               ) : judgment.ranking.launch_first ? (
                 <>
                   <div style={{ fontSize: 9, fontWeight: 700, color: "#22c55e", letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 6 }}>
-                    ▶ Launch first
+                    ▶ Lançar primeiro
                   </div>
                   <div style={{ fontSize: 13, fontWeight: 700, color: "#f5f5f5", marginBottom: 6 }}>{judgment.ranking.launch_first.offer_name}</div>
                   <div style={{ fontSize: 11.5, color: "#bbb", lineHeight: 1.55 }}>{judgment.ranking.launch_first.why_it_beats_others}</div>
@@ -5059,7 +5070,7 @@ function OfferJudgmentPanel({ creator, setCreator }) {
 
           {runAt && (
             <div style={{ fontSize: 10, color: "#333", marginTop: 10 }}>
-              Last run: {new Date(runAt).toLocaleString("pt-PT")}
+              Último julgamento: {new Date(runAt).toLocaleString("pt-PT")}
             </div>
           )}
         </div>
@@ -5088,9 +5099,9 @@ function StrategicFramePanel({ creator, setCreator, running, setRunning, error, 
   const [lockBusy, setLockBusy] = useState(false);
 
   const ROLE_LABELS = {
-    entry_point: 'Entry Point',
-    continuity: 'Continuity',
-    premium_upsell: 'Premium Upsell',
+    entry_point: 'Porta de entrada',
+    continuity: 'Continuidade',
+    premium_upsell: 'Upsell premium',
     standalone: 'Standalone',
   };
   const ROLE_COLORS = {
@@ -5179,7 +5190,7 @@ function StrategicFramePanel({ creator, setCreator, running, setRunning, error, 
 
   const unlock = async () => {
     if (!creator?.id || lockBusy) return;
-    if (!confirm('Unlock CP1? This will clear CP2-5 if any have been generated.')) return;
+    if (!confirm('Desbloquear CP1? Isto vai apagar CP2-5 se já tiverem sido gerados.')) return;
     setLockBusy(true);
     setError(null);
     try {
@@ -5217,11 +5228,11 @@ function StrategicFramePanel({ creator, setCreator, running, setRunning, error, 
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14, flexWrap: "wrap", gap: 12 }}>
         <div>
           <div style={{ fontSize: 9, fontWeight: 700, color: cp1Locked ? "#22c55e" : "#7A0E18", letterSpacing: "0.16em", textTransform: "uppercase", marginBottom: 4 }}>
-            ● Checkpoint 1 of 5 · {cp1Locked ? 'Locked ✓' : 'In Progress'}
+            ● Checkpoint 1 de 5 · {cp1Locked ? 'Aprovado ✓' : 'Em curso'}
           </div>
-          <h3 style={{ fontSize: 14, fontWeight: 600, margin: 0, color: "#f5f5f5" }}>Strategic Frame</h3>
+          <h3 style={{ fontSize: 14, fontWeight: 600, margin: 0, color: "#f5f5f5" }}>Frame estratégico</h3>
           <p style={{ fontSize: 11, color: "#555", margin: "4px 0 0" }}>
-            Operator's strategic commit — internal language only, never shown to creator. CP2-5 use this as system context.
+            Compromisso estratégico da operadora — linguagem interna, nunca mostrado à criadora. CP2-5 usam isto como contexto.
           </p>
         </div>
         <div style={{ display: "flex", gap: 8 }}>
@@ -5242,7 +5253,7 @@ function StrategicFramePanel({ creator, setCreator, running, setRunning, error, 
                 whiteSpace: "nowrap",
               }}
             >
-              {running ? "A gerar..." : frame ? "↻ Re-run" : "Generate (~$0.02)"}
+              {running ? "A gerar..." : frame ? "↻ Voltar a gerar" : "Gerar (~$0.02)"}
             </button>
           )}
           {!cp1Locked && frame && (
@@ -5262,7 +5273,7 @@ function StrategicFramePanel({ creator, setCreator, running, setRunning, error, 
                 whiteSpace: "nowrap",
               }}
             >
-              {lockBusy ? "..." : "✓ Approve & continue →"}
+              {lockBusy ? "..." : "✓ Aprovar & continuar →"}
             </button>
           )}
           {cp1Locked && (
@@ -5282,7 +5293,7 @@ function StrategicFramePanel({ creator, setCreator, running, setRunning, error, 
                 whiteSpace: "nowrap",
               }}
             >
-              {lockBusy ? "..." : "↺ Unlock"}
+              {lockBusy ? "..." : "↺ Desbloquear"}
             </button>
           )}
         </div>
@@ -5293,7 +5304,7 @@ function StrategicFramePanel({ creator, setCreator, running, setRunning, error, 
       )}
       {diag && !running && (
         <div style={{ fontSize: 10, color: "#444", marginBottom: 12, fontFamily: "'JetBrains Mono', ui-monospace, monospace" }}>
-          audit role input: {diag.audit_role_input || '—'} · archetype {diag.archetype_used ? '✓' : '—'} · uniqueness elements: {diag.uniqueness_elements_input} · {diag.retries} retries
+          input do papel: {diag.audit_role_input || '—'} · arquétipo {diag.archetype_used ? '✓' : '—'} · elementos únicos: {diag.uniqueness_elements_input} · {diag.retries} retries
         </div>
       )}
 
@@ -5307,7 +5318,7 @@ function StrategicFramePanel({ creator, setCreator, running, setRunning, error, 
 
       {!frame && !running && (
         <div style={{ padding: "20px 16px", textAlign: "center", color: "#444", fontSize: 12, border: "1px dashed rgba(255,255,255,0.06)", borderRadius: 6 }}>
-          No frame yet. Click <strong style={{ color: "#888" }}>Generate</strong> (~10-20s, Sonnet only, uses Phase 1+2+3 as context).
+          Ainda não há frame. Clica <strong style={{ color: "#888" }}>Gerar</strong> (~10-20s, usa Fases 1+2+3 como contexto).
         </div>
       )}
 
@@ -5316,21 +5327,21 @@ function StrategicFramePanel({ creator, setCreator, running, setRunning, error, 
           {/* Top row: confirmed role badge + dominant transformation */}
           <div style={{ display: "grid", gridTemplateColumns: "auto 1fr", gap: 14, alignItems: "start", marginBottom: 16 }}>
             <div style={{ padding: "14px 16px", background: "#0a0a0a", borderRadius: 8, border: `1px solid ${ROLE_COLORS[frame.confirmed_role] || '#444'}40`, minWidth: 130 }}>
-              <div style={{ fontSize: 9, fontWeight: 700, color: "#666", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 6 }}>Role</div>
+              <div style={{ fontSize: 9, fontWeight: 700, color: "#666", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 6 }}>Papel</div>
               <div style={{ fontSize: 13, fontWeight: 700, color: ROLE_COLORS[frame.confirmed_role] || '#ccc' }}>{ROLE_LABELS[frame.confirmed_role] || frame.confirmed_role}</div>
             </div>
             <div style={{ padding: "14px 16px", background: "#0a0a0a", borderRadius: 8, border: "1px solid rgba(255,255,255,0.05)" }}>
-              <div style={{ fontSize: 9, fontWeight: 700, color: "#666", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 6 }}>Dominant Transformation</div>
+              <div style={{ fontSize: 9, fontWeight: 700, color: "#666", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 6 }}>Transformação dominante</div>
               <div style={{ fontSize: 13, color: "#f5f5f5", lineHeight: 1.55, fontWeight: 500 }}>{frame.dominant_transformation}</div>
             </div>
           </div>
 
           {/* Audience segment */}
           <div style={{ padding: "13px 15px", background: "#0a0a0a", borderRadius: 8, border: "1px solid rgba(255,255,255,0.05)", marginBottom: 12 }}>
-            <div style={{ fontSize: 9, fontWeight: 700, color: "#666", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 6 }}>Audience Segment</div>
+            <div style={{ fontSize: 9, fontWeight: 700, color: "#666", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 6 }}>Segmento de audiência</div>
             <div style={{ fontSize: 12, color: "#ddd", lineHeight: 1.55, marginBottom: 6 }}>{frame.audience_segment?.description}</div>
             <div style={{ fontSize: 10.5, color: "#888", fontStyle: "italic", lineHeight: 1.5 }}>
-              <span style={{ fontStyle: "normal", color: "#555", fontWeight: 700, marginRight: 6, letterSpacing: "0.06em" }}>ANCHOR:</span>
+              <span style={{ fontStyle: "normal", color: "#555", fontWeight: 700, marginRight: 6, letterSpacing: "0.06em" }}>ÂNCORA:</span>
               {frame.audience_segment?.demographics_anchor}
             </div>
           </div>
@@ -5338,7 +5349,7 @@ function StrategicFramePanel({ creator, setCreator, running, setRunning, error, 
           {/* Negative qualifiers */}
           {(frame.negative_qualifiers || []).length > 0 && (
             <div style={{ padding: "13px 15px", background: "rgba(239,68,68,0.03)", borderRadius: 8, border: "1px solid rgba(239,68,68,0.18)", marginBottom: 12 }}>
-              <div style={{ fontSize: 9, fontWeight: 700, color: "#ef4444", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 8 }}>Not For ({(frame.negative_qualifiers || []).length})</div>
+              <div style={{ fontSize: 9, fontWeight: 700, color: "#ef4444", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 8 }}>Não é para ({(frame.negative_qualifiers || []).length})</div>
               <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 4 }}>
                 {frame.negative_qualifiers.map((q, i) => (
                   <li key={i} style={{ fontSize: 12, color: "#ccc", lineHeight: 1.5, paddingLeft: 14, position: "relative" }}>
@@ -5351,14 +5362,14 @@ function StrategicFramePanel({ creator, setCreator, running, setRunning, error, 
 
           {/* Positioning tension */}
           <div style={{ padding: "13px 15px", background: "rgba(122,14,24,0.04)", borderRadius: 8, border: "1px solid rgba(122,14,24,0.18)", marginBottom: 12 }}>
-            <div style={{ fontSize: 9, fontWeight: 700, color: "#7A0E18", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 6 }}>Positioning Tension</div>
+            <div style={{ fontSize: 9, fontWeight: 700, color: "#7A0E18", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 6 }}>Tensão de posicionamento</div>
             <div style={{ fontSize: 12.5, color: "#f5f5f5", lineHeight: 1.55, fontStyle: "italic" }}>{frame.positioning_tension}</div>
           </div>
 
           {/* Rationale — collapsed under a subtle header so it doesn't dominate */}
           {(frame.rationale || []).length > 0 && (
             <div style={{ marginBottom: runAt ? 14 : 0 }}>
-              <div style={{ fontSize: 9, fontWeight: 700, color: "#666", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 8 }}>Rationale ({(frame.rationale || []).length})</div>
+              <div style={{ fontSize: 9, fontWeight: 700, color: "#666", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 8 }}>Racional ({(frame.rationale || []).length})</div>
               <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 4 }}>
                 {frame.rationale.map((r, i) => (
                   <li key={i} style={{ fontSize: 11.5, color: "#aaa", lineHeight: 1.55, paddingLeft: 14, position: "relative" }}>
@@ -5376,9 +5387,9 @@ function StrategicFramePanel({ creator, setCreator, running, setRunning, error, 
 
           {runAt && (
             <div style={{ fontSize: 10, color: "#333", paddingTop: 10, borderTop: "1px solid rgba(255,255,255,0.04)" }}>
-              Last run: {new Date(runAt).toLocaleString("pt-PT")}
+              Última geração: {new Date(runAt).toLocaleString("pt-PT")}
               {cp1Locked && progress.locked[1] && (
-                <> · Locked: {new Date(progress.locked[1]).toLocaleString("pt-PT")}</>
+                <> · Aprovado: {new Date(progress.locked[1]).toLocaleString("pt-PT")}</>
               )}
             </div>
           )}
@@ -5468,7 +5479,7 @@ function ThesisOnlyGate({ frame, creator, setCreator, onForceOverride }) {
     }
 
     if (frame.capture_gap) {
-      lines.push(`## Capture gap (fechar 1º)`);
+      lines.push(`## Lacuna de captura (fechar 1º)`);
       lines.push(`**${frame.capture_gap.gap}**`);
       if (frame.capture_gap.first_action) lines.push(`_Acção:_ ${frame.capture_gap.first_action}`);
       lines.push('');
@@ -5575,10 +5586,10 @@ function ThesisOnlyGate({ frame, creator, setCreator, onForceOverride }) {
           )}
           <div style={{ display: "flex", gap: 14, flexWrap: "wrap", fontSize: 11, color: "#888" }}>
             {primary.time_to_first_revenue && (
-              <span><strong style={{ color: "#ddd" }}>Time-to-cash:</strong> {primary.time_to_first_revenue}</span>
+              <span><strong style={{ color: "#ddd" }}>Tempo até facturar:</strong> {primary.time_to_first_revenue}</span>
             )}
             {fmtRange(primary.realistic_monthly_low, primary.realistic_monthly_high) && (
-              <span><strong style={{ color: "#22c55e" }}>Range:</strong> {fmtRange(primary.realistic_monthly_low, primary.realistic_monthly_high)}</span>
+              <span><strong style={{ color: "#22c55e" }}>Intervalo:</strong> {fmtRange(primary.realistic_monthly_low, primary.realistic_monthly_high)}</span>
             )}
             {primary.templatization_potential && (
               <span><strong style={{ color: "#ddd" }}>Templatização:</strong> {primary.templatization_potential}</span>
@@ -5621,7 +5632,7 @@ function ThesisOnlyGate({ frame, creator, setCreator, onForceOverride }) {
         )}
         {frame.capture_gap && (
           <div style={{ padding: "10px 12px", background: "#0a0a0a", borderRadius: 6, border: "1px solid rgba(255,255,255,0.04)" }}>
-            <div style={{ fontSize: 9, fontWeight: 700, color: "#666", letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 4 }}>Capture gap (fechar 1º)</div>
+            <div style={{ fontSize: 9, fontWeight: 700, color: "#666", letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 4 }}>Lacuna de captura (fechar 1º)</div>
             <div style={{ fontSize: 11, color: "#ddd", lineHeight: 1.5, marginBottom: 4, fontWeight: 600 }}>{frame.capture_gap.gap}</div>
             {frame.capture_gap.first_action && (
               <div style={{ fontSize: 10.5, color: "#888", lineHeight: 1.5 }}>{frame.capture_gap.first_action}</div>
@@ -5633,7 +5644,7 @@ function ThesisOnlyGate({ frame, creator, setCreator, onForceOverride }) {
       {/* Adversarial review verdict — quick sanity flag */}
       {review?.verdict && (
         <div style={{ padding: "10px 14px", background: "#0a0a0a", borderRadius: 6, border: `1px solid ${verdictColor}33`, marginBottom: 12, fontSize: 11, color: "#aaa", lineHeight: 1.5 }}>
-          <span style={{ fontSize: 9, fontWeight: 700, color: verdictColor, letterSpacing: "0.12em", textTransform: "uppercase", marginRight: 8 }}>● Crítica · veredicto {review.verdict}</span>
+          <span style={{ fontSize: 9, fontWeight: 700, color: verdictColor, letterSpacing: "0.12em", textTransform: "uppercase", marginRight: 8 }}>● Crítica · veredicto {review.verdict === 'strong' ? 'forte' : review.verdict === 'moderate' ? 'moderado' : review.verdict === 'weak' ? 'fraco' : review.verdict}</span>
           {Array.isArray(review.must_fix_before_proceeding) && review.must_fix_before_proceeding.length > 0 && (
             <div style={{ marginTop: 6, color: "#bbb" }}>
               Resolver antes: {review.must_fix_before_proceeding.join(' · ')}
@@ -5819,7 +5830,7 @@ function CoreOfferPanel({ creator, setCreator, running, setRunning, error, setEr
     high: 'High · €1K+/mo or €3K+ one-time',
   };
   const MODEL_LABELS = {
-    auto:     'Auto (model decides)',
+    auto:     'Auto (o modelo decide)',
     monthly:  'Monthly subscription',
     one_time: 'One-time payment',
     annual:   'Annual subscription',
@@ -5898,7 +5909,7 @@ function CoreOfferPanel({ creator, setCreator, running, setRunning, error, setEr
 
   const unlock = async () => {
     if (!creator?.id || lockBusy) return;
-    if (!confirm('Unlock CP2? This will cascade-clear CP3-5 if any have been generated.')) return;
+    if (!confirm('Desbloquear CP2? Vai apagar em cascata CP3-5 se já tiverem sido gerados.')) return;
     setLockBusy(true);
     setError(null);
     try {
@@ -5937,11 +5948,11 @@ function CoreOfferPanel({ creator, setCreator, running, setRunning, error, setEr
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14, flexWrap: "wrap", gap: 12 }}>
         <div>
           <div style={{ fontSize: 9, fontWeight: 700, color: cp2Locked ? "#22c55e" : "#7A0E18", letterSpacing: "0.16em", textTransform: "uppercase", marginBottom: 4 }}>
-            ● Checkpoint 2 of 5 · {cp2Locked ? 'Locked ✓' : 'In Progress'}
+            ● Checkpoint 2 de 5 · {cp2Locked ? 'Aprovado ✓' : 'Em curso'}
           </div>
-          <h3 style={{ fontSize: 14, fontWeight: 600, margin: 0, color: "#f5f5f5" }}>Core Offer</h3>
+          <h3 style={{ fontSize: 14, fontWeight: 600, margin: 0, color: "#f5f5f5" }}>Oferta principal</h3>
           <p style={{ fontSize: 11, color: "#555", margin: "4px 0 0" }}>
-            The offer spine — Big Idea, transformation, pricing, community name, weekly rhythm. First creator-facing checkpoint, voice matters.
+            A espinha da oferta — Big Idea, transformação, pricing, nome da comunidade, ritmo semanal. Primeiro checkpoint visível para a criadora, voz importa.
           </p>
         </div>
         <div style={{ display: "flex", gap: 8 }}>
@@ -5962,7 +5973,7 @@ function CoreOfferPanel({ creator, setCreator, running, setRunning, error, setEr
                 whiteSpace: "nowrap",
               }}
             >
-              {lockBusy ? "..." : "✓ Approve & continue →"}
+              {lockBusy ? "..." : "✓ Aprovar & continuar →"}
             </button>
           )}
           {cp2Locked && (
@@ -5982,7 +5993,7 @@ function CoreOfferPanel({ creator, setCreator, running, setRunning, error, setEr
                 whiteSpace: "nowrap",
               }}
             >
-              {lockBusy ? "..." : "↺ Unlock"}
+              {lockBusy ? "..." : "↺ Desbloquear"}
             </button>
           )}
         </div>
@@ -6008,7 +6019,7 @@ function CoreOfferPanel({ creator, setCreator, running, setRunning, error, setEr
       {!cp2Locked && !showThesisGate && (
         <div style={{ marginBottom: 16, padding: "12px 14px", background: "rgba(255,255,255,0.02)", borderRadius: 8, border: "1px solid rgba(255,255,255,0.05)" }}>
           <div style={{ fontSize: 9, fontWeight: 700, color: "#666", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 8 }}>
-            Pricing tier {pendingTier === suggestedTier ? <span style={{ color: "#888", fontWeight: 500, letterSpacing: 0, textTransform: "none" }}>· suggested based on frame + archetype</span> : null}
+            Tier de pricing {pendingTier === suggestedTier ? <span style={{ color: "#888", fontWeight: 500, letterSpacing: 0, textTransform: "none" }}>· sugerido pelo frame + arquétipo</span> : null}
           </div>
           <div style={{ display: "flex", gap: 8 }}>
             {(['low', 'mid', 'high']).map(t => {
@@ -6044,7 +6055,7 @@ function CoreOfferPanel({ creator, setCreator, running, setRunning, error, setEr
               one-time) or vice versa. */}
           <div style={{ marginTop: 12 }}>
             <div style={{ fontSize: 9, fontWeight: 700, color: "#666", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 6 }}>
-              Pricing model {pendingModel === 'auto' ? <span style={{ color: "#888", fontWeight: 500, letterSpacing: 0, textTransform: "none" }}>· auto-picked from role</span> : <span style={{ color: "#B11E2F", fontWeight: 700, letterSpacing: 0, textTransform: "none" }}>· locked by operator</span>}
+              Modelo de pricing {pendingModel === 'auto' ? <span style={{ color: "#888", fontWeight: 500, letterSpacing: 0, textTransform: "none" }}>· escolhido a partir do papel</span> : <span style={{ color: "#B11E2F", fontWeight: 700, letterSpacing: 0, textTransform: "none" }}>· forçado pela operadora</span>}
             </div>
             <select
               value={pendingModel}
@@ -6087,7 +6098,7 @@ function CoreOfferPanel({ creator, setCreator, running, setRunning, error, setEr
               fontFamily: "inherit",
             }}
           >
-            {running ? "A gerar..." : hasOutput ? `↻ Re-run @ ${pendingTier}` : `Generate @ ${pendingTier}${pendingModel !== 'auto' ? ` · ${pendingModel}` : ''} (~$0.04)`}
+            {running ? "A gerar..." : hasOutput ? `↻ Voltar a gerar @ ${pendingTier}` : `Gerar @ ${pendingTier}${pendingModel !== 'auto' ? ` · ${pendingModel}` : ''} (~$0.04)`}
           </button>
         </div>
       )}
@@ -6100,7 +6111,7 @@ function CoreOfferPanel({ creator, setCreator, running, setRunning, error, setEr
 
       {!hasOutput && !running && !showThesisGate && (
         <div style={{ padding: "20px 16px", textAlign: "center", color: "#444", fontSize: 12, border: "1px dashed rgba(255,255,255,0.06)", borderRadius: 6 }}>
-          No core offer yet. Pick a tier above, then click <strong style={{ color: "#888" }}>Generate</strong> (~15-25s, Sonnet only).
+          Ainda não há oferta. Escolhe um tier acima e clica <strong style={{ color: "#888" }}>Gerar</strong> (~15-25s, Sonnet).
         </div>
       )}
 
@@ -6450,7 +6461,7 @@ function ModulesPanel({ creator, setCreator, running, setRunning, error, setErro
 
   const unlock = async () => {
     if (!creator?.id || lockBusy) return;
-    if (!confirm('Unlock CP3? This will cascade-clear CP4 + CP5 if any have been generated.')) return;
+    if (!confirm('Desbloquear CP3? Vai apagar em cascata CP4 + CP5 se já tiverem sido gerados.')) return;
     setLockBusy(true);
     setError(null);
     try {
@@ -6479,11 +6490,11 @@ function ModulesPanel({ creator, setCreator, running, setRunning, error, setErro
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14, flexWrap: "wrap", gap: 12 }}>
         <div>
           <div style={{ fontSize: 9, fontWeight: 700, color: cp3Locked ? "#22c55e" : "#7A0E18", letterSpacing: "0.16em", textTransform: "uppercase", marginBottom: 4 }}>
-            ● Checkpoint 3 of 5 · {cp3Locked ? 'Locked ✓' : 'In Progress'}
+            ● Checkpoint 3 de 5 · {cp3Locked ? 'Aprovado ✓' : 'Em curso'}
           </div>
-          <h3 style={{ fontSize: 14, fontWeight: 600, margin: 0, color: "#f5f5f5" }}>Modules</h3>
+          <h3 style={{ fontSize: 14, fontWeight: 600, margin: 0, color: "#f5f5f5" }}>Módulos</h3>
           <p style={{ fontSize: 11, color: "#555", margin: "4px 0 0" }}>
-            4-8 curriculum modules. Each must cite ≥1 Phase 3 uniqueness element — the defensibility chain that proves the offer isn't generic.
+            4-8 módulos de currículo. Cada um tem de citar ≥1 elemento único da Fase 3 — a cadeia de defensabilidade que prova que a oferta não é genérica.
           </p>
         </div>
         <div style={{ display: "flex", gap: 8 }}>
@@ -6504,7 +6515,7 @@ function ModulesPanel({ creator, setCreator, running, setRunning, error, setErro
                 whiteSpace: "nowrap",
               }}
             >
-              {running ? "A gerar..." : "Generate (~$0.05-0.08)"}
+              {running ? "A gerar..." : "Gerar (~$0.05-0.08)"}
             </button>
           )}
           {!cp3Locked && hasOutput && (
@@ -6525,7 +6536,7 @@ function ModulesPanel({ creator, setCreator, running, setRunning, error, setErro
                   whiteSpace: "nowrap",
                 }}
               >
-                {running ? "..." : "↻ Re-run all"}
+                {running ? "..." : "↻ Voltar a gerar tudo"}
               </button>
               <button
                 onClick={lockAndContinue}
@@ -6543,7 +6554,7 @@ function ModulesPanel({ creator, setCreator, running, setRunning, error, setErro
                   whiteSpace: "nowrap",
                 }}
               >
-                {lockBusy ? "..." : "✓ Approve & continue →"}
+                {lockBusy ? "..." : "✓ Aprovar & continuar →"}
               </button>
             </>
           )}
@@ -6564,7 +6575,7 @@ function ModulesPanel({ creator, setCreator, running, setRunning, error, setErro
                 whiteSpace: "nowrap",
               }}
             >
-              {lockBusy ? "..." : "↺ Unlock"}
+              {lockBusy ? "..." : "↺ Desbloquear"}
             </button>
           )}
         </div>
@@ -6877,7 +6888,7 @@ function ValueStackPanel({ creator, setCreator, running, setRunning, error, setE
 
   const unlock = async () => {
     if (!creator?.id || lockBusy) return;
-    if (!confirm('Unlock CP4? This will cascade-clear CP5 if it has been generated.')) return;
+    if (!confirm('Desbloquear CP4? Vai apagar em cascata CP5 se já tiver sido gerado.')) return;
     setLockBusy(true);
     setError(null);
     try {
@@ -6906,11 +6917,11 @@ function ValueStackPanel({ creator, setCreator, running, setRunning, error, setE
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14, flexWrap: "wrap", gap: 12 }}>
         <div>
           <div style={{ fontSize: 9, fontWeight: 700, color: cp4Locked ? "#22c55e" : "#7A0E18", letterSpacing: "0.16em", textTransform: "uppercase", marginBottom: 4 }}>
-            ● Checkpoint 4 of 5 · {cp4Locked ? 'Locked ✓' : 'In Progress'}
+            ● Checkpoint 4 de 5 · {cp4Locked ? 'Aprovado ✓' : 'Em curso'}
           </div>
-          <h3 style={{ fontSize: 14, fontWeight: 600, margin: 0, color: "#f5f5f5" }}>Value Stack + Pricing</h3>
+          <h3 style={{ fontSize: 14, fontWeight: 600, margin: 0, color: "#f5f5f5" }}>Stack de valor + Pricing</h3>
           <p style={{ fontSize: 11, color: "#555", margin: "4px 0 0" }}>
-            Hormozi step: mechanism + stack with $ values + pricing tiers + month-by-month bonuses. Total should be 5-10× the actual price.
+            Passo Hormozi: mecanismo + stack com valores em €/$ + tiers de pricing + bónus mês a mês. Total deve ser 5-10× o preço real.
           </p>
         </div>
         <div style={{ display: "flex", gap: 8 }}>
@@ -6931,7 +6942,7 @@ function ValueStackPanel({ creator, setCreator, running, setRunning, error, setE
                 whiteSpace: "nowrap",
               }}
             >
-              {running ? "A gerar..." : hasOutput ? "↻ Re-run" : "Generate (~$0.08-0.12)"}
+              {running ? "A gerar..." : hasOutput ? "↻ Voltar a gerar" : "Gerar (~$0.08-0.12)"}
             </button>
           )}
           {!cp4Locked && hasOutput && (
@@ -6974,7 +6985,7 @@ function ValueStackPanel({ creator, setCreator, running, setRunning, error, setE
                 whiteSpace: "nowrap",
               }}
             >
-              {lockBusy ? "..." : "↺ Unlock"}
+              {lockBusy ? "..." : "↺ Desbloquear"}
             </button>
           )}
         </div>
@@ -7212,7 +7223,7 @@ function SalesCopyPanel({ creator, setCreator, running, setRunning, error, setEr
 
   const unlock = async () => {
     if (!creator?.id || lockBusy) return;
-    if (!confirm('Unlock CP5? The offer will be marked incomplete until you re-lock.')) return;
+    if (!confirm('Desbloquear CP5? A oferta vai ficar marcada como incompleta até voltares a aprovar.')) return;
     setLockBusy(true);
     setError(null);
     try {
@@ -7241,11 +7252,11 @@ function SalesCopyPanel({ creator, setCreator, running, setRunning, error, setEr
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14, flexWrap: "wrap", gap: 12 }}>
         <div>
           <div style={{ fontSize: 9, fontWeight: 700, color: cp5Locked ? "#22c55e" : "#7A0E18", letterSpacing: "0.16em", textTransform: "uppercase", marginBottom: 4 }}>
-            ● Checkpoint 5 of 5 · {cp5Locked ? 'Locked ✓ · Offer Complete' : 'In Progress'}
+            ● Checkpoint 5 de 5 · {cp5Locked ? 'Aprovado ✓ · Oferta completa' : 'Em curso'}
           </div>
-          <h3 style={{ fontSize: 14, fontWeight: 600, margin: 0, color: "#f5f5f5" }}>Sales Copy · Final Assembly</h3>
+          <h3 style={{ fontSize: 14, fontWeight: 600, margin: 0, color: "#f5f5f5" }}>Sales Copy · Montagem final</h3>
           <p style={{ fontSize: 11, color: "#555", margin: "4px 0 0" }}>
-            Differentiator, hero, objections, FAQ, social proof. After this locks, the pitch deck + launch-plan PDF render from client_facing_output.
+            Diferenciador, hero, objecções, FAQ, social proof. Depois disto aprovado, o pitch deck + PDF de launch plan renderizam a partir do client_facing_output.
           </p>
         </div>
         <div style={{ display: "flex", gap: 8 }}>
@@ -7266,7 +7277,7 @@ function SalesCopyPanel({ creator, setCreator, running, setRunning, error, setEr
                 whiteSpace: "nowrap",
               }}
             >
-              {running ? "A gerar..." : hasOutput ? "↻ Re-run" : "Generate (~$0.10-0.15)"}
+              {running ? "A gerar..." : hasOutput ? "↻ Voltar a gerar" : "Gerar (~$0.10-0.15)"}
             </button>
           )}
           {!cp5Locked && hasOutput && (
@@ -7306,7 +7317,7 @@ function SalesCopyPanel({ creator, setCreator, running, setRunning, error, setEr
                 whiteSpace: "nowrap",
               }}
             >
-              {lockBusy ? "..." : "↺ Unlock"}
+              {lockBusy ? "..." : "↺ Desbloquear"}
             </button>
           )}
         </div>
