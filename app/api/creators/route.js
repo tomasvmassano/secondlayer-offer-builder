@@ -99,11 +99,14 @@ export async function POST(request) {
                 'anthropic-version': '2023-06-01',
               },
               body: JSON.stringify({
-                model: 'claude-sonnet-4-5-20250929',
-                // Bumped 1500 → 2500 (2026-05-19) to fit BIO_PRODUCT_1-5 +
-                // COMPETITOR_1-3 alongside the existing audience/format
-                // output. Without the headroom these new fields get
-                // truncated and the downstream audit has nothing to chew on.
+                // Haiku 4.5 (2026-06-19): the analysis is pure structured
+                // extraction from labelled-line output — no reasoning, no
+                // creativity, just parse-what-you-see. Haiku follows the
+                // strict format reliably and streams ~3× faster than
+                // Sonnet, which was pushing Apify scrape + this call over
+                // Vercel's 60s Hobby cap. Every import row was 504'ing.
+                // Also ~5× cheaper.
+                model: 'claude-haiku-4-5-20251001',
                 max_tokens: 2500,
                 messages: [{
                   role: 'user',

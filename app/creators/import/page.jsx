@@ -317,11 +317,23 @@ export default function BulkImportPage() {
             minDealScore: MIN_DEAL_SCORE,
           }),
         });
-        const data = await r.json();
+        // Read text first, then try JSON. When Apify scrape + Sonnet
+        // analysis pushes past Vercel's 60s Hobby cap, the platform
+        // returns a plain-text "An error occurred with your deployment"
+        // page — res.json() throws "Unexpected token 'A'..." and the
+        // operator sees an inscrutable parse error instead of the real
+        // cause. Same fix pattern as the CP1 strategic-frame client.
+        const rawText = await r.text();
+        let data = null;
+        try { data = rawText ? JSON.parse(rawText) : null; } catch { data = null; }
         setParsedRows(prev => {
           const next = [...prev];
-          if (!r.ok) {
-            next[i] = { ...next[i], status: 'error', error: data.error || `HTTP ${r.status}` };
+          if (!r.ok || !data) {
+            const hint = r.status === 504 || r.status === 500
+              ? ' (timeout — tenta de novo)'
+              : '';
+            const errMsg = (data && data.error) || `HTTP ${r.status}${hint}`;
+            next[i] = { ...next[i], status: 'error', error: errMsg };
           } else if (data.rejected) {
             next[i] = { ...next[i], status: 'rejected', score: data.score, grade: data.grade, reason: `Score ${data.score} (${data.grade}) abaixo do mínimo ${MIN_DEAL_SCORE}` };
           } else if (data.duplicate) {
