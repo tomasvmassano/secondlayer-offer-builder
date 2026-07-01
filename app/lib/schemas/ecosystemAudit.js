@@ -33,7 +33,19 @@ export const VALID_CANNIBALIZATION_RISK = ['high', 'medium', 'low', 'none'];
 // field is REQUIRED on every product now — we no longer convert to EUR.
 // Stored alongside price_eur (the field name is legacy; the value is the
 // price in the original currency). UI reads `currency` to pick the symbol.
-export const VALID_CURRENCIES = ['EUR', 'USD', 'GBP'];
+// Common creator-economy currencies. Expanded from EUR|USD|GBP (2026-06-19)
+// after audits started failing on Swiss/Canadian/Australian creators.
+// Anything outside this list is auto-nulled at validation time rather than
+// rejected — the audit persists; the operator can hand-correct later.
+export const VALID_CURRENCIES = [
+  'EUR', 'USD', 'GBP',
+  'CHF', 'CAD', 'AUD', 'NZD',   // Anglosphere + Swiss
+  'SEK', 'NOK', 'DKK',          // Nordics
+  'PLN', 'CZK', 'HUF', 'RON',   // CEE
+  'BRL', 'MXN', 'ARS', 'CLP',   // LATAM
+  'JPY', 'SGD', 'HKD', 'INR', 'AED',  // Asia + Middle East
+  'ZAR',                         // South Africa
+];
 
 // Shape (for reference — JS, not a runtime type system):
 //
@@ -90,11 +102,14 @@ export function validateEcosystemAudit(obj) {
         if (!isStr(p.name)) push(`${px}.name`, 'required non-empty string');
         if (p.price_eur != null && !isNum(p.price_eur)) push(`${px}.price_eur`, 'must be number or null');
         if (p.price_eur != null && p.price_eur < 0) push(`${px}.price_eur`, 'must be >= 0');
-        // currency — required when price_eur is set. Legacy records (pre
-        // currency field) get a soft-default to EUR in the migration layer
-        // so this only fails on FRESH outputs missing the field.
+        // currency — auto-null unknown values instead of rejecting.
+        // Legacy records (pre currency field) get a soft-default to EUR in
+        // the migration layer. Live audits: if the LLM emits a currency
+        // outside the expanded VALID_CURRENCIES set, we null the field and
+        // move on. Losing currency precision on rare cases is better than
+        // killing a $0.15 audit call the operator has to redo.
         if (p.price_eur != null && p.currency != null && !VALID_CURRENCIES.includes(p.currency)) {
-          push(`${px}.currency`, `must be one of ${VALID_CURRENCIES.join('|')} (got ${p.currency})`);
+          p.currency = null;
         }
         if (!isStr(p.format)) push(`${px}.format`, 'required non-empty string');
         if (!VALID_TIERS.includes(p.tier)) push(`${px}.tier`, `must be one of ${VALID_TIERS.join('|')}`);
@@ -113,8 +128,9 @@ export function validateEcosystemAudit(obj) {
         if (!ec || typeof ec !== 'object' || Array.isArray(ec)) { push(px, 'must be an object'); return; }
         if (!isStr(ec.name)) push(`${px}.name`, 'required non-empty string');
         if (ec.price_eur != null && !isNum(ec.price_eur)) push(`${px}.price_eur`, 'must be number or null');
+        // Same auto-null policy as products_found[].currency above.
         if (ec.price_eur != null && ec.currency != null && !VALID_CURRENCIES.includes(ec.currency)) {
-          push(`${px}.currency`, `must be one of ${VALID_CURRENCIES.join('|')} (got ${ec.currency})`);
+          ec.currency = null;
         }
         if (!VALID_TIERS.includes(ec.tier)) push(`${px}.tier`, `must be one of ${VALID_TIERS.join('|')}`);
         if (!isStr(ec.format)) push(`${px}.format`, 'required non-empty string');
