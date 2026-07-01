@@ -122,8 +122,17 @@ export default function AuditQueuePage() {
           const r = await fetch(`/api/creators/${creatorId}/ecosystem-audit`, { method: 'POST' });
           const data = await r.json();
           if (!r.ok) {
+            // Compose a fuller error string: top-level message + the field-
+            // level validator failures (if any). Without appending
+            // data.errors, "Schema validation failed" was the only signal
+            // the operator saw and there was no way to diagnose which rule
+            // fired without opening each creator individually.
+            const topLevel = data.error || `HTTP ${r.status}`;
+            const detail = Array.isArray(data.errors) && data.errors.length
+              ? topLevel + ' — ' + data.errors.slice(0, 4).join(' · ') + (data.errors.length > 4 ? ` (+${data.errors.length - 4} more)` : '')
+              : topLevel;
             setCreators(prev => prev.map(row => row.id === creatorId
-              ? { ...row, status: 'failed', auditError: data.error || `HTTP ${r.status}` }
+              ? { ...row, status: 'failed', auditError: detail }
               : row));
           } else {
             // The audit JSON nests products under `ecosystem_map`, not at
