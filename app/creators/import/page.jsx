@@ -305,7 +305,9 @@ export default function BulkImportPage() {
         return next;
       });
 
-      try {
+      // One attempt = one POST + parse of the response. Returns { r, data }.
+      // Extracted so we can call it twice cleanly for the auto-retry path.
+      const attempt = async () => {
         const r = await fetch('/api/creators', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -326,6 +328,30 @@ export default function BulkImportPage() {
         const rawText = await r.text();
         let data = null;
         try { data = rawText ? JSON.parse(rawText) : null; } catch { data = null; }
+        return { r, data };
+      };
+
+      try {
+        let { r, data } = await attempt();
+
+        // Auto-retry on transient Vercel timeout. Apify Instagram scrape
+        // variance means some profiles (larger accounts, more posts, rate
+        // limiting) push the route past the 60s Hobby cap. Second attempt
+        // usually succeeds because the Vercel function is warm and Apify's
+        // slow moment has passed. If it STILL fails after retry, we
+        // surface the error normally.
+        const isTransient = !r.ok && (r.status === 504 || r.status === 500 || !data);
+        if (isTransient) {
+          setParsedRows(prev => {
+            const next = [...prev];
+            next[i] = { ...next[i], status: 'retrying' };
+            return next;
+          });
+          await new Promise(res => setTimeout(res, 3000));
+          if (cancelRef.current) return;
+          ({ r, data } = await attempt());
+        }
+
         setParsedRows(prev => {
           const next = [...prev];
           if (!r.ok || !data) {
@@ -564,6 +590,7 @@ function RowItem({ idx, row, isCurrent }) {
   const statusColors = {
     pending:   { color: '#888',     bg: 'transparent',                  label: 'À espera' },
     scraping:  { color: '#3b82f6',  bg: 'rgba(59,130,246,0.08)',        label: 'A scrapear…' },
+    retrying:  { color: '#eab308',  bg: 'rgba(234,179,8,0.08)',         label: '↻ A repetir…' },
     saved:     { color: '#22c55e',  bg: 'rgba(34,197,94,0.08)',         label: '✓ Guardado' },
     rejected:  { color: '#eab308',  bg: 'rgba(234,179,8,0.08)',         label: '⊝ Rejeitado' },
     duplicate: { color: '#888',     bg: 'rgba(255,255,255,0.03)',       label: '⊝ Duplicado' },
