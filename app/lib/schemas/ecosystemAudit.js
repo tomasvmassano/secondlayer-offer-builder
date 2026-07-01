@@ -159,16 +159,24 @@ export function validateEcosystemAudit(obj) {
   // subscription-based by definition in our taxonomy — even if the LLM
   // classifies a particular community as "mid_ticket" (e.g. annual flat
   // fee), it still counts toward has_recurring for the wizard's purposes.
-  // This matches the PATCH endpoint's recompute logic in
-  //   app/api/creators/[id]/ecosystem-audit/patch/route.js
+  //
+  // AUTO-CORRECT (2026-06-19): the three booleans are DERIVABLE from the
+  // arrays, so we mutate them to match the derived values instead of
+  // rejecting the whole audit. The LLM's boolean answers become advisory;
+  // the array data is source of truth. This matches the PATCH endpoint's
+  // recompute logic in app/api/creators/[id]/ecosystem-audit/patch/route.js
   // so a manual edit and a fresh LLM run end up internally consistent.
-  if (Array.isArray(em?.products_found)) {
+  //
+  // Previously these fired as validation errors, killing the audit when
+  // the LLM said e.g. has_recurring:false but included a recurring
+  // community in existing_communities — a common LLM drift that shouldn't
+  // waste a $0.15+ audit call.
+  if (em && Array.isArray(em.products_found)) {
     const tiers = new Set(em.products_found.map(p => p?.tier).filter(Boolean));
     const hasAnyCommunity = Array.isArray(em.existing_communities) && em.existing_communities.length > 0;
-    const expectedRecurring = tiers.has('recurring') || hasAnyCommunity;
-    if (em.has_high_ticket !== tiers.has('high_ticket')) push('ecosystem_map.has_high_ticket', 'inconsistent with products_found tiers');
-    if (em.has_mid_ticket !== tiers.has('mid_ticket'))   push('ecosystem_map.has_mid_ticket',   'inconsistent with products_found tiers');
-    if (em.has_recurring !== expectedRecurring)          push('ecosystem_map.has_recurring',    'inconsistent with products_found tiers + existing_communities');
+    em.has_high_ticket = tiers.has('high_ticket');
+    em.has_mid_ticket = tiers.has('mid_ticket');
+    em.has_recurring = tiers.has('recurring') || hasAnyCommunity;
   }
 
   return { valid: errors.length === 0, errors };
