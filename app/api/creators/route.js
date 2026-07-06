@@ -3,13 +3,34 @@ import { saveCreator, getCreator, listCreators, searchCreators } from '../../lib
 import { syncCreatorEmail } from '../../lib/syncEmailToSheet';
 import { getCurrentUser, displayFirstName } from '../../lib/auth';
 import { apifyToCreatorProfile, scrapeMultiplePlatforms, scrapeLean } from '../../lib/apify';
-import { resolvePrimaryLanguage } from '../../lib/language';
 import { calculateDealScore } from '../../lib/dealScore';
 
-// Lean scrape + lightweight analysis fits well under 60s. The full enrichment
-// (TikTok + YouTube + web-search products/competitors) runs separately via
-// /api/creators/[id]/full-scrape when the creator engages.
+// Lean scrape only — no LLM inference. Ecosystem audit fires next in the
+// pipeline and does full niche/audience/product inference with web search.
+// Import now fits comfortably under 60s on every account (previously the
+// Haiku analysis step was pushing large accounts past the cap).
 export const maxDuration = 60;
+
+// Cheap bio-text heuristic to seed primaryLanguage without a real LLM call.
+// The audit refines this with proper audience-language inference. Just needs
+// to be close enough that the audit gets the right output-language hint on
+// its first run. Falls back to null when no bio (audit will resolve later).
+function inferLanguageFromBio(bio) {
+  if (!bio) return null;
+  const b = bio.toLowerCase();
+  // Portuguese-specific tokens (ê/ã/ç + PT common words). Weighted first
+  // because we're a PT-market hub — false positives here are cheaper than
+  // false negatives on Spanish/English.
+  if (/\b(não|é|olá|obrigado|obrigada|português|acompanha|criador|criadora|nova|semana|conteúdo)\b/i.test(bio) || /[ãõçê]/.test(b)) {
+    return 'pt';
+  }
+  // Spanish-specific tokens (ñ + ES common words).
+  if (/\b(hola|gracias|español|sigue|creadora|semana|contenido|más|cómo|día|años)\b/i.test(bio) || /ñ/.test(b)) {
+    return 'es';
+  }
+  // Default to English — the audit will correct if wrong.
+  return 'en';
+}
 
 export async function GET(request) {
   try {
@@ -78,209 +99,21 @@ export async function POST(request) {
       if (multiResult.source === 'apify-lean' && multiResult.profile) {
         profile = multiResult.profile;
 
-        // Lightweight inference — niche + audience + top-post labelling only.
-        // No web search (saves 5-10 tool-use rounds vs the full analysis).
-        // No bio-link products / competitors — those move to full-scrape.
-        if (apiKey && profile) {
-          try {
-            const igRaw = multiResult.igRaw;
-            const allPosts = (igRaw?.recentPosts || []).map(p => ({
-              caption: p.caption, likes: p.likes, comments: p.comments, type: p.type || 'image',
-            }));
-            const postPerformanceData = allPosts.slice(0, 6).map((p, i) =>
-              `Post ${i + 1} [${p.type}]: "${(p.caption || '').slice(0, 120)}" — ${p.likes || 0} likes, ${p.comments || 0} comments`
-            ).join('\n');
-
-            const analysisResponse = await fetch('https://api.anthropic.com/v1/messages', {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'x-api-key': apiKey,
-                'anthropic-version': '2023-06-01',
-              },
-              body: JSON.stringify({
-                // Haiku 4.5 (2026-06-19): the analysis is pure structured
-                // extraction from labelled-line output — no reasoning, no
-                // creativity, just parse-what-you-see. Haiku follows the
-                // strict format reliably and streams ~3× faster than
-                // Sonnet, which was pushing Apify scrape + this call over
-                // Vercel's 60s Hobby cap. Every import row was 504'ing.
-                // Also ~5× cheaper.
-                model: 'claude-haiku-4-5-20251001',
-                max_tokens: 2500,
-                messages: [{
-                  role: 'user',
-                  content: `Infer this Instagram creator's niche + audience + recent-post themes + product hints from the data below. Respond with ONLY these labelled lines — no explanation, no other text:
-
-NICHE: [their niche, e.g. "Food / Baking", "Fitness", "Photography", "Business / Marketing", "Real Estate"]
-
-AUDIENCE_GENDER: [estimated gender split, e.g. "70% Female, 30% Male"]
-AUDIENCE_AGE: [estimated primary age range, e.g. "25-34"]
-AUDIENCE_LOCATION: [estimated primary countries, e.g. "Portugal 60%, Brazil 25%, Other 15%"]
-AUDIENCE_LANGUAGE: [primary language of content, e.g. "Portuguese 80%, English 20%"]
-AUDIENCE_INTERESTS: [5 comma-separated audience interest categories]
-
-TOP_POST_1: [caption snippet, ≤80 chars]|||[engagement rate vs avg, e.g. "2x avg"]|||[reel/carousel/static/video]|||[topic, 3-5 words]
-TOP_POST_2: [...]|||[...]|||[...]|||[...]
-TOP_POST_3: [...]|||[...]|||[...]|||[...]
-FORMAT_REELS: [estimated % reels/videos, e.g. "60"]
-FORMAT_CAROUSELS: [estimated % carousels]
-FORMAT_STATIC: [estimated % static]
-POSTS_PER_WEEK: [estimated, e.g. "4.2"]
-
-BIO_PRODUCT_1: [url]|||[platform, e.g. "Stan Store", "Linktree", "Gumroad", "Own site"]|||[product name]|||[price if visible, else "Unknown"]|||[currency, e.g. "EUR", "USD"]
-BIO_PRODUCT_2: [...]|||[...]|||[...]|||[...]|||[...]
-BIO_PRODUCT_3: [...]|||[...]|||[...]|||[...]|||[...]
-BIO_PRODUCT_4: [...]|||[...]|||[...]|||[...]|||[...]
-BIO_PRODUCT_5: [...]|||[...]|||[...]|||[...]|||[...]
-COMPETITOR_1: [name]|||[platform e.g. "Skool", "Patreon", "own course"]|||[price if visible, else "Unknown"]|||[currency]|||[estimated audience size if visible]|||[url if visible]
-COMPETITOR_2: [...]|||[...]|||[...]|||[...]|||[...]|||[...]
-COMPETITOR_3: [...]|||[...]|||[...]|||[...]|||[...]|||[...]
-
-For BIO_PRODUCT_*: enumerate every paid product, lead magnet, course, ebook, app, community, or service you can identify from the bio text, the external URL, and the multi-link bio array below. Don't invent — only list what's referenced. If the creator only has one product, fill BIO_PRODUCT_1 and put NONE on the rest. If the only link is an aggregator (Linktree / Stan / Beacons) without enough info to enumerate cards, still list it as one product entry referencing the aggregator URL.
-
-For COMPETITOR_*: name 3-5 competitors in the same niche/audience with similar offers. Use known direct competitors when possible; otherwise generic well-known names in the niche. Put NONE if you genuinely don't know any.
-
-Use "NONE" as the whole value for any slot you can't fill — never invent.
-
-=== CREATOR DATA ===
-Name: ${profile.name}
-Bio: ${profile.bio || 'No bio'}
-External URL: ${profile.externalUrl || 'None'}
-Instagram multi-link bio: ${(profile.platforms?.instagram?.bioLinks || []).map(l => `${l.title || '(no title)'} → ${l.url}`).join(' | ') || 'None'}
-Instagram Followers: ${igRaw?.followers || 0}
-Engagement: ${profile.engagement || 'Unknown'}
-Verified: ${profile.isVerified}
-Business account: ${profile.isBusinessAccount}
-
-Recent posts (most recent first):
-${postPerformanceData || 'No post data available'}`,
-                }],
-              }),
-            });
-
-            const analysisData = await analysisResponse.json();
-            if (analysisResponse.ok) {
-              const analysisText = (analysisData.content || [])
-                .filter(b => b.type === 'text')
-                .map(b => b.text)
-                .join('\n');
-
-              // Basic analysis
-              const getNiche = analysisText.match(/^NICHE:\s*(.+)/mi);
-              const getProducts = analysisText.match(/^PRODUCTS:\s*(.+)/mi);
-              const getReputation = analysisText.match(/^REPUTATION:\s*(.+)/mi);
-              const getGender = analysisText.match(/^AUDIENCE_GENDER:\s*(.+)/mi);
-              const getAge = analysisText.match(/^AUDIENCE_AGE:\s*(.+)/mi);
-              const getLocation = analysisText.match(/^AUDIENCE_LOCATION:\s*(.+)/mi);
-              const getLanguage = analysisText.match(/^AUDIENCE_LANGUAGE:\s*(.+)/mi);
-              const getInterests = analysisText.match(/^AUDIENCE_INTERESTS:\s*(.+)/mi);
-
-              if (getNiche) profile.niche = getNiche[1].trim();
-              if (getProducts && getProducts[1].trim() !== 'None found') {
-                profile.products = getProducts[1].trim().split(',').map(p => p.trim()).filter(Boolean);
-              }
-              if (getReputation && getReputation[1].trim() !== 'No notable mentions') {
-                profile.reputation = getReputation[1].trim();
-              }
-
-              // Audience estimate
-              profile.audienceEstimate = {
-                gender: getGender ? getGender[1].trim() : null,
-                age: getAge ? getAge[1].trim() : null,
-                location: getLocation ? getLocation[1].trim() : null,
-                language: getLanguage ? getLanguage[1].trim() : null,
-                interests: getInterests ? getInterests[1].trim().split(',').map(i => i.trim()).filter(Boolean) : [],
-              };
-
-              // === INTELLIGENCE: Content Analysis ===
-              const topPosts = [];
-              for (let i = 1; i <= 3; i++) {
-                const match = analysisText.match(new RegExp(`^TOP_POST_${i}:\\s*(.+)`, 'mi'));
-                if (match) {
-                  const parts = match[1].split('|||').map(s => s.trim());
-                  if (parts.length >= 4) {
-                    topPosts.push({ caption: parts[0], engagementRate: parts[1], format: parts[2], topic: parts[3] });
-                  }
-                }
-              }
-
-              const getReels = analysisText.match(/^FORMAT_REELS:\s*(\d+)/mi);
-              const getCarousels = analysisText.match(/^FORMAT_CAROUSELS:\s*(\d+)/mi);
-              const getStatic = analysisText.match(/^FORMAT_STATIC:\s*(\d+)/mi);
-              const getPostsPerWeek = analysisText.match(/^POSTS_PER_WEEK:\s*([\d.]+)/mi);
-
-              const contentStyle = {
-                formatBreakdown: {
-                  reels: getReels ? parseInt(getReels[1]) : 0,
-                  carousels: getCarousels ? parseInt(getCarousels[1]) : 0,
-                  static: getStatic ? parseInt(getStatic[1]) : 0,
-                },
-                postsPerWeek: getPostsPerWeek ? parseFloat(getPostsPerWeek[1]) : 0,
-              };
-
-              // === INTELLIGENCE: Bio Link Products ===
-              const isNone = (s) => !s || /^none$/i.test(s) || /^n\/?a$/i.test(s) || /^\[/.test(s) || s === '-';
-              const bioLinkProducts = [];
-              for (let i = 1; i <= 10; i++) {
-                const match = analysisText.match(new RegExp(`^BIO_PRODUCT_${i}:\\s*(.+)`, 'mi'));
-                if (match) {
-                  const raw = match[1].trim();
-                  if (isNone(raw)) continue; // "NONE" as whole value
-                  const parts = raw.split('|||').map(s => s.trim());
-                  if (parts.length >= 3 && !isNone(parts[0]) && !isNone(parts[2])) {
-                    bioLinkProducts.push({
-                      url: isNone(parts[0]) ? null : parts[0],
-                      platform: isNone(parts[1]) ? 'Unknown' : parts[1],
-                      productName: parts[2],
-                      price: (parts[3] && !isNone(parts[3]) && parts[3] !== 'Unknown') ? parts[3] : null,
-                      currency: (parts[4] && !isNone(parts[4])) ? parts[4] : 'EUR',
-                    });
-                  }
-                }
-              }
-
-              // === INTELLIGENCE: Competitors ===
-              const competitors = [];
-              for (let i = 1; i <= 5; i++) {
-                const match = analysisText.match(new RegExp(`^COMPETITOR_${i}:\\s*(.+)`, 'mi'));
-                if (match) {
-                  const raw = match[1].trim();
-                  if (isNone(raw)) continue;
-                  const parts = raw.split('|||').map(s => s.trim());
-                  if (parts.length >= 2 && !isNone(parts[0])) {
-                    competitors.push({
-                      name: parts[0],
-                      platform: isNone(parts[1]) ? 'Unknown' : parts[1],
-                      price: (parts[2] && !isNone(parts[2]) && parts[2] !== 'Unknown') ? parts[2] : null,
-                      currency: (parts[3] && !isNone(parts[3])) ? parts[3] : 'EUR',
-                      estimatedSize: (parts[4] && !isNone(parts[4]) && parts[4] !== 'Unknown') ? parts[4] : null,
-                      url: (parts[5] && !isNone(parts[5])) ? parts[5] : null,
-                    });
-                  }
-                }
-              }
-
-              // Store intelligence
-              const audienceLanguage = getLanguage ? getLanguage[1].trim() : null;
-              profile.intelligence = {
-                bioLinks: bioLinkProducts,
-                topPosts,
-                contentStyle,
-                competitors,
-                audience: {
-                  primaryCountry: getLocation ? getLocation[1].trim() : null,
-                  primaryLanguage: audienceLanguage,
-                  estimatedAgeRange: getAge ? getAge[1].trim() : null,
-                },
-              };
-
-              // Resolve deliverable language (pt/en/null) for all asset generation routing
-              profile.primaryLanguage = resolvePrimaryLanguage(audienceLanguage);
-            }
-          } catch {
-            // Analysis failed, we still have the raw Apify data
-          }
+        // LLM analysis REMOVED (2026-07-01) — was 30-100+ lines of Haiku
+        // structured extraction pushing Apify+LLM past Vercel's 60s cap.
+        // Every field it produced (niche, audience, bio_products,
+        // competitors, top_posts, format breakdown) is either re-derived
+        // by the ecosystem-audit (which fires next in the pipeline and
+        // does the same inference with richer web-search context) or
+        // is nice-to-have UI data the operator doesn't need at import
+        // time. Import now: Apify scrape → save → return. ~15-45s
+        // wall-clock, comfortably under the 60s cap on every account.
+        //
+        // primaryLanguage is set below from a lightweight bio-text
+        // heuristic so the auto-fired audit knows what language to
+        // output in. The audit refines it with real audience data.
+        if (profile) {
+          profile.primaryLanguage = inferLanguageFromBio(profile.bio);
         }
       }
     }
