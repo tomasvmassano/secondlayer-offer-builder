@@ -156,18 +156,84 @@ function extractIgHandle(url) {
   return match ? match[1].replace(/^@/, '').toLowerCase() : null;
 }
 
-// Find existing creator by Instagram handle (for duplicate prevention)
+// ── O(1) Instagram-handle index ─────────────────────────────────────
+// Redis hash `creators:igidx` maps lowercase handle → creatorId.
+//
+// WHY THIS EXISTS (2026-07-08): the previous findCreatorByIgHandle did
+//   listCreators() + a SEQUENTIAL getCreator(id) for EVERY creator
+// on every import. With the CRM at hundreds of creators (each record
+// bloated by audits/offers/DM sequences), the dedupe loop alone ran
+// 30-60s+ — the true root cause of the persistent bulk-import 504s
+// that were blamed on Apify/LLM latency. Imports "worked before"
+// because the CRM was small; each day of importing pushed the loop
+// closer to the 60s Vercel cliff until every cold invocation died.
+//
+// The index is SELF-HEALING and needs no manual migration:
+//   - saveCreator writes the mapping on every new save
+//   - deleteCreator removes it
+//   - a stale mapping (creator deleted / handle changed) is detected
+//     by re-verifying the handle on read and hdel'd
+//   - the first lookup after deploy pays a one-time parallel backfill
+//     scan (batched 25-wide, ~5-10s for 500 creators), sets the
+//     `creators:igidx:built` flag, and every lookup after is 1-2
+//     Redis round-trips regardless of CRM size.
+const IG_INDEX_KEY = 'creators:igidx';
+const IG_INDEX_BUILT_KEY = 'creators:igidx:built';
+
 async function findCreatorByIgHandle(handle) {
   if (!handle) return null;
   const lower = handle.toLowerCase();
-  const summaries = await listCreators();
-  for (const s of summaries) {
-    const full = await getCreator(s.id);
-    if (!full) continue;
-    const igHandle = extractIgHandle(full.platforms?.instagram?.url || full.instagramUrl);
-    if (igHandle && igHandle === lower) return full;
+
+  // Memory mode (local dev) — datasets are tiny, plain scan is fine.
+  if (useMemory()) {
+    for (const [key, value] of memStore.entries()) {
+      if (!key.startsWith('creator:')) continue;
+      const full = typeof value === 'string' ? JSON.parse(value) : value;
+      const igHandle = extractIgHandle(full?.platforms?.instagram?.url || full?.instagramUrl);
+      if (igHandle === lower) return full;
+    }
+    return null;
   }
-  return null;
+
+  const redis = getRedis();
+
+  // Fast path — O(1) hash lookup, then verify the mapping is current.
+  const mappedId = await redis.hget(IG_INDEX_KEY, lower);
+  if (mappedId) {
+    const full = await getCreator(mappedId);
+    const h = extractIgHandle(full?.platforms?.instagram?.url || full?.instagramUrl);
+    if (full && h === lower) return full;
+    // Stale mapping (deleted creator / changed handle) — self-heal.
+    await redis.hdel(IG_INDEX_KEY, lower).catch(() => {});
+  }
+
+  // Index fully built → a miss is authoritative. No scan.
+  const built = await redis.get(IG_INDEX_BUILT_KEY).catch(() => null);
+  if (built) return null;
+
+  // One-time backfill: scan the CRM in parallel batches, build the whole
+  // index, set the built flag. Runs inside whichever import lands first
+  // after deploy (~5-10s for 500 creators), then never again.
+  const summaries = await listCreators();
+  let found = null;
+  const mappings = {};
+  const BATCH = 25;
+  for (let i = 0; i < summaries.length; i += BATCH) {
+    const batch = summaries.slice(i, i + BATCH);
+    const fulls = await Promise.all(batch.map(s => getCreator(s.id).catch(() => null)));
+    for (const full of fulls) {
+      if (!full) continue;
+      const h = extractIgHandle(full.platforms?.instagram?.url || full.instagramUrl);
+      if (!h) continue;
+      mappings[h] = full.id;
+      if (h === lower && !found) found = full;
+    }
+  }
+  if (Object.keys(mappings).length) {
+    await redis.hset(IG_INDEX_KEY, mappings).catch(() => {});
+  }
+  await redis.set(IG_INDEX_BUILT_KEY, new Date().toISOString()).catch(() => {});
+  return found;
 }
 
 export async function saveCreator(data) {
@@ -305,6 +371,12 @@ export async function saveCreator(data) {
     const redis = getRedis();
     await redis.set(`creator:${id}`, JSON.stringify(creator));
     await redis.zadd('creators:index', { score: Date.now(), member: JSON.stringify(summary) });
+    // Keep the O(1) handle index fresh — this is what makes the dedupe
+    // check in findCreatorByIgHandle a single HGET instead of a full
+    // CRM scan. Best-effort: a lost mapping self-heals on next lookup.
+    if (incomingHandle) {
+      await redis.hset(IG_INDEX_KEY, { [incomingHandle]: id }).catch(() => {});
+    }
   }
 
   // Bust the read cache so the next listCreators / getCreator returns
@@ -759,6 +831,11 @@ export async function deleteCreator(id) {
   } else {
     const redis = getRedis();
     await redis.del(`creator:${id}`);
+    // Drop the handle → id mapping so the dedupe index doesn't point at a
+    // dead record. Best-effort: a missed hdel self-heals on next lookup
+    // (findCreatorByIgHandle re-verifies the handle before trusting it).
+    const handle = extractIgHandle(existing.platforms?.instagram?.url || existing.instagramUrl);
+    if (handle) await redis.hdel(IG_INDEX_KEY, handle).catch(() => {});
     // Remove from sorted set index
     const allMembers = await redis.zrange('creators:index', 0, -1);
     for (const m of allMembers) {
