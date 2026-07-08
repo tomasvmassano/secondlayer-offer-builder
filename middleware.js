@@ -84,7 +84,16 @@ export async function middleware(request) {
   const user = await verifySession(request);
 
   if (!user) {
-    // Redirect to signin with next= for nice UX after login.
+    // API calls get 401 JSON, never a 302. Redirecting an XHR to the
+    // /signin HTML page made every client fetch throw "Unexpected token"
+    // from JSON-parsing an HTML document the moment a session expired —
+    // indistinguishable from the Vercel-timeout parse errors operators
+    // already know and dread. A clean 401 lets clients say "sessão
+    // expirou — faz login de novo".
+    if (pathname.startsWith('/api/')) {
+      return NextResponse.json({ error: 'unauthorized', hint: 'sessão expirada — faz login de novo' }, { status: 401 });
+    }
+    // Pages redirect to signin with next= for nice UX after login.
     const signinUrl = new URL('/signin', request.url);
     if (pathname !== '/') signinUrl.searchParams.set('next', pathname);
     return NextResponse.redirect(signinUrl);

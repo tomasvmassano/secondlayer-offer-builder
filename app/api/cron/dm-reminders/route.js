@@ -59,9 +59,16 @@ const daysBetween = (a, b) => Math.floor((new Date(b).getTime() - new Date(a).ge
 // ─────────────────────────────────────────────────────────────────
 
 export async function GET(request) {
-  // Vercel cron secret guard (skipped if no secret configured locally).
+  // Cron secret guard — FAIL CLOSED in deployed environments. This route
+  // is middleware-public AND mutates state (auto-colds creators, marks
+  // remindersSent) — if CRON_SECRET ever disappeared from the Vercel env,
+  // the old `if (cronSecret && ...)` shape silently made it publicly
+  // triggerable. Only skip the check locally (no VERCEL env).
   const authHeader = request.headers.get('authorization');
   const cronSecret = process.env.CRON_SECRET;
+  if (!cronSecret && process.env.VERCEL) {
+    return NextResponse.json({ error: 'CRON_SECRET not configured' }, { status: 503 });
+  }
   if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
@@ -158,10 +165,18 @@ export async function GET(request) {
     if (days >= AUTO_COLD_DAYS) {
       cooled.push({ id: c.id, name: c.name, daysSinceDM: days });
       if (!isCatchup) {
-        await updateCreator(c.id, {
-          pipelineStatus: 'cold',
-          outreach: { ...out, remindersSent: { ...remindersSent, autoCold: now.toISOString() } },
-        }).catch(() => null);
+        // Re-check repliedAt on a FRESH read right before mutating — this
+        // loop runs for minutes over hundreds of creators, and an operator
+        // marking a reply mid-run must not have their creator auto-colded.
+        // The outreach update is SPARSE (updateCreator deep-merges it onto
+        // fresh state) so no other outreach field can be clobbered.
+        const freshCheck = await getCreator(c.id, { fresh: true }).catch(() => null);
+        if (!freshCheck?.outreach?.repliedAt) {
+          await updateCreator(c.id, {
+            pipelineStatus: 'cold',
+            outreach: { remindersSent: { autoCold: now.toISOString() } },
+          }).catch(() => null);
+        }
       }
       buckets.autoCold.push({ id: c.id, name: c.name, niche: c.niche, daysSinceDM: days, ownerEmail });
       continue;

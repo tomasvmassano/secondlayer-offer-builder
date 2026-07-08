@@ -399,17 +399,25 @@ export async function findByOnboardingToken(token) {
   return null;
 }
 
-export async function getCreator(id) {
+export async function getCreator(id, opts = {}) {
   // 30s read cache — multiple getCreator(id) calls from the same warm
   // function instance share a single Redis hit. The team-stats endpoint
   // alone benefits enormously: its 24 aggregators used to each pull the
   // same creator independently.
+  //
+  // opts.fresh — bypass the read cache and hit Redis directly. REQUIRED
+  // for read-modify-write flows (updateCreator): merging onto a cached
+  // base up to 30s stale means a concurrent write from another lambda
+  // instance gets silently reverted by the merge ("I marked the DM sent
+  // and it un-marked itself"). Readers keep the cache; writers must not.
   const cacheKey = `c:${id}`;
-  const cached = _cacheGet(cacheKey);
-  if (cached !== undefined) {
-    // Return a deep clone so downstream mutations (heal-in-place,
-    // backfills) don't leak across callers sharing the cache entry.
-    return cached ? JSON.parse(JSON.stringify(cached)) : null;
+  if (!opts.fresh) {
+    const cached = _cacheGet(cacheKey);
+    if (cached !== undefined) {
+      // Return a deep clone so downstream mutations (heal-in-place,
+      // backfills) don't leak across callers sharing the cache entry.
+      return cached ? JSON.parse(JSON.stringify(cached)) : null;
+    }
   }
   let creator;
   if (useMemory()) {
@@ -716,7 +724,10 @@ export async function listCreators() {
 }
 
 export async function updateCreator(id, updates) {
-  const existing = await getCreator(id);
+  // fresh:true — NEVER merge onto a cached base. The read cache is
+  // per-lambda-instance with a 30s TTL; merging onto it silently reverts
+  // any write that landed on another instance inside that window.
+  const existing = await getCreator(id, { fresh: true });
   if (!existing) return null;
 
   // Deep merge nested objects if provided
@@ -741,6 +752,23 @@ export async function updateCreator(id, updates) {
       contentStyle: updates.intelligence.contentStyle || existing.intelligence?.contentStyle || null,
       competitors: updates.intelligence.competitors || existing.intelligence?.competitors || [],
       audience: { ...(existing.intelligence?.audience || {}), ...(updates.intelligence?.audience || {}) },
+    };
+  }
+  // outreach — deep-merge so callers can send SPARSE updates ({ repliedAt }
+  // alone, or { remindersSent: { autoCold } } alone) without spreading their
+  // own possibly-stale copy of the whole object. Before this existed, every
+  // writer did `outreach: { ...out, field }` from its own read — the daily
+  // cron's stale spread could wipe a repliedAt set seconds earlier and
+  // auto-cold an engaged creator. remindersSent gets its own nested merge
+  // since it's the sub-object the cron writes.
+  if (updates.outreach) {
+    updates.outreach = {
+      ...existing.outreach,
+      ...updates.outreach,
+      remindersSent: {
+        ...(existing.outreach?.remindersSent || {}),
+        ...(updates.outreach?.remindersSent || {}),
+      },
     };
   }
   if (updates.metrics) {

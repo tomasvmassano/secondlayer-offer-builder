@@ -46,7 +46,10 @@ const HUB_BASE = 'https://hub.secondlayerhq.com';
 
 function checkCronAuth(request) {
   const expected = process.env.CRON_SECRET;
-  if (!expected) return true; // dev: no secret set, allow
+  // FAIL CLOSED when deployed: this route is middleware-public, so an
+  // unset CRON_SECRET must not make it publicly triggerable. Local dev
+  // (no VERCEL env) still allows secret-less runs.
+  if (!expected) return !process.env.VERCEL;
   const auth = request.headers.get('authorization') || '';
   return auth === `Bearer ${expected}`;
 }

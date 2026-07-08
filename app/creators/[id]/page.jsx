@@ -12,6 +12,7 @@ import { OFFER_SYSTEM_PROMPT } from "../../lib/systemPrompt";
 import WorkspaceDashboard from "./workspace/WorkspaceDashboard";
 import { STAGES, computeOutreachStage, stagePatch } from "../../lib/outreachStages";
 import { OFFER_ARCHETYPE_LABELS_PT as OFFER_ARCHETYPE_LABELS, OFFER_ARCHETYPE_DESCRIPTIONS_PT as OFFER_ARCHETYPE_DESCRIPTIONS } from "../../lib/schemas/offerArchetypes";
+import { parseJsonSafe } from "../../lib/clientFetch";
 import { safeStringify } from "../../lib/safeJson";
 
 const LOGO_B64 = "data:image/png;base64,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";
@@ -688,7 +689,7 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
     try {
       const res = await fetch(`/api/creators/${id}`);
       if (!res.ok) throw new Error("Creator não encontrado");
-      const data = await res.json();
+      const data = await parseJsonSafe(res);
       setCreator(data);
     } catch (err) { setError(err.message); } finally { setLoading(false); }
   }, []);
@@ -747,7 +748,7 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
     try {
       const res = await fetch(`/api/creators/${params.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(updates) });
       if (!res.ok) throw new Error("Erro ao guardar");
-      const data = await res.json();
+      const data = await parseJsonSafe(res);
       setCreator(data);
       setSaving("Guardado!");
       setTimeout(() => setSaving(""), 2000);
@@ -870,7 +871,7 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
           creator: { name: creator?.name, niche: creator?.niche, primaryPlatform: creator?.primaryPlatform },
         }),
       });
-      const data = await r.json();
+      const data = await parseJsonSafe(r);
       if (!r.ok) throw new Error(data.error || `HTTP ${r.status}`);
       await writeRows(rows => rows.map(m => m.id === id ? ({
         ...m,
@@ -936,7 +937,7 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
           creator: { name: creator?.name, niche: creator?.niche, primaryPlatform: creator?.primaryPlatform },
         }),
       });
-      const data = await r.json();
+      const data = await parseJsonSafe(r);
       if (!r.ok) throw new Error(data.error || `HTTP ${r.status}`);
       await writeRows(rows => rows.map(m => m.id === id ? ({
         ...m,
@@ -1010,7 +1011,7 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
         }),
       });
       if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || "Failed");
-      const data = await r.json();
+      const data = await parseJsonSafe(r);
       // Merge into existing dmSequence so initial + followups accumulate over
       // time. `generatedAt` is only set on the initial generation (anchor for
       // the dm-reminders cron); followups stamp their own timestamps.
@@ -1048,7 +1049,7 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
         }),
       });
       if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || "Failed");
-      const data = await r.json();
+      const data = await parseJsonSafe(r);
       setReplyResult(data);
       // Mark creator as replied — stops reminder digest from pinging them again.
       // Defaults channel to 'dm' since this flow runs from the DM Writer's
@@ -1122,7 +1123,7 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ creatorId: params.id, max: 5 }),
       });
-      const data = await r.json();
+      const data = await parseJsonSafe(r);
       if (!r.ok) throw new Error(data.error || "Erro");
       const parts = [`${data.queued || 0} qualificados`];
       if (data.dismissedNiche) parts.push(`${data.dismissedNiche} fora do nicho`);
@@ -1222,7 +1223,7 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
         }),
       });
       if (!r.ok) throw new Error("Rewrite failed");
-      const data = await r.json();
+      const data = await parseJsonSafe(r);
       // Patch DM always; patch email_day1 too when the server sent one back.
       const nextSeq = { ...creator.dmSequence, dm: data.rewritten };
       if (data.rewrittenEmail && (data.rewrittenEmail.subject || data.rewrittenEmail.body)) {
@@ -1345,7 +1346,7 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({}),
       });
-      const data = await r.json();
+      const data = await parseJsonSafe(r);
       if (!r.ok) throw new Error(data.error || 'Full scrape failed');
       if (data.creator) setCreator(data.creator);
       setSaving('Full scrape concluído');
@@ -1374,7 +1375,7 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({}),
       });
-      const data = await r.json();
+      const data = await parseJsonSafe(r);
       if (!r.ok) {
         const detail = data.errors?.length ? '\n\n' + data.errors.join('\n') : '';
         throw new Error((data.error || 'Audit failed') + detail);
@@ -1413,7 +1414,7 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({}),
       });
-      const data = await r.json();
+      const data = await parseJsonSafe(r);
       if (!r.ok) {
         const detail = data.errors?.length ? '\n\n' + data.errors.join('\n') : '';
         throw new Error((data.error || 'Archetype classification failed') + detail);
@@ -1453,7 +1454,7 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({}),
       });
-      const data = await r.json();
+      const data = await parseJsonSafe(r);
       if (!r.ok) {
         const detail = data.errors?.length ? '\n\n' + data.errors.join('\n') : '';
         throw new Error((data.error || 'Uniqueness extraction failed') + detail);
@@ -3804,7 +3805,7 @@ function EcosystemAuditPanel({ creator, setCreator, running, error, diag, onRun 
           existing_communities: localCommunities.filter(c => c.name?.trim()),
         }),
       });
-      const data = await r.json();
+      const data = await parseJsonSafe(r);
       if (!r.ok) throw new Error(data.errors?.join('; ') || data.error || 'Save failed');
       setCreator(prev => prev ? ({
         ...prev,
@@ -5156,6 +5157,32 @@ function StrategicFramePanel({ creator, setCreator, running, setRunning, error, 
           },
         },
       }) : prev);
+
+      // Adversarial review — fire-and-merge AFTER the main frame lands.
+      // The review was split into its own endpoint (60s-cap budget) with
+      // the plan that the client calls it post-generate; that call was
+      // never wired, so every frame shipped with adversarial_review: null
+      // and the review UI (here + ThesisOnlyGate) always rendered empty.
+      // Best-effort: a failed review never blocks the frame.
+      try {
+        const rr = await fetch(`/api/creators/${creator.id}/wizard/strategic-frame/review`, { method: 'POST' });
+        const rd = await parseJsonSafe(rr);
+        if (rd?.ok && rd.adversarial_review) {
+          setCreator(prev => prev ? ({
+            ...prev,
+            offer: {
+              ...(prev.offer || {}),
+              internal_metadata: {
+                ...((prev.offer || {}).internal_metadata || {}),
+                strategic_frame: {
+                  ...((prev.offer || {}).internal_metadata?.strategic_frame || {}),
+                  adversarial_review: rd.adversarial_review,
+                },
+              },
+            },
+          }) : prev);
+        }
+      } catch { /* best-effort — frame is already saved and rendered */ }
     } catch (e) {
       setError(e.message || 'Unknown error');
     } finally {
@@ -5169,7 +5196,7 @@ function StrategicFramePanel({ creator, setCreator, running, setRunning, error, 
     setError(null);
     try {
       const r = await fetch(`/api/creators/${creator.id}/wizard/checkpoint/1/lock`, { method: 'POST' });
-      const data = await r.json();
+      const data = await parseJsonSafe(r);
       if (!r.ok) throw new Error(data.error || 'Lock failed');
       setCreator(prev => prev ? ({
         ...prev,
@@ -5195,7 +5222,7 @@ function StrategicFramePanel({ creator, setCreator, running, setRunning, error, 
     setError(null);
     try {
       const r = await fetch(`/api/creators/${creator.id}/wizard/checkpoint/1/unlock`, { method: 'POST' });
-      const data = await r.json();
+      const data = await parseJsonSafe(r);
       if (!r.ok) throw new Error(data.error || 'Unlock failed');
       // Lazy refresh — re-fetch the creator so we get the cascade-cleared shape
       setCreator(prev => prev ? ({
@@ -5858,7 +5885,7 @@ function CoreOfferPanel({ creator, setCreator, running, setRunning, error, setEr
           ...(instruction ? { instruction } : {}),
         }),
       });
-      const data = await r.json();
+      const data = await parseJsonSafe(r);
       if (!r.ok) {
         const detail = data.errors?.length ? '\n\n' + data.errors.join('\n') : '';
         throw new Error((data.error || 'Core offer failed') + detail);
@@ -5888,7 +5915,7 @@ function CoreOfferPanel({ creator, setCreator, running, setRunning, error, setEr
     setError(null);
     try {
       const r = await fetch(`/api/creators/${creator.id}/wizard/checkpoint/2/lock`, { method: 'POST' });
-      const data = await r.json();
+      const data = await parseJsonSafe(r);
       if (!r.ok) throw new Error(data.error || 'Lock failed');
       setCreator(prev => prev ? ({
         ...prev,
@@ -5914,7 +5941,7 @@ function CoreOfferPanel({ creator, setCreator, running, setRunning, error, setEr
     setError(null);
     try {
       const r = await fetch(`/api/creators/${creator.id}/wizard/checkpoint/2/unlock`, { method: 'POST' });
-      const data = await r.json();
+      const data = await parseJsonSafe(r);
       if (!r.ok) throw new Error(data.error || 'Unlock failed');
       setCreator(prev => prev ? ({
         ...prev,
@@ -6371,7 +6398,7 @@ function ModulesPanel({ creator, setCreator, running, setRunning, error, setErro
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(instruction ? { instruction } : {}),
       });
-      const data = await r.json();
+      const data = await parseJsonSafe(r);
       if (!r.ok) {
         const detail = data.errors?.length ? '\n\n' + data.errors.join('\n') : '';
         throw new Error((data.error || 'Modules failed') + detail);
@@ -6407,7 +6434,7 @@ function ModulesPanel({ creator, setCreator, running, setRunning, error, setErro
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ instruction: (regenState[ix] || {}).instruction || null }),
       });
-      const data = await r.json();
+      const data = await parseJsonSafe(r);
       if (!r.ok) {
         const detail = data.errors?.length ? '\n\n' + data.errors.join('\n') : '';
         throw new Error((data.error || 'Single-module regen failed') + detail);
@@ -6440,7 +6467,7 @@ function ModulesPanel({ creator, setCreator, running, setRunning, error, setErro
     setError(null);
     try {
       const r = await fetch(`/api/creators/${creator.id}/wizard/checkpoint/3/lock`, { method: 'POST' });
-      const data = await r.json();
+      const data = await parseJsonSafe(r);
       if (!r.ok) throw new Error(data.error || 'Lock failed');
       setCreator(prev => prev ? ({
         ...prev,
@@ -6466,7 +6493,7 @@ function ModulesPanel({ creator, setCreator, running, setRunning, error, setErro
     setError(null);
     try {
       const r = await fetch(`/api/creators/${creator.id}/wizard/checkpoint/3/unlock`, { method: 'POST' });
-      const data = await r.json();
+      const data = await parseJsonSafe(r);
       if (!r.ok) throw new Error(data.error || 'Unlock failed');
       setCreator(prev => prev ? ({
         ...prev,
@@ -6835,7 +6862,7 @@ function ValueStackPanel({ creator, setCreator, running, setRunning, error, setE
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(instruction ? { instruction } : {}),
       });
-      const data = await r.json();
+      const data = await parseJsonSafe(r);
       if (!r.ok) {
         const detail = data.errors?.length ? '\n\n' + data.errors.join('\n') : '';
         throw new Error((data.error || 'Value stack failed') + detail);
@@ -6867,7 +6894,7 @@ function ValueStackPanel({ creator, setCreator, running, setRunning, error, setE
     setError(null);
     try {
       const r = await fetch(`/api/creators/${creator.id}/wizard/checkpoint/4/lock`, { method: 'POST' });
-      const data = await r.json();
+      const data = await parseJsonSafe(r);
       if (!r.ok) throw new Error(data.error || 'Lock failed');
       setCreator(prev => prev ? ({
         ...prev,
@@ -6893,7 +6920,7 @@ function ValueStackPanel({ creator, setCreator, running, setRunning, error, setE
     setError(null);
     try {
       const r = await fetch(`/api/creators/${creator.id}/wizard/checkpoint/4/unlock`, { method: 'POST' });
-      const data = await r.json();
+      const data = await parseJsonSafe(r);
       if (!r.ok) throw new Error(data.error || 'Unlock failed');
       setCreator(prev => prev ? ({
         ...prev,
@@ -7168,7 +7195,7 @@ function SalesCopyPanel({ creator, setCreator, running, setRunning, error, setEr
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(instruction ? { instruction } : {}),
       });
-      const data = await r.json();
+      const data = await parseJsonSafe(r);
       if (!r.ok) {
         const detail = data.errors?.length ? '\n\n' + data.errors.join('\n') : '';
         throw new Error((data.error || 'Sales copy failed') + detail);
@@ -7202,7 +7229,7 @@ function SalesCopyPanel({ creator, setCreator, running, setRunning, error, setEr
     setError(null);
     try {
       const r = await fetch(`/api/creators/${creator.id}/wizard/checkpoint/5/lock`, { method: 'POST' });
-      const data = await r.json();
+      const data = await parseJsonSafe(r);
       if (!r.ok) throw new Error(data.error || 'Lock failed');
       setCreator(prev => prev ? ({
         ...prev,
@@ -7228,7 +7255,7 @@ function SalesCopyPanel({ creator, setCreator, running, setRunning, error, setEr
     setError(null);
     try {
       const r = await fetch(`/api/creators/${creator.id}/wizard/checkpoint/5/unlock`, { method: 'POST' });
-      const data = await r.json();
+      const data = await parseJsonSafe(r);
       if (!r.ok) throw new Error(data.error || 'Unlock failed');
       setCreator(prev => prev ? ({
         ...prev,

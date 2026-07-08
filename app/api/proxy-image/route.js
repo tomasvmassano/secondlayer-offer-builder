@@ -22,7 +22,10 @@ export async function GET(request) {
 
   try {
     const parsed = new URL(imageUrl);
-    const isAllowed = ALLOWED_DOMAINS.some(d => parsed.hostname.endsWith(d));
+    // Exact-or-subdomain match. Bare endsWith let attacker-registered
+    // domains through: "evil-instagram.com".endsWith("instagram.com") is
+    // true — an open-proxy hole on a public (middleware-excluded) route.
+    const isAllowed = ALLOWED_DOMAINS.some(d => parsed.hostname === d || parsed.hostname.endsWith('.' + d));
     if (!isAllowed) {
       return new NextResponse('Domain not allowed', { status: 403 });
     }
