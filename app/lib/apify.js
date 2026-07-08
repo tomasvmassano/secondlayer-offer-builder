@@ -47,14 +47,20 @@ function extractIgBioLinks(p) {
   return [];
 }
 
-async function runApifyActor(actorId, input) {
-  // Use sync API with 45-second timeout (fits within Vercel's 60s limit)
+async function runApifyActor(actorId, input, opts = {}) {
+  // Sync API with a bounded wait. Defaults (50s abort / 45s Apify run
+  // timeout) suit the full-scrape path; the LEAN IMPORT path passes a
+  // much tighter budget (32s/30s) because it must leave room for Vercel
+  // cold start + save inside the 60s Hobby cap — 50s here was the root
+  // cause of persistent import 504s whenever Apify had a slow moment.
+  const timeoutMs = opts.timeoutMs ?? 50000;
+  const apifyTimeoutSec = opts.apifyTimeoutSec ?? 45;
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 50000);
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
 
   try {
     const res = await fetch(
-      `https://api.apify.com/v2/acts/${actorId}/run-sync-get-dataset-items?token=${APIFY_TOKEN}&timeout=45`,
+      `https://api.apify.com/v2/acts/${actorId}/run-sync-get-dataset-items?token=${APIFY_TOKEN}&timeout=${apifyTimeoutSec}`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -67,6 +73,11 @@ async function runApifyActor(actorId, input) {
       throw new Error(`Apify error ${res.status}: ${err.slice(0, 200)}`);
     }
     return res.json();
+  } catch (e) {
+    if (e?.name === 'AbortError') {
+      throw new Error(`Apify timeout: ${actorId} não respondeu em ${Math.round(timeoutMs / 1000)}s`);
+    }
+    throw e;
   } finally {
     clearTimeout(timeout);
   }
@@ -164,11 +175,19 @@ export async function scrapeInstagram(username) {
 export async function scrapeInstagramBasic(username) {
   if (!APIFY_TOKEN) return null;
 
+  // Tight budget — this runs inside the bulk-import route which must fit
+  // Vercel's 60s cap including cold start + save. 32s abort / 30s Apify
+  // run timeout leaves ~25s of headroom. Details-only scrape of one
+  // profile normally lands in 10-20s; anything past 30s is Apify having
+  // a bad moment and the operator's auto-retry is the better play.
+  // NOTE: no .catch here — errors propagate so the caller can surface the
+  // REAL reason (quota exhausted, IG blocking, timeout) instead of a
+  // silent null that used to become a junk 'Unknown' creator.
   const items = await runApifyActor('apify~instagram-scraper', {
     directUrls: [`https://www.instagram.com/${username}/`],
     resultsType: 'details',
     resultsLimit: 1,
-  }).catch(() => null);
+  }, { timeoutMs: 32000, apifyTimeoutSec: 30 });
 
   if (!items || items.length === 0) return null;
   const p = items[0];
@@ -604,11 +623,23 @@ export async function scrapeLean(instagramUrl, tiktokUrl, youtubeUrl) {
   if (!hasApify()) return { error: 'APIFY_TOKEN not configured', source: 'none' };
 
   let igData = null;
+  let igError = null;
   if (instagramUrl) {
     const match = instagramUrl.match(/instagram\.com\/([^/?]+)/i);
     const username = match ? match[1].replace(/^@/, '') : '';
     if (username) {
-      igData = await scrapeInstagramBasic(username).catch(() => null);
+      // Capture the failure reason instead of swallowing it. "Apify error
+      // 402: usage limit exceeded" vs "Apify timeout" vs "profile not
+      // found" need very different operator responses — the route
+      // surfaces igError directly in the import row. igErrorKind lets the
+      // route pick the right status: 'not_found' is permanent (retrying
+      // wastes 30s), 'apify' is transient (retry usually succeeds).
+      try {
+        igData = await scrapeInstagramBasic(username);
+        if (!igData) igError = { kind: 'not_found', message: `Perfil @${username} não encontrado ou sem dados (privado/apagado?)` };
+      } catch (e) {
+        igError = { kind: 'apify', message: e?.message || 'Apify falhou sem detalhe' };
+      }
     }
   }
 
@@ -681,6 +712,7 @@ export async function scrapeLean(instagramUrl, tiktokUrl, youtubeUrl) {
     source: 'apify-lean',
     profile,
     igRaw: igData,
+    igError,
     tkRaw: null,
     ytRaw: null,
   };

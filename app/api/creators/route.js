@@ -96,6 +96,25 @@ export async function POST(request) {
     if (instagramUrl || tiktokUrl || youtubeUrl) {
       const multiResult = await scrapeLean(instagramUrl, tiktokUrl, youtubeUrl);
 
+      // FAIL FAST when the IG scrape came back empty. Previously this
+      // saved a junk 'Unknown' creator (igRaw null, name fallback) OR
+      // fell through to the ~40s Sonnet web-search fallback below —
+      // which, stacked on the ~30-50s already spent waiting on Apify,
+      // guaranteed a Vercel 504 with zero diagnostic. Now the route
+      // returns the REAL reason within budget so the operator can act:
+      //   - 502 for transient Apify failures (timeout, quota, 5xx) —
+      //     the import client auto-retries these
+      //   - 422 for permanent ones (profile private/deleted/typo) —
+      //     retrying would just waste another 30s
+      if (instagramUrl && multiResult.source === 'apify-lean' && !multiResult.igRaw) {
+        const kind = multiResult.igError?.kind || 'apify';
+        const message = multiResult.igError?.message || 'sem dados do Instagram';
+        return NextResponse.json({
+          error: `Scrape falhou: ${message}`,
+          _v: 'lean-v2',
+        }, { status: kind === 'not_found' ? 422 : 502 });
+      }
+
       if (multiResult.source === 'apify-lean' && multiResult.profile) {
         profile = multiResult.profile;
 
@@ -118,7 +137,17 @@ export async function POST(request) {
       }
     }
 
-    // Fallback: if Apify didn't work or only YouTube was provided, use Claude web search
+    // Fallback: Claude web-search research when Apify produced nothing.
+    // MANUAL single-adds only — the bulk import path (marked by
+    // minDealScore) must never reach this: Sonnet + web_search runs
+    // 30-60s on its own, and stacked on the Apify wait it blows the 60s
+    // cap. Bulk rows fail fast above and rely on the client auto-retry.
+    if (!profile && body.minDealScore != null) {
+      return NextResponse.json({
+        error: 'Scrape falhou e o fallback de pesquisa não corre em bulk import — tenta a linha de novo',
+        _v: 'lean-v2',
+      }, { status: 502 });
+    }
     if (!profile) {
       if (!apiKey) {
         return NextResponse.json({ error: 'Neither APIFY_TOKEN nor ANTHROPIC_API_KEY configured' }, { status: 500 });

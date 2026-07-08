@@ -334,13 +334,14 @@ export default function BulkImportPage() {
       try {
         let { r, data } = await attempt();
 
-        // Auto-retry on transient Vercel timeout. Apify Instagram scrape
-        // variance means some profiles (larger accounts, more posts, rate
-        // limiting) push the route past the 60s Hobby cap. Second attempt
-        // usually succeeds because the Vercel function is warm and Apify's
-        // slow moment has passed. If it STILL fails after retry, we
-        // surface the error normally.
-        const isTransient = !r.ok && (r.status === 504 || r.status === 500 || !data);
+        // Auto-retry on transient failures:
+        //   504/500 — Vercel killed the function (should be rare now that
+        //             the Apify budget is capped at 32s)
+        //   502     — our own fail-fast "Apify timeout/quota" response
+        //   !data   — non-JSON body (Vercel error page)
+        // 422 (profile private/deleted/typo) is deliberately NOT here —
+        // retrying a nonexistent profile just wastes another 30s.
+        const isTransient = !r.ok && (r.status === 504 || r.status === 502 || r.status === 500 || !data);
         if (isTransient) {
           setParsedRows(prev => {
             const next = [...prev];
