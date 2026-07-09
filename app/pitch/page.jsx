@@ -454,6 +454,16 @@ function PitchPageContent() {
   // dollar-amounts, etc. Lives at component scope so all JSX below can
   // reach it without prop-drilling.
   const pitchCurrencyCode = detectCurrency(creator);
+  // Service-deck branch. When the strategic frame chose the productized_service
+  // archetype AND a service_offer exists, the community 12-slide deck doesn't
+  // fit (no space / modules / weekly rhythm). Swap in the focused ServiceSlides
+  // set instead — the toolbar, viewport scaling, and PDF export are all shared
+  // and untouched. Null-safe: creator is null on first render.
+  const svcMeta = creator?.offer?.internal_metadata || {};
+  const svcOffer = svcMeta.service_offer || null;
+  const svcCopy = svcMeta.service_sales_copy || null;
+  const isServiceDeck =
+    svcMeta.strategic_frame?.primary_offer_archetype === 'productized_service' && !!svcOffer;
   const [loading, setLoading] = useState(true);
   const [showInvestimento, setShowInvestimento] = useState(false);
   const [exporting, setExporting] = useState(false);
@@ -1122,6 +1132,10 @@ function PitchPageContent() {
         .top-mark b { color: #f5f5f5; font-weight: 700; }
       `}</style>
 
+      {isServiceDeck ? (
+        <ServiceSlides creator={creator} svc={svcOffer} copy={svcCopy} L={pitchLang} />
+      ) : (
+      <>
       {/* SLIDE 1: COVER — logo + centered subtitle + cinematic orb */}
       <Slide num={1} total={12} hidePageMark decor={
         <>
@@ -2398,6 +2412,8 @@ function PitchPageContent() {
           </div>
         </div>
       </Slide>
+      </>
+      )}
     </div>
   );
 }
@@ -3374,6 +3390,164 @@ function buildDefaultSlides(creator) {
 // ─────────────────────────────────────────────────────────────────
 // SHARED
 // ─────────────────────────────────────────────────────────────────
+
+// ─────────────────────────────────────────────────────────────────
+// ServiceSlides — the pitch deck for a productized_service creator.
+// Rendered instead of the 12 community slides when the strategic frame's
+// archetype is productized_service AND a service_offer exists. Reuses the
+// <Slide> shell + the deck's CSS decor classes, so it looks identical to
+// the community deck and the shared PDF export captures it automatically.
+// Reads internal_metadata.service_offer (+ optional service_sales_copy).
+// L = the pitchLang 3-way label picker so section headers follow the
+// creator's language, like the community deck.
+// ─────────────────────────────────────────────────────────────────
+function ServiceSlides({ creator, svc, copy, L }) {
+  const CUR_SYM = { EUR: '€', USD: '$', GBP: '£', AED: 'AED ', CHF: 'CHF ', BRL: 'R$' };
+  const priceLabel = (p) => {
+    if (!p || typeof p.amount !== 'number') return '';
+    const sym = CUR_SYM[p.currency] || '';
+    const amt = p.amount >= 1000 ? p.amount.toLocaleString('pt-PT') : String(p.amount);
+    const suf = p.model === 'per_month' ? L('/mo', '/mês', '/mes') : p.model === 'per_unit' ? L('/unit', '/unidade', '/unidad') : '';
+    return `${sym}${amt}${suf}`;
+  };
+  const eyebrow = { fontFamily: "'JetBrains Mono', ui-monospace, monospace", fontSize: 15, letterSpacing: "0.28em", textTransform: "uppercase", color: "#B11E2F", marginBottom: 28 };
+  const steps = Array.isArray(svc.process_steps) ? svc.process_steps : [];
+  const packages = Array.isArray(svc.packages) ? svc.packages : [];
+  const objections = Array.isArray(copy?.objections) ? copy.objections.slice(0, 3) : [];
+  const total = 6;
+
+  return (
+    <>
+      {/* 1 · COVER */}
+      <Slide num={1} total={total} hidePageMark decor={
+        <>
+          <div className="cover-orb" />
+          <div className="aurora red" style={{ left: -200, top: -200, width: 700, height: 700 }} />
+          <div className="aurora deep" style={{ right: -150, bottom: -200, width: 700, height: 700 }} />
+        </>
+      }>
+        <div style={{ display: "flex", flexDirection: "column", justifyContent: "center", height: "100%", position: "relative", zIndex: 2 }}>
+          <div style={{ fontFamily: "'JetBrains Mono', ui-monospace, monospace", fontSize: 15, letterSpacing: "0.3em", textTransform: "uppercase", color: "#8A8A8A", marginBottom: 40 }}>
+            {creator?.name || 'Creator'} × Second<b style={{ color: "#f5f5f5" }}>Layer</b>
+          </div>
+          <h1 style={{ fontSize: 128, fontWeight: 800, margin: 0, lineHeight: 1.02, letterSpacing: "-0.03em", maxWidth: 1500, color: "#f5f5f5" }}>
+            {svc.service_name}
+          </h1>
+          {copy?.hero?.headline && (
+            <p style={{ fontSize: 34, color: "#bbb", marginTop: 40, maxWidth: 1300, lineHeight: 1.4, fontStyle: "italic", fontFamily: "'Instrument Serif', Georgia, serif" }}>
+              {copy.hero.headline}
+            </p>
+          )}
+        </div>
+      </Slide>
+
+      {/* 2 · PROMISE + DIFFERENTIATOR */}
+      <Slide num={2} total={total} decor={<div className="aurora red" style={{ right: -200, top: -150, width: 600, height: 600 }} />}>
+        <div style={{ display: "flex", flexDirection: "column", justifyContent: "center", height: "100%" }}>
+          <div style={eyebrow}>{L('The promise', 'A promessa', 'La promesa')}</div>
+          <h1 style={{ fontSize: 68, fontWeight: 800, margin: 0, lineHeight: 1.1, letterSpacing: "-0.02em", maxWidth: 1500, color: "#f5f5f5" }}>
+            {svc.central_promise}
+          </h1>
+          {copy?.differentiator && (
+            <p style={{ fontSize: 26, color: "#bbb", marginTop: 44, maxWidth: 1400, lineHeight: 1.6 }}>
+              {copy.differentiator}
+            </p>
+          )}
+        </div>
+      </Slide>
+
+      {/* 3 · WHAT YOU GET + PROCESS */}
+      <Slide num={3} total={total} decor={<div className="aurora deep" style={{ left: -180, bottom: -180, width: 640, height: 640 }} />}>
+        <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
+          <div style={eyebrow}>{L('What you get', 'O que recebes', 'Lo que recibes')}</div>
+          <h1 style={{ fontSize: 46, fontWeight: 800, margin: "0 0 12px", lineHeight: 1.2, letterSpacing: "-0.01em", maxWidth: 1500, color: "#f5f5f5" }}>
+            {svc.core_deliverable}
+          </h1>
+          <div style={{ display: "flex", gap: 40, marginBottom: 44, fontSize: 20, color: "#8A8A8A", fontFamily: "'JetBrains Mono', ui-monospace, monospace" }}>
+            {svc.turnaround && <span><span style={{ color: "#B11E2F" }}>▸</span> {svc.turnaround}</span>}
+            {svc.delivery_format && <span><span style={{ color: "#B11E2F" }}>▸</span> {svc.delivery_format === 'async' ? L('async', 'assíncrono', 'asíncrono') : svc.delivery_format === 'live' ? L('live', 'ao vivo', 'en vivo') : L('hybrid', 'híbrido', 'híbrido')}</span>}
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: `repeat(${Math.min(steps.length, 3)}, 1fr)`, gap: 24, marginTop: "auto", marginBottom: 20 }}>
+            {steps.map((s, i) => (
+              <div key={i} style={{ padding: "28px 30px", background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 16 }}>
+                <div style={{ fontFamily: "'JetBrains Mono', ui-monospace, monospace", fontSize: 22, color: "#B11E2F", fontWeight: 700, marginBottom: 14 }}>{String(i + 1).padStart(2, '0')}</div>
+                <div style={{ fontSize: 24, fontWeight: 700, color: "#f5f5f5", marginBottom: 10, lineHeight: 1.25 }}>{s.name}</div>
+                <div style={{ fontSize: 18, color: "#999", lineHeight: 1.5 }}>{s.detail}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </Slide>
+
+      {/* 4 · PACKAGES + PRICING */}
+      <Slide num={4} total={total} decor={<div className="aurora red" style={{ right: -160, bottom: -180, width: 620, height: 620 }} />}>
+        <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
+          <div style={eyebrow}>{L('Packages', 'Pacotes', 'Paquetes')}</div>
+          <div style={{ display: "grid", gridTemplateColumns: `repeat(${Math.min(packages.length, 3)}, 1fr)`, gap: 28, marginTop: "auto", marginBottom: "auto" }}>
+            {packages.map((p, i) => (
+              <div key={i} style={{ padding: "40px 36px", background: "rgba(255,255,255,0.02)", border: `1px solid ${i === 0 ? 'rgba(177,30,47,0.4)' : 'rgba(255,255,255,0.08)'}`, borderRadius: 20, display: "flex", flexDirection: "column" }}>
+                <div style={{ fontSize: 30, fontWeight: 800, color: "#f5f5f5", marginBottom: 8 }}>{p.name}</div>
+                <div style={{ fontSize: 52, fontWeight: 800, color: "#B11E2F", letterSpacing: "-0.02em", marginBottom: 6, fontFamily: "'JetBrains Mono', ui-monospace, monospace" }}>{priceLabel(p.price)}</div>
+                {p.best_for && <div style={{ fontSize: 18, color: "#888", fontStyle: "italic", marginBottom: 24, lineHeight: 1.4 }}>{p.best_for}</div>}
+                <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                  {(p.whats_included || []).map((w, j) => (
+                    <div key={j} style={{ display: "flex", gap: 12, fontSize: 19, color: "#ccc", lineHeight: 1.4 }}>
+                      <span style={{ color: "#B11E2F", flexShrink: 0 }}>✓</span><span>{w}</span>
+                    </div>
+                  ))}
+                </div>
+                {p.turnaround && <div style={{ marginTop: "auto", paddingTop: 24, fontSize: 16, color: "#666", fontFamily: "'JetBrains Mono', ui-monospace, monospace" }}>{p.turnaround}</div>}
+              </div>
+            ))}
+          </div>
+        </div>
+      </Slide>
+
+      {/* 5 · TRUST — objections + guarantee */}
+      <Slide num={5} total={total} decor={<div className="aurora deep" style={{ left: -180, top: -150, width: 600, height: 600 }} />}>
+        <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
+          <div style={eyebrow}>{L('Why trust this', 'Porque confiar', 'Por qué confiar')}</div>
+          {objections.length > 0 && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 28, marginBottom: 40 }}>
+              {objections.map((o, i) => (
+                <div key={i}>
+                  <div style={{ fontSize: 28, fontWeight: 700, color: "#ef8a94", marginBottom: 8, fontStyle: "italic", fontFamily: "'Instrument Serif', Georgia, serif" }}>"{o.objection}"</div>
+                  <div style={{ fontSize: 21, color: "#ccc", lineHeight: 1.5, maxWidth: 1400 }}>{o.rebuttal}</div>
+                </div>
+              ))}
+            </div>
+          )}
+          {copy?.guarantee && (
+            <div style={{ marginTop: objections.length ? 0 : "auto", padding: "32px 36px", background: "rgba(177,30,47,0.06)", border: "1px solid rgba(177,30,47,0.3)", borderRadius: 18, maxWidth: 1500 }}>
+              <div style={{ fontFamily: "'JetBrains Mono', ui-monospace, monospace", fontSize: 14, letterSpacing: "0.24em", textTransform: "uppercase", color: "#B11E2F", marginBottom: 14 }}>{L('Guarantee', 'Garantia', 'Garantía')}</div>
+              <div style={{ fontSize: 26, color: "#f5f5f5", lineHeight: 1.45, fontWeight: 500 }}>{copy.guarantee}</div>
+            </div>
+          )}
+        </div>
+      </Slide>
+
+      {/* 6 · CLOSE / CTA */}
+      <Slide num={6} total={total} hidePageMark decor={
+        <>
+          <div className="spotlight" />
+          <div className="aurora red" style={{ left: "50%", top: "50%", width: 1100, height: 1100, transform: "translate(-50%,-50%)", opacity: 0.35 }} />
+        </>
+      }>
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "100%", textAlign: "center", position: "relative", zIndex: 2 }}>
+          <h1 style={{ fontSize: 96, fontWeight: 800, margin: 0, lineHeight: 1.05, letterSpacing: "-0.03em", maxWidth: 1600, color: "#f5f5f5" }}>
+            {copy?.hero?.cta || svc.service_name}
+          </h1>
+          {copy?.hero?.sub && (
+            <p style={{ fontSize: 30, color: "#bbb", marginTop: 36, maxWidth: 1200, lineHeight: 1.4 }}>{copy.hero.sub}</p>
+          )}
+          <div style={{ marginTop: 56, fontFamily: "'JetBrains Mono', ui-monospace, monospace", fontSize: 14, letterSpacing: "0.32em", textTransform: "uppercase", color: "#8A8A8A" }}>
+            SecondLayer · Lisboa · 2026
+          </div>
+        </div>
+      </Slide>
+    </>
+  );
+}
 
 function Slide({ children, decor, num, total = 12, hidePageMark }) {
   // Each slide is a fixed 1920×1080 stage. The wrapper scales it to fit viewport
