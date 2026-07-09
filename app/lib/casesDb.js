@@ -583,13 +583,20 @@ export function pickCases(creator, lang = 'pt') {
     // Niche-keyword routing — specific niches before generic archetypes
     // so a "real-estate woman investor" gets finance_investing not
     // coach_transformation.
-    if (/(real.?estate|property|dubai|invest(ing|or|ments)|crypto|stocks?|trading|wealth|finance|money)/.test(nicheRaw)) bucket = CASES.finance_investing;
-    else if (/(fitness|workout|exercise|gym|training|bodybuild|yoga|pilates|crossfit|strength)/.test(nicheRaw)) bucket = CASES.fitness_wellness;
-    else if (/(food|chef|recipe|cook|cuisine|kitchen|bake|nutrition|meal|diet)/.test(nicheRaw)) bucket = CASES.food_chef;
-    else if (/(beauty|skincare|skin.?care|makeup|cosmetic|haircare|aesthetic)/.test(nicheRaw)) bucket = CASES.beauty_skincare;
-    else if (/(ai|automation|tech|saas|builder|operator|indie)/.test(nicheRaw)) bucket = CASES.builder_operator;
-    else if (/(coach|transform|health|wellness|habits|mindset|therapy|mental)/.test(nicheRaw)) bucket = CASES.coach_transformation;
-    else if (/(product|education|teach|knowledge|learn|expert|course)/.test(nicheRaw)) bucket = CASES.expert_educator;
+    //
+    // Patterns include PT-PT/PT-BR terms (2026-07-09) — the CRM stores
+    // niches in Portuguese ("Imobiliário", "Nutrição", "Culinária") but
+    // the matcher was English-only, so every PT creator fell through to
+    // the generic `default` bucket and shipped mismatched pitch-deck
+    // cases. Accent-insensitive via the [aã] style classes since niche
+    // strings arrive both accented and stripped.
+    if (/(real.?estate|property|dubai|invest(ing|or|ments)|crypto|stocks?|trading|wealth|finance|money|imobili[aá]ri|propriedade|investiment|investidor|finan[cç]|dinheiro|riqueza|bolsa|a[cç][oõ]es|cripto)/.test(nicheRaw)) bucket = CASES.finance_investing;
+    else if (/(fitness|workout|exercise|gym|training|bodybuild|yoga|pilates|crossfit|strength|gin[aá]sio|trein|muscula[cç][aã]o|exerc[ií]cio|for[cç]a|emagrec)/.test(nicheRaw)) bucket = CASES.fitness_wellness;
+    else if (/(food|chef|recipe|cook|cuisine|kitchen|bake|nutrition|meal|diet|culin[aá]ri|cozinh|receita|gastronom|nutri[cç][aã]o|comida|padari|confeitar|dieta|aliment)/.test(nicheRaw)) bucket = CASES.food_chef;
+    else if (/(beauty|skincare|skin.?care|makeup|cosmetic|haircare|aesthetic|beleza|maquilhag|maquiag|cosm[eé]tic|pele|cabelo|est[eé]tic)/.test(nicheRaw)) bucket = CASES.beauty_skincare;
+    else if (/(ai|automation|tech|saas|builder|operator|indie|tecnolog|automa[cç][aã]o|program|software|desenvolvedor|desenvolvimento (de )?(software|web|app))/.test(nicheRaw)) bucket = CASES.builder_operator;
+    else if (/(coach|transform|health|wellness|habits|mindset|therapy|mental|sa[uú]de|bem.?estar|h[aá]bitos|terapia|mentalidade|desenvolvimento pessoal|autoajuda)/.test(nicheRaw)) bucket = CASES.coach_transformation;
+    else if (/(product|education|teach|knowledge|learn|expert|course|educa[cç][aã]o|ensin|aprend|conhecimento|curso|forma[cç][aã]o|professor)/.test(nicheRaw)) bucket = CASES.expert_educator;
   }
   if (!bucket) bucket = CASES.default;
 
