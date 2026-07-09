@@ -143,7 +143,7 @@ const MessageCard = ({ label, type, content, accent, children }) => {
             </span>
           )}
         </div>
-        <button onClick={() => navigator.clipboard.writeText(content)} style={{ padding: "4px 10px", borderRadius: 4, border: "1px solid rgba(255,255,255,0.06)", background: "transparent", color: "#666", fontSize: 9, cursor: "pointer", fontFamily: "inherit" }}>Copy</button>
+        <button onClick={() => navigator.clipboard.writeText(content)} style={{ padding: "4px 10px", borderRadius: 4, border: "1px solid rgba(255,255,255,0.06)", background: "transparent", color: "#666", fontSize: 9, cursor: "pointer", fontFamily: "inherit" }}>Copiar</button>
       </div>
       <div style={{ fontSize: 13, color: "#ccc", lineHeight: 1.7, whiteSpace: "pre-wrap" }}>{content}</div>
       {over && (
@@ -1925,7 +1925,7 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
                 {ytData.videoCount > 0 && <div style={metricCardStyle}><div style={metricLabelStyle}>Vídeos</div><div style={metricValueStyle}>{formatFollowers(ytData.videoCount)}</div></div>}
                 {ytData.totalViews > 0 && <div style={metricCardStyle}><div style={metricLabelStyle}>Total Views</div><div style={metricValueStyle}>{formatFollowers(ytData.totalViews)}</div></div>}
                 {ytData.avgViews > 0 && <div style={metricCardStyle}><div style={metricLabelStyle}>Média Views</div><div style={metricValueStyle}>{formatFollowers(ytData.avgViews)}</div></div>}
-                {ytData.viewEngagement && ytData.viewEngagement !== '' && <div style={{ ...metricCardStyle, background: "#1a1410" }} data-tip={"Avg Views / Subscribers × 100\nMeasures what % of subscribers watch each video\n>100% = content reaches beyond subscribers"}><div style={{ ...metricLabelStyle, cursor: "help" }}>View Rate</div><div style={metricValueStyle}>{ytData.viewEngagement}</div></div>}
+                {ytData.viewEngagement && ytData.viewEngagement !== '' && <div style={{ ...metricCardStyle, background: "#1a1410" }} data-tip={"Avg Views / Subscribers × 100\nMeasures what % of subscribers watch each video\n>100% = content reaches beyond subscribers"}><div style={{ ...metricLabelStyle, cursor: "help" }}>Taxa de visualização</div><div style={metricValueStyle}>{ytData.viewEngagement}</div></div>}
                 {ytData.joinedDate && <div style={metricCardStyle}><div style={metricLabelStyle}>Desde</div><div style={{ ...metricValueStyle, fontSize: 12 }}>{ytData.joinedDate}</div></div>}
               </div>
               {(ytData.recentVideos || []).length > 0 && (
@@ -2188,7 +2188,7 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
           {!creator.dmSequence && !dmLoading && (
             !creator?.offer?.internal_metadata?.ecosystem_audit ? (
               <div style={{ padding: "48px 24px", textAlign: "center", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 8, marginBottom: 24 }}>
-                <p style={{ color: "#aaa", fontSize: 13, marginBottom: 8 }}>O Ecosystem Audit é necessário para gerar a DM.</p>
+                <p style={{ color: "#aaa", fontSize: 13, marginBottom: 8 }}>A auditoria de ecossistema é necessária para gerar a DM.</p>
                 <p style={{ color: "#666", fontSize: 11, marginBottom: 20 }}>Os dados do audit garantem que a mensagem é específica ao criador e com o ângulo certo.</p>
                 <button onClick={() => setTab("audit")} style={{ padding: "10px 24px", borderRadius: 6, border: "none", background: "#7A0E18", color: "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>Correr Audit →</button>
               </div>
@@ -3626,9 +3626,9 @@ function EcosystemAuditPanel({ creator, setCreator, running, error, diag, onRun 
     physical_product: { bg: 'rgba(245,245,245,0.04)', border: 'rgba(245,245,245,0.12)', color: '#ccc' },
   };
   const ROLE_LABELS = {
-    entry_point:    'Entry point · warm-up funnel into existing high-ticket',
-    continuity:    'Continuity · keeps mid-ticket buyers paying monthly',
-    premium_upsell: 'Premium upsell · top of low-ticket catalog',
+    entry_point:    'Porta de entrada · funil de aquecimento para o high-ticket existente',
+    continuity:    'Continuidade · mantém compradores mid-ticket a pagar mensalmente',
+    premium_upsell: 'Upsell premium · topo do catálogo low-ticket',
     standalone:    'Standalone · first real offer in the funnel',
   };
   const TIER_OPTIONS = ['lead_magnet', 'low_ticket', 'mid_ticket', 'high_ticket', 'recurring', 'service', 'physical_product'];
@@ -3720,9 +3720,9 @@ function EcosystemAuditPanel({ creator, setCreator, running, error, diag, onRun 
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
         <div>
           <div style={{ fontSize: 9, fontWeight: 700, color: "#7A0E18", letterSpacing: "0.16em", textTransform: "uppercase", marginBottom: 4 }}>● Phase 1 · Internal</div>
-          <h3 style={{ fontSize: 14, fontWeight: 600, margin: 0, color: "#f5f5f5" }}>Ecosystem Audit</h3>
+          <h3 style={{ fontSize: 14, fontWeight: 600, margin: 0, color: "#f5f5f5" }}>Auditoria de ecossistema</h3>
           <p style={{ fontSize: 11, color: "#555", margin: "4px 0 0" }}>
-            Maps existing products + decides the strategic role of the community in the funnel. Operator-only — never shown to the creator.
+            Mapeia produtos existentes + decide o papel estratégico da comunidade no funil. Só operadora — nunca mostrado à criadora.
           </p>
         </div>
         <div style={{ display: "flex", gap: 8 }}>
@@ -3744,7 +3744,7 @@ function EcosystemAuditPanel({ creator, setCreator, running, error, diag, onRun 
                 whiteSpace: "nowrap",
               }}
             >
-              {saving ? "A guardar..." : "● Save changes"}
+              {saving ? "A guardar..." : "● Guardar alterações"}
             </button>
           )}
           <button
@@ -4627,9 +4627,9 @@ function WizardStepper({ creator }) {
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
         <div>
           <div style={{ fontSize: 9, fontWeight: 700, color: "#7A0E18", letterSpacing: "0.16em", textTransform: "uppercase", marginBottom: 4 }}>● Phase 4 · Wizard</div>
-          <h3 style={{ fontSize: 14, fontWeight: 600, margin: 0, color: "#f5f5f5" }}>Offer Generation · 5 Checkpoints</h3>
+          <h3 style={{ fontSize: 14, fontWeight: 600, margin: 0, color: "#f5f5f5" }}>Geração de oferta · 5 Checkpoints</h3>
           <p style={{ fontSize: 11, color: "#555", margin: "4px 0 0" }}>
-            Stitches Phase 1+2+3 internal signals into the offer the creator sees. Each checkpoint locks before advancing.
+            Junta os sinais internos das Fases 1+2+3 na oferta que a criadora vê. Cada checkpoint é aprovado antes de avançar.
           </p>
         </div>
         {/* Pre-flight readiness chips */}
@@ -4642,7 +4642,7 @@ function WizardStepper({ creator }) {
 
       {!allReady && (
         <div style={{ padding: "8px 12px", borderRadius: 6, background: "rgba(234,179,8,0.05)", border: "1px solid rgba(234,179,8,0.18)", color: "#eab308", fontSize: 10.5, marginBottom: 14 }}>
-          ⚠ Run Phase 1 + 2 + 3 first for full-quality wizard output. CP1 will still run but with weaker grounding.
+          ⚠ Corre as Fases 1 + 2 + 3 primeiro para output de qualidade máxima. O CP1 corre na mesma mas com base mais fraca.
         </div>
       )}
 

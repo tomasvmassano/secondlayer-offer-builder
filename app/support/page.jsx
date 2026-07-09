@@ -10,17 +10,17 @@ const AREAS = [
 ];
 
 const PRIORITY_STYLES = {
-  low: { bg: "rgba(255,255,255,0.03)", border: "rgba(255,255,255,0.06)", color: "#666", label: "Low" },
-  medium: { bg: "rgba(234,179,8,0.08)", border: "rgba(234,179,8,0.2)", color: "#eab308", label: "Medium" },
-  high: { bg: "rgba(239,68,68,0.08)", border: "rgba(239,68,68,0.2)", color: "#ef4444", label: "High" },
+  low: { bg: "rgba(255,255,255,0.03)", border: "rgba(255,255,255,0.06)", color: "#666", label: "Baixa" },
+  medium: { bg: "rgba(234,179,8,0.08)", border: "rgba(234,179,8,0.2)", color: "#eab308", label: "Média" },
+  high: { bg: "rgba(239,68,68,0.08)", border: "rgba(239,68,68,0.2)", color: "#ef4444", label: "Alta" },
 };
 
 const STATUS_STYLES = {
-  new: { bg: "rgba(59,130,246,0.1)", border: "rgba(59,130,246,0.25)", color: "#3b82f6", label: "New" },
-  reviewing: { bg: "rgba(234,179,8,0.1)", border: "rgba(234,179,8,0.25)", color: "#eab308", label: "Reviewing" },
-  building: { bg: "rgba(122,14,24,0.1)", border: "rgba(122,14,24,0.25)", color: "#7A0E18", label: "Building" },
-  done: { bg: "rgba(34,197,94,0.1)", border: "rgba(34,197,94,0.25)", color: "#22c55e", label: "Done" },
-  wont_do: { bg: "rgba(255,255,255,0.03)", border: "rgba(255,255,255,0.06)", color: "#555", label: "Won't Do" },
+  new: { bg: "rgba(59,130,246,0.1)", border: "rgba(59,130,246,0.25)", color: "#3b82f6", label: "Novo" },
+  reviewing: { bg: "rgba(234,179,8,0.1)", border: "rgba(234,179,8,0.25)", color: "#eab308", label: "Em revisão" },
+  building: { bg: "rgba(122,14,24,0.1)", border: "rgba(122,14,24,0.25)", color: "#7A0E18", label: "A construir" },
+  done: { bg: "rgba(34,197,94,0.1)", border: "rgba(34,197,94,0.25)", color: "#22c55e", label: "Feito" },
+  wont_do: { bg: "rgba(255,255,255,0.03)", border: "rgba(255,255,255,0.06)", color: "#555", label: "Não vai ser feito" },
 };
 
 const STATUS_ORDER = ["new", "reviewing", "building", "done", "wont_do"];
@@ -203,7 +203,7 @@ export default function SupportPage() {
         <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
           <a href="/" style={{ display: "flex", alignItems: "center", textDecoration: "none" }}><img src={LOGO_B64} alt="SL" style={{ height: 16, opacity: 0.85 }} /></a>
           <span style={{ color: "#333", fontSize: 14 }}>|</span>
-          <span style={{ fontSize: 10, fontWeight: 600, letterSpacing: "0.12em", textTransform: "uppercase", color: "#888" }}>Feedback & Support</span>
+          <span style={{ fontSize: 10, fontWeight: 600, letterSpacing: "0.12em", textTransform: "uppercase", color: "#888" }}>Feedback & Suporte</span>
         </div>
         <a href="/" style={{ fontSize: 12, color: "#555", textDecoration: "none" }}>Voltar</a>
       </div>
@@ -222,7 +222,7 @@ export default function SupportPage() {
             <div style={{ display: "flex", gap: 8, marginBottom: 20 }}>
               {[
                 { key: "suggestion", label: "Sugestão" },
-                { key: "bug", label: "Bug Report" },
+                { key: "bug", label: "Reportar bug" },
               ].map(t => (
                 <button key={t.key} onClick={() => setForm(f => ({ ...f, type: t.key }))}
                   style={{ flex: 1, padding: "14px 16px", borderRadius: 8, border: `1px solid ${form.type === t.key ? "rgba(122,14,24,0.3)" : "rgba(255,255,255,0.06)"}`, background: form.type === t.key ? "rgba(122,14,24,0.08)" : "#141414", color: form.type === t.key ? "#f5f5f5" : "#888", fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", textAlign: "left" }}>
@@ -466,7 +466,7 @@ export default function SupportPage() {
         {view === "list" && (
           <div>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>
-              <h1 style={{ fontSize: 20, fontWeight: 700, margin: 0 }}>Feedback & Support</h1>
+              <h1 style={{ fontSize: 20, fontWeight: 700, margin: 0 }}>Feedback & Suporte</h1>
               <button onClick={() => setView("new")}
                 style={{ padding: "10px 20px", borderRadius: 8, border: "none", background: "#7A0E18", color: "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>
                 + Novo Ticket

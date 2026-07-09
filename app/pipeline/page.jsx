@@ -9,9 +9,9 @@ const ALL_LAUNCH_ASSETS = [
   { key: "salesPageCopy", label: "Sales Page" },
   { key: "emailSequence", label: "Emails" },
   { key: "leadMagnet", label: "Lead Magnet" },
-  { key: "adCreative", label: "Ads" },
-  { key: "socialContent", label: "Content" },
-  { key: "communityActivation", label: "Community" },
+  { key: "adCreative", label: "Anúncios" },
+  { key: "socialContent", label: "Conteúdo" },
+  { key: "communityActivation", label: "Comunidade" },
   { key: "onboardingFlow", label: "Onboarding" },
   { key: "churnPrevention", label: "Churn" },
 ];
@@ -77,7 +77,7 @@ export default function PipelinePage() {
           <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10, marginBottom: 32 }}>
             <div style={{ padding: "14px 16px", background: "#141414", border: "1px solid rgba(255,255,255,0.04)", borderRadius: 10, textAlign: "center" }}>
               <div style={{ fontSize: 24, fontWeight: 700, color: "#f5f5f5" }}>{creators.length}</div>
-              <div style={{ fontSize: 9, color: "#555", textTransform: "uppercase", letterSpacing: "0.06em", marginTop: 2 }}>Signed</div>
+              <div style={{ fontSize: 9, color: "#555", textTransform: "uppercase", letterSpacing: "0.06em", marginTop: 2 }}>Assinado</div>
             </div>
             <div style={{ padding: "14px 16px", background: "#141414", border: "1px solid rgba(255,255,255,0.04)", borderRadius: 10, textAlign: "center" }}>
               <div style={{ fontSize: 24, fontWeight: 700, color: "#f5f5f5" }}>{formatFollowers(totalFollowers)}</div>
@@ -132,14 +132,14 @@ export default function PipelinePage() {
                       </div>
                       <div style={{ display: "flex", gap: 12, marginTop: 2, alignItems: "center" }}>
                         {followers > 0 && <span style={{ fontSize: 11, color: "#888" }}>{formatFollowers(followers)} followers</span>}
-                        {signedDate && <span style={{ fontSize: 11, color: "#444" }}>Signed {signedDate}</span>}
+                        {signedDate && <span style={{ fontSize: 11, color: "#444" }}>Assinado {signedDate}</span>}
                         {(() => {
                           const ks = c.onboarding?.status;
-                          if (!ks || ks === 'not_started') return <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", padding: "2px 7px", borderRadius: 4, background: "rgba(234,179,8,0.1)", color: "#eab308", border: "1px solid rgba(234,179,8,0.2)" }}>Form pending</span>;
-                          if (ks === 'form_pending') return <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", padding: "2px 7px", borderRadius: 4, background: "rgba(234,179,8,0.1)", color: "#eab308", border: "1px solid rgba(234,179,8,0.2)" }}>Form in progress</span>;
-                          if (ks === 'form_complete') return <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", padding: "2px 7px", borderRadius: 4, background: "rgba(34,197,94,0.1)", color: "#22c55e", border: "1px solid rgba(34,197,94,0.2)" }}>Form complete</span>;
-                          if (ks === 'call_scheduled') return <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", padding: "2px 7px", borderRadius: 4, background: "rgba(59,130,246,0.1)", color: "#3b82f6", border: "1px solid rgba(59,130,246,0.2)" }}>Call scheduled</span>;
-                          if (ks === 'brief_signed') return <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", padding: "2px 7px", borderRadius: 4, background: "rgba(168,85,247,0.1)", color: "#a855f7", border: "1px solid rgba(168,85,247,0.2)" }}>Brief signed</span>;
+                          if (!ks || ks === 'not_started') return <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", padding: "2px 7px", borderRadius: 4, background: "rgba(234,179,8,0.1)", color: "#eab308", border: "1px solid rgba(234,179,8,0.2)" }}>Formulário pendente</span>;
+                          if (ks === 'form_pending') return <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", padding: "2px 7px", borderRadius: 4, background: "rgba(234,179,8,0.1)", color: "#eab308", border: "1px solid rgba(234,179,8,0.2)" }}>Formulário em curso</span>;
+                          if (ks === 'form_complete') return <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", padding: "2px 7px", borderRadius: 4, background: "rgba(34,197,94,0.1)", color: "#22c55e", border: "1px solid rgba(34,197,94,0.2)" }}>Formulário completo</span>;
+                          if (ks === 'call_scheduled') return <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", padding: "2px 7px", borderRadius: 4, background: "rgba(59,130,246,0.1)", color: "#3b82f6", border: "1px solid rgba(59,130,246,0.2)" }}>Call agendada</span>;
+                          if (ks === 'brief_signed') return <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", padding: "2px 7px", borderRadius: 4, background: "rgba(168,85,247,0.1)", color: "#a855f7", border: "1px solid rgba(168,85,247,0.2)" }}>Brief assinado</span>;
                           return null;
                         })()}
                       </div>

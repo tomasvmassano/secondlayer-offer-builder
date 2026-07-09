@@ -34,7 +34,7 @@ export default function Hub() {
             Second <span style={{ color: "#7A0E18", fontWeight: 700 }}>Layer</span>
           </h1>
           <p style={{ fontSize: 14, color: "#555", margin: 0 }}>
-            Creator operations hub
+            Central de operações de criadoras
           </p>
         </div>
 
@@ -118,7 +118,7 @@ export default function Hub() {
           >
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
               <span style={{ fontSize: 11, color: "#555" }}>+</span>
-              <span style={{ fontSize: 12, fontWeight: 600, color: "#888" }}>Feedback & Support</span>
+              <span style={{ fontSize: 12, fontWeight: 600, color: "#888" }}>Feedback & Suporte</span>
             </div>
             <span style={{ fontSize: 10, color: "#333" }}>&rarr;</span>
           </a>

@@ -150,7 +150,7 @@ export default function WorkspaceDashboard({ creator, params, patchCreator, savi
             </div>
           </div>
           <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
-            <span style={{ fontSize: 8, fontWeight: 700, padding: "2px 6px", borderRadius: 3, background: "rgba(34,197,94,0.1)", color: "#22c55e", border: "1px solid rgba(34,197,94,0.2)", textTransform: "uppercase", letterSpacing: "0.04em" }}>Signed</span>
+            <span style={{ fontSize: 8, fontWeight: 700, padding: "2px 6px", borderRadius: 3, background: "rgba(34,197,94,0.1)", color: "#22c55e", border: "1px solid rgba(34,197,94,0.2)", textTransform: "uppercase", letterSpacing: "0.04em" }}>Assinado</span>
             {dealScore && <span style={{ fontSize: 8, fontWeight: 700, padding: "2px 6px", borderRadius: 3, background: dealScore.colors.bg, color: dealScore.colors.color, border: `1px solid ${dealScore.colors.border}` }}>Score {dealScore.grade}</span>}
             <span style={{ fontSize: 8, padding: "2px 6px", borderRadius: 3, background: "rgba(255,255,255,0.03)", color: "#666" }}>{formatFollowers(followers)}</span>
           </div>
@@ -178,7 +178,7 @@ export default function WorkspaceDashboard({ creator, params, patchCreator, savi
 
           {/* CRM tools — pre-signing assets stay reachable after signing */}
           <div style={{ marginTop: 18, paddingTop: 14, borderTop: "1px solid rgba(255,255,255,0.04)" }}>
-            <div style={{ fontSize: 9, fontWeight: 700, color: "#444", letterSpacing: "0.14em", textTransform: "uppercase", padding: "0 12px 8px" }}>CRM Tools</div>
+            <div style={{ fontSize: 9, fontWeight: 700, color: "#444", letterSpacing: "0.14em", textTransform: "uppercase", padding: "0 12px 8px" }}>Ferramentas CRM</div>
             {[
               { key: "perfil", label: "Perfil", icon: "◐", desc: "Audience, deal score, intelligence" },
               { key: "dm",     label: "DM Writer", icon: "✉", desc: "Sequência de DMs e emails", filled: !!creator?.dmSequence },
@@ -306,7 +306,7 @@ export default function WorkspaceDashboard({ creator, params, patchCreator, savi
               {/* Asset status grid */}
               <div style={{ padding: "20px 22px", background: "#141414", border: "1px solid rgba(255,255,255,0.04)", borderRadius: 12 }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
-                  <h3 style={{ fontSize: 13, fontWeight: 700, margin: 0, color: "#f5f5f5" }}>Launch Assets</h3>
+                  <h3 style={{ fontSize: 13, fontWeight: 700, margin: 0, color: "#f5f5f5" }}>Assets de lançamento</h3>
                   <button onClick={() => setWsTab("build")} style={{ fontSize: 10, color: "#7A0E18", background: "none", border: "none", cursor: "pointer", fontFamily: "inherit", fontWeight: 600 }}>Ver todos &rarr;</button>
                 </div>
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8 }}>

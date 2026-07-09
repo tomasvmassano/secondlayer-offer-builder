@@ -79,7 +79,7 @@ function SignInPageImpl() {
           <div style={{ fontSize: 22, letterSpacing: "0.02em" }}>
             <span style={{ fontFamily: "'Instrument Serif', serif", fontStyle: "italic", color: "#B11E2F" }}>Second</span><span style={{ fontWeight: 700, letterSpacing: "-0.01em" }}>Layer</span>
           </div>
-          <div style={{ fontSize: 11, letterSpacing: "0.22em", textTransform: "uppercase", color: "#666", marginTop: 6, fontFamily: "'JetBrains Mono', ui-monospace, monospace" }}>Hub · Sign in</div>
+          <div style={{ fontSize: 11, letterSpacing: "0.22em", textTransform: "uppercase", color: "#666", marginTop: 6, fontFamily: "'JetBrains Mono', ui-monospace, monospace" }}>Hub · Entrar</div>
         </div>
 
         {stage === 'email' && (
