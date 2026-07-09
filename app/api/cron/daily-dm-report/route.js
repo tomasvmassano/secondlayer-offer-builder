@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getDailyScoreboard } from '../../../lib/teamStats';
+import { getObsSnapshot } from '../../../lib/obs';
 
 // ─────────────────────────────────────────────────────────────────
 // End-of-day report — per-operator email with the day's outreach
@@ -310,11 +311,57 @@ export async function GET(request) {
       }
     }
 
-    return NextResponse.json({ ok: true, target, perOperator, scoreboard });
+    // Ops summary — ONE email to the triage inbox with yesterday's LLM
+    // spend + error count. Global data, so it doesn't repeat per operator.
+    // Best-effort: never let an obs failure break the scoreboard emails.
+    let obsSummary = null;
+    try {
+      const snap = await getObsSnapshot({ recentErrors: 10 });
+      if (snap?.available) {
+        const { subject, html } = buildOpsSummaryEmail(snap);
+        await sendEmail('tomas@informallabs.com', subject, '', html).catch(() => {});
+        obsSummary = { costYesterday: snap.costYesterday, errorsToday: snap.errorsToday };
+      }
+    } catch { /* best-effort */ }
+
+    return NextResponse.json({ ok: true, target, perOperator, scoreboard, obsSummary });
   } catch (err) {
     console.error('[daily-dm-report] error:', err.message);
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
+}
+
+// Global ops summary — LLM spend + errors. Reads yesterday's total since
+// the cron reports on the previous day (costYesterday in the snapshot).
+function buildOpsSummaryEmail(snap) {
+  const routes = Object.entries(snap.perRoute || {})
+    .sort((a, b) => (b[1].cost || 0) - (a[1].cost || 0));
+  const routeRows = routes.length
+    ? routes.map(([r, v]) => `<tr><td style="padding:4px 10px;color:#ccc;font-size:12px;">${escape(r)}</td><td style="padding:4px 10px;color:#888;font-size:12px;text-align:right;font-family:monospace;">$${v.cost.toFixed(3)}</td><td style="padding:4px 10px;color:#666;font-size:12px;text-align:right;font-family:monospace;">${v.calls}×</td></tr>`).join('')
+    : `<tr><td colspan="3" style="padding:8px 10px;color:#555;font-size:12px;">Sem chamadas registadas hoje.</td></tr>`;
+  const errRows = (snap.recentErrors || []).length
+    ? snap.recentErrors.slice(0, 10).map(e => `<div style="font-size:11px;color:#f5b5bb;padding:3px 0;font-family:monospace;">${escape(e.route || '?')} · ${escape((e.message || '').slice(0, 120))}</div>`).join('')
+    : `<div style="font-size:12px;color:#22c55e;">Sem erros nas últimas 24h ✓</div>`;
+  const errColor = snap.errorsToday > 0 ? '#ef4444' : '#22c55e';
+  const html = `<div style="font-family:-apple-system,BlinkMacSystemFont,'Inter',sans-serif;color:#f5f5f5;background:#0a0a0a;padding:32px 28px;max-width:640px;">
+    <div style="font-size:9px;color:#B11E2F;font-weight:700;letter-spacing:0.18em;text-transform:uppercase;">● Ops · Custo & Erros</div>
+    <h1 style="font-size:20px;font-weight:700;margin:8px 0 20px;">Resumo de operações</h1>
+    <div style="display:flex;gap:12px;margin-bottom:20px;">
+      <div style="flex:1;padding:16px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:10px;">
+        <div style="font-size:10px;color:#888;letter-spacing:0.14em;text-transform:uppercase;margin-bottom:6px;">Custo LLM ontem</div>
+        <div style="font-size:22px;font-weight:700;font-family:monospace;">$${(snap.costYesterday || 0).toFixed(2)}</div>
+      </div>
+      <div style="flex:1;padding:16px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:10px;">
+        <div style="font-size:10px;color:#888;letter-spacing:0.14em;text-transform:uppercase;margin-bottom:6px;">Erros (24h)</div>
+        <div style="font-size:22px;font-weight:700;color:${errColor};font-family:monospace;">${snap.errorsToday || 0}</div>
+      </div>
+    </div>
+    <div style="font-size:10px;color:#888;letter-spacing:0.14em;text-transform:uppercase;margin:0 0 8px;">Custo por rota (hoje)</div>
+    <table style="width:100%;border-collapse:collapse;margin-bottom:22px;">${routeRows}</table>
+    <div style="font-size:10px;color:#888;letter-spacing:0.14em;text-transform:uppercase;margin:0 0 8px;">Erros recentes</div>
+    ${errRows}
+  </div>`;
+  return { subject: `[Second Layer] Ops · $${(snap.costYesterday || 0).toFixed(2)} LLM · ${snap.errorsToday || 0} erros`, html };
 }
 
 function escape(s) {

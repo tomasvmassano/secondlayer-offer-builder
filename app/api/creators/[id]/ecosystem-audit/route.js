@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { repairJsonWithHaiku } from '../../../../lib/jsonRepair';
+import { recordLlmUsage, logError } from '../../../../lib/obs';
 import { getCreator, updateCreator } from '../../../../lib/creators';
 import { scrapeBioLinks } from '../../../../lib/apify';
 import { scrapeKnownAggregators } from '../../../../lib/aggregatorScrapers';
@@ -229,6 +230,7 @@ export async function POST(request, { params }) {
       _diagnostics: diagnostics,
     });
   } catch (err) {
+    logError('ecosystem-audit', err).catch(() => {});
     return NextResponse.json({ error: err.message || 'Audit failed' }, { status: 500 });
   }
 }
@@ -587,6 +589,8 @@ Return ONLY the JSON object matching the schema in your system prompt. Start you
   if (!resp.ok) {
     return { error: data.error?.message || `Anthropic ${resp.status}`, errors: [], raw: null, retries: retryCount };
   }
+  // Meter spend (best-effort, non-blocking) — this is the priciest route.
+  recordLlmUsage({ route: 'ecosystem-audit', model: 'claude-sonnet-4-5-20250929', usage: data.usage }).catch(() => {});
 
   // Concat all text blocks (web_search produces tool_use + tool_result + final text)
   const rawText = (data.content || []).filter(b => b.type === 'text').map(b => b.text).join('\n');

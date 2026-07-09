@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { loadSkills, formatReferences } from '../../lib/skills';
 import { appendSignature } from '../../lib/operatorSignature';
 import { safeParse, sanitizeUnpairedSurrogates, safeStringify } from '../../lib/safeJson';
+import { recordLlmUsage, logError } from '../../lib/obs';
 
 // Heaviest LLM route in the app (Sonnet 4K output + optional compression
 // pass). Explicit cap so the budget is honest — platform default varies.
@@ -1135,6 +1136,8 @@ ${stageInstruction} Follow the output format exactly. ZERO em dashes.${notesRemi
       return NextResponse.json({ error: data.error?.message || 'Generation failed' }, { status: 500 });
     }
 
+    if (data?.usage) recordLlmUsage({ route: 'dm-writer', model: 'claude-sonnet-4-5-20250929', usage: data.usage }).catch(() => {});
+
     const rawText = (data.content || []).filter(b => b.type === 'text').map(b => b.text).join('\n');
 
     // Strip em/en dashes (safety net). The model gets fed senderName via the
@@ -1269,6 +1272,7 @@ Rules:
     // JSON.parse still rejects it — extremely unlikely now that
     // safeParse + safeStringify + safeResponseJson all run, but if it
     // happens at least the UI shows a useful message.
+    logError('dm-writer', err).catch(() => {});
     const msg = String(err?.message || '');
     if (/no (low|high) surrogate in string/i.test(msg)) {
       return NextResponse.json({

@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { recordLlmUsage, logError } from '../../../../lib/obs';
 import { repairJsonWithHaiku } from '../../../../lib/jsonRepair';
 import { getCreator, updateCreator } from '../../../../lib/creators';
 import { validateUniqueness, VALID_CATEGORIES, VALID_MONETIZATION } from '../../../../lib/schemas/uniqueness';
@@ -73,6 +74,7 @@ export async function POST(request, { params }) {
       },
     });
   } catch (err) {
+    logError('uniqueness', err).catch(() => {});
     return NextResponse.json({ error: err.message || 'Uniqueness extraction failed' }, { status: 500 });
   }
 }
@@ -240,6 +242,7 @@ ${extraInstruction ? `## ADDITIONAL INSTRUCTION\n${extraInstruction}\n\n` : ''}R
     }),
   });
   const data = await resp.json();
+  if (data?.usage) recordLlmUsage({ route: 'uniqueness', model: 'claude-sonnet-4-5-20250929', usage: data.usage }).catch(() => {});
   if (!resp.ok) {
     return { error: data.error?.message || `Anthropic ${resp.status}`, errors: [], raw: null, retries: retryCount };
   }

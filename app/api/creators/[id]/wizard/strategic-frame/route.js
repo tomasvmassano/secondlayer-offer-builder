@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { recordLlmUsage, logError } from '../../../../../lib/obs';
 import { getCreator, updateCreator } from '../../../../../lib/creators';
 import { validateStrategicFrame, VALID_CONFIRMED_ROLES } from '../../../../../lib/schemas/strategicFrame';
 import { OFFER_ARCHETYPES, archetypeEnumForPrompt } from '../../../../../lib/schemas/offerArchetypes';
@@ -98,6 +99,7 @@ export async function POST(request, { params }) {
       },
     });
   } catch (err) {
+    logError('strategic-frame', err).catch(() => {});
     return NextResponse.json({ error: err.message || 'Strategic frame generation failed' }, { status: 500 });
   }
 }
@@ -448,6 +450,7 @@ Return ONLY the JSON object per the schema in the system prompt.${formatInstruct
     }),
   });
   const data = await resp.json();
+  if (data?.usage) recordLlmUsage({ route: 'strategic-frame', model: modelId, usage: data.usage }).catch(() => {});
   if (!resp.ok) {
     return { error: data.error?.message || `Anthropic ${resp.status}`, errors: [], raw: null, retries: retryCount };
   }

@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { recordLlmUsage, logError } from '../../../../lib/obs';
 import { getCreator, updateCreator } from '../../../../lib/creators';
 import { validateOfferJudgment } from '../../../../lib/schemas/offerJudgment';
 import { OPERATOR_INSTRUCTIONS_RULE, formatInstructionsBlock, formatInstructionsReminder } from '../../../../lib/operatorInstructions';
@@ -273,6 +274,7 @@ export async function POST(request, { params }) {
       }),
     });
     const data = await resp.json();
+  if (data?.usage) recordLlmUsage({ route: 'offer-judgment', model: modelId, usage: data.usage }).catch(() => {});
     if (!resp.ok) {
       return NextResponse.json({
         error: data.error?.message || `Anthropic ${resp.status}`,
@@ -328,6 +330,7 @@ export async function POST(request, { params }) {
       },
     });
   } catch (err) {
+    logError('offer-judgment', err).catch(() => {});
     return NextResponse.json({ error: err?.message || 'unknown' }, { status: 500 });
   }
 }

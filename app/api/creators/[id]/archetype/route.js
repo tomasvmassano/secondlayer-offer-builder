@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { recordLlmUsage, logError } from '../../../../lib/obs';
 import { repairJsonWithHaiku } from '../../../../lib/jsonRepair';
 import { getCreator, updateCreator } from '../../../../lib/creators';
 import { validateArchetype, VALID_ARCHETYPES, VALID_FAME_TIERS } from '../../../../lib/schemas/archetype';
@@ -73,6 +74,7 @@ export async function POST(request, { params }) {
       },
     });
   } catch (err) {
+    logError('archetype', err).catch(() => {});
     return NextResponse.json({ error: err.message || 'Archetype classification failed' }, { status: 500 });
   }
 }
@@ -268,6 +270,7 @@ Return ONLY the JSON object. No code fences, no preamble.`;
     }),
   });
   const data = await resp.json();
+  if (data?.usage) recordLlmUsage({ route: 'archetype', model: 'claude-sonnet-4-5-20250929', usage: data.usage }).catch(() => {});
   if (!resp.ok) {
     return { error: data.error?.message || `Anthropic ${resp.status}`, errors: [], raw: null, retries: retryCount };
   }
