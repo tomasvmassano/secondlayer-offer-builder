@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { repairJsonWithHaiku } from '../../../../lib/jsonRepair';
 import { getCreator, updateCreator } from '../../../../lib/creators';
 import { validateUniqueness, VALID_CATEGORIES, VALID_MONETIZATION } from '../../../../lib/schemas/uniqueness';
 
@@ -244,10 +245,14 @@ ${extraInstruction ? `## ADDITIONAL INSTRUCTION\n${extraInstruction}\n\n` : ''}R
   }
 
   const rawText = (data.content || []).filter(b => b.type === 'text').map(b => b.text).join('\n');
-  const parsed = tryParseJson(rawText);
+  let parsed = tryParseJson(rawText);
   if (!parsed) {
-    if (retryCount < 1) return runUniqueness(apiKey, creator, retryCount + 1);
-    return { error: 'Model returned non-JSON output after retry', raw: rawText, errors: [], retries: retryCount };
+    // Cheap Haiku JSON-repair instead of re-running the whole (often
+    // web_search-backed) call — a parse failure is a formatting slip,
+    // not a reasoning failure. ~$0.005 vs re-billing the full generation.
+    const repaired = await repairJsonWithHaiku(apiKey, rawText, tryParseJson);
+    if (repaired) { parsed = repaired; }
+    else return { error: 'Model returned non-JSON output', raw: rawText, errors: [], retries: retryCount };
   }
 
   const validation = validateUniqueness(parsed);

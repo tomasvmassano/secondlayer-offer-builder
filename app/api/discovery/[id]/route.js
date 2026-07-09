@@ -108,9 +108,11 @@ export async function POST(request, { params }) {
             'anthropic-version': '2023-06-01',
           },
           body: JSON.stringify({
-            model: 'claude-sonnet-4-5-20250929',
+            // Haiku 4.5 — labelled-line extraction, regex-parsed. Supports
+            // web_search, follows the format reliably, ~1/3 Sonnet price.
+            model: 'claude-haiku-4-5-20251001',
             max_tokens: 4000,
-            tools: [{ type: 'web_search_20250305', name: 'web_search' }],
+            tools: [{ type: 'web_search_20250305', name: 'web_search', max_uses: 4 }],
             messages: [{
               role: 'user',
               content: `You are analyzing a content creator's profile to build a complete intelligence report. Respond with ONLY the lines below.

@@ -62,7 +62,9 @@ Respond with ONLY the translated JSON object in this exact format (no markdown, 
         'anthropic-version': '2023-06-01',
       },
       body: JSON.stringify({
-        model: 'claude-sonnet-4-5-20250929',
+        // Haiku 4.5 — trivial JSON translation of a small audience block.
+        // Zero-risk downgrade; ~1/3 the Sonnet price.
+        model: 'claude-haiku-4-5-20251001',
         max_tokens: 1000,
         messages: [{ role: 'user', content: prompt }],
       }),

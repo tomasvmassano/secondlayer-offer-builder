@@ -176,33 +176,10 @@ ${instruction ? `## OPERATOR INSTRUCTION FOR THIS REGEN\n${instruction}\n\n` : '
 
   const errors = validateModule(moduleObj, usableCount, 'module');
   if (errors.length > 0) {
-    if (retryCount < 1) {
-      const retryResp = await fetch('https://api.anthropic.com/v1/messages', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01' },
-        body: JSON.stringify({
-          model: 'claude-sonnet-4-5-20250929',
-          max_tokens: 1500,
-          system: [{ type: 'text', text: MODULES_SYSTEM_PROMPT, cache_control: { type: 'ephemeral' } }],
-          messages: [
-            { role: 'user', content: userMessage },
-            { role: 'assistant', content: rawText },
-            { role: 'user', content: `Your output failed schema validation. Fix and resend ONLY the single-module JSON object.\n\nErrors:\n${errors.map(e => '- ' + e).join('\n')}` },
-          ],
-        }),
-      });
-      const retryData = await retryResp.json();
-      if (retryResp.ok) {
-        const retryText = (retryData.content || []).filter(b => b.type === 'text').map(b => b.text).join('\n');
-        const retryParsed = tryParseJson(retryText);
-        if (retryParsed) {
-          const retryModuleObj = retryParsed.modules && Array.isArray(retryParsed.modules) && retryParsed.modules[0] ? retryParsed.modules[0] : retryParsed;
-          const retryErrors = validateModule(retryModuleObj, usableCount, 'module');
-          if (retryErrors.length === 0) return { data: retryModuleObj, retries: retryCount + 1 };
-          return { error: 'Schema validation failed twice', errors: retryErrors, raw: retryText, retries: retryCount + 1 };
-        }
-      }
-    }
+    // Validation-failure retry removed 2026-07-09 — this route was the
+    // one place the 2026-06-18 cost cut missed. A second full Sonnet call
+    // on schema failure meant up to 3 paid calls per single-module regen.
+    // Fail fast with the same payload as every other wizard route.
     return { error: 'Schema validation failed', errors, raw: rawText, retries: retryCount };
   }
 

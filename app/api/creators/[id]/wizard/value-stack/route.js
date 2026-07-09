@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { repairJsonWithHaiku } from '../../../../../lib/jsonRepair';
 import { getCreator, updateCreator } from '../../../../../lib/creators';
 import { validateValueStack } from '../../../../../lib/schemas/valueStack';
 import { formatStrategicFrameForPrompt } from '../../../../../lib/schemas/strategicFrame';
@@ -345,10 +346,14 @@ Return ONLY the JSON object per the schema in the system prompt.${formatInstruct
   }
 
   const rawText = (data.content || []).filter(b => b.type === 'text').map(b => b.text).join('\n');
-  const parsed = tryParseJson(rawText);
+  let parsed = tryParseJson(rawText);
   if (!parsed) {
-    if (retryCount < 1) return runValueStack(apiKey, creator, retryCount + 1, 'Your previous response was not parseable JSON. Return ONLY a JSON object — no prose, no markdown fences.');
-    return { error: 'Model returned non-JSON output after retry', raw: rawText, errors: [], retries: retryCount };
+    // Cheap Haiku JSON-repair instead of re-running the whole (often
+    // web_search-backed) call — a parse failure is a formatting slip,
+    // not a reasoning failure. ~$0.005 vs re-billing the full generation.
+    const repaired = await repairJsonWithHaiku(apiKey, rawText, tryParseJson);
+    if (repaired) { parsed = repaired; }
+    else return { error: 'Model returned non-JSON output', raw: rawText, errors: [], retries: retryCount };
   }
 
   // Force actualPrice to exactly match CP2's target_price — prevents drift.
