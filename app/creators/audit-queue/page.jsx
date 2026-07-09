@@ -49,10 +49,12 @@ export default function AuditQueuePage() {
   const workerRunningRef = useRef(false);
   const cancelRef = useRef(false);
 
-  // Load all creators on mount. We need the FULL record (not the summary
-  // index) to check ecosystem_audit. Parallel fetch — 50 creators ≈ 1s.
-  // For 200+ creators we should denormalise hasEcosystemAudit into the
-  // summary index, but the current scale doesn't warrant the schema change.
+  // Load all creators on mount — SUMMARIES ONLY (2026-07-09). Every field
+  // this page uses (id/name/niche/followers/pipelineStatus/hasAudit/
+  // createdAt/addedByFirstName) is already in the light summary index, so
+  // the old per-creator full-record fan-out (N lambda invocations + N
+  // Redis GETs + tens of MB to the browser) was pure waste. `hasAudit`
+  // was denormalised into buildSummary specifically for this. One fetch.
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -60,26 +62,16 @@ export default function AuditQueuePage() {
         const summariesRes = await fetch('/api/creators');
         if (!summariesRes.ok) throw new Error('Falha a carregar creators');
         const { creators: summaries = [] } = await summariesRes.json();
-        const fulls = await Promise.all(summaries.map(s =>
-          fetch(`/api/creators/${s.id}`).then(r => r.ok ? r.json() : null).catch(() => null)
-        ));
         if (cancelled) return;
-        const rows = fulls.filter(Boolean).map(c => ({
+        const rows = summaries.map(c => ({
           id: c.id,
           name: c.name,
           niche: c.niche,
-          followers: c.platforms?.instagram?.followers
-            || c.platforms?.tiktok?.followers
-            || c.platforms?.youtube?.subscribers
-            || 0,
+          followers: c.followers || 0,
           pipelineStatus: c.pipelineStatus || 'prospect',
-          hasAudit: !!c.offer?.internal_metadata?.ecosystem_audit,
+          hasAudit: !!c.hasAudit,
           createdAt: c.createdAt,
-          // Operator who added the creator. The summary-index pipeline
-          // already canonicalises this via normalizeOperatorName(), so
-          // "Tomas"/"Tomás" collapse to the same string before reaching
-          // here. Used by the "Adicionado por" filter chip below.
-          addedByFirstName: c.addedBy?.firstName || null,
+          addedByFirstName: c.addedByFirstName || null,
           status: null,
           auditCounts: null,
           auditError: null,

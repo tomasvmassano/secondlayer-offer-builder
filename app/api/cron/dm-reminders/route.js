@@ -112,17 +112,30 @@ export async function GET(request) {
 
   const now = new Date();
   const summaries = await listCreators();
-  // Active = prospect status, not signed, not already cold.
+  // Active = prospect status, not signed, not already cold, not replied.
+  // (repliedAt is in the summary, so we drop engaged creators before any
+  // full-record read.)
   const candidates = summaries.filter(s => {
     const st = s.pipelineStatus || 'prospect';
-    return st !== 'signed' && st !== 'cold';
+    return st !== 'signed' && st !== 'cold' && !s.repliedAt;
   });
+
+  // Batch-load full records in parallel chunks of 25 instead of the old
+  // sequential per-creator loop. The loop below still does the milestone
+  // math + inline auto-cold writes; it just iterates preloaded records so
+  // the read phase is ~N/25 round-trips, not N sequential (which grew
+  // linearly and could 504 the operator-triggered catchup mode).
+  const fulls = [];
+  for (let i = 0; i < candidates.length; i += 25) {
+    const chunk = candidates.slice(i, i + 25);
+    const loaded = await Promise.all(chunk.map(s => getCreator(s.id).catch(() => null)));
+    fulls.push(...loaded);
+  }
 
   const buckets = { lastTouch: [], valueDrop: [], softNudge: [], noDm: [], autoCold: [] };
   const cooled = []; // creators we auto-mark cold this run
 
-  for (const s of candidates) {
-    const c = await getCreator(s.id);
+  for (const c of fulls) {
     if (!c) continue;
     const out = c.outreach || {};
     if (out.repliedAt) continue;                                  // engaged → skip

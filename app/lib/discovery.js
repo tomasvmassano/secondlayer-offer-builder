@@ -11,7 +11,7 @@
 import { Redis } from '@upstash/redis';
 import { nanoid } from 'nanoid';
 import { scrapeInstagramBasic, scrapeInstagram } from './apify';
-import { listCreators, getCreator } from './creators';
+import { listCreators, getCreator, getAllCrmHandles } from './creators';
 import { calculateDealScore } from './dealScore';
 
 // In-memory fallback for local dev
@@ -456,29 +456,27 @@ function extractHandle(input) {
 /**
  * Check if a handle already exists in the CRM (by handle in platforms.instagram.url).
  */
-async function isInCRM(handle, crmCreators) {
-  const lower = handle.toLowerCase();
-  for (const c of crmCreators) {
-    const igUrl = c.platforms?.instagram?.url || c.instagramUrl || '';
-    const crmHandle = extractHandle(igUrl);
-    if (crmHandle === lower) return true;
-  }
-  return false;
+// crmHandles is now a Set<string> of lowercase handles (from the igidx
+// hash) instead of an array of full creator records. O(1) membership.
+function isInCRM(handle, crmHandles) {
+  return crmHandles.has(handle.toLowerCase());
 }
 
 /**
  * Stage 1: FREE filter — returns related profiles that pass ICP + dedup checks.
  * Also returns drop counters for diagnostics.
  */
-async function stage1Filter(sourceCreator, maxCandidates, crmFull = null, drops = null) {
+// crmHandles: a Set<string> of lowercase CRM handles. Callers pass one
+// built via getAllCrmHandles() (a single HGETALL) instead of loading
+// every full creator record just to compare handles.
+async function stage1Filter(sourceCreator, maxCandidates, crmHandles = null, drops = null) {
   const related = sourceCreator.competitors || sourceCreator.platforms?.instagram?.relatedProfiles || [];
   if (drops) drops.totalRelated += Array.isArray(related) ? related.length : 0;
   if (!Array.isArray(related) || related.length === 0) return [];
 
-  // Get CRM list if not passed in (for per-creator calls)
-  if (!crmFull) {
-    const crmSummaries = await listCreators();
-    crmFull = (await Promise.all(crmSummaries.slice(0, 200).map(s => getCreator(s.id)))).filter(Boolean);
+  // Get the CRM handle set if not passed in (per-creator calls).
+  if (!crmHandles) {
+    crmHandles = await getAllCrmHandles();
   }
 
   const filtered = [];
@@ -490,7 +488,7 @@ async function stage1Filter(sourceCreator, maxCandidates, crmFull = null, drops 
     }
 
     // Dedup checks
-    if (await isInCRM(handle, crmFull)) {
+    if (isInCRM(handle, crmHandles)) {
       if (drops) drops.inCRM++;
       continue;
     }
@@ -722,9 +720,8 @@ async function runInBatches(items, worker, batchSize = 5) {
 export async function runDiscoveryFromSeeds(seedUrls, maxCandidates = 15) {
   const drops = { totalRelated: 0, noHandle: 0, inCRM: 0, dismissed: 0, inQueue: 0, outOfRange: 0 };
 
-  // Get CRM for dedup (needed by Stage 1)
-  const crmSummaries = await listCreators();
-  const crmFull = (await Promise.all(crmSummaries.map(s => getCreator(s.id)))).filter(Boolean);
+  // CRM handle set for dedup (one HGETALL, not N full-record loads).
+  const crmHandles = await getAllCrmHandles();
 
   // Phase 1: Parallel seed scraping (batches of 5)
   const seedResults = await runInBatches(seedUrls, async (url) => {
@@ -762,7 +759,7 @@ export async function runDiscoveryFromSeeds(seedUrls, maxCandidates = 15) {
       platforms: { instagram: { url: `https://instagram.com/${seedResult.handle}` } },
     };
 
-    const filtered = await stage1Filter(fakeSource, Infinity, crmFull, drops);
+    const filtered = await stage1Filter(fakeSource, Infinity, crmHandles, drops);
     allCandidates.push(...filtered);
 
     if (allCandidates.length >= maxCandidates * 3) break;
@@ -827,7 +824,13 @@ export async function runDiscoveryFromSeeds(seedUrls, maxCandidates = 15) {
  */
 export async function runBulkDiscovery(maxCandidates = 10) {
   const crmSummaries = await listCreators();
-  const crmCreators = (await Promise.all(crmSummaries.map(s => getCreator(s.id)))).filter(Boolean);
+  // This path genuinely needs full records as scan-SOURCES (it reads each
+  // creator's `competitors` list, which isn't in the summary). But load
+  // them in bounded batches instead of one unbounded Promise.all fan-out
+  // (Upstash rate-limit safety), and dedup against the handle SET (one
+  // HGETALL) rather than re-scanning full records per candidate.
+  const crmHandles = await getAllCrmHandles();
+  const crmCreators = (await runInBatches(crmSummaries, s => getCreator(s.id), 25)).filter(Boolean);
 
   const drops = { totalRelated: 0, noHandle: 0, inCRM: 0, dismissed: 0, inQueue: 0, outOfRange: 0 };
   const creatorsWithRelated = crmCreators.filter(c => (c.competitors?.length || 0) > 0).length;
@@ -835,7 +838,7 @@ export async function runBulkDiscovery(maxCandidates = 10) {
   // Collect ALL stage-1-passing candidates across all creators
   const allCandidates = [];
   for (const sc of crmCreators) {
-    const filtered = await stage1Filter(sc, Infinity, crmCreators, drops);
+    const filtered = await stage1Filter(sc, Infinity, crmHandles, drops);
     allCandidates.push(...filtered);
     if (allCandidates.length >= maxCandidates * 3) break;
   }

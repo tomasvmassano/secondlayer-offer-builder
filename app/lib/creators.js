@@ -180,6 +180,34 @@ function extractIgHandle(url) {
 const IG_INDEX_KEY = 'creators:igidx';
 const IG_INDEX_BUILT_KEY = 'creators:igidx:built';
 
+/**
+ * Return a Set of every lowercase IG handle currently in the CRM, read
+ * in ONE Redis round-trip (HGETALL creators:igidx). Used by discovery's
+ * dedupe — which previously loaded every full creator record (50-150MB
+ * of bloated blobs) just to compare handles. Falls back to a summary
+ * scan (handles aren't in summaries, so this triggers the igidx
+ * backfill via findCreatorByIgHandle on first miss elsewhere; here we
+ * just return what the index has, which is authoritative once built).
+ */
+export async function getAllCrmHandles() {
+  if (useMemory()) {
+    const out = new Set();
+    for (const [key, value] of memStore.entries()) {
+      if (!key.startsWith('creator:')) continue;
+      const full = typeof value === 'string' ? JSON.parse(value) : value;
+      const h = extractIgHandle(full?.platforms?.instagram?.url || full?.instagramUrl);
+      if (h) out.add(h);
+    }
+    return out;
+  }
+  try {
+    const map = await getRedis().hgetall(IG_INDEX_KEY);
+    return new Set(Object.keys(map || {}).map(h => h.toLowerCase()));
+  } catch {
+    return new Set();
+  }
+}
+
 async function findCreatorByIgHandle(handle) {
   if (!handle) return null;
   const lower = handle.toLowerCase();

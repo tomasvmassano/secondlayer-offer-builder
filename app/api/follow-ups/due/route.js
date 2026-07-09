@@ -43,16 +43,41 @@ export async function GET(request) {
   const now = new Date();
   const summaries = await listCreators();
 
-  // First-pass filter on the cheap summary: prospect, not cold, owned by me.
+  // First-pass filter on the cheap summary: prospect, not cold, not
+  // replied, owned by me — all summary fields, zero full-record reads.
   const mine = summaries.filter(s => {
     const st = s.pipelineStatus || 'prospect';
     if (st === 'signed' || st === 'cold') return false;
+    if (s.repliedAt) return false;
     return s.addedByUserId === user.userId;
   });
 
+  // Second-pass milestone GATE, still summary-only. The summary carries
+  // dmSentAt + followUpsDone, so we can decide who's at a day-3/7/14
+  // milestone WITHOUT loading their full record. Only creators that pass
+  // this gate get a full fetch (for language, IG url, stored email body).
+  // Creators with no dmSentAt but hasDm=true might still have a
+  // dmSequence.generatedAt anchor — keep those for the full check too.
+  const candidates = mine.filter(s => {
+    const anchor = s.dmSentAt || null;
+    const followUpsDone = Number(s.followUpsDone) || 0;
+    if (!anchor) return !!s.hasDm; // needs full record to read generatedAt
+    const days = daysBetween(anchor, now);
+    return ['lastTouch', 'valueDrop', 'softNudge'].some(k =>
+      days >= CADENCE[k].day && followUpsDone <= CADENCE[k].followUpsDoneCap);
+  });
+
+  // Batch-load the (much smaller) candidate set in parallel chunks of 25
+  // instead of the old sequential per-owned-prospect loop.
+  const fulls = [];
+  for (let i = 0; i < candidates.length; i += 25) {
+    const chunk = candidates.slice(i, i + 25);
+    const loaded = await Promise.all(chunk.map(s => getCreator(s.id).catch(() => null)));
+    fulls.push(...loaded);
+  }
+
   const items = [];
-  for (const s of mine) {
-    const c = await getCreator(s.id);
+  for (const c of fulls) {
     if (!c) continue;
     const out = c.outreach || {};
     if (out.repliedAt) continue;
