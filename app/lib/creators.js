@@ -46,10 +46,20 @@ function scrubSurrogatesInPlace(node, ctx = { changed: false }) {
 // set. This is what listCreators returns — keep it cheap to deserialise but
 // rich enough to drive the CRM filters/tabs without a full record fetch.
 // Mirrors saveCreator + updateCreator + the lazy backfill in listCreators.
+// Bump this whenever buildSummary gains/changes a field. listCreators
+// rebuilds any summary whose `_v` is behind — a SINGLE integer compare
+// instead of the old per-field sentinel checks. The per-field approach
+// meant adding one field made EVERY summary look stale at once, so every
+// warm instance stampeded a full-CRM rebuild (50-100K commands in an
+// hour). Now a version bump still triggers a rebuild, but it's gated by
+// a Redis lock so only one instance does it.
+const SUMMARY_VERSION = 3;
+
 function buildSummary(creator, createdAt) {
   let dealScoreGrade = null;
   try { dealScoreGrade = calculateDealScore(creator)?.grade || null; } catch { /* lean records can lack platform shape */ }
   return {
+    _v: SUMMARY_VERSION,
     id: creator.id,
     name: creator.name,
     niche: creator.niche,
@@ -277,6 +287,22 @@ export async function saveCreator(data) {
 
   const id = nanoid(9);
   const now = new Date().toISOString();
+
+  // ATOMIC handle reservation (closes the check-then-act race). Two
+  // concurrent imports of the same handle — same URL twice in a CSV, or
+  // two operators pasting the same link — could BOTH pass the check
+  // above and both save, creating duplicate records. HSETNX lets exactly
+  // one win: the loser reads the winner's id and returns duplicate.
+  // (Memory mode has no concurrency, so it skips this.)
+  if (incomingHandle && !useMemory()) {
+    try {
+      const reserved = await getRedis().hsetnx(IG_INDEX_KEY, incomingHandle, id);
+      if (reserved === 0 || reserved === false) {
+        const winnerId = await getRedis().hget(IG_INDEX_KEY, incomingHandle);
+        if (winnerId) return { id: winnerId, duplicate: true };
+      }
+    } catch { /* best-effort — fall through to the normal save */ }
+  }
   const creator = {
     id,
     name: data.name || 'Unknown',
@@ -755,45 +781,44 @@ export async function listCreators() {
     return normalised === s.addedByFirstName ? s : { ...s, addedByFirstName: normalised };
   });
 
-  // Enrich summaries with the fields that drive the CRM filters/tabs. The
-  // sentinel field for "this summary was written by the current schema" is
-  // dealScoreGrade — it's the last addition. If it's missing we fetch the
-  // full record, rebuild the summary, and rewrite the index entry so the
-  // next read pays nothing.
-  const needsEnrich = summaries.some(s =>
-    s.hasOffer === undefined
-    || s.repliedAt === undefined
-    || s.dmSentAt === undefined
-    || s.emailSentAt === undefined
-    || s.dealScoreGrade === undefined
-    || s.hasAudit === undefined
-    || s.addedByFirstName === undefined
-  );
+  // Enrich summaries whose schema version is behind. ONE integer compare
+  // (`_v !== SUMMARY_VERSION`) replaces the old per-field sentinel checks:
+  // those made adding a single field mark EVERY summary stale, so every
+  // warm instance stampeded a full-CRM rebuild simultaneously. Now a
+  // version bump still rebuilds, but:
+  //   - the ENRICHED VIEW is always returned to the caller immediately
+  //     (fresh data, no waiting on the rewrite), and
+  //   - the Redis index REWRITE is gated behind a short NX lock so only
+  //     ONE instance backfills; the rest serve the rebuilt view without
+  //     touching the index, avoiding the zrem/zadd storm + duplicate
+  //     members from concurrent rewrites.
+  const staleOf = s => !s || s._v !== SUMMARY_VERSION;
+  const needsEnrich = summaries.some(staleOf);
   if (!needsEnrich) {
     _cacheSet('idx', summaries);
     return summaries;
   }
 
   const redis = useMemory() ? null : getRedis();
+
+  // Try to claim the rewrite lock. If another instance holds it, we still
+  // compute + return the enriched view but skip persisting (they'll do it).
+  let holdsRewriteLock = useMemory();
+  if (redis) {
+    try {
+      const got = await redis.set('creators:idx:rebuilding', '1', { nx: true, ex: 60 });
+      holdsRewriteLock = got === 'OK' || got === true;
+    } catch { holdsRewriteLock = false; }
+  }
+
   const enriched = await Promise.all(summaries.map(async (s, i) => {
-    const stale = s.hasOffer === undefined
-      || s.repliedAt === undefined
-      || s.dmSentAt === undefined
-      || s.emailSentAt === undefined
-      || s.dealScoreGrade === undefined
-      || s.hasAudit === undefined
-      || s.addedByFirstName === undefined;
-    if (!stale) return s;
+    if (!staleOf(s)) return s;
     const full = await getCreator(s.id);
     if (!full) return s;
     const rebuilt = { ...s, ...buildSummary(full, full.createdAt) };
-    // Persist the rebuilt summary back to the index so future reads don't
-    // re-fetch the full record. memIndex update is in-place; Redis needs a
-    // zrem of the original member + zadd of the new one. Score = original
-    // createdAt so position in the sorted set is stable.
     if (useMemory()) {
       memIndex[i] = rebuilt;
-    } else if (redis) {
+    } else if (redis && holdsRewriteLock) {
       try {
         const original = rawMembers[i];
         const originalStr = typeof original === 'string' ? original : JSON.stringify(original);
@@ -806,6 +831,9 @@ export async function listCreators() {
     }
     return rebuilt;
   }));
+  if (redis && holdsRewriteLock) {
+    await redis.del('creators:idx:rebuilding').catch(() => {});
+  }
   _cacheSet('idx', enriched);
   return enriched;
 }
