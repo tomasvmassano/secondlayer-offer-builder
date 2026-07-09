@@ -5575,6 +5575,245 @@ function ServiceOfferPanel({ creator, setCreator }) {
 }
 
 // ──────────────────────────────────────────────────────────────────────────
+// ServiceSalesCopyPanel — the sell-it layer for a productized service
+// (slice 2). Sits below ServiceOfferPanel, gated on a generated
+// service_offer. Posts to /service-sales-copy, persists at
+// internal_metadata.service_sales_copy. Renders hero, differentiator,
+// objections, FAQ, guarantee, and a ready-to-send outreach DM.
+// ──────────────────────────────────────────────────────────────────────────
+function ServiceSalesCopyPanel({ creator, setCreator }) {
+  const meta = creator?.offer?.internal_metadata || {};
+  const hasOffer = !!meta.service_offer;
+  const copy = meta.service_sales_copy || null;
+  const runAt = meta.generation_timestamps?.service_sales_copy || null;
+  const [running, setRunning] = useState(false);
+  const [error, setError] = useState(null);
+  const [dmCopied, setDmCopied] = useState(false);
+  const [allCopied, setAllCopied] = useState(false);
+
+  if (!hasOffer) return null; // need the offer before the copy
+
+  const generate = async (instruction = null) => {
+    if (typeof instruction !== 'string') instruction = null;
+    if (!creator?.id || running) return;
+    setRunning(true);
+    setError(null);
+    try {
+      const r = await fetch(`/api/creators/${creator.id}/service-sales-copy`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(instruction ? { instruction } : {}),
+      });
+      const data = await parseJsonSafe(r);
+      if (!r.ok) {
+        const detail = data.errors?.length ? '\n\n' + data.errors.join('\n') : '';
+        throw new Error((data.error || 'Falha a gerar copy de vendas') + detail);
+      }
+      setCreator(prev => prev ? ({
+        ...prev,
+        offer: {
+          ...(prev.offer || {}),
+          internal_metadata: {
+            ...((prev.offer || {}).internal_metadata || {}),
+            service_sales_copy: data.service_sales_copy,
+            generation_timestamps: {
+              ...((prev.offer || {}).internal_metadata?.generation_timestamps || {}),
+              service_sales_copy: new Date().toISOString(),
+            },
+          },
+        },
+      }) : prev);
+    } catch (e) {
+      setError(e.message || 'Erro desconhecido');
+    } finally {
+      setRunning(false);
+    }
+  };
+
+  const copyText = async (text, setFlag) => {
+    try { await navigator.clipboard.writeText(text); setFlag(true); setTimeout(() => setFlag(false), 2000); }
+    catch { /* ignore */ }
+  };
+
+  const copyAll = () => {
+    if (!copy) return;
+    const L = [];
+    L.push(`# ${copy.hero?.headline || ''}`);
+    if (copy.hero?.sub) L.push(copy.hero.sub);
+    if (copy.hero?.cta) L.push(`**CTA:** ${copy.hero.cta}`);
+    if (copy.differentiator) L.push(`\n## Diferenciação\n${copy.differentiator}`);
+    if (Array.isArray(copy.objections) && copy.objections.length) {
+      L.push(`\n## Objecções`);
+      copy.objections.forEach(o => L.push(`\n**"${o.objection}"**\n${o.rebuttal}`));
+    }
+    if (Array.isArray(copy.faq) && copy.faq.length) {
+      L.push(`\n## FAQ`);
+      copy.faq.forEach(f => L.push(`\n**${f.q}**\n${f.a}`));
+    }
+    if (copy.guarantee) L.push(`\n## Garantia\n${copy.guarantee}`);
+    if (copy.outreach_dm) L.push(`\n## DM de venda\n${copy.outreach_dm}`);
+    copyText(L.join('\n'), setAllCopied);
+  };
+
+  const H = ({ children, color = "#666" }) => (
+    <div style={{ fontSize: 9, fontWeight: 700, color, letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 8 }}>{children}</div>
+  );
+  const card = { padding: "14px 16px", background: "#0a0a0a", borderRadius: 8, border: "1px solid rgba(255,255,255,0.05)", marginBottom: 12 };
+
+  return (
+    <div style={{ marginTop: 6, paddingTop: 14, borderTop: "1px solid rgba(255,255,255,0.06)" }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12, flexWrap: "wrap", gap: 8 }}>
+        <div>
+          <div style={{ fontSize: 9, fontWeight: 700, color: "#a855f7", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 4 }}>
+            Copy de vendas {copy ? <span style={{ color: "#22c55e", marginLeft: 6 }}>· gerada</span> : null}
+          </div>
+          <div style={{ fontSize: 13, fontWeight: 600, color: "#f5f5f5" }}>Vender a oferta de serviço</div>
+          <div style={{ fontSize: 11, color: "#888", marginTop: 2, lineHeight: 1.5 }}>
+            Objecções, FAQ, garantia e uma DM pronta a enviar — na voz da criadora.
+          </div>
+        </div>
+        <button
+          onClick={() => generate()}
+          disabled={running}
+          style={{
+            padding: "8px 14px", borderRadius: 6,
+            border: "1px solid rgba(168,85,247,0.45)",
+            background: running ? "rgba(255,255,255,0.02)" : "rgba(168,85,247,0.08)",
+            color: running ? "#555" : "#a855f7",
+            fontSize: 11, fontWeight: 700, cursor: running ? "wait" : "pointer",
+            fontFamily: "inherit", whiteSpace: "nowrap",
+          }}
+        >
+          {running ? "A gerar..." : copy ? "↻ Voltar a gerar" : "Gerar copy de vendas (~$0.05)"}<ElapsedTimer running={running} expectedMax={45} />
+        </button>
+      </div>
+
+      {error && (
+        <div style={{ padding: "10px 14px", borderRadius: 6, background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.25)", color: "#ef4444", fontSize: 11, marginBottom: 12, whiteSpace: "pre-wrap" }}>{error}</div>
+      )}
+
+      {!copy && !running && (
+        <div style={{ padding: "16px", textAlign: "center", color: "#444", fontSize: 11.5, border: "1px dashed rgba(255,255,255,0.06)", borderRadius: 6 }}>
+          Sem copy ainda. Clica <strong style={{ color: "#888" }}>Gerar</strong> (~20-40s). Usa a oferta de serviço acima.
+        </div>
+      )}
+
+      {copy && (
+        <div>
+          {/* Hero */}
+          {copy.hero && (
+            <div style={{ ...card, border: "1px solid rgba(168,85,247,0.25)" }}>
+              <H color="#a855f7">Hero</H>
+              <div style={{ fontSize: 16, fontWeight: 700, color: "#f5f5f5", lineHeight: 1.35, marginBottom: 6 }}>{copy.hero.headline}</div>
+              {copy.hero.sub && <div style={{ fontSize: 12.5, color: "#bbb", lineHeight: 1.55, marginBottom: 8 }}>{copy.hero.sub}</div>}
+              {copy.hero.cta && <div style={{ display: "inline-block", padding: "6px 14px", background: "rgba(168,85,247,0.12)", color: "#a855f7", borderRadius: 6, fontSize: 11, fontWeight: 700 }}>{copy.hero.cta}</div>}
+            </div>
+          )}
+
+          {/* Differentiator */}
+          {copy.differentiator && (
+            <div style={card}>
+              <H>Diferenciação</H>
+              <div style={{ fontSize: 12, color: "#ddd", lineHeight: 1.6 }}>{copy.differentiator}</div>
+            </div>
+          )}
+
+          {/* Objections */}
+          {Array.isArray(copy.objections) && copy.objections.length > 0 && (
+            <div style={card}>
+              <H>Objecções ({copy.objections.length})</H>
+              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                {copy.objections.map((o, i) => (
+                  <div key={i}>
+                    <div style={{ fontSize: 12, fontWeight: 600, color: "#ef8a94", lineHeight: 1.45, marginBottom: 3 }}>"{o.objection}"</div>
+                    <div style={{ fontSize: 11.5, color: "#bbb", lineHeight: 1.55 }}>{o.rebuttal}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* FAQ */}
+          {Array.isArray(copy.faq) && copy.faq.length > 0 && (
+            <div style={card}>
+              <H>FAQ ({copy.faq.length})</H>
+              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                {copy.faq.map((f, i) => (
+                  <div key={i}>
+                    <div style={{ fontSize: 12, fontWeight: 600, color: "#f5f5f5", lineHeight: 1.45, marginBottom: 3 }}>{f.q}</div>
+                    <div style={{ fontSize: 11.5, color: "#999", lineHeight: 1.55 }}>{f.a}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Guarantee + social proof angle */}
+          <div className="sl-grid-2" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 12 }}>
+            {copy.guarantee && (
+              <div style={{ padding: "12px 14px", background: "rgba(34,197,94,0.03)", borderRadius: 8, border: "1px solid rgba(34,197,94,0.18)" }}>
+                <div style={{ fontSize: 9, fontWeight: 700, color: "#22c55e", letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 6 }}>Garantia</div>
+                <div style={{ fontSize: 11.5, color: "#ccc", lineHeight: 1.55 }}>{copy.guarantee}</div>
+              </div>
+            )}
+            {copy.social_proof_angle && (
+              <div style={{ padding: "12px 14px", background: "#0a0a0a", borderRadius: 8, border: "1px solid rgba(255,255,255,0.05)" }}>
+                <div style={{ fontSize: 9, fontWeight: 700, color: "#666", letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 6 }}>Ângulo de prova social</div>
+                <div style={{ fontSize: 11, color: "#999", lineHeight: 1.55 }}>{copy.social_proof_angle}</div>
+              </div>
+            )}
+          </div>
+
+          {/* Outreach DM — the operator's main tool */}
+          {copy.outreach_dm && (
+            <div style={{ ...card, border: "1px solid rgba(59,130,246,0.25)" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8, gap: 8 }}>
+                <div style={{ fontSize: 9, fontWeight: 700, color: "#3b82f6", letterSpacing: "0.12em", textTransform: "uppercase" }}>DM de venda (pronta a enviar)</div>
+                <button
+                  type="button"
+                  onClick={() => copyText(copy.outreach_dm, setDmCopied)}
+                  style={{ padding: "5px 12px", borderRadius: 5, border: "1px solid rgba(59,130,246,0.4)", background: dmCopied ? "rgba(34,197,94,0.12)" : "rgba(59,130,246,0.08)", color: dmCopied ? "#22c55e" : "#3b82f6", fontSize: 10, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}
+                >
+                  {dmCopied ? '✓ Copiada' : '📋 Copiar DM'}
+                </button>
+              </div>
+              <div style={{ fontSize: 12, color: "#ddd", lineHeight: 1.6, whiteSpace: "pre-wrap" }}>{copy.outreach_dm}</div>
+            </div>
+          )}
+
+          {/* Actions */}
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+            <button
+              type="button"
+              onClick={copyAll}
+              style={{ padding: "9px 16px", borderRadius: 6, border: "1px solid rgba(168,85,247,0.45)", background: allCopied ? "rgba(34,197,94,0.12)" : "rgba(168,85,247,0.08)", color: allCopied ? "#22c55e" : "#a855f7", fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}
+            >
+              {allCopied ? '✓ Copiado!' : '📋 Copiar copy toda (markdown)'}
+            </button>
+          </div>
+
+          {!running && (
+            <div style={{ marginTop: 12 }}>
+              <RegenWithInstructionBlock
+                placeholder="Ex: 'objecções mais directas', 'DM mais curta', 'garantia de 2 revisões'..."
+                busy={running}
+                onRegen={(inst) => generate(inst)}
+              />
+            </div>
+          )}
+
+          {runAt && (
+            <div style={{ fontSize: 10, color: "#333", marginTop: 10 }}>
+              Última geração: {new Date(runAt).toLocaleString("pt-PT")}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ──────────────────────────────────────────────────────────────────────────
 // Phase 4 · CP2 — Core Offer Panel
 // ──────────────────────────────────────────────────────────────────────────
 // ThesisOnlyGate — replaces the CP2 generation flow when CP1's
@@ -5745,8 +5984,9 @@ function ThesisOnlyGate({ frame, creator, setCreator, onForceOverride }) {
         // Real builder for done-for-you services — no longer a dead-end.
         <div style={{ marginBottom: 12, paddingTop: 4, borderTop: "1px solid rgba(255,255,255,0.06)" }}>
           <ServiceOfferPanel creator={creator} setCreator={setCreator} />
-          <div style={{ fontSize: 10.5, color: "#666", lineHeight: 1.55, marginBottom: 4 }}>
-            A tese abaixo (jogada, constrangimento, capture gap) é o contexto que alimenta o construtor acima.
+          <ServiceSalesCopyPanel creator={creator} setCreator={setCreator} />
+          <div style={{ fontSize: 10.5, color: "#666", lineHeight: 1.55, marginTop: 12, marginBottom: 4 }}>
+            A tese abaixo (jogada, constrangimento, capture gap) é o contexto que alimenta os construtores acima.
           </div>
         </div>
       ) : (
