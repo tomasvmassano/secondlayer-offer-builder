@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { listQueue, runDiscoveryForCreator, runBulkDiscovery, runDiscoveryFromSeeds, clearOutOfRange, clearAllDismissed, listBlacklist, unblockHandle } from '../../lib/discovery';
 
 // Allow longer duration for bulk scraping
-export const maxDuration = 120;
+export const maxDuration = 60; // Hobby plan hard cap — 120 was silently clamped; budget honestly
 
 export async function GET(request) {
   try {

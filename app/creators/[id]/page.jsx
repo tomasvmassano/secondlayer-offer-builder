@@ -1616,7 +1616,7 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
               </h1>
             )}
             <div style={{ display: "flex", gap: 6, marginTop: 4, flexWrap: "wrap", alignItems: "center" }}>
-              {creator.pipelineStatus === 'signed' && <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", padding: "3px 8px", borderRadius: 4, background: "rgba(34,197,94,0.1)", color: "#22c55e", border: "1px solid rgba(34,197,94,0.25)" }}>Signed</span>}
+              {creator.pipelineStatus === 'signed' && <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", padding: "3px 8px", borderRadius: 4, background: "rgba(34,197,94,0.1)", color: "#22c55e", border: "1px solid rgba(34,197,94,0.25)" }}>Assinado ✓</span>}
               {/* Stage selector — operator picks the current pipeline stage
                   directly without having to drag the card on the CRM Kanban.
                   Calls stagePatch() to compute the right field-set then
@@ -1651,6 +1651,28 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
                   </div>
                 );
               })()}
+              {/* Marcar como assinado — restores the "Fechar Deal" path
+                  removed 2026-05-20. Without it there was NO UI way to set
+                  pipelineStatus:'signed', which is what triggers the welcome
+                  email + onboarding flow (the PATCH route handles both). */}
+              {creator.pipelineStatus !== 'signed' && (
+                <button
+                  onClick={async () => {
+                    if (!window.confirm(`Marcar ${creator.name} como ASSINADO?\n\nIsto dispara o email de boas-vindas + o fluxo de onboarding.`)) return;
+                    await patchCreator({ pipelineStatus: 'signed', signedAt: new Date().toISOString() });
+                  }}
+                  style={{
+                    fontSize: 10, fontWeight: 700, letterSpacing: "0.04em",
+                    padding: "3px 10px", borderRadius: 4,
+                    background: "rgba(34,197,94,0.06)", color: "#22c55e",
+                    border: "1px solid rgba(34,197,94,0.3)",
+                    cursor: "pointer", fontFamily: "inherit",
+                  }}
+                  title="Fechar deal — marca como assinado e dispara boas-vindas + onboarding"
+                >
+                  ✓ Marcar assinado
+                </button>
+              )}
               {creator.niche && <span style={{ fontSize: 11, color: "#888", padding: "3px 8px", background: "rgba(255,255,255,0.03)", borderRadius: 4 }}>{creator.niche}</span>}
               {(() => {
                 const lang = creator.primaryLanguage;

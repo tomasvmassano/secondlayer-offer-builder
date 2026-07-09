@@ -6,7 +6,7 @@ import { fetchUrlPreviews } from '../../../../lib/urlPreview';
 import { validateEcosystemAudit, VALID_TIERS, VALID_ROLES } from '../../../../lib/schemas/ecosystemAudit';
 
 // Web_search adds 5-10 tool-use rounds — this can run up to ~90s.
-export const maxDuration = 120;
+export const maxDuration = 60; // Hobby plan hard cap — 120 was silently clamped; budget honestly
 
 // ─────────────────────────────────────────────────────────────────
 // Ecosystem Audit (Phase 1 of the checkpoint wizard).

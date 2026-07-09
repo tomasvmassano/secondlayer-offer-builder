@@ -7,7 +7,7 @@ import { OPERATOR_INSTRUCTIONS_RULE, formatInstructionsBlock, formatInstructions
 
 // Largest output of any CP — mechanism + value stack + pricing tiers + bonuses.
 // ~$0.08-0.12 / call. max_tokens scaled up to 5000.
-export const maxDuration = 120;
+export const maxDuration = 60; // Hobby plan hard cap — 120 was silently clamped; budget honestly
 
 // ─────────────────────────────────────────────────────────────────
 // Phase 4 · Checkpoint 4 — Value Stack + Pricing

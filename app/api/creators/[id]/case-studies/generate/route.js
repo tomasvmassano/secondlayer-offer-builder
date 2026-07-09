@@ -22,7 +22,7 @@ import { detectCurrency, currencySymbol } from '../../../../../lib/currency';
 // Returns: { cases: [...verified], rejected: [{name, url, reason}], used_db_fallback: bool }
 // ─────────────────────────────────────────────────────────────────
 
-export const maxDuration = 90;
+export const maxDuration = 60; // Hobby plan hard cap — 90 was silently clamped; budget honestly
 export const dynamic = 'force-dynamic';
 
 const UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36';

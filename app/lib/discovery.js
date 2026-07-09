@@ -654,7 +654,23 @@ export async function runDiscoveryForCreator(creatorId, maxCandidates = 10) {
   let tooSmall = 0, tooBig = 0;
   const results = [];
 
+  // WALL-CLOCK DEADLINE — this loop runs one Apify scrape per candidate
+  // (up to ~32s each, sequential). 10 candidates worst-case is 320s;
+  // Vercel Hobby kills the function at 60s and the operator gets a
+  // plain-text 504 with zero results persisted... except the ones that
+  // DID complete were persisted, invisibly. Budget: stop starting new
+  // candidates after 45s and report the remainder as skipped — the
+  // operator re-runs discovery to continue (already-queued/dismissed
+  // candidates are filtered out on the next pass, so it resumes).
+  const startedAt = Date.now();
+  const DEADLINE_MS = 45_000;
+  let skippedForBudget = 0;
+
   for (const cand of filtered) {
+    if (Date.now() - startedAt > DEADLINE_MS) {
+      skippedForBudget++;
+      continue;
+    }
     const result = await processCandidate(cand);
     results.push(result);
     if (result.status === 'queued') queued++;
@@ -671,7 +687,7 @@ export async function runDiscoveryForCreator(creatorId, maxCandidates = 10) {
   }
 
   return {
-    scanned: filtered.length,
+    scanned: filtered.length - skippedForBudget,
     queued,
     dismissedLowTier,
     dismissedOutOfRange,
@@ -681,6 +697,7 @@ export async function runDiscoveryForCreator(creatorId, maxCandidates = 10) {
     tooSmall,
     tooBig,
     failed,
+    skippedForBudget,
     drops,
     results,
   };

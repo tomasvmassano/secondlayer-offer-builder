@@ -6,7 +6,7 @@ import { readCheckpointProgress } from '../../../../../lib/offerSchema';
 import { OPERATOR_INSTRUCTIONS_RULE, formatInstructionsBlock, formatInstructionsReminder } from '../../../../../lib/operatorInstructions';
 
 // Final checkpoint. Many output strings, voice-heavy. ~$0.10-0.15 / call.
-export const maxDuration = 120;
+export const maxDuration = 60; // Hobby plan hard cap — 120 was silently clamped; budget honestly
 
 // ─────────────────────────────────────────────────────────────────
 // Phase 4 · Checkpoint 5 — Sales Copy assembly

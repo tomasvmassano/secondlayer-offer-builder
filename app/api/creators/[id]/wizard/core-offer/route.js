@@ -8,7 +8,7 @@ import { OPERATOR_INSTRUCTIONS_RULE, formatInstructionsBlock, formatInstructions
 
 // ~$0.04 per call. Sonnet only, no web_search. Bigger output than CP1
 // (community name, mechanic, pricing all in one) so max_tokens is higher.
-export const maxDuration = 90;
+export const maxDuration = 60; // Hobby plan hard cap — 90 was silently clamped; budget honestly
 
 // ─────────────────────────────────────────────────────────────────
 // Phase 4 · Checkpoint 2 — Core Offer

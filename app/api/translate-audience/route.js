@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server';
 
+export const maxDuration = 60;
+
 /**
  * Translate audience data block to a target language.
  * Used by the pitch deck to ensure audience labels match creator's primaryLanguage.

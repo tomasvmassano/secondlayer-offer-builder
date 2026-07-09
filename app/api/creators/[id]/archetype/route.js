@@ -3,7 +3,7 @@ import { getCreator, updateCreator } from '../../../../lib/creators';
 import { validateArchetype, VALID_ARCHETYPES, VALID_FAME_TIERS } from '../../../../lib/schemas/archetype';
 
 // web_search adds 3-8 tool-use rounds (fame_tier check). Cap at 120s.
-export const maxDuration = 120;
+export const maxDuration = 60; // Hobby plan hard cap — 120 was silently clamped; budget honestly
 
 // ─────────────────────────────────────────────────────────────────
 // Archetype Classifier (Phase 2 of the checkpoint wizard).

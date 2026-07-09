@@ -8,7 +8,7 @@ import { OPERATOR_INSTRUCTIONS_RULE, formatInstructionsBlock, formatInstructions
 // ~$0.05-0.08 per call. Sonnet only. 4-8 modules, each with description +
 // transformation + format + linked elements + cadence — larger output than
 // CP2 so max_tokens scaled up.
-export const maxDuration = 90;
+export const maxDuration = 60; // Hobby plan hard cap — 90 was silently clamped; budget honestly
 
 // ─────────────────────────────────────────────────────────────────
 // Phase 4 · Checkpoint 3 — Modules (batch generation)

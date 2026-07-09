@@ -377,6 +377,10 @@ export async function saveCreator(data) {
     if (incomingHandle) {
       await redis.hset(IG_INDEX_KEY, { [incomingHandle]: id }).catch(() => {});
     }
+    // Same for the onboarding-token index (public form lookups).
+    if (creator.onboarding?.token) {
+      await redis.hset(ONB_INDEX_KEY, { [creator.onboarding.token]: id }).catch(() => {});
+    }
   }
 
   // Bust the read cache so the next listCreators / getCreator returns
@@ -387,16 +391,66 @@ export async function saveCreator(data) {
 
 /**
  * Find a creator by their onboarding token (used by the public form).
- * Backfills the onboarding object for legacy creators that don't have one.
+ *
+ * O(1) via the `creators:onbidx` hash (token → creatorId) — same
+ * self-healing pattern as the IG-handle index above. This function is
+ * hit by a PUBLIC unauthenticated route; the previous implementation
+ * scanned the whole CRM with sequential full-record reads per request
+ * (the same N+1 that killed bulk imports), making it both a 504 and a
+ * cheap DoS lever. Tokens never change once set, so mappings only go
+ * stale on delete (self-healed by the verify step).
  */
+const ONB_INDEX_KEY = 'creators:onbidx';
+const ONB_INDEX_BUILT_KEY = 'creators:onbidx:built';
+
 export async function findByOnboardingToken(token) {
   if (!token) return null;
-  const summaries = await listCreators();
-  for (const s of summaries) {
-    const full = await getCreator(s.id);
-    if (full?.onboarding?.token === token) return full;
+
+  if (useMemory()) {
+    for (const [key, value] of memStore.entries()) {
+      if (!key.startsWith('creator:')) continue;
+      const full = typeof value === 'string' ? JSON.parse(value) : value;
+      if (full?.onboarding?.token === token) return full;
+    }
+    return null;
   }
-  return null;
+
+  const redis = getRedis();
+
+  // Fast path — O(1) lookup, verified.
+  const mappedId = await redis.hget(ONB_INDEX_KEY, token);
+  if (mappedId) {
+    const full = await getCreator(mappedId);
+    if (full?.onboarding?.token === token) return full;
+    await redis.hdel(ONB_INDEX_KEY, token).catch(() => {});
+  }
+
+  // Index fully built → a miss is authoritative (protects against
+  // token-guessing costing O(N) reads per guess).
+  const built = await redis.get(ONB_INDEX_BUILT_KEY).catch(() => null);
+  if (built) return null;
+
+  // One-time backfill — parallel batches, indexes every known token,
+  // sets the built flag. Runs on the first lookup after deploy.
+  const summaries = await listCreators();
+  let found = null;
+  const mappings = {};
+  const BATCH = 25;
+  for (let i = 0; i < summaries.length; i += BATCH) {
+    const batch = summaries.slice(i, i + BATCH);
+    const fulls = await Promise.all(batch.map(s => getCreator(s.id).catch(() => null)));
+    for (const full of fulls) {
+      const t = full?.onboarding?.token;
+      if (!t) continue;
+      mappings[t] = full.id;
+      if (t === token && !found) found = full;
+    }
+  }
+  if (Object.keys(mappings).length) {
+    await redis.hset(ONB_INDEX_KEY, mappings).catch(() => {});
+  }
+  await redis.set(ONB_INDEX_BUILT_KEY, new Date().toISOString()).catch(() => {});
+  return found;
 }
 
 export async function getCreator(id, opts = {}) {
@@ -463,7 +517,12 @@ export async function getCreator(id, opts = {}) {
     if (useMemory()) {
       memStore.set(`creator:${id}`, JSON.stringify(creator));
     } else {
-      await getRedis().set(`creator:${id}`, JSON.stringify(creator));
+      const redis = getRedis();
+      await redis.set(`creator:${id}`, JSON.stringify(creator));
+      // Seed the onboarding-token index for this freshly-minted token so
+      // findByOnboardingToken can resolve it O(1) without waiting on the
+      // one-time backfill scan.
+      await redis.hset(ONB_INDEX_KEY, { [onboarding.token]: id }).catch(() => {});
     }
   }
 
@@ -864,6 +923,8 @@ export async function deleteCreator(id) {
     // (findCreatorByIgHandle re-verifies the handle before trusting it).
     const handle = extractIgHandle(existing.platforms?.instagram?.url || existing.instagramUrl);
     if (handle) await redis.hdel(IG_INDEX_KEY, handle).catch(() => {});
+    // Drop the onboarding-token mapping too (same self-healing contract).
+    if (existing.onboarding?.token) await redis.hdel(ONB_INDEX_KEY, existing.onboarding.token).catch(() => {});
     // Remove from sorted set index
     const allMembers = await redis.zrange('creators:index', 0, -1);
     for (const m of allMembers) {

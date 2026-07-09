@@ -6,7 +6,7 @@ import { syncCreatorEmail } from '../../../../lib/syncEmailToSheet';
 
 // Full scrape takes up to ~90s when all 3 platforms + bot detector + web-search
 // products discovery run end-to-end.
-export const maxDuration = 120;
+export const maxDuration = 60; // Hobby plan hard cap — 120 was silently clamped; budget honestly
 
 // ─────────────────────────────────────────────────────────────────
 // Full-scrape endpoint — upgrades a lean creator with the data needed
@@ -45,6 +45,13 @@ export async function POST(request, { params }) {
       return NextResponse.json({ error: 'Creator has no platform URLs to scrape' }, { status: 400 });
     }
 
+    // Wall-clock budget — this route stacks Apify scrapes + an LLM
+    // analysis inside Vercel's REAL 60s cap (the old maxDuration=120
+    // was silently clamped). We track elapsed time and size/skip the
+    // LLM stage to whatever budget remains, so the scrape data always
+    // persists even when the analysis doesn't fit.
+    const routeStartedAt = Date.now();
+
     // STEP 1 — multi-platform Apify scrape (IG deep + TK + YT + bio links).
     const multiResult = await scrapeMultiplePlatforms(instagramUrl, tiktokUrl, youtubeUrl);
     if (multiResult.source !== 'apify' || !multiResult.profile) {
@@ -76,7 +83,12 @@ export async function POST(request, { params }) {
 
     // STEP 2 — web-search-backed analysis: products, competitors, audience refinement.
     // Skipped if no API key — we still ship the scrape data.
-    if (apiKey) {
+    // Also skipped when the Apify stage ate the budget: with <20s left the
+    // web_search analysis can't finish, and dying at the 60s cap would lose
+    // the ENTIRE scrape (Apify money included). The ecosystem-audit re-derives
+    // products with richer context anyway, so a skipped analysis costs little.
+    const remainingMs = 60_000 - (Date.now() - routeStartedAt);
+    if (apiKey && remainingMs > 20_000) {
       try {
         const igRaw = multiResult.igRaw;
         const tkRaw = multiResult.tkRaw;
@@ -91,6 +103,10 @@ export async function POST(request, { params }) {
 
         const analysisResponse = await fetch('https://api.anthropic.com/v1/messages', {
           method: 'POST',
+          // Bounded to the remaining budget minus a 8s safety margin for
+          // the save + response. An aborted analysis is caught below and
+          // the scrape data still persists.
+          signal: AbortSignal.timeout(Math.max(10_000, remainingMs - 8_000)),
           headers: {
             'Content-Type': 'application/json',
             'x-api-key': apiKey,

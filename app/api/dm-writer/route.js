@@ -3,6 +3,10 @@ import { loadSkills, formatReferences } from '../../lib/skills';
 import { appendSignature } from '../../lib/operatorSignature';
 import { safeParse, sanitizeUnpairedSurrogates, safeStringify } from '../../lib/safeJson';
 
+// Heaviest LLM route in the app (Sonnet 4K output + optional compression
+// pass). Explicit cap so the budget is honest — platform default varies.
+export const maxDuration = 60;
+
 // Read an outbound fetch Response that might carry orphan UTF-16
 // surrogates in its JSON body (e.g. an upstream API that echoes our
 // request back inside an error). Standard `response.json()` runs the
@@ -1117,14 +1121,16 @@ ${stageInstruction} Follow the output format exactly. ZERO em dashes.${notesRemi
     let data = await safeResponseJson(response);
 
     if (response.status === 429) {
-      await new Promise(resolve => setTimeout(resolve, 65000));
-      response = await callAnthropic();
-      data = await safeResponseJson(response);
-      if (!response.ok) {
-        return NextResponse.json({
-          error: 'Rate limit persistente. O Anthropic limita a 30K tokens/min no teu plano. Espera 1-2 minutos antes de tentar de novo, ou considera upgrade.',
-        }, { status: 429 });
-      }
+      // Return the 429 to the client IMMEDIATELY. The previous in-route
+      // retry slept 65s before re-calling — but Vercel Hobby kills the
+      // function at 60s, so the sleep alone guaranteed a timeout: the
+      // operator paid for the first attempt AND got a dead plain-text
+      // 504 instead of this message. The client shows the wait guidance
+      // and the operator re-clicks — same total wait, working UX.
+      return NextResponse.json({
+        error: 'Rate limit do Anthropic (30K tokens/min). Espera ~1 minuto e clica de novo.',
+        retryAfter: 65,
+      }, { status: 429 });
     } else if (!response.ok) {
       return NextResponse.json({ error: data.error?.message || 'Generation failed' }, { status: 500 });
     }

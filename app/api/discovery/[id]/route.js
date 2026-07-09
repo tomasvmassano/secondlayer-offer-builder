@@ -6,7 +6,7 @@ import { syncCreatorEmail } from '../../../lib/syncEmailToSheet';
 import { resolvePrimaryLanguage } from '../../../lib/language';
 
 // Stage 4 needs Claude + optional Linktree scrape
-export const maxDuration = 120;
+export const maxDuration = 60; // Hobby plan hard cap — 120 was silently clamped; budget honestly
 
 /**
  * POST /api/discovery/[id] — accept candidate, run Stage 4 (full intelligence),
@@ -97,6 +97,11 @@ export async function POST(request, { params }) {
 
         const response = await fetch('https://api.anthropic.com/v1/messages', {
           method: 'POST',
+          // Bounded — this call runs AFTER the TikTok/YouTube + bio-link
+          // scrapes in the same 60s window (the old maxDuration=120 was
+          // silently clamped). An aborted analysis is caught below; the
+          // candidate still lands in the CRM with scrape data intact.
+          signal: AbortSignal.timeout(30_000),
           headers: {
             'Content-Type': 'application/json',
             'x-api-key': apiKey,
