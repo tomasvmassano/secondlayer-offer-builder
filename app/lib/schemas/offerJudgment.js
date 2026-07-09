@@ -10,6 +10,8 @@
 // Lives at internal_metadata.offer_judgment.
 // ─────────────────────────────────────────────────────────────────
 
+import { normalizeEnum } from './normalize';
+
 export const POSTURE_VALUES = ['PASSIVE', 'ACTIVE'];
 export const VERDICT_VALUES = ['KILL', 'SURVIVES'];
 const SCORE_FIELDS = [
@@ -30,6 +32,22 @@ export function validateOfferJudgment(obj) {
 
   if (!obj || typeof obj !== 'object') {
     return { valid: false, errors: ['offer_judgment must be an object'] };
+  }
+
+  // Coerce case on the two enums before validating — the LLM often
+  // returns "Passive"/"passive" or "kill"/"Survives" instead of the
+  // UPPERCASE canonical form, which used to hard-fail the kill test.
+  if (obj.audience_classification && typeof obj.audience_classification === 'object') {
+    const p = normalizeEnum(obj.audience_classification.posture, POSTURE_VALUES);
+    if (p) obj.audience_classification.posture = p;
+  }
+  if (Array.isArray(obj.offer_evaluations)) {
+    for (const ev of obj.offer_evaluations) {
+      if (ev && typeof ev === 'object') {
+        const v = normalizeEnum(ev.verdict, VERDICT_VALUES, { killed: 'KILL', survive: 'SURVIVES', survives: 'SURVIVES', pass: 'SURVIVES' });
+        if (v) ev.verdict = v;
+      }
+    }
   }
 
   // audience_classification ────────────────────────────────────────

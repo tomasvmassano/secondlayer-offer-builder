@@ -33,6 +33,7 @@ export const VALID_CONFIRMED_ROLES = [
 // a circular dependency between this file and offerArchetypes if the
 // latter ever needs frame helpers). The string match is what matters.
 import { OFFER_ARCHETYPES, OFFER_ARCHETYPE_LABELS } from './offerArchetypes';
+import { normalizeEnum } from './normalize';
 
 /**
  * Format the Strategic Frame for inclusion in a downstream wizard's
@@ -224,6 +225,11 @@ export function validateStrategicFrame(obj) {
   if (!obj || typeof obj !== 'object' || Array.isArray(obj)) {
     return { valid: false, errors: ['root: must be a JSON object'] };
   }
+
+  // Coerce the two enums before validating (2026-07-09) — "Entry Point" /
+  // "premium upsell" / "Hybrid Stack" casing slips used to hard-fail CP1.
+  { const r = normalizeEnum(obj.confirmed_role, VALID_CONFIRMED_ROLES); if (r) obj.confirmed_role = r; }
+  { const a = normalizeEnum(obj.primary_offer_archetype, OFFER_ARCHETYPES); if (a) obj.primary_offer_archetype = a; }
 
   if (!VALID_CONFIRMED_ROLES.includes(obj.confirmed_role)) {
     push('confirmed_role', `must be one of ${VALID_CONFIRMED_ROLES.join('|')}`);

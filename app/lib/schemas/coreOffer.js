@@ -1,3 +1,5 @@
+import { normalizeEnum, clampStr } from './normalize';
+
 /**
  * Core Offer (Phase 4 · Checkpoint 2) schema + validator.
  *
@@ -157,6 +159,30 @@ export function validateCoreOffer(obj) {
     return { valid: false, errors: ['root: must be a JSON object'] };
   }
 
+  // ── COERCE common LLM enum slips before validating (2026-07-09). These
+  // used to hard-fail the whole offer on "one-time" vs "one_time",
+  // "Premium" vs "high", "monthly" casing, etc. Normalize what the model
+  // clearly meant; the strict checks below then only fire on genuine
+  // structural problems.
+  {
+    const pm = normalizeEnum(obj.pricing_model, VALID_PRICING_MODELS, {
+      'one-time': 'one_time', 'onetime': 'one_time', 'single': 'one_time',
+      'month': 'monthly', 'recurring': 'monthly', 'subscription': 'monthly',
+      'year': 'annual', 'yearly': 'annual', 'auto': 'monthly',
+    });
+    if (pm) obj.pricing_model = pm;
+    const pt = normalizeEnum(obj.pricing_tier, VALID_PRICING_TIERS, {
+      'medium': 'mid', 'middle': 'mid', 'premium': 'high', 'entry': 'low', 'budget': 'low',
+    });
+    if (pt) obj.pricing_tier = pt;
+    if (obj.price && typeof obj.price === 'object' && obj.price.currency != null) {
+      const cur = normalizeEnum(obj.price.currency, ['EUR', 'USD', 'GBP', 'AED', 'CHF', 'BRL'], {
+        '€': 'EUR', 'eur': 'EUR', '$': 'USD', 'usd': 'USD', '£': 'GBP', 'gbp': 'GBP',
+      });
+      obj.price.currency = cur; // null → the check below reports it (or auto-nulls per its own rule)
+    }
+  }
+
   // central_promise — the Big Idea, in creator voice.
   if (!isStr(obj.central_promise)) {
     push('central_promise', 'required non-empty string (one-sentence Big Idea in creator voice)');
@@ -221,8 +247,12 @@ export function validateCoreOffer(obj) {
     const VALID_PERIODS = ['month', 'quarter', 'year', 'week'];
     const VALID_CURRENCIES = ['EUR', 'USD', 'GBP', 'AED', 'CHF', 'BRL'];
     const p = obj.price;
-    if (!VALID_CURRENCIES.includes(p.currency)) {
-      push('price.currency', `must be one of ${VALID_CURRENCIES.join('|')}`);
+    // Auto-null unknown currency instead of hard-failing (consistent with
+    // ecosystemAudit). The coercion block above already mapped symbols +
+    // casing; anything still unrecognized loses currency precision rather
+    // than killing the whole offer. Downstream render defaults to EUR.
+    if (p.currency != null && !VALID_CURRENCIES.includes(p.currency)) {
+      p.currency = null;
     }
     const setup     = Number(p.setup_amount);
     const recurring = Number(p.recurring_amount);

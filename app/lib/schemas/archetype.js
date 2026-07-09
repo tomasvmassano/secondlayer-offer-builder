@@ -14,6 +14,8 @@
  * something to disambiguate against in Checkpoint 1.
  */
 
+import { normalizeEnum } from './normalize';
+
 export const VALID_ARCHETYPES = [
   'expert_educator',
   'performer_practitioner',
@@ -42,6 +44,13 @@ export function validateArchetype(obj) {
   if (!obj || typeof obj !== 'object' || Array.isArray(obj)) {
     return { valid: false, errors: ['root: must be a JSON object'] };
   }
+
+  // Coerce enum case/spacing before validating (2026-07-09) — the LLM
+  // occasionally returns "Expert Educator" / "Micro-Influencer" instead
+  // of the snake_case canonical form, which used to hard-fail the phase.
+  { const a = normalizeEnum(obj.primary_archetype, VALID_ARCHETYPES); if (a) obj.primary_archetype = a; }
+  { const s = normalizeEnum(obj.secondary_archetype, VALID_ARCHETYPES); if (s) obj.secondary_archetype = s; }
+  { const f = normalizeEnum(obj.fame_tier, VALID_FAME_TIERS); if (f) obj.fame_tier = f; }
 
   // primary
   if (!VALID_ARCHETYPES.includes(obj.primary_archetype)) {

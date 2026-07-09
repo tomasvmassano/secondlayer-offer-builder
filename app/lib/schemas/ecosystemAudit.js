@@ -27,6 +27,8 @@ export const VALID_ROLES = [
   'standalone',
 ];
 
+import { normalizeEnum } from './normalize';
+
 export const VALID_CANNIBALIZATION_RISK = ['high', 'medium', 'low', 'none'];
 
 // Currency: ISO-4217 codes for the three currencies SL operates in. The
@@ -137,8 +139,15 @@ export function validateEcosystemAudit(obj) {
         // url optional — sometimes the community URL isn't crawlable
       });
     }
-    // community_cannibalization_risk — strict enum. The CP1 prompt uses
-    // this to decide whether to FORBID matching tiers.
+    // community_cannibalization_risk — coerce case/synonyms ("High Risk",
+    // "Medium", "None detected" → high/medium/none) before validating.
+    {
+      const r = normalizeEnum(em.community_cannibalization_risk, VALID_CANNIBALIZATION_RISK, {
+        'high risk': 'high', 'medium risk': 'medium', 'low risk': 'low',
+        'none detected': 'none', 'no risk': 'none', 'nil': 'none',
+      });
+      if (r) em.community_cannibalization_risk = r;
+    }
     if (!VALID_CANNIBALIZATION_RISK.includes(em.community_cannibalization_risk)) {
       push('ecosystem_map.community_cannibalization_risk', `must be one of ${VALID_CANNIBALIZATION_RISK.join('|')}`);
     }
