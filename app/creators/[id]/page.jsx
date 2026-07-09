@@ -174,6 +174,28 @@ const MessageCard = ({ label, type, content, accent, children }) => {
 // empty (creator hasn't been through dm-writer yet) the profile still
 // opens, the copy step is just skipped, and the label flips to a subtle
 // "↗ Ver perfil · sem DM" so the operator knows what's missing.
+// Elapsed-seconds counter for the long LLM waits (audit 60-90s, wizard
+// 30-60s). Before this, a running generation only swapped a button label
+// to "A gerar..." with no sign of life, so operators re-clicked, tabbed
+// away, or assumed it had died. Renders "· 12s" (amber past the expected
+// range so a genuine hang is visible). Mounts only while running.
+function ElapsedTimer({ running, expectedMax = 60 }) {
+  const [secs, setSecs] = useState(0);
+  useEffect(() => {
+    if (!running) { setSecs(0); return; }
+    const t0 = Date.now();
+    const id = setInterval(() => setSecs(Math.floor((Date.now() - t0) / 1000)), 1000);
+    return () => clearInterval(id);
+  }, [running]);
+  if (!running) return null;
+  const over = secs > expectedMax;
+  return (
+    <span style={{ marginLeft: 8, fontFamily: "'JetBrains Mono', ui-monospace, monospace", fontSize: 10, fontWeight: 700, color: over ? '#eab308' : '#888' }}>
+      · {secs}s{over ? ' (mais que o normal…)' : ''}
+    </span>
+  );
+}
+
 const OpenProfileButton = ({ profileUrl, platformLabel, dmText, alreadySent, onMarkSent }) => {
   const [copied, setCopied] = useState(false);
   if (!profileUrl) return null;
@@ -468,6 +490,17 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
   const [error, setError] = useState("");
   const [saving, setSaving] = useState("");
   const [tab, setTab] = useState(initialTab);
+  // Keep ?tab= in the URL in sync with the active tab so a refresh (very
+  // common after a 60s-cap timeout) or a back/forward keeps position
+  // instead of dumping the operator back on Perfil. history.replaceState
+  // avoids a Next navigation/refetch — pure URL bookkeeping.
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const url = new URL(window.location.href);
+    if (url.searchParams.get('tab') === tab) return;
+    url.searchParams.set('tab', tab);
+    window.history.replaceState(window.history.state, '', url.toString());
+  }, [tab]);
   const [editName, setEditName] = useState(false);
   const [showResearch, setShowResearch] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -3730,7 +3763,7 @@ function EcosystemAuditPanel({ creator, setCreator, running, error, diag, onRun 
               whiteSpace: "nowrap",
             }}
           >
-            {running ? "A correr audit..." : audit ? "↻ Voltar a correr" : "Correr audit"}
+            {running ? "A correr audit..." : audit ? "↻ Voltar a correr" : "Correr audit"}<ElapsedTimer running={running} expectedMax={90} />
           </button>
         </div>
       </div>
@@ -4273,7 +4306,7 @@ function ArchetypePanel({ creator, running, error, diag, onRun }) {
             whiteSpace: "nowrap",
           }}
         >
-          {running ? "A classificar..." : c ? "↻ Voltar a correr" : "Correr classificador"}
+          {running ? "A classificar..." : c ? "↻ Voltar a correr" : "Correr classificador"}<ElapsedTimer running={running} expectedMax={60} />
         </button>
       </div>
 
@@ -4430,7 +4463,7 @@ function UniquenessPanel({ creator, running, error, diag, onRun }) {
             whiteSpace: "nowrap",
           }}
         >
-          {running ? "A extrair..." : u ? "↻ Voltar a correr" : "Correr extractor"}
+          {running ? "A extrair..." : u ? "↻ Voltar a correr" : "Correr extractor"}<ElapsedTimer running={running} expectedMax={40} />
         </button>
       </div>
 
@@ -4782,7 +4815,7 @@ function OfferJudgmentPanel({ creator, setCreator }) {
             whiteSpace: "nowrap",
           }}
         >
-          {running ? "A julgar..." : judgment ? "↻ Voltar a correr" : "Correr kill test (~$0.05)"}
+          {running ? "A julgar..." : judgment ? "↻ Voltar a correr" : "Correr kill test (~$0.05)"}<ElapsedTimer running={running} expectedMax={50} />
         </button>
       </div>
 
@@ -5119,7 +5152,7 @@ function StrategicFramePanel({ creator, setCreator, running, setRunning, error, 
                 whiteSpace: "nowrap",
               }}
             >
-              {running ? "A gerar..." : frame ? "↻ Voltar a gerar" : "Gerar (~$0.02)"}
+              {running ? "A gerar..." : frame ? "↻ Voltar a gerar" : "Gerar (~$0.02)"}<ElapsedTimer running={running} expectedMax={45} />
             </button>
           )}
           {!cp1Locked && frame && (
@@ -5964,7 +5997,7 @@ function CoreOfferPanel({ creator, setCreator, running, setRunning, error, setEr
               fontFamily: "inherit",
             }}
           >
-            {running ? "A gerar..." : hasOutput ? `↻ Voltar a gerar @ ${pendingTier}` : `Gerar @ ${pendingTier}${pendingModel !== 'auto' ? ` · ${pendingModel}` : ''} (~$0.04)`}
+            {running ? "A gerar..." : hasOutput ? `↻ Voltar a gerar @ ${pendingTier}` : `Gerar @ ${pendingTier}${pendingModel !== 'auto' ? ` · ${pendingModel}` : ''} (~$0.04)`}<ElapsedTimer running={running} expectedMax={50} />
           </button>
         </div>
       )}
@@ -6381,7 +6414,7 @@ function ModulesPanel({ creator, setCreator, running, setRunning, error, setErro
                 whiteSpace: "nowrap",
               }}
             >
-              {running ? "A gerar..." : "Gerar (~$0.05-0.08)"}
+              {running ? "A gerar..." : "Gerar (~$0.05-0.08)"}<ElapsedTimer running={running} expectedMax={50} />
             </button>
           )}
           {!cp3Locked && hasOutput && (
@@ -6808,7 +6841,7 @@ function ValueStackPanel({ creator, setCreator, running, setRunning, error, setE
                 whiteSpace: "nowrap",
               }}
             >
-              {running ? "A gerar..." : hasOutput ? "↻ Voltar a gerar" : "Gerar (~$0.08-0.12)"}
+              {running ? "A gerar..." : hasOutput ? "↻ Voltar a gerar" : "Gerar (~$0.08-0.12)"}<ElapsedTimer running={running} expectedMax={55} />
             </button>
           )}
           {!cp4Locked && hasOutput && (
@@ -7143,7 +7176,7 @@ function SalesCopyPanel({ creator, setCreator, running, setRunning, error, setEr
                 whiteSpace: "nowrap",
               }}
             >
-              {running ? "A gerar..." : hasOutput ? "↻ Voltar a gerar" : "Gerar (~$0.10-0.15)"}
+              {running ? "A gerar..." : hasOutput ? "↻ Voltar a gerar" : "Gerar (~$0.10-0.15)"}<ElapsedTimer running={running} expectedMax={55} />
             </button>
           )}
           {!cp5Locked && hasOutput && (

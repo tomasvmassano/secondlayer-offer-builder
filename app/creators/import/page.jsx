@@ -128,8 +128,19 @@ export default function BulkImportPage() {
     if (auditWorkerRunningRef.current) return;
     auditWorkerRunningRef.current = true;
     auditCancelRef.current = false;
+    // Pause the worker while the tab is hidden. Each queued audit is a
+    // 60-90s Sonnet + web_search call; without this, backgrounding the
+    // tab mid-import kept draining the whole queue (could be 50 creators)
+    // and burning money with nobody watching. Resumes on re-focus.
+    const waitUntilVisible = async () => {
+      while (typeof document !== 'undefined' && document.hidden && !auditCancelRef.current) {
+        await new Promise(res => setTimeout(res, 1000));
+      }
+    };
     (async () => {
       while (auditQueueRef.current.length > 0 && !auditCancelRef.current) {
+        await waitUntilVisible();
+        if (auditCancelRef.current) break;
         const creatorId = auditQueueRef.current.shift();
         setParsedRows(prev => prev.map(r => r.creatorId === creatorId ? { ...r, auditStatus: 'running' } : r));
         try {
