@@ -5299,6 +5299,282 @@ function StrategicFramePanel({ creator, setCreator, running, setRunning, error, 
 }
 
 // ──────────────────────────────────────────────────────────────────────────
+// ServiceOfferPanel — the real "done-for-you" offer builder for the
+// productized_service archetype. Replaces the ThesisOnlyGate dead-end
+// ("o wizard não existe") with a working generate → render → copy flow.
+// Posts to /api/creators/[id]/service-offer, persists at
+// internal_metadata.service_offer. v1: renders as its own deliverable
+// panel (not forced into the community-shaped pitch deck).
+// ──────────────────────────────────────────────────────────────────────────
+function ServiceOfferPanel({ creator, setCreator }) {
+  const meta = creator?.offer?.internal_metadata || {};
+  const svc = meta.service_offer || null;
+  const runAt = meta.generation_timestamps?.service_offer || null;
+  const [running, setRunning] = useState(false);
+  const [error, setError] = useState(null);
+  const [copyStatus, setCopyStatus] = useState('idle');
+
+  const CUR_SYM = { EUR: '€', USD: '$', GBP: '£', AED: 'AED ', CHF: 'CHF ', BRL: 'R$' };
+  const priceLabel = (p) => {
+    if (!p || typeof p.amount !== 'number') return '';
+    const sym = CUR_SYM[p.currency] || '';
+    const amt = p.amount >= 1000 ? p.amount.toLocaleString('pt-PT') : String(p.amount);
+    const suf = p.model === 'per_month' ? '/mês' : p.model === 'per_unit' ? '/unidade' : '';
+    return `${sym}${amt}${suf}`;
+  };
+
+  const generate = async (instruction = null) => {
+    if (typeof instruction !== 'string') instruction = null;
+    if (!creator?.id || running) return;
+    setRunning(true);
+    setError(null);
+    try {
+      const r = await fetch(`/api/creators/${creator.id}/service-offer`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(instruction ? { instruction } : {}),
+      });
+      const data = await parseJsonSafe(r);
+      if (!r.ok) {
+        const detail = data.errors?.length ? '\n\n' + data.errors.join('\n') : '';
+        throw new Error((data.error || 'Falha a gerar oferta de serviço') + detail);
+      }
+      setCreator(prev => prev ? ({
+        ...prev,
+        offer: {
+          ...(prev.offer || {}),
+          internal_metadata: {
+            ...((prev.offer || {}).internal_metadata || {}),
+            service_offer: data.service_offer,
+            generation_timestamps: {
+              ...((prev.offer || {}).internal_metadata?.generation_timestamps || {}),
+              service_offer: new Date().toISOString(),
+            },
+          },
+        },
+      }) : prev);
+    } catch (e) {
+      setError(e.message || 'Erro desconhecido');
+    } finally {
+      setRunning(false);
+    }
+  };
+
+  const copyMarkdown = async () => {
+    if (!svc) return;
+    const lines = [];
+    lines.push(`# ${svc.service_name}`);
+    if (svc.central_promise) lines.push(`\n**Promessa:** ${svc.central_promise}`);
+    if (svc.core_deliverable) lines.push(`\n**O que recebes:** ${svc.core_deliverable}`);
+    if (svc.turnaround) lines.push(`**Prazo:** ${svc.turnaround} · **Formato:** ${svc.delivery_format}`);
+    if (Array.isArray(svc.process_steps) && svc.process_steps.length) {
+      lines.push(`\n## Processo`);
+      svc.process_steps.forEach((s, i) => lines.push(`${i + 1}. **${s.name}** — ${s.detail}`));
+    }
+    if (Array.isArray(svc.packages) && svc.packages.length) {
+      lines.push(`\n## Pacotes`);
+      svc.packages.forEach(p => {
+        lines.push(`\n### ${p.name} — ${priceLabel(p.price)}`);
+        if (p.best_for) lines.push(`_${p.best_for}_`);
+        if (p.turnaround) lines.push(`Prazo: ${p.turnaround}`);
+        (p.whats_included || []).forEach(w => lines.push(`- ${w}`));
+      });
+    }
+    if (Array.isArray(svc.who_its_for) && svc.who_its_for.length) {
+      lines.push(`\n## Para quem`);
+      svc.who_its_for.forEach(w => lines.push(`- ${w}`));
+    }
+    if (Array.isArray(svc.who_its_not_for) && svc.who_its_not_for.length) {
+      lines.push(`\n## Não é para`);
+      svc.who_its_not_for.forEach(w => lines.push(`- ${w}`));
+    }
+    if (svc.positioning) lines.push(`\n## Posicionamento\n${svc.positioning}`);
+    try {
+      await navigator.clipboard.writeText(lines.join('\n'));
+      setCopyStatus('copied');
+      setTimeout(() => setCopyStatus('idle'), 2000);
+    } catch {
+      setCopyStatus('failed');
+      setTimeout(() => setCopyStatus('idle'), 2500);
+    }
+  };
+
+  const H = ({ children }) => (
+    <div style={{ fontSize: 9, fontWeight: 700, color: "#666", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 8 }}>{children}</div>
+  );
+  const card = { padding: "14px 16px", background: "#0a0a0a", borderRadius: 8, border: "1px solid rgba(255,255,255,0.05)", marginBottom: 12 };
+
+  return (
+    <div style={{ marginBottom: 16 }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12, flexWrap: "wrap", gap: 8 }}>
+        <div>
+          <div style={{ fontSize: 9, fontWeight: 700, color: "#3b82f6", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 4 }}>
+            Oferta de serviço {svc ? <span style={{ color: "#22c55e", marginLeft: 6 }}>· gerada</span> : null}
+          </div>
+          <div style={{ fontSize: 13, fontWeight: 600, color: "#f5f5f5" }}>Construtor de serviço feito-por-ti</div>
+          <div style={{ fontSize: 11, color: "#888", marginTop: 2, lineHeight: 1.5 }}>
+            Entregável a preço fixo com processo repetível — o formato certo para esta tese (não é comunidade).
+          </div>
+        </div>
+        <button
+          onClick={() => generate()}
+          disabled={running}
+          style={{
+            padding: "8px 14px", borderRadius: 6,
+            border: "1px solid rgba(59,130,246,0.45)",
+            background: running ? "rgba(255,255,255,0.02)" : "rgba(59,130,246,0.08)",
+            color: running ? "#555" : "#3b82f6",
+            fontSize: 11, fontWeight: 700, cursor: running ? "wait" : "pointer",
+            fontFamily: "inherit", whiteSpace: "nowrap",
+          }}
+        >
+          {running ? "A gerar..." : svc ? "↻ Voltar a gerar" : "Gerar oferta de serviço (~$0.05)"}<ElapsedTimer running={running} expectedMax={45} />
+        </button>
+      </div>
+
+      {error && (
+        <div style={{ padding: "10px 14px", borderRadius: 6, background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.25)", color: "#ef4444", fontSize: 11, marginBottom: 12, whiteSpace: "pre-wrap" }}>{error}</div>
+      )}
+
+      {!svc && !running && (
+        <div style={{ padding: "16px", textAlign: "center", color: "#444", fontSize: 11.5, border: "1px dashed rgba(255,255,255,0.06)", borderRadius: 6 }}>
+          Sem oferta de serviço ainda. Clica <strong style={{ color: "#888" }}>Gerar</strong> (~20-40s, Sonnet). Usa o frame do CP1.
+        </div>
+      )}
+
+      {svc && (
+        <div>
+          {/* Name + promise */}
+          <div style={{ ...card, border: "1px solid rgba(59,130,246,0.25)" }}>
+            <H>Nome do serviço</H>
+            <div style={{ fontSize: 16, fontWeight: 700, color: "#f5f5f5", marginBottom: 6 }}>{svc.service_name}</div>
+            {svc.central_promise && <div style={{ fontSize: 12.5, color: "#ddd", lineHeight: 1.55, fontStyle: "italic" }}>"{svc.central_promise}"</div>}
+            {Array.isArray(svc.name_candidates) && svc.name_candidates.length > 0 && (
+              <div style={{ marginTop: 8, fontSize: 10.5, color: "#777" }}>
+                Alternativas: {svc.name_candidates.join(' · ')}
+              </div>
+            )}
+          </div>
+
+          {/* Core deliverable + turnaround/format */}
+          <div style={card}>
+            <H>O que o cliente recebe</H>
+            <div style={{ fontSize: 12.5, color: "#f5f5f5", lineHeight: 1.6, marginBottom: 8 }}>{svc.core_deliverable}</div>
+            <div style={{ display: "flex", gap: 14, flexWrap: "wrap", fontSize: 11, color: "#888" }}>
+              {svc.turnaround && <span><strong style={{ color: "#ddd" }}>Prazo:</strong> {svc.turnaround}</span>}
+              {svc.delivery_format && <span><strong style={{ color: "#ddd" }}>Formato:</strong> {svc.delivery_format === 'async' ? 'assíncrono' : svc.delivery_format === 'live' ? 'ao vivo' : 'híbrido'}</span>}
+            </div>
+          </div>
+
+          {/* Process steps */}
+          {Array.isArray(svc.process_steps) && svc.process_steps.length > 0 && (
+            <div style={card}>
+              <H>Processo repetível ({svc.process_steps.length} passos)</H>
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                {svc.process_steps.map((s, i) => (
+                  <div key={i} style={{ display: "flex", gap: 10 }}>
+                    <div style={{ flexShrink: 0, width: 20, height: 20, borderRadius: "50%", background: "rgba(59,130,246,0.12)", color: "#3b82f6", fontSize: 10, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center" }}>{i + 1}</div>
+                    <div>
+                      <div style={{ fontSize: 12, fontWeight: 600, color: "#f5f5f5", lineHeight: 1.4 }}>{s.name}</div>
+                      <div style={{ fontSize: 11, color: "#999", lineHeight: 1.5, marginTop: 2 }}>{s.detail}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Packages */}
+          {Array.isArray(svc.packages) && svc.packages.length > 0 && (
+            <div style={{ display: "grid", gridTemplateColumns: `repeat(auto-fit, minmax(200px, 1fr))`, gap: 10, marginBottom: 12 }}>
+              {svc.packages.map((p, i) => (
+                <div key={i} style={{ padding: "14px 16px", background: "#0a0a0a", borderRadius: 8, border: "1px solid rgba(34,197,94,0.25)" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 8, marginBottom: 8 }}>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: "#f5f5f5" }}>{p.name}</div>
+                    <div style={{ fontSize: 15, fontWeight: 700, color: "#22c55e", fontFamily: "'JetBrains Mono', ui-monospace, monospace", whiteSpace: "nowrap" }}>{priceLabel(p.price)}</div>
+                  </div>
+                  {p.best_for && <div style={{ fontSize: 10.5, color: "#888", fontStyle: "italic", marginBottom: 8, lineHeight: 1.4 }}>{p.best_for}</div>}
+                  <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 4 }}>
+                    {(p.whats_included || []).map((w, j) => (
+                      <li key={j} style={{ fontSize: 11, color: "#ccc", lineHeight: 1.45, paddingLeft: 14, position: "relative" }}>
+                        <span style={{ position: "absolute", left: 0, color: "#22c55e" }}>✓</span>{w}
+                      </li>
+                    ))}
+                  </ul>
+                  {p.turnaround && <div style={{ marginTop: 8, fontSize: 10, color: "#666" }}>Prazo: {p.turnaround}</div>}
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Audience fit */}
+          <div className="sl-grid-2" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 12 }}>
+            {Array.isArray(svc.who_its_for) && (
+              <div style={{ padding: "12px 14px", background: "rgba(34,197,94,0.03)", borderRadius: 8, border: "1px solid rgba(34,197,94,0.18)" }}>
+                <div style={{ fontSize: 9, fontWeight: 700, color: "#22c55e", letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 6 }}>Para quem</div>
+                <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 4 }}>
+                  {svc.who_its_for.map((w, i) => <li key={i} style={{ fontSize: 11, color: "#ccc", lineHeight: 1.45, paddingLeft: 12, position: "relative" }}><span style={{ position: "absolute", left: 0, color: "#22c55e" }}>·</span>{w}</li>)}
+                </ul>
+              </div>
+            )}
+            {Array.isArray(svc.who_its_not_for) && (
+              <div style={{ padding: "12px 14px", background: "rgba(239,68,68,0.03)", borderRadius: 8, border: "1px solid rgba(239,68,68,0.18)" }}>
+                <div style={{ fontSize: 9, fontWeight: 700, color: "#ef4444", letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 6 }}>Não é para</div>
+                <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 4 }}>
+                  {svc.who_its_not_for.map((w, i) => <li key={i} style={{ fontSize: 11, color: "#ccc", lineHeight: 1.45, paddingLeft: 12, position: "relative" }}><span style={{ position: "absolute", left: 0, color: "#ef4444" }}>✕</span>{w}</li>)}
+                </ul>
+              </div>
+            )}
+          </div>
+
+          {/* Positioning */}
+          {svc.positioning && (
+            <div style={{ ...card, background: "rgba(122,14,24,0.04)", border: "1px solid rgba(122,14,24,0.18)" }}>
+              <div style={{ fontSize: 9, fontWeight: 700, color: "#7A0E18", letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 6 }}>Posicionamento (a cunha)</div>
+              <div style={{ fontSize: 12, color: "#f5f5f5", lineHeight: 1.55 }}>{svc.positioning}</div>
+            </div>
+          )}
+
+          {/* Actions */}
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+            <button
+              type="button"
+              onClick={copyMarkdown}
+              disabled={copyStatus !== 'idle'}
+              style={{
+                padding: "9px 16px", borderRadius: 6,
+                border: "1px solid rgba(59,130,246,0.45)",
+                background: copyStatus === 'copied' ? "rgba(34,197,94,0.12)" : "rgba(59,130,246,0.08)",
+                color: copyStatus === 'copied' ? "#22c55e" : copyStatus === 'failed' ? "#ef4444" : "#3b82f6",
+                fontSize: 11, fontWeight: 700, cursor: copyStatus === 'idle' ? "pointer" : "default", fontFamily: "inherit",
+              }}
+            >
+              {copyStatus === 'copied' ? '✓ Copiado!' : copyStatus === 'failed' ? '✕ Copia manualmente' : '📋 Copiar oferta (markdown)'}
+            </button>
+          </div>
+
+          {!running && (
+            <div style={{ marginTop: 12 }}>
+              <RegenWithInstructionBlock
+                placeholder="Ex: 'pacote único mais simples', 'baixa o preço para €290', 'processo com menos passos'..."
+                busy={running}
+                onRegen={(inst) => generate(inst)}
+              />
+            </div>
+          )}
+
+          {runAt && (
+            <div style={{ fontSize: 10, color: "#333", marginTop: 10 }}>
+              Última geração: {new Date(runAt).toLocaleString("pt-PT")}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ──────────────────────────────────────────────────────────────────────────
 // Phase 4 · CP2 — Core Offer Panel
 // ──────────────────────────────────────────────────────────────────────────
 // ThesisOnlyGate — replaces the CP2 generation flow when CP1's
@@ -5465,11 +5741,21 @@ function ThesisOnlyGate({ frame, creator, setCreator, onForceOverride }) {
         )}
       </div>
 
-      <div style={{ padding: "12px 14px", background: "#0a0a0a", borderRadius: 6, border: "1px solid rgba(255,255,255,0.04)", marginBottom: 12, fontSize: 12, color: "#ddd", lineHeight: 1.6 }}>
-        O wizard CP2 está desenhado para construir comunidades.
-        Para este formato, o wizard ainda não existe — mas a tese acima
-        já contém o suficiente para executar manualmente.
-      </div>
+      {archetype === 'productized_service' ? (
+        // Real builder for done-for-you services — no longer a dead-end.
+        <div style={{ marginBottom: 12, paddingTop: 4, borderTop: "1px solid rgba(255,255,255,0.06)" }}>
+          <ServiceOfferPanel creator={creator} setCreator={setCreator} />
+          <div style={{ fontSize: 10.5, color: "#666", lineHeight: 1.55, marginBottom: 4 }}>
+            A tese abaixo (jogada, constrangimento, capture gap) é o contexto que alimenta o construtor acima.
+          </div>
+        </div>
+      ) : (
+        <div style={{ padding: "12px 14px", background: "#0a0a0a", borderRadius: 6, border: "1px solid rgba(255,255,255,0.04)", marginBottom: 12, fontSize: 12, color: "#ddd", lineHeight: 1.6 }}>
+          O wizard CP2 está desenhado para construir comunidades.
+          Para este formato, o wizard dedicado ainda não existe — mas a tese
+          abaixo já contém o suficiente para executar manualmente.
+        </div>
+      )}
 
       {/* Primary play — the actionable "what to actually build" */}
       {primary && (
