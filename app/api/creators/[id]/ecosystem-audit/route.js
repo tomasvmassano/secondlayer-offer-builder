@@ -605,35 +605,6 @@ Return ONLY the JSON object matching the schema in your system prompt. Start you
     // even when the original output was 95% correct. Now: fail fast,
     // return the validator errors to the operator, let them re-run
     // manually if needed. Net per-audit cost halved.
-    if (false) {
-      // legacy retry block — preserved for one commit so we can revive
-      // if fail-fast turns out too aggressive.
-      const retryResp = await fetch('https://api.anthropic.com/v1/messages', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01' },
-        body: JSON.stringify({
-          model: 'claude-sonnet-4-5-20250929',
-          max_tokens: 4000,
-          tools: [{ type: 'web_search_20250305', name: 'web_search' }],
-          system: [{ type: 'text', text: SYSTEM_PROMPT, cache_control: { type: 'ephemeral' } }],
-          messages: [
-            { role: 'user', content: userMessage },
-            { role: 'assistant', content: rawText },
-            { role: 'user', content: `Your output failed schema validation. Fix and resend ONLY the JSON.\n\nErrors:\n${validation.errors.map(e => '- ' + e).join('\n')}` },
-          ],
-        }),
-      });
-      const retryData = await retryResp.json();
-      if (retryResp.ok) {
-        const retryText = (retryData.content || []).filter(b => b.type === 'text').map(b => b.text).join('\n');
-        const retryParsed = tryParseJson(retryText);
-        if (retryParsed) {
-          const retryValidation = validateEcosystemAudit(retryParsed);
-          if (retryValidation.valid) return { data: retryParsed, retries: retryCount + 1 };
-          return { error: 'Schema validation failed twice', errors: retryValidation.errors, raw: retryText, retries: retryCount + 1 };
-        }
-      }
-    }
     return { error: 'Schema validation failed', errors: validation.errors, raw: rawText, retries: retryCount };
   }
 

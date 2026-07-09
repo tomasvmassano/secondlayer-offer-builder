@@ -359,34 +359,6 @@ Return ONLY the JSON object per the schema in the system prompt.${formatInstruct
   const validation = validateValueStack(parsed);
   if (!validation.valid) {
     // Retry-on-validation-failure removed 2026-06-18 (emergency cost cut).
-    if (false) {
-      const retryResp = await fetch('https://api.anthropic.com/v1/messages', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01' },
-        body: JSON.stringify({
-          model: 'claude-sonnet-4-5-20250929',
-          // 5000 → 3500 (2026-06-18 emergency cost cut).
-      max_tokens: 3500,
-          system: [{ type: 'text', text: SYSTEM_PROMPT, cache_control: { type: 'ephemeral' } }],
-          messages: [
-            { role: 'user', content: userMessage },
-            { role: 'assistant', content: rawText },
-            { role: 'user', content: `Your output failed schema validation. Fix and resend ONLY the JSON.\n\nErrors:\n${validation.errors.map(e => '- ' + e).join('\n')}` },
-          ],
-        }),
-      });
-      const retryData = await retryResp.json();
-      if (retryResp.ok) {
-        const retryText = (retryData.content || []).filter(b => b.type === 'text').map(b => b.text).join('\n');
-        const retryParsed = tryParseJson(retryText);
-        if (retryParsed) {
-          if (retryParsed.value_stack && client.target_price) retryParsed.value_stack.actualPrice = client.target_price;
-          const retryValidation = validateValueStack(retryParsed);
-          if (retryValidation.valid) return enrich(retryParsed, modules.length, client.target_price, retryValidation.warnings, retryCount + 1);
-          return { error: 'Schema validation failed twice', errors: retryValidation.errors, raw: retryText, retries: retryCount + 1 };
-        }
-      }
-    }
     return { error: 'Schema validation failed', errors: validation.errors, raw: rawText, retries: retryCount };
   }
 

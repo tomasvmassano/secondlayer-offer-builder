@@ -347,32 +347,6 @@ Return ONLY the JSON object per the schema in the system prompt.${formatInstruct
     // Validation-failure retry removed 2026-06-18 (emergency cost cut).
     // Was firing a second 4000-token Anthropic call (~$0.06) even on
     // small schema mismatches. Fail fast — operator can re-run.
-    if (false) {
-      const retryResp = await fetch('https://api.anthropic.com/v1/messages', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01' },
-        body: JSON.stringify({
-          model: 'claude-sonnet-4-5-20250929',
-          max_tokens: 4000,
-          system: [{ type: 'text', text: MODULES_SYSTEM_PROMPT, cache_control: { type: 'ephemeral' } }],
-          messages: [
-            { role: 'user', content: userMessage },
-            { role: 'assistant', content: rawText },
-            { role: 'user', content: `Your output failed schema validation. Fix and resend ONLY the JSON.\n\nErrors:\n${validation.errors.map(e => '- ' + e).join('\n')}` },
-          ],
-        }),
-      });
-      const retryData = await retryResp.json();
-      if (retryResp.ok) {
-        const retryText = (retryData.content || []).filter(b => b.type === 'text').map(b => b.text).join('\n');
-        const retryParsed = tryParseJson(retryText);
-        if (retryParsed) {
-          const retryValidation = validateModules(retryParsed, usableCount);
-          if (retryValidation.valid) return { data: retryParsed, warnings: retryValidation.warnings, usableElementsInput: usableCount, retries: retryCount + 1 };
-          return { error: 'Schema validation failed twice', errors: retryValidation.errors, raw: retryText, retries: retryCount + 1 };
-        }
-      }
-    }
     return { error: 'Schema validation failed', errors: validation.errors, raw: rawText, retries: retryCount };
   }
 

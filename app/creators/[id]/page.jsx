@@ -8,7 +8,6 @@ import { SCENARIOS as REVENUE_SCENARIOS, calculateSteadyMRR as sharedCalcMRR, ca
 import { detectCurrency, CURRENCY_SYMBOLS, convert as fxConvert, convertPriceString } from "../../lib/currency";
 import { renderMd, parseOutput, extractAudience } from "../../lib/offerParser";
 import { legacyParsedToOfferState, CHECKPOINTS, readCheckpointProgress, readOfferState } from "../../lib/offerSchema";
-import { OFFER_SYSTEM_PROMPT } from "../../lib/systemPrompt";
 import WorkspaceDashboard from "./workspace/WorkspaceDashboard";
 import { STAGES, computeOutreachStage, stagePatch } from "../../lib/outreachStages";
 import { OFFER_ARCHETYPE_LABELS_PT as OFFER_ARCHETYPE_LABELS, OFFER_ARCHETYPE_DESCRIPTIONS_PT as OFFER_ARCHETYPE_DESCRIPTIONS } from "../../lib/schemas/offerArchetypes";
@@ -87,44 +86,6 @@ const LAUNCH_PHASES = [
     { key: "churnPrevention", label: "Churn Prevention", desc: "Sistema anti-churn + win-back campaigns" },
   ]},
 ];
-
-const OFFER_STEPS = [
-  { section: "Creator Profile", icon: "01", fields: [
-    { key: "creator_name", label: "Creator Name", type: "text" },
-    { key: "niche", label: "Creator's Niche", type: "text" },
-    { key: "platforms", label: "Platforms & Audience Size", type: "text" },
-    { key: "engagement", label: "Engagement Rate / Avg Views", type: "text" },
-    { key: "primary_platform", label: "Primary Platform", type: "select", options: ["Instagram", "TikTok", "YouTube"] },
-    { key: "language", label: "Output Language", type: "select", options: ["English", "Português"] },
-  ]},
-  { section: "Social Profiles", icon: "02", fields: [
-    { key: "instagram", label: "Instagram", placeholder: "https://instagram.com/username", type: "text" },
-    { key: "tiktok", label: "TikTok", placeholder: "https://tiktok.com/@username", type: "text" },
-    { key: "youtube", label: "YouTube", placeholder: "https://youtube.com/@channel", type: "text" },
-  ]},
-  { section: "Audience Analysis", icon: "03", fields: [
-    { key: "audience_demo", label: "Core Audience Demographics", placeholder: "e.g. Women 25-35, Portugal, middle income", type: "text" },
-    { key: "audience_problem", label: "Main Problem / Desire", placeholder: "What does this audience want that the creator solves for free?", type: "textarea" },
-  ]},
-  { section: "Business Parameters", icon: "04", fields: [
-    { key: "format", label: "Delivery Format", placeholder: "Skool community, Course, Membership, Hybrid", type: "text" },
-    { key: "price_range", label: "Target Price Range", placeholder: "e.g. 39 EUR/mês", type: "text" },
-    { key: "creator_capacity", label: "Creator Involvement", placeholder: "e.g. 2 hours/week, weekly live call, fully hands-off", type: "text" },
-    { key: "credibility", label: "Unique Credibility Factor", placeholder: "Credentials, results, story, unique method", type: "textarea" },
-  ]},
-  { section: "Team Notes", icon: "05", fields: [
-    { key: "guidelines", label: "Additional Context", placeholder: "Constraints, preferences, or notes from the team", type: "textarea" },
-  ]},
-];
-
-function suggestFormat(dealScore, engagement) {
-  const tier = dealScore?.nicheData?.tier;
-  const eng = parseFloat(engagement) || 0;
-  if (tier === 'A' && eng >= 3) return "Skool community (recomendado)";
-  if (tier === 'A') return "Hybrid: curso + community (recomendado)";
-  if (tier === 'B') return "Hybrid: curso + community";
-  return "Curso online";
-}
 
 function formatFollowers(n) {
   if (!n) return "0";
@@ -655,10 +616,9 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
   const [launchEditing, setLaunchEditing] = useState(null);
   const [launchEditContent, setLaunchEditContent] = useState("");
 
-  // Offer Builder state
-  const [offerForm, setOfferForm] = useState({});
-  const [offerLoading, setOfferLoading] = useState(false);
-  const [offerError, setOfferError] = useState(null);
+  // Offer Builder state — offerForm/offerLoading/offerError + the
+  // generateOffer handler were deleted 2026-07-09 (legacy A-O generator,
+  // zero call sites). offerTab drives the Oferta sub-tabs and stays.
   const [offerTab, setOfferTab] = useState("offer");
   // Controls the PivotTierModal — operator-triggered "regenerate the
   // entire offer at a new tier" workflow. Shown via a button on the
@@ -669,7 +629,6 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
   // through CP4. Used by the per-CP "Regenerate from here" buttons and
   // the "Reset all" action (which sets it to 1).
   const [cascadeFromCp, setCascadeFromCp] = useState(null);
-  const [offerStep, setOfferStep] = useState(0);
 
   useEffect(() => { Promise.resolve(paramsPromise).then(setParams); }, [paramsPromise]);
 
@@ -695,45 +654,6 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
   }, []);
 
   useEffect(() => { if (params?.id) fetchCreator(params.id); }, [params, fetchCreator]);
-
-  // Auto-fill offer form when creator loads
-  useEffect(() => {
-    if (!creator || offerForm._filled) return;
-    let ds = null;
-    try { ds = calculateDealScore(creator); } catch (e) { /* ignore */ }
-    const ae = creator.audienceEstimate || {};
-    const fmtPlat = (p) => {
-      const parts = [];
-      if (p?.instagram?.followers) parts.push(`Instagram ${p.instagram.followers.toLocaleString()}`);
-      if (p?.tiktok?.followers) parts.push(`TikTok ${p.tiktok.followers.toLocaleString()}`);
-      if (p?.youtube?.subscribers) parts.push(`YouTube ${p.youtube.subscribers.toLocaleString()}`);
-      return parts.join(", ");
-    };
-    setOfferForm({
-      _filled: true,
-      creator_name: creator.name || "",
-      niche: creator.niche || "",
-      platforms: fmtPlat(creator.platforms),
-      engagement: creator.engagement || "",
-      primary_platform: creator.primaryPlatform || "Instagram",
-      // Language label fed into dm-writer input templates. Mirrors the
-      // creator's primaryLanguage (the gold source) when available; falls
-      // back to the audience-language string heuristic otherwise.
-      language: creator?.primaryLanguage === 'pt' ? 'Português'
-              : creator?.primaryLanguage === 'es' ? 'Español'
-              : creator?.primaryLanguage === 'en' ? 'English'
-              : (ae.language || '').toLowerCase().includes('portugu') ? 'Português'
-              : (ae.language || '').toLowerCase().includes('span') || (ae.language || '').toLowerCase().includes('españ') ? 'Español'
-              : 'English',
-      instagram: creator.platforms?.instagram?.url || "",
-      tiktok: creator.tiktokUrl || creator.platforms?.tiktok?.url || "",
-      youtube: creator.youtubeUrl || creator.platforms?.youtube?.url || "",
-      audience_demo: [ae.gender, ae.age, ae.location].filter(Boolean).join(", "),
-      format: suggestFormat(ds, creator.engagement),
-      price_range: ds?.nicheData ? `€${ds.nicheData.mid}/mês` : "",
-      credibility: [creator.reputation, creator.products?.length ? "Produtos: " + creator.products.join(", ") : ""].filter(Boolean).join("\n"),
-    });
-  }, [creator, offerForm._filled]);
 
   // Auto-fill DM inputs when creator loads
   useEffect(() => {
@@ -1238,90 +1158,6 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
     } catch (e) { console.error(e); }
     finally { setRewriteLoading(false); }
   }, [creator, rewriteInstruction, senderName, patchCreator]);
-
-  // — Offer Builder generate —
-  const generateOffer = useCallback(async () => {
-    if (!creator) return;
-    setOfferLoading(true); setOfferError(null);
-    try {
-      const ae = creator.audienceEstimate || {};
-      const meetingContext = Object.entries(creator.meeting || {}).filter(([, v]) => v?.trim()).map(([k, v]) => {
-        const label = MEETING_QUESTIONS.find(q => q.key === k)?.label || k;
-        return `**${label}:** ${v}`;
-      }).join("\n");
-
-      const formatPlatforms = (p) => {
-        const parts = [];
-        if (p?.instagram?.followers) parts.push(`Instagram ${p.instagram.followers.toLocaleString()}`);
-        if (p?.tiktok?.followers) parts.push(`TikTok ${p.tiktok.followers.toLocaleString()}`);
-        if (p?.youtube?.subscribers) parts.push(`YouTube ${p.youtube.subscribers.toLocaleString()}`);
-        return parts.join(", ");
-      };
-
-      let msg = "## CREATOR INTAKE DATA\n\n";
-      msg += `**Creator Name:** ${creator.name}\n`;
-      msg += `**Niche:** ${creator.niche}\n`;
-      msg += `**Platforms:** ${formatPlatforms(creator.platforms)}\n`;
-      msg += `**Engagement:** ${creator.engagement}\n`;
-      msg += `**Primary Platform:** ${creator.primaryPlatform}\n`;
-      msg += `**Bio:** ${creator.bio || "(not provided)"}\n`;
-      msg += `**Audience Demographics:** ${[ae.gender, ae.age, ae.location].filter(Boolean).join(", ") || "(not provided)"}\n`;
-      msg += `**Audience Interests:** ${ae.interests?.join(", ") || "(not provided)"}\n`;
-      msg += `**Audience Problem:** ${offerForm.audience_problem || "(not provided)"}\n`;
-      msg += `**Format:** ${offerForm.format || "(not provided)"}\n`;
-      msg += `**Price Range:** ${offerForm.price_range || "let the system decide"}\n`;
-      msg += `**Creator Involvement:** ${offerForm.creator_capacity || "(not provided)"}\n`;
-      msg += `**Products Already Sold:** ${creator.products?.join(", ") || "None found"}\n`;
-      msg += `**Credibility:** ${creator.reputation || "(not provided)"}\n`;
-      msg += `**Additional Context:** ${offerForm.guidelines || "(not provided)"}\n`;
-
-      // Top-performing content (signals what audience already responds to —
-      // used to name weekly formats + pre-recorded library themes in Section K).
-      const topPosts = (creator.intelligence?.topPosts || []).slice(0, 10);
-      if (topPosts.length > 0) {
-        msg += `\n## TOP-PERFORMING CONTENT (audience signals from public scrape)\n\n`;
-        msg += `Use these to theme Section K's Weekly Content Formats + Pre-recorded Library — these are formats/topics the audience already engages with.\n\n`;
-        topPosts.forEach((p, i) => {
-          msg += `${i + 1}. [${p.format || 'post'} · ${p.engagementRate || '?'}%] ${p.topic || ''}${p.caption ? ` — "${String(p.caption).slice(0, 140)}"` : ''}\n`;
-        });
-      }
-
-      if (meetingContext) msg += `\n## MEETING NOTES (from direct conversation with the creator)\n\n${meetingContext}\n`;
-      msg += `\n---\nGenerate all three outputs now. Follow system instructions and Hormozi frameworks exactly.\n**IMPORTANT: Write the ENTIRE output in ${(ae.language || "").toLowerCase().includes("portugu") ? "Português" : "English"}.** All section titles, analysis, tables, objection scripts — everything.`;
-
-      // Pre-close offer: server-side composes Hormozi skills + REAL Skool case
-      // studies + the closing skill (so the objection-handling Output 6 uses the
-      // blame-bucket classification with a named close per objection).
-      const r = await fetch("/api/generate", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ system: OFFER_SYSTEM_PROMPT, message: msg, skills: ['hundred-million-offers', 'money-model', 'pricing-plays', 'case-studies', 'closing'] }) });
-      if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || "API error");
-      const d = await r.json();
-      const text = d.content?.map(c => c.text || "").join("\n") || "";
-      const parsed = parseOutput(text);
-      // Extract recommended price from the offer so the Pitch Numbers slide
-      // and Revenue Projector use the SAME price the team is pitching.
-      // Looks for "RECOMMENDED MONTHLY PRICE: €79" or "PREÇO MENSAL RECOMENDADO: €79".
-      const priceMatch = text.match(/(?:RECOMMENDED MONTHLY PRICE|PRE[CÇ]O MENSAL RECOMENDADO)\s*[:\-]?\s*€?\s*(\d{1,4})/i)
-        || (parsed.community?.tiers?.[0]?.price?.match(/(\d{1,4})/));
-      const recPrice = priceMatch ? parseInt(priceMatch[1] || priceMatch[0], 10) : null;
-      // Write the new dual schema alongside `parsed` for back-compat. Consumers
-      // (pitch deck, launch-plan PDF) prefer client_facing_output and fall back
-      // to parsed for legacy creators. When the wizard ships in Phase 4 it'll
-      // write client_facing_output directly and `parsed` can be dropped.
-      const { internal_metadata, client_facing_output } = legacyParsedToOfferState(parsed);
-      const updates = {
-        offer: {
-          raw: text,
-          parsed,
-          internal_metadata,
-          client_facing_output,
-          generatedAt: new Date().toISOString(),
-        },
-      };
-      if (recPrice && recPrice > 0) updates.revenuePrice = recPrice;
-      await patchCreator(updates);
-      setOfferTab("offer");
-    } catch (e) { setOfferError(e.message); } finally { setOfferLoading(false); }
-  }, [creator, offerForm, patchCreator]);
 
   // Run full scrape — upgrades a lean creator with the deep IG + TikTok +
   // YouTube + bio-link products + web-search competitors data needed to build
@@ -2907,20 +2743,19 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
             );
           })()}
 
-          {/* The legacy 5-step manual form was removed. The Phase 4 wizard
-              above (Frame · Offer · Modules · Stack) is the canonical offer
-              generator. Empty state below renders only when the wizard
-              hasn't been started yet AND no legacy offer exists. The
-              `generateOffer` handler + OFFER_STEPS + offerForm state are
-              kept in the component for now (cheap to leave); a follow-up
-              cleanup can purge them if no other path uses them. */}
-          {!creator.offer && !offerLoading && (
+          {/* The legacy 5-step manual form + generateOffer handler were
+              deleted 2026-07-09 (dead code — zero call sites, and the
+              OFFER_SYSTEM_PROMPT import was shipping 25KB of internal
+              prompt to the client bundle). The Phase 4 wizard above is the
+              canonical offer generator. This empty state renders only when
+              the wizard hasn't been started and no legacy offer exists. */}
+          {!creator.offer && (
             <div style={{ padding: "40px 24px", textAlign: "center", border: "1px dashed rgba(255,255,255,0.06)", borderRadius: 10 }}>
               <div style={{ width: 44, height: 44, margin: "0 auto 16px", borderRadius: 10, background: "rgba(122,14,24,0.08)", border: "1px solid rgba(122,14,24,0.25)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, color: "#B11E2F", fontWeight: 700 }}>1</div>
-              <p style={{ fontSize: 14, color: "#bbb", margin: "0 0 6px" }}>No offer yet for {creator.name}.</p>
+              <p style={{ fontSize: 14, color: "#bbb", margin: "0 0 6px" }}>Ainda não há oferta para {creator.name}.</p>
               <p style={{ fontSize: 11, color: "#666", margin: 0, lineHeight: 1.55, maxWidth: 480, marginLeft: "auto", marginRight: "auto" }}>
                 Corre o wizard acima — Frame estratégico → Oferta principal → Módulos → Stack de valor.
-                Each checkpoint locks before the next one runs so you can review the operator-language strategic decisions before they turn into creator-facing copy.
+                Cada checkpoint é aprovado antes do próximo correr, para poderes rever as decisões estratégicas em linguagem de operador antes de virarem copy para a criadora.
               </p>
             </div>
           )}
@@ -4825,24 +4660,6 @@ function WizardStepper({ creator }) {
           );
         })}
       </div>
-    </div>
-  );
-}
-
-// Placeholder for un-built checkpoints. Each CP1-CP5 commit replaces the
-// switch arm for its checkpoint with the real implementation. Keeping a
-// single stub here means the wizard stepper + offer tab structure work end-
-// to-end even when only some CPs are built.
-function CheckpointStubPanel({ checkpoint }) {
-  return (
-    <div style={{ marginBottom: 28, padding: "20px 24px", background: "rgba(255,255,255,0.015)", border: "1px dashed rgba(255,255,255,0.08)", borderRadius: 10, textAlign: "center" }}>
-      <div style={{ fontSize: 9, fontWeight: 700, color: "#7A0E18", letterSpacing: "0.16em", textTransform: "uppercase", marginBottom: 6 }}>
-        ● Checkpoint {checkpoint.id} of 5
-      </div>
-      <h3 style={{ fontSize: 15, fontWeight: 600, margin: "0 0 8px", color: "#f5f5f5" }}>{checkpoint.name}</h3>
-      <p style={{ fontSize: 11, color: "#666", margin: 0 }}>
-        Not yet implemented — ships in the next commit.
-      </p>
     </div>
   );
 }
