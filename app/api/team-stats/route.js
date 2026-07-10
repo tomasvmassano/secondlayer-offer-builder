@@ -110,7 +110,7 @@ export async function GET(request) {
       getRevenueForecast(),
       getActivitySeries({ days: 7 }),
       getHeatmap({ weeks: 4 }),
-      getRecentActivity({ limit: 8 }),
+      getRecentActivity({ limit: 12 }),
       getPacing({ target }),
       getPipelineCoverage({ quotaEurPerQuarter }),
       getCAC(),

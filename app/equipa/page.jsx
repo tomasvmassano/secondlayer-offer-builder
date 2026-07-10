@@ -867,8 +867,10 @@ function PersonCard({ row, sbRow, streak, pipe, vel, delta, yesterdayRow, monthl
 // Touch but two sends). All numeric columns share the same compact
 // width so the digit grid stays clean.
 //
-// Order: Operador · Streak · Touches · DMs · Emails · Reply % · Respostas · Fechados · F-up · 7-day spark · Goal ring
-const PERSON_ROW_COLS = "180px 80px 90px 70px 70px 100px 80px 80px 70px 110px 50px";
+// Order: Operador · Streak · Touches · DMs · Emails · Reply % · Respostas · Fechados · Criadores · F-up · 7-day spark · Goal ring
+// Criadores (creators added) + F-up (follow-ups done) sit together at the
+// end — the two daily-input metrics the team tracks alongside outreach.
+const PERSON_ROW_COLS = "180px 80px 90px 70px 70px 100px 80px 80px 70px 70px 110px 50px";
 function PersonRow({ row, sbRow, streak, delta, yesterdayRow, activity, isLeader, isLoser, goalPct, windowKey, last }) {
   const series = activity?.days || [];
   const replyRate = row.replyRate;
@@ -940,8 +942,11 @@ function PersonRow({ row, sbRow, streak, delta, yesterdayRow, activity, isLeader
       {/* Fechados */}
       <PersonRowCell label="Fechados" value={row.signed} accent={signedAccent} delta={delta?.deltaSigned} />
 
-      {/* Follow-ups */}
-      <PersonRowCell label="F-up" value={row.followUpsDone} accent={TEXT_MID} />
+      {/* Criadores adicionados */}
+      <PersonRowCell label="Criadores" value={row.creatorsAdded} accent={TEXT_MID} delta={showVsYesterday ? (row.creatorsAdded - (yesterdayRow.creatorsAdded || 0)) : null} />
+
+      {/* Follow-ups feitos */}
+      <PersonRowCell label="F-up" value={row.followUpsDone} accent={TEXT_MID} delta={showVsYesterday ? (row.followUpsDone - (yesterdayRow.followUpsDone || 0)) : null} />
 
       {/* 7-day sparkline */}
       <div style={{ alignSelf: "center" }}>
@@ -1361,6 +1366,7 @@ function RecentActivityFeed({ events }) {
   const typeLabel = {
     added: { label: 'adicionou', color: TEXT_MID },
     dm_sent: { label: 'enviou DM a', color: ACCENT },
+    follow_up: { label: 'fez follow-up a', color: AMBER },
     replied: { label: 'recebeu resposta de', color: '#3b82f6' },
     signed: { label: 'fechou', color: GREEN },
   };

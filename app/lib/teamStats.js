@@ -705,6 +705,17 @@ export async function getRecentActivity({ limit = 8 } = {}) {
     const o = c.outreach || {};
     if (postReset(c.addedBy?.at)) events.push({ at: c.addedBy.at, type: 'added', firstName: c.addedBy.firstName, creator: c.name, creatorId: c.id });
     if (postReset(o.dmSentAt)) events.push({ at: o.dmSentAt, type: 'dm_sent', firstName: (o.dmSentBy || c.addedBy)?.firstName, creator: c.name, creatorId: c.id });
+    // Follow-ups — one event per follow-up from the channel-tagged array
+    // (new shape), with the legacy single-timestamp fallback for records
+    // that predate the array. Attributed to whoever did the follow-up.
+    if (Array.isArray(o.followUps) && o.followUps.length > 0) {
+      for (const f of o.followUps) {
+        if (!postReset(f?.at)) continue;
+        events.push({ at: f.at, type: 'follow_up', firstName: (f.by || c.addedBy)?.firstName, creator: c.name, creatorId: c.id, channel: f.channel || null });
+      }
+    } else if (postReset(o.lastFollowUpAt)) {
+      events.push({ at: o.lastFollowUpAt, type: 'follow_up', firstName: (o.lastFollowUpBy || c.addedBy)?.firstName, creator: c.name, creatorId: c.id });
+    }
     if (postReset(o.repliedAt)) events.push({ at: o.repliedAt, type: 'replied', firstName: (o.repliedMarkedBy || c.addedBy)?.firstName, creator: c.name, creatorId: c.id });
     if (postReset(c.signedAt)) events.push({ at: c.signedAt, type: 'signed', firstName: c.addedBy?.firstName, creator: c.name, creatorId: c.id });
   }
