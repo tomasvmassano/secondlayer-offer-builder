@@ -1121,17 +1121,30 @@ ${stageInstruction} Follow the output format exactly. ZERO em dashes.${notesRemi
     let response = await callAnthropic();
     let data = await safeResponseJson(response);
 
-    if (response.status === 429) {
-      // Return the 429 to the client IMMEDIATELY. The previous in-route
-      // retry slept 65s before re-calling — but Vercel Hobby kills the
-      // function at 60s, so the sleep alone guaranteed a timeout: the
-      // operator paid for the first attempt AND got a dead plain-text
-      // 504 instead of this message. The client shows the wait guidance
-      // and the operator re-clicks — same total wait, working UX.
+    // 529 = Anthropic server overload (`overloaded_error`, distinct from our
+    // own 429 rate limit). It clears in seconds and is rejected up front, so
+    // most of the 60s budget is still available — one short retry usually
+    // lands. Previously a 529 fell through to the generic 500 branch and the
+    // operator saw a bare "Overloaded" that looked like a permanent failure.
+    if (response.status === 529) {
+      await new Promise(r => setTimeout(r, 3500));
+      response = await callAnthropic();
+      data = await safeResponseJson(response);
+    }
+
+    if (response.status === 429 || response.status === 529) {
+      // Return the rate-limit / overload to the client IMMEDIATELY. The
+      // previous in-route retry slept 65s before re-calling — but Vercel
+      // Hobby kills the function at 60s, so the sleep alone guaranteed a
+      // timeout: the operator paid for the first attempt AND got a dead
+      // plain-text 504 instead of this message. The client shows the wait
+      // guidance and the operator re-clicks — same total wait, working UX.
       return NextResponse.json({
-        error: 'Rate limit do Anthropic (30K tokens/min). Espera ~1 minuto e clica de novo.',
+        error: response.status === 529
+          ? 'Anthropic sobrecarregada (529). Espera ~1 minuto e clica de novo.'
+          : 'Rate limit do Anthropic (30K tokens/min). Espera ~1 minuto e clica de novo.',
         retryAfter: 65,
-      }, { status: 429 });
+      }, { status: response.status });
     } else if (!response.ok) {
       return NextResponse.json({ error: data.error?.message || 'Generation failed' }, { status: 500 });
     }

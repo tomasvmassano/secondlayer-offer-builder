@@ -578,16 +578,34 @@ Return ONLY the JSON object matching the schema in your system prompt. Start you
 
   let resp = await callAnthropic();
   let data = await resp.json();
-  if (resp.status === 429) {
-    // Sleep ~65s (just past the 60s window) then try once more. If that
-    // also 429s, surface to the caller so the auto-audit worker can mark
-    // the row 'failed' and the operator can re-queue manually.
-    await new Promise(r => setTimeout(r, 65000));
+  // Retry once on a transient overload. TWO distinct causes, both expected
+  // during bulk auto-audit and both self-clearing:
+  //   429 = OUR rate limit (Hobby caps at 30k tokens/min; the auto-audit
+  //         worker can fire 3+ of these a minute).
+  //   529 = Anthropic server overload (`overloaded_error`). This was the gap:
+  //         the old code only caught 429, so a 529 fell straight through to
+  //         `!resp.ok` and surfaced a bare "Overloaded" with no retry.
+  // An overload is rejected UP FRONT (before the model does any work), so
+  // when it happens the first call returns in ~1-2s and almost the whole
+  // 60s budget is still available for the retry. 529 clears in seconds →
+  // short wait. 429 needs closer to the per-minute window, but a full 65s
+  // wait can't fit the maxDuration=60 cap (the function gets killed first),
+  // so we bound it to ~20s and let the operator re-queue if it still 429s.
+  if (resp.status === 429 || resp.status === 529) {
+    const waitMs = resp.status === 529 ? 3500 : 20000;
+    await new Promise(r => setTimeout(r, waitMs));
     resp = await callAnthropic();
     data = await resp.json();
   }
   if (!resp.ok) {
-    return { error: data.error?.message || `Anthropic ${resp.status}`, errors: [], raw: null, retries: retryCount };
+    // Give the operator an actionable, PT message for transient overloads
+    // instead of the cryptic raw "Overloaded" — it tells them the row is
+    // safe to re-run rather than looking like a permanent failure.
+    const transient = resp.status === 429 || resp.status === 529;
+    const msg = transient
+      ? `Anthropic sobrecarregada (${resp.status}) — re-corre esta linha daqui a um minuto`
+      : (data.error?.message || `Anthropic ${resp.status}`);
+    return { error: msg, errors: [], raw: null, retries: retryCount };
   }
   // Meter spend (best-effort, non-blocking) — this is the priciest route.
   recordLlmUsage({ route: 'ecosystem-audit', model: 'claude-sonnet-4-5-20250929', usage: data.usage }).catch(() => {});
