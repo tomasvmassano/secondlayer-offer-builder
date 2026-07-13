@@ -62,6 +62,7 @@ const MEETING_QUESTIONS = [
 
 const TABS = [
   { key: "perfil", label: "Perfil" },
+  { key: "negocio", label: "Negócio" },
   { key: "audit", label: "Audit" },
   { key: "dm", label: "DM Writer" },
   { key: "oferta", label: "Oferta" },
@@ -111,6 +112,105 @@ const metricLabelStyle = { fontSize: 10, fontWeight: 600, color: "#555", textTra
 const metricValueStyle = { fontSize: 16, fontWeight: 700, color: "#f5f5f5" };
 const sectionTitleStyle = { fontSize: 11, fontWeight: 600, color: "#555", textTransform: "uppercase", letterSpacing: "0.08em", margin: "0 0 12px" };
 const inputStyle = { width: "100%", padding: "10px 14px", background: "#1a1a1a", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 8, color: "#f5f5f5", fontSize: 13, fontFamily: "inherit", outline: "none", boxSizing: "border-box", resize: "vertical" };
+
+// ─────────────────────────────────────────────────────────────────
+// DealPanel — the "Negócio" tab. Centralises the three things a
+// DM-sender needs on hand: the deal value (por quanto vamos fechar),
+// the Loom link (kept with the creator so nobody hunts for it across
+// Loom/Drive/Slack), and free-text notes. Each field saves on blur via
+// patchCreator; the same dealValue / loomUrl / notes power the Kanban
+// card's value chip + LOOM/Nota indicators. Controlled inputs (not
+// defaultValue) so Abrir/Copiar act on exactly what's on screen.
+// ─────────────────────────────────────────────────────────────────
+function DealPanel({ creator, patchCreator }) {
+  const [dealValue, setDealValue] = useState(creator.dealValue != null ? String(creator.dealValue) : "");
+  const [loomUrl, setLoomUrl] = useState(creator.loomUrl || "");
+  const [notes, setNotes] = useState(creator.notes || "");
+  const [copied, setCopied] = useState(false);
+
+  const saveValue = () => {
+    // Lenient parse: "1.500" / "€1500" / "1 500" all land as 1500; empty → null.
+    const digits = String(dealValue).replace(/[^\d]/g, "");
+    const parsed = digits ? Number(digits) : null;
+    if (parsed !== (creator.dealValue ?? null)) patchCreator({ dealValue: parsed });
+  };
+  const saveLoom = () => {
+    const v = loomUrl.trim();
+    if (v !== (creator.loomUrl || "")) patchCreator({ loomUrl: v });
+  };
+  const saveNotes = () => {
+    if (notes !== (creator.notes || "")) patchCreator({ notes });
+  };
+
+  const loomValid = /^https?:\/\//i.test(loomUrl.trim());
+  const copyLoom = async () => {
+    try { await navigator.clipboard.writeText(loomUrl.trim()); setCopied(true); setTimeout(() => setCopied(false), 1500); } catch {}
+  };
+  const digitsForPreview = String(dealValue).replace(/[^\d]/g, "");
+  const valuePreview = digitsForPreview ? "€" + Number(digitsForPreview).toLocaleString("pt-PT") : "";
+
+  return (
+    <div style={{ maxWidth: 640 }}>
+      <p style={{ fontSize: 12, color: "#666", margin: "0 0 28px", lineHeight: 1.6 }}>
+        Tudo o que precisas antes de mandar a DM, num sítio só — quanto vamos fechar, o Loom para enviar, e as notas do contacto.
+      </p>
+
+      {/* Valor a fechar */}
+      <div style={{ marginBottom: 30 }}>
+        <h3 style={sectionTitleStyle}>Valor a fechar</h3>
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <span style={{ fontSize: 22, fontWeight: 700, color: "#4ade80" }}>€</span>
+          <input
+            value={dealValue}
+            onChange={e => setDealValue(e.target.value)}
+            onBlur={saveValue}
+            inputMode="numeric"
+            placeholder="Ex: 1500"
+            style={{ ...inputStyle, fontSize: 18, fontFamily: "ui-monospace, monospace", maxWidth: 260 }}
+          />
+          {valuePreview && <span style={{ fontSize: 13, color: "#555" }}>{valuePreview}</span>}
+        </div>
+      </div>
+
+      {/* Link do Loom */}
+      <div style={{ marginBottom: 30 }}>
+        <h3 style={sectionTitleStyle}>Link do Loom</h3>
+        <input
+          value={loomUrl}
+          onChange={e => setLoomUrl(e.target.value)}
+          onBlur={saveLoom}
+          placeholder="https://www.loom.com/share/…"
+          style={inputStyle}
+        />
+        <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+          <a
+            href={loomValid ? loomUrl.trim() : undefined}
+            target="_blank" rel="noopener noreferrer"
+            onClick={e => { if (!loomValid) e.preventDefault(); }}
+            style={{ padding: "8px 16px", borderRadius: 7, fontSize: 12, fontWeight: 600, textDecoration: "none", color: "#f5f5f5", background: "rgba(122,14,24,0.25)", border: "1px solid rgba(122,14,24,0.5)", opacity: loomValid ? 1 : 0.4, pointerEvents: loomValid ? "auto" : "none" }}
+          >
+            Abrir Loom
+          </a>
+          <button onClick={copyLoom} disabled={!loomValid} style={{ padding: "8px 16px", borderRadius: 7, fontSize: 12, fontWeight: 600, color: "#ccc", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.1)", cursor: loomValid ? "pointer" : "not-allowed", opacity: loomValid ? 1 : 0.4, fontFamily: "inherit" }}>
+            {copied ? "Copiado ✓" : "Copiar link"}
+          </button>
+        </div>
+      </div>
+
+      {/* Notas */}
+      <div>
+        <h3 style={sectionTitleStyle}>Notas</h3>
+        <textarea
+          value={notes}
+          onChange={e => setNotes(e.target.value)}
+          onBlur={saveNotes}
+          placeholder="Contexto, objeções, próximos passos…"
+          style={{ ...inputStyle, minHeight: 160, lineHeight: 1.6 }}
+        />
+      </div>
+    </div>
+  );
+}
 
 // Defined at module level so React never sees a new component type on re-render.
 // If defined inside the render function, every keystroke causes remount + cursor reset.
@@ -2115,13 +2215,8 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
             </div>
           )}
 
-          {/* Notes */}
-          <div style={{ marginBottom: 24 }}>
-            <h3 style={sectionTitleStyle}>Notas</h3>
-            <textarea defaultValue={creator.notes || ""} placeholder="Adicionar notas..."
-              onBlur={e => { const v = e.target.value; if (v !== (creator.notes || "")) patchCreator({ notes: v }); }}
-              style={{ ...inputStyle, minHeight: 80 }} />
-          </div>
+          {/* Notas moved to the dedicated "Negócio" tab (valor + Loom + notas
+              centralised there) so a DM-sender has everything in one place. */}
 
           {/* Delete */}
           <div style={{ marginTop: 40, paddingTop: 20, borderTop: "1px solid rgba(255,255,255,0.04)" }}>
@@ -2147,6 +2242,11 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
             </div>
           </div>
         </div>)}
+
+        {/* ════════════ NEGÓCIO TAB ════════════ */}
+        {tab === "negocio" && (
+          <DealPanel creator={creator} patchCreator={patchCreator} />
+        )}
 
         {/* ════════════ AUDIT TAB ════════════ */}
         {tab === "audit" && (<>

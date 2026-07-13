@@ -160,10 +160,6 @@ export default function CreatorsPage() {
   const [isDragging, setIsDragging] = useState(false);
   const isDraggingRef = useRef(false);
   useEffect(() => { isDraggingRef.current = isDragging; }, [isDragging]);
-  // Quick-view modal — holds the summary of the card being previewed (or null
-  // when closed). Opened by a plain click on a Kanban card; shows notas +
-  // valor + link do Loom without loading the full profile page.
-  const [quickView, setQuickView] = useState(null);
   const [syncTick, setSyncTick] = useState(0); // increments after every silent poll for the live pill animation
   useEffect(() => {
     let intervalId = null;
@@ -1434,7 +1430,6 @@ export default function CreatorsPage() {
                     creators={filtered.filter(c => c.pipelineStatus !== 'signed')}
                     setCreators={setCreators}
                     onDragChange={setIsDragging}
-                    onQuickView={setQuickView}
                   />
                   {/* Floating follow-up tray — bottom-right, Kanban only.
                       Calls fetchCreators after each click so the card
@@ -1452,25 +1447,6 @@ export default function CreatorsPage() {
           <p style={{ fontSize: 10, color: "#333", margin: 0 }}>Second Layer HQ &middot; Creator CRM</p>
         </div>
       </div>
-
-      {/* Quick-view modal — GHL-style. Centralises notas + valor + link do
-          Loom so a DM-sender sees the essentials (and copies the Loom)
-          before opening the full profile. Optimistically writes the card's
-          summary fields back on save so the chip/indicators update at once. */}
-      {quickView && (
-        <QuickViewModal
-          summary={quickView}
-          onClose={() => setQuickView(null)}
-          onSaved={(fields) => {
-            setCreators(prev => prev.map(c => c.id === quickView.id ? {
-              ...c,
-              dealValue: fields.dealValue ?? null,
-              hasLoom:  !!(fields.loomUrl && String(fields.loomUrl).trim()),
-              hasNotes: !!(fields.notes && String(fields.notes).trim()),
-            } : c));
-          }}
-        />
-      )}
     </div>
   );
 }
@@ -1524,7 +1500,7 @@ function FilterDropdown({ label, value, options, onChange }) {
 // recording a Loom on the creator detail page sets loomSentAt, and the
 // card automatically re-classifies on next render.
 // ─────────────────────────────────────────────────────────────────
-function CrmKanban({ creators, setCreators, onDragChange, onQuickView }) {
+function CrmKanban({ creators, setCreators, onDragChange }) {
   const grouped = useMemo(() => groupByStage(creators), [creators]);
   const [dragId, setDragId] = useState(null);
   const [dragOver, setDragOver] = useState(null);
@@ -1673,7 +1649,6 @@ function CrmKanban({ creators, setCreators, onDragChange, onQuickView }) {
                   isDragging={dragId === c.id}
                   onDragStart={onDragStart(c.id)}
                   onDragEnd={onDragEnd}
-                  onQuickView={onQuickView}
                 />
               ))}
             </div>
@@ -1687,10 +1662,13 @@ function CrmKanban({ creators, setCreators, onDragChange, onQuickView }) {
 
 // CrmKanban card — same visual shape as the list view's card (name +
 // followers, niche, platform chip + date) but compact + draggable.
-function KanbanCard({ creator, isDragging, onDragStart, onDragEnd, onQuickView }) {
+function KanbanCard({ creator, isDragging, onDragStart, onDragEnd }) {
   const stale = stageStaleness(creator);
   const ageColor = stale.level === 'cold' ? '#7A0E18' : stale.level === 'warn' ? '#eab308' : '#444';
   const ageBg    = stale.level === 'cold' ? 'rgba(122,14,24,0.15)' : stale.level === 'warn' ? 'rgba(234,179,8,0.1)' : 'rgba(255,255,255,0.03)';
+  // Deal value chip + LOOM/Nota indicators are still shown for at-a-glance
+  // context; a click opens the full profile (the deal fields live in its
+  // "Negócio" tab). The card summary carries these so no fetch is needed.
   const valueLabel = formatEurValue(creator.dealValue);
   return (
     <a
@@ -1698,15 +1676,6 @@ function KanbanCard({ creator, isDragging, onDragStart, onDragEnd, onQuickView }
       draggable
       onDragStart={onDragStart}
       onDragEnd={onDragEnd}
-      onClick={(e) => {
-        // Cmd / Ctrl / middle-click keeps the native "open full profile in a
-        // new tab". A plain left-click opens the quick-view modal (notas +
-        // valor + link do Loom) so the operator sees the essentials — and
-        // grabs the Loom — before loading the heavy profile page.
-        if (e.metaKey || e.ctrlKey || e.shiftKey || e.button === 1) return;
-        e.preventDefault();
-        onQuickView?.(creator);
-      }}
       style={{
         display: "block", padding: "12px 14px", background: "#141414",
         border: "1px solid rgba(255,255,255,0.04)", borderRadius: 8,
@@ -1767,188 +1736,5 @@ function KanbanCard({ creator, isDragging, onDragStart, onDragEnd, onQuickView }
         </div>
       </div>
     </a>
-  );
-}
-
-// Shared field styles for the quick-view modal. Declared before the
-// component so there's no use-before-define lint noise (they're only read
-// at render time regardless).
-const qvLabel = { display: 'block', fontSize: 10, fontWeight: 600, color: '#666', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 7 };
-const qvInput = { width: '100%', padding: '10px 12px', background: '#141414', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 8, color: '#f5f5f5', fontSize: 13, outline: 'none', boxSizing: 'border-box' };
-const qvMiniBtn = { padding: '7px 12px', borderRadius: 7, border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.04)', color: '#ccc', fontSize: 11, fontWeight: 600, cursor: 'pointer' };
-
-// ─────────────────────────────────────────────────────────────────
-// QuickViewModal — GHL-style quick view opened by a plain click on a
-// Kanban card. Centralises the three things a DM-sender needs before
-// loading the heavy profile page: the deal value (por quanto vamos
-// fechar), the Loom link (so they stop hopping across Loom/Drive/Slack
-// to find it), and free-text notes. The card summary only carries the
-// dealValue + hasLoom/hasNotes flags, so we fetch the full record on
-// open to get the notes text + actual Loom URL, edit inline, and PATCH
-// on save. onSaved writes the summary fields back so the card's chip +
-// indicators update immediately without a refetch.
-// ─────────────────────────────────────────────────────────────────
-function QuickViewModal({ summary, onClose, onSaved }) {
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [saved, setSaved] = useState(false);
-  const [error, setError] = useState(null);
-  const [copied, setCopied] = useState(false);
-  const [notes, setNotes] = useState("");
-  const [dealValue, setDealValue] = useState("");
-  const [loomUrl, setLoomUrl] = useState("");
-
-  // Load the full record on open.
-  useEffect(() => {
-    let alive = true;
-    (async () => {
-      setLoading(true); setError(null);
-      try {
-        const res = await fetch(`/api/creators/${summary.id}`);
-        const text = await res.text();               // text-first: Vercel 504s return HTML, not JSON
-        const data = text ? JSON.parse(text) : {};
-        if (!res.ok) throw new Error(data?.error || `HTTP ${res.status}`);
-        if (!alive) return;
-        setNotes(data.notes || "");
-        setDealValue(data.dealValue != null ? String(data.dealValue) : "");
-        setLoomUrl(data.loomUrl || "");
-      } catch (e) {
-        if (alive) setError(e.message || "Falha a carregar o criador");
-      } finally {
-        if (alive) setLoading(false);
-      }
-    })();
-    return () => { alive = false; };
-  }, [summary.id]);
-
-  // Esc closes.
-  useEffect(() => {
-    const onKey = (e) => { if (e.key === 'Escape') onClose(); };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [onClose]);
-
-  const save = async () => {
-    setSaving(true); setError(null); setSaved(false);
-    // Parse the value leniently: "1.500" / "€1500" / "1 500" all land as 1500
-    // (pt-PT uses "." for thousands). Empty → null, which clears the value.
-    const digits = String(dealValue).replace(/[^\d]/g, '');
-    const parsedValue = digits ? Number(digits) : null;
-    const payload = { notes, dealValue: parsedValue, loomUrl: loomUrl.trim() };
-    try {
-      const res = await fetch(`/api/creators/${summary.id}`, {
-        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-      const text = await res.text();
-      const data = text ? JSON.parse(text) : {};
-      if (!res.ok) throw new Error(data?.error || `HTTP ${res.status}`);
-      setSaved(true);
-      onSaved?.(payload);
-      setTimeout(() => setSaved(false), 1800);
-    } catch (e) {
-      setError(e.message || 'Falha a guardar');
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const loomValid = /^https?:\/\//i.test(loomUrl.trim());
-  const copyLoom = async () => {
-    try { await navigator.clipboard.writeText(loomUrl.trim()); setCopied(true); setTimeout(() => setCopied(false), 1500); } catch {}
-  };
-
-  return (
-    <div
-      onClick={onClose}
-      style={{ position: 'fixed', inset: 0, zIndex: 200, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(2px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}
-    >
-      <div
-        onClick={(e) => e.stopPropagation()}
-        style={{ width: '100%', maxWidth: 520, maxHeight: '88vh', overflowY: 'auto', background: '#0f0f0f', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 14, boxShadow: '0 24px 80px rgba(0,0,0,0.6)' }}
-      >
-        {/* Header */}
-        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, padding: '18px 20px', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
-          <div style={{ minWidth: 0 }}>
-            <h2 style={{ fontSize: 16, fontWeight: 700, margin: 0, color: '#f5f5f5', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{summary.name || 'Criador'}</h2>
-            <div style={{ fontSize: 11, color: '#666', marginTop: 3 }}>{summary.niche || '—'}{summary.followers ? ` · ${formatFollowers(summary.followers)}` : ''}</div>
-          </div>
-          <button onClick={onClose} style={{ flexShrink: 0, background: 'transparent', border: 'none', color: '#777', fontSize: 22, lineHeight: 1, cursor: 'pointer', padding: 0 }} aria-label="Fechar">×</button>
-        </div>
-
-        {loading ? (
-          <div style={{ padding: 44, textAlign: 'center', color: '#555', fontSize: 12 }}>A carregar…</div>
-        ) : (
-          <div style={{ padding: '18px 20px', display: 'flex', flexDirection: 'column', gap: 18 }}>
-            {/* Valor a fechar */}
-            <div>
-              <label style={qvLabel}>Valor a fechar</label>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <span style={{ fontSize: 18, fontWeight: 700, color: '#4ade80' }}>€</span>
-                <input
-                  value={dealValue}
-                  onChange={(e) => setDealValue(e.target.value)}
-                  inputMode="numeric"
-                  placeholder="Ex: 1500"
-                  style={{ ...qvInput, fontFamily: 'ui-monospace, monospace', fontSize: 16 }}
-                />
-              </div>
-            </div>
-
-            {/* Link do Loom */}
-            <div>
-              <label style={qvLabel}>Link do Loom</label>
-              <input
-                value={loomUrl}
-                onChange={(e) => setLoomUrl(e.target.value)}
-                placeholder="https://www.loom.com/share/…"
-                style={qvInput}
-              />
-              <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
-                <a
-                  href={loomValid ? loomUrl.trim() : undefined}
-                  target="_blank" rel="noopener noreferrer"
-                  onClick={(e) => { if (!loomValid) e.preventDefault(); }}
-                  style={{ ...qvMiniBtn, textDecoration: 'none', color: '#f5f5f5', background: 'rgba(122,14,24,0.25)', border: '1px solid rgba(122,14,24,0.5)', opacity: loomValid ? 1 : 0.4, pointerEvents: loomValid ? 'auto' : 'none' }}
-                >
-                  Abrir Loom
-                </a>
-                <button onClick={copyLoom} disabled={!loomValid} style={{ ...qvMiniBtn, opacity: loomValid ? 1 : 0.4, cursor: loomValid ? 'pointer' : 'not-allowed' }}>
-                  {copied ? 'Copiado ✓' : 'Copiar link'}
-                </button>
-              </div>
-            </div>
-
-            {/* Notas */}
-            <div>
-              <label style={qvLabel}>Notas</label>
-              <textarea
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                placeholder="Contexto, objeções, próximos passos…"
-                rows={5}
-                style={{ ...qvInput, resize: 'vertical', lineHeight: 1.5, fontFamily: 'inherit' }}
-              />
-            </div>
-
-            {error && <div style={{ fontSize: 12, color: '#ef4444' }}>{error}</div>}
-          </div>
-        )}
-
-        {/* Footer */}
-        {!loading && (
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '14px 20px', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
-            <a href={`/creators/${summary.id}`} style={{ fontSize: 12, color: '#888', textDecoration: 'none' }}>Abrir perfil completo →</a>
-            <button
-              onClick={save}
-              disabled={saving}
-              style={{ padding: '9px 22px', borderRadius: 8, border: 'none', background: saved ? '#22c55e' : '#7A0E18', color: '#fff', fontSize: 13, fontWeight: 700, cursor: saving ? 'wait' : 'pointer', transition: 'background 0.15s' }}
-            >
-              {saving ? 'A guardar…' : saved ? 'Guardado ✓' : 'Guardar'}
-            </button>
-          </div>
-        )}
-      </div>
-    </div>
   );
 }
