@@ -48,17 +48,6 @@ function formatChatTimestamp(iso) {
   return `${d.toLocaleDateString('pt-PT', { day: '2-digit', month: '2-digit', year: '2-digit' })}, ${hhmm}`;
 }
 
-const MEETING_QUESTIONS = [
-  { key: "brandDealPct", label: "Que percentagem vem de brand deals vs produtos próprios?" },
-  { key: "previousSales", label: "Já vendeste algo diretamente? O quê, a que preço, quantos?" },
-  { key: "followerQuestions", label: "Que perguntas os teus seguidores te fazem mais?" },
-  { key: "topContent", label: "Que tipo de conteúdo costuma ter mais alcance? E mais engagement?" },
-  { key: "dmTopics", label: "Sobre o que te mandam DMs?" },
-  { key: "audienceProblem", label: "Se pudesses resolver um problema da tua audiência, qual seria?" },
-  { key: "emailList", label: "Tens lista de email? Quantos subscritores?" },
-  { key: "storyViewRate", label: "Qual é a média de views nos stories?" },
-  { key: "exclusivity", label: "Tens algum contrato existente ou exclusividade?" },
-];
 
 const TABS = [
   { key: "perfil", label: "Perfil" },
@@ -1820,7 +1809,7 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
         </div>
 
         {/* ════════════ PERFIL TAB ════════════ */}
-        {tab === "perfil" && (<div className="sl-grid-2" style={{ display: "grid", gridTemplateColumns: "60% 1fr", gap: 28 }}>
+        {tab === "perfil" && (<div style={{ maxWidth: 860 }}>
           <div style={{ minWidth: 0 }}>
 
           {/* Deal Score Card */}
@@ -2224,22 +2213,6 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
               {deleting ? "A eliminar..." : "Eliminar Creator"}
             </button>
           </div>
-          </div>
-
-          {/* Right Column - Meeting Notes */}
-          <div style={{ minWidth: 0 }}>
-            <div style={{ padding: 24, background: "#141414", border: "1px solid rgba(255,255,255,0.04)", borderRadius: 12, position: "sticky", top: 24 }}>
-              <h2 style={{ fontSize: 16, fontWeight: 700, margin: "0 0 4px" }}>Notas de Reunião</h2>
-              <p style={{ fontSize: 11, color: "#555", margin: "0 0 20px" }}>Preencher durante ou após a call com o creator.</p>
-              {MEETING_QUESTIONS.map(q => (
-                <div key={q.key} style={{ marginBottom: 16 }}>
-                  <label style={{ display: "block", fontSize: 11, fontWeight: 600, color: "#888", marginBottom: 6 }}>{q.label}</label>
-                  <textarea defaultValue={creator.meeting?.[q.key] || ""}
-                    onBlur={e => { const v = e.target.value; if (v !== (creator.meeting?.[q.key] || "")) patchCreator({ meeting: { [q.key]: v } }); }}
-                    style={{ ...inputStyle, minHeight: 60 }} />
-                </div>
-              ))}
-            </div>
           </div>
         </div>)}
 
