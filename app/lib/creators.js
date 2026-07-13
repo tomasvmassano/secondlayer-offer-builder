@@ -53,7 +53,7 @@ function scrubSurrogatesInPlace(node, ctx = { changed: false }) {
 // warm instance stampeded a full-CRM rebuild (50-100K commands in an
 // hour). Now a version bump still triggers a rebuild, but it's gated by
 // a Redis lock so only one instance does it.
-const SUMMARY_VERSION = 3;
+const SUMMARY_VERSION = 4;
 
 function buildSummary(creator, createdAt) {
   let dealScoreGrade = null;
@@ -99,6 +99,14 @@ function buildSummary(creator, createdAt) {
     addedByUserId:    creator.addedBy?.userId || null,
     dealScoreGrade,
     hasAudit: !!creator.offer?.internal_metadata?.ecosystem_audit,
+    // Quick-view fields — surfaced so the Kanban card can show the deal
+    // value at a glance and flag which cards already have a Loom / notes
+    // attached, without fetching the full record. All three are edited from
+    // the card's quick-view modal (notas + valor + link do Loom, centralised
+    // so DM-senders don't hop between platforms hunting for the video).
+    dealValue: creator.dealValue ?? null,
+    hasLoom:  !!(creator.loomUrl && String(creator.loomUrl).trim()),
+    hasNotes: !!(creator.notes && String(creator.notes).trim()),
     createdAt: createdAt || creator.createdAt || new Date().toISOString(),
   };
 }
@@ -342,6 +350,16 @@ export async function saveCreator(data) {
       exclusivity: '',
     },
     notes: '',
+    // Deal value — the manual "por quanto vamos fechar" sales estimate in
+    // EUR (GHL-style opportunity value). Distinct from revenuePrice, which
+    // is the offer projector's community MRR. Shown on the Kanban card and
+    // edited in the quick-view modal.
+    dealValue: data.dealValue ?? null,
+    // Loom link — the pitch/explainer video URL, kept on the creator so a
+    // DM-sender grabs it from the quick-view modal instead of hunting across
+    // Loom/Drive/Slack. (outreach.loomSentAt is the workflow timestamp; this
+    // is the actual asset URL.)
+    loomUrl: data.loomUrl || '',
     offerId: null,
     dmSequence: data.dmSequence || null,
     offer: data.offer || null,
