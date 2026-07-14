@@ -336,9 +336,31 @@ export default function EquipaPage() {
               </div>
             </div>
 
+            {/* Funil de vendas da EQUIPA (agregado) + duração do ciclo.
+                Tudo derivado dos timestamps do Kanban — sem entrada manual. */}
+            <div style={{ marginBottom: 18 }}>
+              <SectionBlock
+                title="Funil de vendas"
+                subtitle={`Equipa · ${windowKey === 'week' ? 'esta semana' : windowKey === 'all' ? 'sempre' : 'este mês'} · medido do Kanban`}
+              >
+                <TeamFunnel funnel={data.teamFunnel} timing={data.funnelTiming} />
+              </SectionBlock>
+            </div>
+
+            {/* Calculadora de alvos — planeamento inverso. Taxas pré-preenchidas
+                com as taxas REAIS medidas acima (editáveis). */}
+            <div style={{ marginBottom: 18 }}>
+              <SectionBlock title="Calculadora de alvos" subtitle="Objetivo → atividade necessária por dia">
+                <TargetCalculator
+                  funnel={data.teamFunnel}
+                  monthly={windowKey === 'today' || windowKey === 'yesterday' || windowKey === 'month'}
+                />
+              </SectionBlock>
+            </div>
+
             {/* Funil — hairline section block (Pipeline donut removed 2026-06-18) */}
             <div style={{ marginBottom: 18 }}>
-              <SectionBlock title="Funil de conversão" subtitle="Por pessoa · sempre">
+              <SectionBlock title="Funil por pessoa" subtitle="Cada operador · sempre">
                 <div className="sl-grid" style={{ display: "grid", gridTemplateColumns: `repeat(${Math.max(1, data.funnels?.length || 1)}, 1fr)`, gap: 18 }}>
                   {(data.funnels || []).map(f => <FunnelChart key={f.userId} funnel={f} />)}
                 </div>
@@ -1242,6 +1264,205 @@ function FunnelChart({ funnel }) {
       <div style={{ marginTop: 10, paddingTop: 10, borderTop: `1px solid ${BORDER}`, fontSize: 11, color: TEXT_LO, display: "flex", justifyContent: "space-between" }}>
         <span>Taxa global</span>
         <strong style={{ color: TEXT_HI }}>{funnel.overallRate}%</strong>
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────
+// TeamFunnel — the whole sales funnel, aggregated across the team. Six
+// horizontal bars (Contactos → … → Negócios) with the conversion % AND
+// the average days between each pair of stages (the cycle duration). All
+// values are measured from the Kanban timestamps — nothing is typed in.
+// ─────────────────────────────────────────────────────────────────
+const fmtDays = (d) => (d == null ? "—" : `${d}d`);
+function TeamFunnel({ funnel, timing }) {
+  const F = funnel || {};
+  const R = F.rates || {};
+  const T = timing || {};
+  const steps = [
+    { label: "Contactos",            value: F.contactos || 0 },
+    { label: "Conversas reais",      value: F.conversas || 0,          rate: R.contactoToConversa,  gap: T.contactoConversa },
+    { label: "Reuniões marcadas",    value: F.reunioesMarcadas || 0,   rate: R.conversaToMarcada,   gap: T.conversaMarcada },
+    { label: "Reuniões realizadas",  value: F.reunioesRealizadas || 0, rate: R.marcadaToRealizada,  gap: T.marcadaRealizada },
+    { label: "Propostas apresentadas", value: F.propostas || 0,        rate: R.realizadaToProposta, gap: T.realizadaProposta },
+    { label: "Negócios",             value: F.negocios || 0,           rate: R.propostaToNegocio,   gap: T.propostaNegocio, highlight: true },
+  ];
+  const max = Math.max(1, F.contactos || 1);
+  const empty = (F.contactos || 0) === 0;
+  return (
+    <div>
+      {empty && (
+        <div style={{ fontSize: 11, color: TEXT_DIM, marginBottom: 12 }}>
+          Sem contactos nesta janela ainda — o funil preenche-se à medida que marcam as etapas no Kanban.
+        </div>
+      )}
+      <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
+        {steps.map((s, i) => {
+          const w = (s.value / max) * 100;
+          return (
+            <div key={i}>
+              {s.rate != null && (
+                <div style={{ fontSize: 9, color: TEXT_DIM, marginLeft: 6, marginBottom: 3, display: "flex", gap: 10 }}>
+                  <span>↓ {s.rate}%</span>
+                  <span style={{ color: "#3a3a3a" }}>·</span>
+                  <span title="Tempo médio entre estas duas etapas">{fmtDays(s.gap)} em média</span>
+                </div>
+              )}
+              <div style={{ position: "relative", height: 34, borderRadius: 10, overflow: "hidden", background: SURFACE_0, border: `1px solid ${BORDER}` }}>
+                <div style={{
+                  height: "100%",
+                  width: `${Math.max(6, w)}%`,
+                  background: s.highlight
+                    ? `linear-gradient(90deg, ${ACCENT_DEEP}, ${ACCENT})`
+                    : `linear-gradient(90deg, rgba(177,30,47,0.22), rgba(177,30,47,0.08))`,
+                  borderRadius: 10,
+                  transition: "width 600ms cubic-bezier(.2,.7,.2,1)",
+                }} />
+                <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 14px" }}>
+                  <span style={{ fontSize: 12, color: s.highlight ? TEXT_HI : TEXT_MID, fontWeight: s.highlight ? 700 : 500 }}>{s.label}</span>
+                  <span style={{ ...monoNum, fontSize: 15, fontWeight: 700, color: TEXT_HI }}>{s.value}</span>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      {/* Footer — taxa global + ciclo total */}
+      <div style={{ marginTop: 14, paddingTop: 12, borderTop: `1px solid ${BORDER}`, display: "flex", gap: 28, flexWrap: "wrap" }}>
+        <div>
+          <div style={{ fontSize: 9, fontWeight: 600, color: TEXT_LO, letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 4 }}>Taxa global (contacto→negócio)</div>
+          <div style={{ ...monoNum, fontSize: 20, fontWeight: 700, color: TEXT_HI }}>{R.overall != null ? `${R.overall}%` : "—"}</div>
+        </div>
+        <div>
+          <div style={{ fontSize: 9, fontWeight: 600, color: TEXT_LO, letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 4 }}>Ciclo médio de venda</div>
+          <div style={{ ...monoNum, fontSize: 20, fontWeight: 700, color: TEXT_HI }}>
+            {T.cicloTotal != null ? `${T.cicloTotal} dias` : "—"}
+            {T.sampleSize > 0 && <span style={{ fontSize: 10, color: TEXT_DIM, marginLeft: 8 }}>({T.sampleSize} {T.sampleSize === 1 ? "negócio" : "negócios"})</span>}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────
+// TargetCalculator — reverse funnel. Set the monthly € goal + ticket +
+// working days and adjust the five conversion rates (pre-filled with the
+// team's REAL measured rates) to see the activity it demands: contactos/
+// dia, conversas/dia, reuniões/semana. Pure client-side planning tool —
+// the goal isn't persisted, only the inputs matter. Also shows the team's
+// ACTUAL contactos/dia this window next to the required number.
+// ─────────────────────────────────────────────────────────────────
+function TargetCalculator({ funnel, monthly = false }) {
+  const R = funnel?.rates || {};
+  // Pre-fill each rate with the measured value when we have one (> 0),
+  // else the playbook default. Operators can still drag any slider.
+  const seed = (measured, fallback) => (measured && measured > 0 ? measured : fallback);
+  const [goal, setGoal] = useState(50000);
+  const [ticket, setTicket] = useState(6000);
+  const [workDays, setWorkDays] = useState(21);
+  const [rFecho, setRFecho] = useState(seed(R.propostaToNegocio, 30));
+  const [rComp, setRComp] = useState(seed(R.marcadaToRealizada, 75));
+  const [rProp, setRProp] = useState(seed(R.realizadaToProposta, 70));
+  const [rMarc, setRMarc] = useState(seed(R.conversaToMarcada, 20));
+  const [rConv, setRConv] = useState(seed(R.contactoToConversa, 21));
+
+  const div = (a, r) => (r > 0 ? a / (r / 100) : Infinity);
+  const negocios  = ticket > 0 ? goal / ticket : Infinity;
+  const propostas = div(negocios, rFecho);
+  const realizadas = div(propostas, rProp);
+  const marcadas  = div(realizadas, rComp);
+  const conversas = div(marcadas, rMarc);
+  const contactos = div(conversas, rConv);
+  const contactosDia = workDays > 0 ? contactos / workDays : Infinity;
+  const conversasDia = workDays > 0 ? conversas / workDays : Infinity;
+  const reunioesSemana = workDays > 0 ? realizadas / (workDays / 5) : Infinity;
+  // Actual contactos/dia the team is doing (measured funnel ÷ same working
+  // days). Only meaningful when the funnel window is a MONTH — for a week/all
+  // window the ÷21 would be apples-to-oranges, so we hide it there.
+  const realContactosDia = monthly && workDays > 0 && funnel?.contactos != null ? funnel.contactos / workDays : null;
+
+  const fmtInt = (n) => (Number.isFinite(n) ? String(Math.round(n)) : "—");
+  const fmtDec = (n) => (Number.isFinite(n) ? String(Math.round(n * 10) / 10) : "—");
+
+  const numInput = { width: "100%", padding: "10px 12px", background: SURFACE_0, border: `1px solid ${BORDER_HI}`, borderRadius: 8, color: TEXT_HI, fontSize: 18, fontWeight: 700, outline: "none", boxSizing: "border-box", fontFamily: "ui-monospace, monospace" };
+  const numLabel = { display: "block", fontSize: 10, fontWeight: 600, color: TEXT_LO, letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 6 };
+
+  const RATE_ROWS = [
+    { label: "Taxa de fecho (proposta → negócio)", val: rFecho, set: setRFecho },
+    { label: "Taxa de comparência (marcada → realizada)", val: rComp, set: setRComp },
+    { label: "Reunião → proposta apresentada", val: rProp, set: setRProp },
+    { label: "Conversa → reunião marcada", val: rMarc, set: setRMarc },
+    { label: "Contacto → conversa real (atendimento / resposta)", val: rConv, set: setRConv },
+  ];
+  const OUT_TILES = [
+    { label: "Negócios / mês", value: fmtDec(negocios) },
+    { label: "Propostas", value: fmtInt(propostas) },
+    { label: "Reuniões realizadas", value: fmtInt(realizadas) },
+    { label: "Reuniões marcadas", value: fmtInt(marcadas) },
+    { label: "Conversas reais", value: fmtInt(conversas) },
+    { label: "Contactos / mês", value: fmtInt(contactos) },
+  ];
+
+  return (
+    <div>
+      {/* Inputs — objetivo, ticket, dias úteis */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 14, marginBottom: 22 }}>
+        <div>
+          <label style={numLabel}>Objetivo mensal (€)</label>
+          <input type="number" min={0} value={goal} onChange={e => setGoal(Math.max(0, Number(e.target.value) || 0))} style={numInput} />
+        </div>
+        <div>
+          <label style={numLabel}>Ticket médio (€)</label>
+          <input type="number" min={0} value={ticket} onChange={e => setTicket(Math.max(0, Number(e.target.value) || 0))} style={numInput} />
+        </div>
+        <div>
+          <label style={numLabel}>Dias úteis / mês</label>
+          <input type="number" min={1} max={31} value={workDays} onChange={e => setWorkDays(Math.min(31, Math.max(1, Number(e.target.value) || 1)))} style={numInput} />
+        </div>
+      </div>
+
+      {/* Rate sliders — pre-filled with real measured rates */}
+      <div style={{ display: "flex", flexDirection: "column", gap: 12, marginBottom: 24 }}>
+        {RATE_ROWS.map((row, i) => (
+          <div key={i} style={{ display: "grid", gridTemplateColumns: "minmax(0,1fr) 160px 46px", alignItems: "center", gap: 14 }}>
+            <span style={{ fontSize: 12, color: TEXT_MID }}>{row.label}</span>
+            <input type="range" min={1} max={100} value={row.val} onChange={e => row.set(Number(e.target.value))} style={{ width: "100%", accentColor: ACCENT }} />
+            <span style={{ ...monoNum, fontSize: 14, fontWeight: 700, color: TEXT_HI, textAlign: "right" }}>{row.val}%</span>
+          </div>
+        ))}
+      </div>
+
+      {/* Output tiles */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12, marginBottom: 14 }}>
+        {OUT_TILES.map((t, i) => (
+          <div key={i} style={{ padding: "14px 16px", background: SURFACE_0, border: `1px solid ${BORDER}`, borderRadius: 10 }}>
+            <div style={{ fontSize: 10, fontWeight: 600, color: TEXT_LO, letterSpacing: "0.06em", marginBottom: 6 }}>{t.label}</div>
+            <div style={{ ...monoNum, fontSize: 24, fontWeight: 800, color: TEXT_HI, lineHeight: 1 }}>{t.value}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* Highlighted daily/weekly cadence bar */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12, padding: "16px 18px", background: "rgba(177,30,47,0.08)", border: `1px solid rgba(177,30,47,0.25)`, borderRadius: 12 }}>
+        <div>
+          <div style={{ fontSize: 10, fontWeight: 600, color: ACCENT, letterSpacing: "0.06em", marginBottom: 6 }}>Contactos por dia</div>
+          <div style={{ ...monoNum, fontSize: 30, fontWeight: 800, color: TEXT_HI, lineHeight: 1 }}>{fmtDec(contactosDia)}</div>
+          {realContactosDia != null && (
+            <div style={{ fontSize: 10, color: TEXT_LO, marginTop: 6 }}>
+              real: <strong style={{ color: realContactosDia >= (Number.isFinite(contactosDia) ? contactosDia : Infinity) ? GREEN : AMBER }}>{fmtDec(realContactosDia)}</strong> / dia
+            </div>
+          )}
+        </div>
+        <div>
+          <div style={{ fontSize: 10, fontWeight: 600, color: ACCENT, letterSpacing: "0.06em", marginBottom: 6 }}>Conversas por dia</div>
+          <div style={{ ...monoNum, fontSize: 30, fontWeight: 800, color: TEXT_HI, lineHeight: 1 }}>{fmtDec(conversasDia)}</div>
+        </div>
+        <div>
+          <div style={{ fontSize: 10, fontWeight: 600, color: ACCENT, letterSpacing: "0.06em", marginBottom: 6 }}>Reuniões por semana</div>
+          <div style={{ ...monoNum, fontSize: 30, fontWeight: 800, color: TEXT_HI, lineHeight: 1 }}>{fmtDec(reunioesSemana)}</div>
+        </div>
       </div>
     </div>
   );

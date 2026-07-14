@@ -402,6 +402,84 @@ export async function getFunnels(creators) {
   }));
 }
 
+// TEAM FUNNEL — the full sales funnel, aggregated across the whole team
+// (one funnel, not one per person). Every stage is DERIVED from timestamps
+// the CRM already stamps as operators work the Kanban — nothing is entered
+// by hand. A creator counts toward a stage if that stage's timestamp falls
+// inside the window. Stages follow Tomás's playbook:
+//   Contactos → Conversas reais → Reuniões marcadas → Reuniões realizadas
+//   → Propostas apresentadas → Negócios
+// Signals:  contacto = dm/email sent · conversa = replied · marcada =
+//   call booked/agreed · realizada = call held · proposta = pitch.sentAt ·
+//   negócio = signed. Powers the /equipa "Funil de vendas" block AND the
+//   real-rate pre-fill for the target calculator.
+export async function getTeamFunnel({ window = 'month', now = new Date() } = {}) {
+  const startMs = windowStart(window, now);
+  const endMs = window === 'yesterday' ? windowStart('today', now) : null;
+  const all = await loadAllCreators();
+  const f = { contactos: 0, conversas: 0, reunioesMarcadas: 0, reunioesRealizadas: 0, propostas: 0, negocios: 0 };
+  for (const c of all) {
+    const o = c.outreach || {};
+    const contactoAt = o.dmSentAt || o.emailSentAt || null;
+    const marcadaAt  = o.callBookedAt || o.callAgreedAt || null;
+    const propostaAt = c.pitch?.sentAt || null;
+    if (inWindow(contactoAt, startMs, endMs))       f.contactos += 1;
+    if (inWindow(o.repliedAt, startMs, endMs))      f.conversas += 1;
+    if (inWindow(marcadaAt, startMs, endMs))        f.reunioesMarcadas += 1;
+    if (inWindow(o.callHeldAt, startMs, endMs))     f.reunioesRealizadas += 1;
+    if (inWindow(propostaAt, startMs, endMs))       f.propostas += 1;
+    if (c.pipelineStatus === 'signed' && inWindow(c.signedAt, startMs, endMs)) f.negocios += 1;
+  }
+  const pct = (num, den) => den > 0 ? Math.round((num / den) * 100) : 0;
+  return {
+    ...f,
+    rates: {
+      contactoToConversa:  pct(f.conversas, f.contactos),
+      conversaToMarcada:   pct(f.reunioesMarcadas, f.conversas),
+      marcadaToRealizada:  pct(f.reunioesRealizadas, f.reunioesMarcadas),
+      realizadaToProposta: pct(f.propostas, f.reunioesRealizadas),
+      propostaToNegocio:   pct(f.negocios, f.propostas),
+      overall:             pct(f.negocios, f.contactos),
+    },
+  };
+}
+
+// FUNNEL TIMING — average DAYS between consecutive funnel stages, plus the
+// full cycle (first contact → signed). The "duração do ciclo de venda" the
+// team wants. Averaged over creators that have BOTH endpoints of a transition
+// (post-reset); a stage with no completed transitions returns null rather than
+// a fake zero. All-time (not windowed) — timing needs completed journeys and
+// a short window yields near-empty samples.
+export async function getFunnelTiming({ now = new Date() } = {}) {
+  const all = await loadAllCreators();
+  const b = { contactoConversa: [], conversaMarcada: [], marcadaRealizada: [], realizadaProposta: [], propostaNegocio: [], cicloTotal: [] };
+  const days = (a, z) => (new Date(z).getTime() - new Date(a).getTime()) / DAY_MS;
+  const push = (arr, a, z) => { if (postReset(a) && postReset(z) && new Date(z) >= new Date(a)) arr.push(days(a, z)); };
+  for (const c of all) {
+    const o = c.outreach || {};
+    const contactoAt = o.dmSentAt || o.emailSentAt || null;
+    const marcadaAt  = o.callBookedAt || o.callAgreedAt || null;
+    const propostaAt = c.pitch?.sentAt || null;
+    const signedAt   = c.pipelineStatus === 'signed' ? c.signedAt : null;
+    push(b.contactoConversa,  contactoAt,  o.repliedAt);
+    push(b.conversaMarcada,   o.repliedAt, marcadaAt);
+    push(b.marcadaRealizada,  marcadaAt,   o.callHeldAt);
+    push(b.realizadaProposta, o.callHeldAt, propostaAt);
+    push(b.propostaNegocio,   propostaAt,  signedAt);
+    push(b.cicloTotal,        contactoAt,  signedAt);
+  }
+  const avg = (arr) => arr.length ? Math.round(arr.reduce((s, x) => s + x, 0) / arr.length * 10) / 10 : null;
+  return {
+    contactoConversa:  avg(b.contactoConversa),
+    conversaMarcada:   avg(b.conversaMarcada),
+    marcadaRealizada:  avg(b.marcadaRealizada),
+    realizadaProposta: avg(b.realizadaProposta),
+    propostaNegocio:   avg(b.propostaNegocio),
+    cicloTotal:        avg(b.cicloTotal),
+    sampleSize:        b.cicloTotal.length,
+  };
+}
+
 // STREAK — count of consecutive recent weekdays (Mon-Fri) where each
 // person sent ≥ target DMs. Walks backwards from yesterday (or today
 // if hour ≥ 23 Lisbon, meaning the day is effectively done). Skips
