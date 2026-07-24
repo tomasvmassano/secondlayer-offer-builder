@@ -53,7 +53,7 @@ function scrubSurrogatesInPlace(node, ctx = { changed: false }) {
 // warm instance stampeded a full-CRM rebuild (50-100K commands in an
 // hour). Now a version bump still triggers a rebuild, but it's gated by
 // a Redis lock so only one instance does it.
-const SUMMARY_VERSION = 4;
+export const SUMMARY_VERSION = 4;
 
 function buildSummary(creator, createdAt) {
   let dealScoreGrade = null;
@@ -145,6 +145,11 @@ function _cacheSet(key, val) {
 }
 function _cacheInvalidate(key) { _readCache.delete(key); }
 function _cacheInvalidateAll() { _readCache.clear(); }
+
+// Exported for the /admin data-ops panel. NOTE: the read cache is per-lambda-
+// instance, so this only clears the instance that serves the request — other
+// warm instances still expire on their own 30s TTL. Cheap + harmless.
+export function flushReadCache() { _cacheInvalidateAll(); }
 
 function getRedisConfig() {
   const url = process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL || null;
@@ -854,6 +859,40 @@ export async function listCreators() {
   }
   _cacheSet('idx', enriched);
   return enriched;
+}
+
+/**
+ * Force-rebuild EVERY creator's index summary from its full record. The /admin
+ * "Forçar reindex" action. listCreators already rebuilds stale summaries lazily
+ * on a version bump — this is the manual escape hatch for when data drifted for
+ * some OTHER reason. O(N) reads + writes, so it's a deliberate button, not a
+ * hot path. Returns { rebuilt }.
+ */
+export async function rebuildAllSummaries() {
+  if (useMemory()) {
+    for (let i = 0; i < memIndex.length; i++) {
+      const raw = memStore.get(`creator:${memIndex[i].id}`);
+      if (raw) memIndex[i] = buildSummary(JSON.parse(raw), memIndex[i].createdAt);
+    }
+    _cacheInvalidateAll();
+    return { rebuilt: memIndex.length };
+  }
+  const redis = getRedis();
+  const rawMembers = await redis.zrange('creators:index', 0, -1, { rev: true });
+  let rebuilt = 0;
+  for (const m of rawMembers) {
+    const s = typeof m === 'string' ? JSON.parse(m) : m;
+    const full = await getCreator(s.id, { fresh: true });
+    if (!full) continue;
+    const next = buildSummary(full, full.createdAt);
+    const originalStr = typeof m === 'string' ? m : JSON.stringify(m);
+    await redis.zrem('creators:index', originalStr).catch(() => {});
+    const scoreMs = next.createdAt ? new Date(next.createdAt).getTime() : Date.now();
+    await redis.zadd('creators:index', { score: scoreMs, member: JSON.stringify(next) }).catch(() => {});
+    rebuilt++;
+  }
+  _cacheInvalidateAll();
+  return { rebuilt };
 }
 
 export async function updateCreator(id, updates) {

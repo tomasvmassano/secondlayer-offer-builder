@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server';
 import { listCreators, getCreator, updateCreator } from '../../../lib/creators';
+import { getCurrentUser } from '../../../lib/auth';
+import { recordCronRun } from '../../../lib/adminInfra';
 
 // Daily cron should finish in seconds — listCreators returns summaries, we
 // fetch full records only for prospects that haven't replied.
@@ -69,7 +71,11 @@ export async function GET(request) {
   if (!cronSecret && process.env.VERCEL) {
     return NextResponse.json({ error: 'CRON_SECRET not configured' }, { status: 503 });
   }
-  if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
+  // Accept EITHER the Vercel cron secret OR a signed-in team session — the
+  // latter is what lets the /admin "Correr agora" button trigger this manually.
+  const bySecret = !!cronSecret && authHeader === `Bearer ${cronSecret}`;
+  const byTeam = !bySecret && (await getCurrentUser(request))?.role === 'team';
+  if (cronSecret && !bySecret && !byTeam) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
@@ -309,6 +315,8 @@ export async function GET(request) {
     }
   }
 
+  const sentCount = perOperator.filter(o => o.sent).length;
+  await recordCronRun('dm-reminders', { ok: true, summary: `${sentCount}/${perOperator.length} digests enviados` }).catch(() => {});
   return NextResponse.json({ ...stats, perOperator });
 }
 

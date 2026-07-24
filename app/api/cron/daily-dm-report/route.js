@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { getDailyScoreboard } from '../../../lib/teamStats';
 import { getObsSnapshot } from '../../../lib/obs';
+import { getCurrentUser } from '../../../lib/auth';
+import { recordCronRun } from '../../../lib/adminInfra';
 
 // ─────────────────────────────────────────────────────────────────
 // End-of-day report — per-operator email with the day's outreach
@@ -38,6 +40,9 @@ import { getObsSnapshot } from '../../../lib/obs';
 // ─────────────────────────────────────────────────────────────────
 
 export const maxDuration = 30;
+// Never prerender/cache — this is a stateful cron (sends emails, reads the
+// live scoreboard) and can be triggered on demand from /admin.
+export const dynamic = 'force-dynamic';
 
 const OPERATORS = [
   { email: 'tom@secondlayerhq.com',  firstName: 'Tomás' },
@@ -45,14 +50,17 @@ const OPERATORS = [
 ];
 const HUB_BASE = 'https://hub.secondlayerhq.com';
 
-function checkCronAuth(request) {
+async function checkCronAuth(request) {
   const expected = process.env.CRON_SECRET;
   // FAIL CLOSED when deployed: this route is middleware-public, so an
   // unset CRON_SECRET must not make it publicly triggerable. Local dev
   // (no VERCEL env) still allows secret-less runs.
   if (!expected) return !process.env.VERCEL;
   const auth = request.headers.get('authorization') || '';
-  return auth === `Bearer ${expected}`;
+  if (auth === `Bearer ${expected}`) return true;
+  // /admin "Correr agora" — a signed-in team session may also trigger it.
+  const u = await getCurrentUser(request);
+  return u?.role === 'team';
 }
 
 // Returns the Lisbon-local long date string for "yesterday" — i.e. the
@@ -270,7 +278,7 @@ async function sendEmail(to, subject, text, html) {
 }
 
 export async function GET(request) {
-  if (!checkCronAuth(request)) {
+  if (!await checkCronAuth(request)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
   try {
@@ -324,6 +332,8 @@ export async function GET(request) {
       }
     } catch { /* best-effort */ }
 
+    const sentCount = Array.isArray(perOperator) ? perOperator.filter(o => o.sent).length : 0;
+    await recordCronRun('daily-dm-report', { ok: true, summary: `${sentCount} relatórios enviados` }).catch(() => {});
     return NextResponse.json({ ok: true, target, perOperator, scoreboard, obsSummary });
   } catch (err) {
     console.error('[daily-dm-report] error:', err.message);

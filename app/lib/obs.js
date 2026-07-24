@@ -154,3 +154,28 @@ export async function getObsSnapshot({ recentErrors = 20 } = {}) {
     return { available: false, error: e?.message };
   }
 }
+
+/**
+ * Daily LLM cost for the last N days (oldest-first), for the trend chart on
+ * /admin. Reads the same `obs:cost:{ymd}` counters getObsSnapshot uses.
+ * Returns [{ day: 'YYYY-MM-DD', cost }] — cost 0 for days with no spend.
+ */
+export async function getCostTrend(days = 30) {
+  const r = redis();
+  if (!r) return [];
+  const n = Math.max(1, Math.min(90, days));
+  const daysArr = [];
+  const now = new Date();
+  for (let i = n - 1; i >= 0; i--) {
+    const d = new Date(now.getTime() - i * 86400000);
+    daysArr.push(ymd(d));
+  }
+  try {
+    const p = r.pipeline();
+    daysArr.forEach(day => p.get(`obs:cost:${day}`));
+    const res = await p.exec();
+    return daysArr.map((day, i) => ({ day, cost: +(Number(res[i]) || 0).toFixed(4) }));
+  } catch {
+    return daysArr.map(day => ({ day, cost: 0 }));
+  }
+}
