@@ -16,9 +16,9 @@ export const maxDuration = 60;
 // fell into the "no owner" bucket. Fix 2026-05-23: canonicalise the
 // firstName (lowercase + strip diacritics) and look up via FIRSTNAME_TO_EMAIL.
 const OPERATORS = [
-  { email: 'tomas@informallabs.com',    firstName: 'Tomás'    },
-  { email: 'raul@informallabs.com',     firstName: 'Raul'     },
-  { email: 'carolina@informallabs.com', firstName: 'Carolina' },
+  { email: 'tom@secondlayerhq.com',      firstName: 'Tomás'    },
+  { email: 'raul@secondlayerhq.com',     firstName: 'Raul'     },
+  { email: 'carolina@secondlayerhq.com', firstName: 'Carolina' },
 ];
 // Lowercase + diacritics stripped, mirrors canonicalKey() in lib/teamStats so
 // "Tomás" and "Tomas" both resolve correctly regardless of which form the
@@ -55,7 +55,7 @@ const daysBetween = (a, b) => Math.floor((new Date(b).getTime() - new Date(a).ge
 //     marked the matching follow-up done.
 //
 // Also gathers "new prospects with no DM yet" so they aren't forgotten.
-// Sends ONE digest email per day to tomas@ + raul@informallabs.com.
+// Sends ONE digest email per day to the OPERATORS above (@secondlayerhq.com).
 // ─────────────────────────────────────────────────────────────────
 
 export async function GET(request) {

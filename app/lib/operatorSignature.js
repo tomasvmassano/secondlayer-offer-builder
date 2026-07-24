@@ -32,15 +32,20 @@ function canonicalize(s) {
 const OPERATOR_SIGNATURES = {
   tomas: {
     fullName: 'Tomás Massano',
-    email: 'tomas@informallabs.com',
+    email: 'tom@secondlayerhq.com',
     website: 'secondlayerhq.com',
   },
   raul: {
     fullName: 'Raúl',
-    email: 'raul@informallabs.com',
+    email: 'raul@secondlayerhq.com',
     website: 'secondlayerhq.com',
   },
 };
+// The new email local-part is "tom" (not "tomas"), so an email-based lookup
+// (getSignature('tom@secondlayerhq.com')) canonicalizes to "tom". Alias it to
+// the same record so the signature still resolves whether the caller passes
+// the name ("Tomás" → "tomas") or the new address ("tom").
+OPERATOR_SIGNATURES.tom = OPERATOR_SIGNATURES.tomas;
 
 /**
  * Look up the signature record for an operator. Accepts either a first name

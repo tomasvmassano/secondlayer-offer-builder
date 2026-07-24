@@ -1,12 +1,21 @@
 import { NextResponse } from 'next/server';
 import { getCurrentUser } from '../../../lib/auth';
-import { listTeamEmails, addTeamEmail, removeTeamEmail, listUsers, deleteUser, findUserByEmail } from '../../../lib/users';
+import { listTeamEmails, addTeamEmail, removeTeamEmail, listUsers, deleteUser, findUserByEmail, renameUserEmail } from '../../../lib/users';
 
 async function requireTeam(request) {
   const u = await getCurrentUser(request);
   if (!u || u.role !== 'team') return null;
   return u;
 }
+
+// One-time team email switch to the official @secondlayerhq.com addresses.
+// Server-side + hardcoded on purpose: auth changes never trust client input.
+// Each rename preserves the userId so ALL data + capabilities carry over.
+const SECONDLAYER_MIGRATION = [
+  { oldEmail: 'tomas@informallabs.com',    newEmail: 'tom@secondlayerhq.com',      name: 'Tomás'    },
+  { oldEmail: 'raul@informallabs.com',     newEmail: 'raul@secondlayerhq.com',     name: 'Raúl'     },
+  { oldEmail: 'carolina@informallabs.com', newEmail: 'carolina@secondlayerhq.com', name: 'Carolina' },
+];
 
 export async function GET(request) {
   const u = await requireTeam(request);
@@ -27,6 +36,18 @@ export async function POST(request) {
   const body = await request.json().catch(() => ({}));
   const email = String(body?.email || '').trim().toLowerCase();
   const action = body?.action;
+
+  // Fixed-mapping migration — runs BEFORE the per-email validation because it
+  // carries no `email` in the body (the mappings are hardcoded server-side).
+  if (action === 'migrate-secondlayer') {
+    const migration = [];
+    for (const m of SECONDLAYER_MIGRATION) {
+      try { migration.push(await renameUserEmail(m)); }
+      catch (e) { migration.push({ status: 'error', oldEmail: m.oldEmail, newEmail: m.newEmail, message: e.message }); }
+    }
+    const [emails, users] = await Promise.all([listTeamEmails(), listUsers()]);
+    return NextResponse.json({ allowlist: emails, users, migration });
+  }
 
   if (!email || !/^[^@]+@[^@]+\.[^@]+$/.test(email)) {
     return NextResponse.json({ error: 'invalid email' }, { status: 400 });

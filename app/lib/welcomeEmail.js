@@ -6,7 +6,7 @@
  * to the creator. Creator-direct send happens once we collect a verified contact email.
  */
 
-const NOTIFY_EMAILS = ['tomas@informallabs.com', 'raul@informallabs.com'];
+const NOTIFY_EMAILS = ['tom@secondlayerhq.com', 'raul@secondlayerhq.com'];
 const HUB_BASE = process.env.NEXT_PUBLIC_HUB_URL || 'https://hub.secondlayerhq.com';
 
 export async function sendWelcomeEmail(creator, request) {

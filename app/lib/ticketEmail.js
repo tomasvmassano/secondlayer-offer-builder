@@ -3,7 +3,7 @@
  *
  * Two flows:
  *  - sendTicketCreatedEmail   → fires the moment a ticket is submitted.
- *                                Goes to tomas@informallabs.com so he sees
+ *                                Goes to tom@secondlayerhq.com so he sees
  *                                every bug / suggestion in his inbox.
  *                                Attaches any files the submitter uploaded
  *                                (drag-drop on the form).
@@ -20,7 +20,7 @@
  */
 
 const HUB_BASE = process.env.NEXT_PUBLIC_HUB_URL || 'https://hub.secondlayerhq.com';
-const TRIAGE_INBOX = 'tomas@informallabs.com';
+const TRIAGE_INBOX = 'tom@secondlayerhq.com';
 
 // Strip a data-URL prefix and return just the base64 payload.
 // Resend's attachments API wants the raw base64 string.

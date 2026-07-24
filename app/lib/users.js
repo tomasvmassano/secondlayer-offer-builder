@@ -166,6 +166,58 @@ export async function upsertUser({ email, role, creatorId, name }) {
   return user;
 }
 
+/**
+ * Change a user's email WITHOUT changing their userId — the whole point of a
+ * migration vs. just allow-listing a new address. Every historical record
+ * (creator.addedBy.userId, the follow-up tray's "my creators" filter, the
+ * adder guard) keys on the stable nanoid, so preserving it keeps all data +
+ * capabilities intact. Also sets an explicit `name` so the scoreboard's
+ * firstName stays stable regardless of the new local-part.
+ *
+ * Idempotent + conflict-safe:
+ *   - old user found, new free   → migrate in place (same id), swap allowlist
+ *   - new email already the user → no-op, just ensure allowlist + name
+ *   - new email is a DIFFERENT user → 'conflict' (never silently merge)
+ *   - neither exists             → allowlist the new email only
+ */
+export async function renameUserEmail({ oldEmail, newEmail, name }) {
+  const oldE = normEmail(oldEmail);
+  const newE = normEmail(newEmail);
+  if (!newE) throw new Error('newEmail required');
+
+  const oldUser = oldE ? await findUserByEmail(oldE) : null;
+  const newUser = await findUserByEmail(newE);
+
+  if (oldUser && newUser && newUser.id !== oldUser.id) {
+    return { status: 'conflict', oldEmail: oldE, newEmail: newE, message: `${newE} já pertence a outro user (${newUser.id})` };
+  }
+
+  if (!oldUser && newUser) {
+    if (name && newUser.name !== name) { newUser.name = name; await _persistUser(newUser); }
+    await addTeamEmail(newE);
+    return { status: 'already', userId: newUser.id, name: newUser.name, oldEmail: oldE, newEmail: newE };
+  }
+
+  if (!oldUser && !newUser) {
+    await addTeamEmail(newE);
+    return { status: 'allowlisted-only', oldEmail: oldE, newEmail: newE };
+  }
+
+  // The migration: keep the SAME id, swap email + set the display name.
+  const updated = { ...oldUser, email: newE, name: name || oldUser.name || null };
+  await _persistUser(updated);
+  if (useMemory()) {
+    memStore.set(`user:byEmail:${newE}`, updated.id);
+    if (oldE && oldE !== newE) memStore.delete(`user:byEmail:${oldE}`);
+  } else {
+    await getRedis().set(`user:byEmail:${newE}`, updated.id);
+    if (oldE && oldE !== newE) await getRedis().del(`user:byEmail:${oldE}`);
+  }
+  await addTeamEmail(newE);
+  if (oldE && oldE !== newE) await removeTeamEmail(oldE);
+  return { status: 'migrated', userId: updated.id, name: updated.name, oldEmail: oldE, newEmail: newE };
+}
+
 export async function touchUser(userId) {
   const u = await getUser(userId);
   if (!u) return null;

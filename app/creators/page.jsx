@@ -1096,7 +1096,7 @@ export default function CreatorsPage() {
                         <div>
                           <div style={{ fontSize: 12, fontWeight: 600, color: "#f5f5f5" }}>Autopilot Discovery</div>
                           <div style={{ fontSize: 10, color: "#666", marginTop: 2 }}>
-                            Corre automaticamente todos os dias às 6AM (Lisboa) · até 30 candidatos · notifica tomas@ + raul@informallabs.com
+                            Corre automaticamente todos os dias às 6AM (Lisboa) · até 30 candidatos · notifica tom@ + raul@secondlayerhq.com
                           </div>
                         </div>
                         <button

@@ -47,6 +47,25 @@ export default function AdminTeamPage() {
     setWorking(false);
   };
 
+  const [migResult, setMigResult] = useState(null);
+  const migrateSecondLayer = async () => {
+    if (!confirm("Migrar tomas@ / raul@ / carolina@informallabs.com → @secondlayerhq.com?\n\nMantém o mesmo userId e nome de cada pessoa, por isso todos os dados e permissões ficam iguais. Os emails antigos deixam de dar acesso.")) return;
+    setWorking(true);
+    setError('');
+    setMigResult(null);
+    const res = await fetch('/api/admin/team', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'migrate-secondlayer' }) });
+    if (!res.ok) {
+      const j = await res.json().catch(() => ({}));
+      setError(j.error || 'Erro na migração');
+    } else {
+      const d = await res.json();
+      setAllowlist(d.allowlist);
+      setUsers(d.users);
+      setMigResult(d.migration || []);
+    }
+    setWorking(false);
+  };
+
   const remove = async (email) => {
     if (!confirm(`Remover ${email} da equipa?`)) return;
     setWorking(true);
@@ -78,13 +97,42 @@ export default function AdminTeamPage() {
 
         {error && <div style={{ fontSize: 12, color: "#ef4444", marginBottom: 16 }}>{error}</div>}
 
+        {/* One-time migration to the official @secondlayerhq.com emails.
+            Preserves each userId + name, so all data + capabilities carry over. */}
+        <div style={{ marginBottom: 36, padding: "18px 20px", background: "rgba(177,30,47,0.06)", border: "1px solid rgba(177,30,47,0.2)", borderRadius: 10 }}>
+          <div style={{ fontSize: 13, fontWeight: 600, color: "#f5f5f5", marginBottom: 4 }}>Migrar emails da equipa → @secondlayerhq.com</div>
+          <p style={{ fontSize: 12, color: "#888", margin: "0 0 14px", lineHeight: 1.6 }}>
+            Troca tomas@ / raul@ / carolina@informallabs.com pelos oficiais tom@ / raul@ / carolina@secondlayerhq.com,
+            <strong style={{ color: "#aaa" }}> mantendo o mesmo userId e nome</strong> — os dados e permissões ficam iguais. Os emails antigos deixam de dar acesso. Podes correr mais que uma vez (é idempotente).
+          </p>
+          <button onClick={migrateSecondLayer} disabled={working} style={{ padding: "10px 18px", background: "#B11E2F", color: "#fff", border: "none", borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: working ? "default" : "pointer", fontFamily: "inherit", opacity: working ? 0.5 : 1 }}>
+            {working ? "A migrar…" : "Migrar equipa"}
+          </button>
+          {migResult && (
+            <div style={{ marginTop: 14, display: "flex", flexDirection: "column", gap: 6 }}>
+              {migResult.map((r, i) => {
+                const ok = r.status === 'migrated' || r.status === 'already';
+                const color = ok ? "#1F8A4C" : r.status === 'allowlisted-only' ? "#eab308" : "#ef4444";
+                const label = r.status === 'migrated' ? "migrado" : r.status === 'already' ? "já estava migrado" : r.status === 'allowlisted-only' ? "sem user antigo — só adicionado ao allowlist" : r.status === 'conflict' ? `conflito: ${r.message}` : `erro: ${r.message || ''}`;
+                return (
+                  <div key={i} style={{ fontSize: 11, color: "#aaa", fontFamily: "'JetBrains Mono', ui-monospace, monospace" }}>
+                    <span style={{ color: "#666" }}>{r.oldEmail || '—'} → </span>
+                    <strong style={{ color: "#f5f5f5" }}>{r.newEmail}</strong>
+                    <span style={{ color, marginLeft: 8 }}>· {label}</span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
         {/* Add new */}
         <form onSubmit={add} style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 36 }}>
           <input
             type="email"
             value={newEmail}
             onChange={(e) => setNewEmail(e.target.value)}
-            placeholder="email@informallabs.com"
+            placeholder="email@secondlayerhq.com"
             style={{ flex: 1, padding: "12px 14px", background: "#141414", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 8, color: "#f5f5f5", fontSize: 13, fontFamily: "inherit", outline: "none" }}
           />
           <button type="submit" disabled={working || !newEmail} style={{ padding: "12px 20px", background: "#B11E2F", color: "#fff", border: "none", borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: (working || !newEmail) ? "default" : "pointer", fontFamily: "inherit", opacity: (working || !newEmail) ? 0.5 : 1 }}>

@@ -40,8 +40,8 @@ import { getObsSnapshot } from '../../../lib/obs';
 export const maxDuration = 30;
 
 const OPERATORS = [
-  { email: 'tomas@informallabs.com', firstName: 'Tomás' },
-  { email: 'raul@informallabs.com',  firstName: 'Raul'  },
+  { email: 'tom@secondlayerhq.com',  firstName: 'Tomás' },
+  { email: 'raul@secondlayerhq.com', firstName: 'Raul'  },
 ];
 const HUB_BASE = 'https://hub.secondlayerhq.com';
 
@@ -319,7 +319,7 @@ export async function GET(request) {
       const snap = await getObsSnapshot({ recentErrors: 10 });
       if (snap?.available) {
         const { subject, html } = buildOpsSummaryEmail(snap);
-        await sendEmail('tomas@informallabs.com', subject, '', html).catch(() => {});
+        await sendEmail('tom@secondlayerhq.com', subject, '', html).catch(() => {});
         obsSummary = { costYesterday: snap.costYesterday, errorsToday: snap.errorsToday };
       }
     } catch { /* best-effort */ }

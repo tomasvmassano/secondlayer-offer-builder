@@ -88,8 +88,17 @@ export async function getCurrentUser(request) {
 // when a new operator joins (or eventually replace with a per-user display-name
 // field on the user record).
 const DISPLAY_NAME_OVERRIDES = {
-  'tomas@informallabs.com': 'Tomás',
-  'raul@informallabs.com':  'Raúl',
+  // Official @secondlayerhq addresses. CRITICAL: tom@ (local-part "tom") must
+  // resolve to "Tomás" — otherwise the scoreboard/funnel firstName key would
+  // become "tom" and split from all the historical data keyed on "tomas".
+  'tom@secondlayerhq.com':      'Tomás',
+  'raul@secondlayerhq.com':     'Raúl',
+  'carolina@secondlayerhq.com': 'Carolina',
+  // Old @informallabs addresses kept so a lingering 30-day session or any
+  // legacy record still resolves to the accented name during the switch-over.
+  'tomas@informallabs.com':     'Tomás',
+  'raul@informallabs.com':      'Raúl',
+  'carolina@informallabs.com':  'Carolina',
 };
 
 // ASCII-name → accented-name mapping, used to clean up legacy creator records

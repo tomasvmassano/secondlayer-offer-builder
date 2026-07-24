@@ -74,7 +74,7 @@ export async function POST(request, { params }) {
 
 // Team notification on form completion. Hardcoded operator list matches
 // the cron digests (no TEAM_EMAILS env by design — see dm-reminders).
-const OPERATORS = ['tomas@informallabs.com', 'raul@informallabs.com', 'carolina@informallabs.com'];
+const OPERATORS = ['tom@secondlayerhq.com', 'raul@secondlayerhq.com', 'carolina@secondlayerhq.com'];
 const HUB_BASE = process.env.NEXT_PUBLIC_HUB_URL || 'https://hub.secondlayerhq.com';
 
 async function notifyTeamFormComplete(creator) {
