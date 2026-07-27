@@ -141,7 +141,7 @@ function DealPanel({ creator, patchCreator }) {
   return (
     <div style={{ maxWidth: 640 }}>
       <p style={{ fontSize: 12, color: "#666", margin: "0 0 28px", lineHeight: 1.6 }}>
-        Tudo o que precisas antes de mandar a DM, num sítio só — quanto vamos fechar, o Loom para enviar, e as notas do contacto.
+        Tudo o que precisas antes de mandar a DM, num sítio só — quanto vamos fechar, o link do vídeo, e as notas do contacto.
       </p>
 
       {/* Valor a fechar */}
@@ -161,14 +161,14 @@ function DealPanel({ creator, patchCreator }) {
         </div>
       </div>
 
-      {/* Link do Loom */}
+      {/* Link do vídeo (opcional, por-creator) */}
       <div style={{ marginBottom: 30 }}>
-        <h3 style={sectionTitleStyle}>Link do Loom</h3>
+        <h3 style={sectionTitleStyle}>Vídeo (opcional)</h3>
         <input
           value={loomUrl}
           onChange={e => setLoomUrl(e.target.value)}
           onBlur={saveLoom}
-          placeholder="https://www.loom.com/share/…"
+          placeholder="https://… (link do vídeo)"
           style={inputStyle}
         />
         <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
@@ -178,7 +178,7 @@ function DealPanel({ creator, patchCreator }) {
             onClick={e => { if (!loomValid) e.preventDefault(); }}
             style={{ padding: "8px 16px", borderRadius: 7, fontSize: 12, fontWeight: 600, textDecoration: "none", color: "#f5f5f5", background: "rgba(122,14,24,0.25)", border: "1px solid rgba(122,14,24,0.5)", opacity: loomValid ? 1 : 0.4, pointerEvents: loomValid ? "auto" : "none" }}
           >
-            Abrir Loom
+            Abrir vídeo
           </a>
           <button onClick={copyLoom} disabled={!loomValid} style={{ padding: "8px 16px", borderRadius: 7, fontSize: 12, fontWeight: 600, color: "#ccc", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.1)", cursor: loomValid ? "pointer" : "not-allowed", opacity: loomValid ? 1 : 0.4, fontFamily: "inherit" }}>
             {copied ? "Copiado ✓" : "Copiar link"}
@@ -2612,7 +2612,7 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
                       </div>
                       <textarea
                         placeholder={messages.length === 0
-                          ? "Ex: 'Olá! Já vi a tua DM. Estou ocupada esta semana mas adoraria saber mais. Podes mandar um Loom a explicar?'"
+                          ? "Ex: 'Olá! Já vi a tua DM. Estou ocupada esta semana mas adoraria saber mais. Podes mandar-me um vídeo a explicar?'"
                           : "Cola a próxima resposta do criador..."}
                         value={replyText}
                         onChange={e => setReplyText(e.target.value)}
