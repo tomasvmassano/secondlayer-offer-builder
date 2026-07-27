@@ -2267,7 +2267,7 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
               </div>
             ) : (
             <div>
-              <div className="sl-grid-4" style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 12, marginBottom: 16 }}>
+              <div className="sl-grid-3" style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12, marginBottom: 16 }}>
                 <div>
                   <label style={{ display: "block", fontSize: 10, fontWeight: 600, color: "#555", marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.05em" }}>Primeiro Nome</label>
                   <input type="text" style={inputStyle} placeholder="Ex: Mariana" value={dmInputs.primeiro_nome || ""} onChange={e => setDmInputs(p => ({ ...p, primeiro_nome: e.target.value }))} />
@@ -2284,19 +2284,11 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
                   )}
                 </div>
                 <div>
-                  <label style={{ display: "block", fontSize: 10, fontWeight: 600, color: "#555", marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.05em" }}>Template</label>
-                  <select style={inputStyle} value={dmTemplate} onChange={e => setDmTemplate(e.target.value)}>
-                    <option value="A">A — Second Layer (consultivo)</option>
-                    <option value="B">B — Second Layer (parceria)</option>
-                    <option value="C">C — Day in the Life</option>
-                  </select>
-                  <div style={{ fontSize: 9, color: "#444", marginTop: 6, lineHeight: 1.4 }}>Vai sair assinado por <strong style={{ color: "#888" }}>{senderName}</strong>.</div>
-                </div>
-                <div>
                   <label style={{ display: "block", fontSize: 10, fontWeight: 600, color: "#555", marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.05em" }}>Notas <span style={{ fontWeight: 400, color: "#333" }}>(opcional)</span></label>
                   <input type="text" style={inputStyle} placeholder="Contexto extra..." value={dmNotes} onChange={e => setDmNotes(e.target.value)} />
                 </div>
               </div>
+              <div style={{ fontSize: 10, color: "#555", marginBottom: 8, lineHeight: 1.4 }}>DM curto (modelo de volume) — abertura personalizada + oferta do vídeo. Assinado por <strong style={{ color: "#888" }}>{senderName}</strong>.</div>
               <button onClick={() => generateDM('initial')} style={{ padding: "12px 32px", borderRadius: 8, border: "none", background: "#7A0E18", color: "#fff", fontSize: 14, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", width: "100%" }}>Gerar DM</button>
             </div>
             )
