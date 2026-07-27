@@ -894,9 +894,11 @@ export async function POST(request) {
   }
 
   const { template: rawTemplate, inputs, creatorProfile, notes, stage: rawStage, senderName: rawSender } = body;
-  // Template gate — A (consultative) / B (partnership pitch) / C (DOTL placeholder).
-  // Unknown templates fall back to A.
-  const template = ['A', 'B', 'C'].includes(rawTemplate) ? rawTemplate : 'A';
+  // Volume model (2026-07): collapsed to ONE light template. The old B
+  // (partnership pitch that promised a custom video) is retired — the generic
+  // video does the selling now, so the cold DM only needs a genuine opener +
+  // the soft-ask close. rawTemplate is ignored; always the light template.
+  const template = 'A';
   // Signer name comes from the signed-in operator via /api/auth/me. Default
   // to "Raul" for back-compat with existing callers (the original prompt was
   // hardcoded to him). The client SHOULD pass senderName explicitly — this
@@ -986,7 +988,37 @@ ${TEMPLATE_FRAMING[template]}
 ---
 
 `;
-  const systemPrompt = layeredKnowledge + baseSystemPrompt;
+  // ── Volume-model override (2026-07) ──
+  // Appended LAST so it takes precedence over the richer structure in the base
+  // prompt. The pivot: no per-creator custom video, no gap-analysis, no audit
+  // dependence — the cold DM is a genuine opener + a fixed soft-ask, and the
+  // generic video (sent on interest) does the selling. Keeps the base prompt's
+  // voice/anti-scammy/language rules; overrides only the structure + CTA.
+  const SOFT_ASK = {
+    pt: 'Se achares interessante, envio-te um vídeo curto de como ajudámos outras pessoas a fazer o mesmo.',
+    en: "If it sounds interesting, I'll send you a short video of how we've helped others do the same.",
+    es: 'Si te resulta interesante, te envío un vídeo corto de cómo ayudamos a otras personas a hacer lo mismo.',
+  };
+  const volumeOverride = `
+
+---
+
+## VOLUME-MODEL OVERRIDE — takes precedence over any DM structure above
+
+This is a light, high-volume cold DM. IGNORE any instruction above about an "Observation"/gap block, an open "Question" block, an authority block, referencing audit data, or any video-PROPOSAL / call / meeting CTA.
+
+The DM is ONLY these parts, nothing more:
+1. Greeting on its own line, comma required, then a blank line.
+2. Hook: ONE genuine, specific observation about a real piece of their content + one honest reaction. 1-2 short sentences. Always name the exact post / reel / video — never "vi o teu perfil" / "I saw your profile". No generic compliments, no sycophancy.
+3. Soft-ask close — use EXACTLY this line, in the creator's language:
+   ${SOFT_ASK[language] || SOFT_ASK.pt}
+4. Sign-off: blank line, "Abraço," / "Cheers," / "Un abrazo," blank line, then {senderName}.
+
+No product names, no pricing, no "comunidade", no "Faz sentido?", no meeting ask, and NEVER a custom/personalised-video promise. Keep the whole DM to ~4 short lines. The soft-ask IS the call to action.
+
+Follow-up emails must mirror this: light, and if they offer a video, it's the same short video of what we've done for others — never a custom video for their case.`;
+
+  const systemPrompt = layeredKnowledge + baseSystemPrompt + volumeOverride;
 
   // Concise profile summary
   const recentPosts = (cp.platforms?.instagram?.recentPosts || []).slice(0, 5).map(p =>
@@ -1104,7 +1136,7 @@ ${stageInstruction} Follow the output format exactly. ZERO em dashes.${notesRemi
       // we never POST an orphan upstream regardless of how the body got
       // built).
       body: safeStringify({
-        model: 'claude-sonnet-4-5-20250929',
+        model: 'claude-haiku-4-5-20251001',
         max_tokens: 4000,
         system: [
           { type: 'text', text: systemPrompt, cache_control: { type: 'ephemeral' } },
@@ -1149,7 +1181,7 @@ ${stageInstruction} Follow the output format exactly. ZERO em dashes.${notesRemi
       return NextResponse.json({ error: data.error?.message || 'Generation failed' }, { status: 500 });
     }
 
-    if (data?.usage) recordLlmUsage({ route: 'dm-writer', model: 'claude-sonnet-4-5-20250929', usage: data.usage }).catch(() => {});
+    if (data?.usage) recordLlmUsage({ route: 'dm-writer', model: 'claude-haiku-4-5-20251001', usage: data.usage }).catch(() => {});
 
     const rawText = (data.content || []).filter(b => b.type === 'text').map(b => b.text).join('\n');
 
@@ -1236,7 +1268,7 @@ Rules:
               'anthropic-version': '2023-06-01',
             },
             body: safeStringify({
-              model: 'claude-sonnet-4-5-20250929',
+              model: 'claude-haiku-4-5-20251001',
               max_tokens: 1500,
               system: [{ type: 'text', text: shrinkSystem }],
               messages: [{ role: 'user', content: result.dm }],
