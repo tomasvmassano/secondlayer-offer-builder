@@ -188,19 +188,21 @@ Specific piece of content + one honest reaction. That's it.
 - DO NOT invent how {senderName} found them. No "vi através de um amigo", no "uma conexão em comum", no "alguém partilhou". Just open with the post itself.
 - NEVER: "adorei o teu conteúdo", "continua assim", generic compliments, sycophancy.
 
-**Block 2 — A lacuna + o que fazemos (2-3 frases)**
-Depois do hook, liga ao que provavelmente falta no negócio dela e diz, claramente, o que fazemos. São 2-3 frases, não uma análise:
-- Nomeia a lacuna como um padrão do modelo dela, nunca como acusação: a audiência segue-a pelo trabalho, mas o próximo passo para quem quer ir a sério acaba sempre num curso novo ou à espera do próximo lançamento; a receita depende de repetir lançamentos, projetos ou patrocínios.
-- Diz o que fazemos, concreto e sem jargão: construímos a estrutura que transforma essa audiência numa comunidade com receita todos os meses, para ela deixar de viver de lançamento em lançamento.
-- Infere a dor só do que é visível (ela cria conteúdo e vende cursos ou serviços). NÃO uses nomes de produtos nem dados de audit.
+**Block 2 — Curiosidade + o que fazemos (2-3 frases)**
+Depois do hook, levanta uma curiosidade genuína e sem pressão sobre o que acontece à audiência dela depois de a descobrir (quem quer mais não tem um sítio onde ficar), e responde logo com o que fazemos. Não é uma pergunta deixada no ar nem um diagnóstico:
+- Curiosidade: por exemplo, "toda essa gente que chega até ti, para onde vai depois?". Suave, nunca acusatória.
+- Responde já com o que fazemos: construímos esse "depois", uma comunidade à volta do trabalho dela que a segura e lhe dá receita recorrente todos os meses, em vez de depender de lançamentos.
+- Descreve o que fazemos de forma geral. NÃO uses nomes de produtos nem dados de audit, e NÃO apresentes isto como algo já feito no nicho dela.
 
-**Block 3 — Oferta do vídeo, concreta (1 frase)**
-Oferece o vídeo E diz o que ele mostra: que JÁ fizemos isto com criadores parecidos com ela. É prova, não um pedido de call nem uma pergunta. Modelo:
+**Block 3 — CTA: vídeo que explica o que fazemos (1 frase)**
+Oferece um vídeo curto que EXPLICA melhor o que fazemos. Modelo:
 
-    Se fizer sentido, envio-te um vídeo curto a mostrar como já fizemos isto com criadores parecidos contigo.
+    Se quiseres, envio-te um vídeo curto a explicar melhor o que fazemos.
+
+- NUNCA digas que trabalhámos com criadores parecidos. NUNCA prometas resultados no nicho dela. NUNCA prometas mostrar o mesmo trabalho. É só um vídeo a explicar o que fazemos.
 
 ## Closing
-End with: blank line, "Abraço,", blank line, "{senderName}". Nothing after. Structure: greeting + hook + lacuna/o-que-fazemos + oferta do vídeo + sign-off. Under 1000 chars.
+End with: blank line, "Abraço,", blank line, "{senderName}". Nothing after. Structure: greeting + hook + curiosidade/o-que-fazemos + CTA do vídeo + sign-off. Under 1000 chars.
 
 ## Keep it light (volume model)
 The DM's only job is a genuine, specific opener + the soft-ask. Do NOT reference audit data, product names, or platform numbers even if the profile provides them — this is high-volume outreach, not a diagnosis. One real observation about their content, then the soft offer.
@@ -241,7 +243,7 @@ Trabalho com criadores como tu a construir a camada que falta na sua estrutura d
 
 Fazemos isto como parceria: só ganho quando tu ganhas.
 
-Se achares interessante, envio-te um vídeo curto de como ajudámos outras pessoas a fazer o mesmo. Sem compromisso.
+Se quiseres, envio-te um vídeo curto a explicar melhor o que fazemos. Sem compromisso.
 
 Abraço,
 {senderName}
@@ -291,19 +293,21 @@ Specific piece of content + one honest reaction. That's it.
 - DO NOT invent how {senderName} found them. No "saw you through a mutual connection", no "a friend shared your stuff", no "came across you via X". Just open with the post itself.
 - NEVER: "loved your content", "keep it up", generic compliments, sycophancy.
 
-**Block 2 — The gap + what we do (2-3 sentences)**
-After the hook, connect to what's likely missing in her business and say, plainly, what we do. 2-3 sentences, not an analysis:
-- Name the gap as a pattern of her model, never an accusation: her audience follows for the work, but the next step for people who want to go deeper always ends in another course or waiting for the next launch; revenue depends on repeating launches, projects, or brand deals.
-- Say what we do, concrete and jargon-free: we build the structure that turns that audience into a community with monthly recurring revenue, so she stops living launch to launch.
-- Infer the pain only from what's visible (she makes content and sells courses or services). Do NOT use product names or audit data.
+**Block 2 — Curiosity + what we do (2-3 sentences)**
+After the hook, raise a genuine, low-pressure curiosity about what happens to her audience after they discover her (the people who want more have nowhere ongoing to go), then answer it right away with what we do. Not a question left hanging, not a diagnosis:
+- Curiosity: e.g. "all these people who find you through your content, where do they go next?". Soft, never accusatory.
+- Answer immediately with what we do: we build that "next place," a community around her work that keeps those people and gives her recurring monthly revenue, instead of depending on launches.
+- Describe what we do in general terms. Do NOT use product names or audit data, and do NOT present it as something already done in her niche.
 
-**Block 3 — Concrete video offer (1 sentence)**
-Offer the video AND say what it shows: that we've already done this with creators like her. It's proof, not a call ask or a question. Model:
+**Block 3 — CTA: a video that explains what we do (1 sentence)**
+Offer a short video that EXPLAINS what we do in more detail. Model:
 
-    If it sounds interesting, I'll send you a short video showing how we've already done this with creators like you.
+    If you're up for it, I'll send you a short video explaining what we do in more detail.
+
+- NEVER say we worked with similar creators. NEVER promise results in her niche. NEVER promise to show the same work. Just a short video explaining what we do.
 
 ## Closing
-End with: blank line, "Cheers,", blank line, "{senderName}". Nothing after. Structure: greeting + hook + gap/what-we-do + video offer + sign-off. Under 1000 chars.
+End with: blank line, "Cheers,", blank line, "{senderName}". Nothing after. Structure: greeting + hook + curiosity/what-we-do + video CTA + sign-off. Under 1000 chars.
 
 ## Keep it light (volume model)
 The DM's only job is a genuine, specific opener + the soft-ask. Do NOT reference audit data, product names, or platform numbers even if the profile provides them — this is high-volume outreach, not a diagnosis. One real observation about their content, then the soft offer.
@@ -336,7 +340,7 @@ I work with creators like you to build the layer that's missing in their busines
 
 We do this as a partnership: I only win when you win.
 
-If it sounds interesting, I'll send you a short video of how we've helped others do the same. No commitment.
+If you're up for it, I'll send you a short video explaining what we do in more detail. No commitment.
 
 Cheers,
 {senderName}
@@ -386,19 +390,21 @@ Specific piece of content + one honest reaction. That's it.
 - DO NOT invent how {senderName} found them. No "te vi a través de un amigo", no "una conexión en común", no "alguien lo compartió". Just open with the post itself.
 - NEVER: "me encanta tu contenido", "sigue así", generic compliments, sycophancy.
 
-**Block 2 — La carencia + lo que hacemos (2-3 frases)**
-Después del hook, conecta con lo que probablemente le falta al negocio y di, con claridad, lo que hacemos. Son 2-3 frases, no un análisis:
-- Nombra la carencia como un patrón de su modelo, nunca como acusación: su audiencia la sigue por el trabajo, pero el siguiente paso para quien quiere ir en serio acaba siempre en otro curso o esperando el próximo lanzamiento; los ingresos dependen de repetir lanzamientos, proyectos o patrocinios.
-- Di lo que hacemos, concreto y sin jerga: construimos la estructura que convierte esa audiencia en una comunidad con ingresos todos los meses, para que deje de vivir de lanzamiento en lanzamiento.
-- Infiere el dolor solo de lo visible (crea contenido y vende cursos o servicios). NO uses nombres de productos ni datos de audit.
+**Block 2 — Curiosidad + lo que hacemos (2-3 frases)**
+Después del hook, plantea una curiosidad genuina y sin presión sobre lo que pasa con su audiencia después de descubrirla (quien quiere más no tiene dónde quedarse), y respóndela enseguida con lo que hacemos. No es una pregunta dejada en el aire ni un diagnóstico:
+- Curiosidad: por ejemplo, "toda esa gente que llega a ti por tu contenido, ¿a dónde va después?". Suave, nunca acusatoria.
+- Responde ya con lo que hacemos: construimos ese "después", una comunidad alrededor de su trabajo que retiene a esas personas y le da ingresos recurrentes todos los meses, en vez de depender de lanzamientos.
+- Describe lo que hacemos de forma general. NO uses nombres de productos ni datos de audit, y NO lo presentes como algo ya hecho en su nicho.
 
-**Block 3 — Oferta del vídeo, concreta (1 frase)**
-Ofrece el vídeo Y di lo que muestra: que YA hicimos esto con creadores parecidos a ella. Es prueba, no una petición de call ni una pregunta. Modelo:
+**Block 3 — CTA: un vídeo que explica lo que hacemos (1 frase)**
+Ofrece un vídeo corto que EXPLICA con más detalle lo que hacemos. Modelo:
 
-    Si te resulta interesante, te envío un vídeo corto mostrando cómo ya hicimos esto con creadores parecidos a ti.
+    Si quieres, te envío un vídeo corto explicando con más detalle lo que hacemos.
+
+- NUNCA digas que trabajamos con creadores parecidos. NUNCA prometas resultados en su nicho. NUNCA prometas mostrar el mismo trabajo. Solo un vídeo que explica lo que hacemos.
 
 ## Closing
-End with: blank line, "Un abrazo,", blank line, "{senderName}". Nothing after. Structure: greeting + hook + carencia/lo-que-hacemos + oferta del vídeo + sign-off. Under 1000 chars.
+End with: blank line, "Un abrazo,", blank line, "{senderName}". Nothing after. Structure: greeting + hook + curiosidad/lo-que-hacemos + CTA del vídeo + sign-off. Under 1000 chars.
 
 ## Keep it light (volume model)
 The DM's only job is a genuine, specific opener + the soft-ask. Do NOT reference audit data, product names, or platform numbers even if the profile provides them — this is high-volume outreach, not a diagnosis. One real observation about their content, then the soft offer.
@@ -438,7 +444,7 @@ Trabajo con creadores como tú construyendo la capa que falta en su estructura d
 
 Lo hacemos como alianza: solo gano cuando tú ganas.
 
-Si te resulta interesante, te envío un vídeo corto de cómo ayudamos a otras personas a hacer lo mismo. Sin compromiso.
+Si quieres, te envío un vídeo corto explicando con más detalle lo que hacemos. Sin compromiso.
 
 Un abrazo,
 {senderName}
@@ -886,9 +892,9 @@ ${TEMPLATE_FRAMING[template]}
   // paragraph, then a concrete video offer. No custom video, no meeting ask, no
   // audit data. The generic video (sent on interest) does the selling.
   const SOFT_ASK = {
-    pt: 'Se fizer sentido, envio-te um vídeo curto a mostrar como já fizemos isto com criadores parecidos contigo.',
-    en: "If it sounds interesting, I'll send you a short video showing how we've already done this with creators like you.",
-    es: 'Si te resulta interesante, te envío un vídeo corto mostrando cómo ya hicimos esto con creadores parecidos a ti.',
+    pt: 'Se quiseres, envio-te um vídeo curto a explicar melhor o que fazemos.',
+    en: "If you're up for it, I'll send you a short video explaining what we do in more detail.",
+    es: 'Si quieres, te envío un vídeo corto explicando con más detalle lo que hacemos.',
   };
   const volumeOverride = `
 
@@ -899,14 +905,14 @@ ${TEMPLATE_FRAMING[template]}
 A light, high-volume cold DM WITH real substance. Parts, in order:
 1. Greeting on its own line, then a blank line.
 2. Hook: ONE genuine, specific observation about a real piece of their content plus one honest reaction. Name the exact post / reel / video, never "vi o teu perfil" / "I saw your profile". No generic compliments.
-3. The gap plus what we do (2 to 3 sentences): name the pain as a PATTERN of their model, not an accusation (their audience and revenue depend on repeating launches, projects, or brand deals; there is no ongoing next step for the people who want to go deeper). Then say plainly what we do: we build the structure that turns that audience into a community with recurring monthly revenue. Concrete, no jargon, NO product names, NO audit data, NO invented numbers.
-4. Concrete video offer. Use this line, in the creator's language:
+3. Curiosity plus what we do (2 to 3 sentences): raise a genuine, low-pressure curiosity about where their audience goes after finding them (the people who want more have nowhere ongoing to go), then answer it right away with what we do: we build that next place, a community around their work that keeps those people and gives recurring monthly revenue instead of depending on launches. Describe it in GENERAL terms. NO product names, NO audit data, NO invented numbers.
+4. Video CTA. Use this exact line, in the creator's language:
    ${SOFT_ASK[language] || SOFT_ASK.pt}
 5. Sign-off: blank line, "Abraço," / "Cheers," / "Un abrazo," blank line, then {senderName}.
 
-NEVER use: em dashes or "—", a custom or personalised video promise, a meeting or call ask, an open question, invented context, or internal audit data. Around 5 to 6 lines, under 1000 chars. The video offer IS the call to action.
+NEVER use: em dashes or "—", a custom or personalised video promise, a meeting or call ask, an open question left hanging, invented context, or internal audit data. NEVER claim in the CTA that we worked with similar creators, that we will show results in their niche, or that the video shows the same work. It is a short video EXPLAINING what we do. Around 5 to 6 lines, under 1000 chars.
 
-Follow-up emails mirror this: light, and if they offer a video it is the same short video of what we have done for creators like them, never a custom video for their case.`;
+Follow-up emails mirror this: light, and if they offer a video it is the same short video explaining what we do, never a custom video for their case.`;
 
   const systemPrompt = layeredKnowledge + baseSystemPrompt + volumeOverride;
 

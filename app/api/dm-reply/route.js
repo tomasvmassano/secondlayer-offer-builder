@@ -87,7 +87,7 @@ Use "It Doesn't Take Time, It Takes Information".
 A direct no isn't a dead end. Always offer the short video as a parting gift — they keep value, we keep the door open. If they refuse the video too, THEN walk away clean.
 
 First-pass response (offer the video regardless):
-"Sem problema, obrigado por responderes, muita gente nem isso faz. Vou-te mandar à mesma um vídeo curto com o que fizemos para pessoas parecidas contigo. Sem agenda nenhuma, é só para deixares a porta entreaberta caso mudes de ideias. Tá bem?"
+"Sem problema, obrigado por responderes, muita gente nem isso faz. Vou-te mandar à mesma um vídeo curto a explicar melhor o que fazemos. Sem agenda nenhuma, é só para deixares a porta entreaberta caso mudes de ideias. Tá bem?"
 
 If they REJECT the video too (second refusal):
 "Tudo bem, respeito. Boa sorte com o projeto, continua a mandar."
