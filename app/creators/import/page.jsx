@@ -108,10 +108,14 @@ export default function BulkImportPage() {
 
   // Auto-audit: after each successful import the creator gets enqueued for
   // ecosystem audit (Sonnet + web_search). Worker drains the queue at
-  // AUDIT_PACE_MS so we stay under the Anthropic TPM ceiling. Default ON
-  // because the operator otherwise has to manually click "Audit" on 50
-  // creators after import — the whole point of bulk import.
-  const [autoAudit, setAutoAudit] = useState(true);
+  // AUDIT_PACE_MS so we stay under the Anthropic TPM ceiling.
+  //
+  // Default OFF (2026-07, volume model): the audit is the priciest call and we
+  // no longer need it to personalise the DM. It's now DEFERRED — fired only
+  // when a creator books a meeting (Kanban → "Reunião marcada"), so we spend it
+  // on leads that convert, not every scraped row. Operators can still flip this
+  // on for a batch they want pre-enriched.
+  const [autoAudit, setAutoAudit] = useState(false);
   const auditQueueRef = useRef([]);          // [creatorId] — FIFO of pending audits
   const auditWorkerRunningRef = useRef(false);
   const auditCancelRef = useRef(false);

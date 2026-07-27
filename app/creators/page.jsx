@@ -1576,6 +1576,12 @@ function CrmKanban({ creators, setCreators, onDragChange }) {
         body: JSON.stringify(patch),
       });
     } catch {}
+    // Deferred audit (volume model): the pricey ecosystem audit fires only when
+    // a meeting is booked — not on every scraped lead. Trigger it the first
+    // time a card lands in 'Reunião marcada' and hasn't been audited yet.
+    if (stageKey === 'reuniao_marcada' && creator && !creator.hasAudit) {
+      fetch(`/api/creators/${id}/ecosystem-audit`, { method: 'POST' }).catch(() => {});
+    }
   };
 
   return (
