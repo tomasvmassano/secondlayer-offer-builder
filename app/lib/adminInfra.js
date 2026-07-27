@@ -55,6 +55,26 @@ export async function setSalesConfig(partial) {
   return next;
 }
 
+// ───── Generic outreach video URL (volume model) ─────
+// The ONE video every creator gets (sent in the DM once they show interest).
+// Editable in /admin so operators swap it without a redeploy. Empty until the
+// video exists.
+const VIDEO_KEY = 'admin:config:videoUrl';
+
+export async function getVideoUrl() {
+  const r = getRedis();
+  if (!r) return '';
+  const v = await r.get(VIDEO_KEY);
+  return v ? String(v) : '';
+}
+
+export async function setVideoUrl(url) {
+  const r = getRedis();
+  const clean = String(url || '').trim().slice(0, 500);
+  if (r) await r.set(VIDEO_KEY, clean);
+  return clean;
+}
+
 // ───── Cron last-run tracking ─────
 
 export async function recordCronRun(name, { ok = true, summary = '' } = {}) {

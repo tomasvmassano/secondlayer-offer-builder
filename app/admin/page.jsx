@@ -311,12 +311,20 @@ function ConfigPanel({ ov, reload, toast }) {
     monthlyGoal: s.monthlyGoal ?? 50000, ticket: s.ticket ?? 6000,
     dailyTarget: s.dailyTarget ?? 30, workDays: s.workDays ?? 21, quarterlyQuota: s.quarterlyQuota ?? 50000,
   });
+  const [videoUrl, setVideoUrl] = useState(ov.videoUrl || "");
   const [busy, setBusy] = useState("");
   const save = async () => {
     setBusy("save");
     const r = await fetch("/api/admin/config", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(form) });
     setBusy("");
     toast(r.ok ? "Config guardada." : "Erro a guardar.");
+    reload();
+  };
+  const saveVideo = async () => {
+    setBusy("video");
+    const r = await fetch("/api/admin/config", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ videoUrl }) });
+    setBusy("");
+    toast(r.ok ? "Vídeo guardado." : "Erro a guardar.");
     reload();
   };
   const runAction = async (action, label, warn) => {
@@ -335,8 +343,23 @@ function ConfigPanel({ ov, reload, toast }) {
     { key: "workDays", label: "Dias úteis / mês" },
     { key: "quarterlyQuota", label: "Quota trimestral (€)" },
   ];
+  const videoValid = /^https?:\/\//i.test((videoUrl || "").trim());
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+      <Section title="Vídeo de outreach">
+        <p style={{ fontSize: 12, color: LO, margin: "0 0 12px" }}>O vídeo genérico que os operadores enviam quando o creator mostra interesse. Cola o link (YouTube/Loom/Vimeo) — editável sem redeploy, vazio até teres o vídeo.</p>
+        <input
+          value={videoUrl}
+          onChange={e => setVideoUrl(e.target.value)}
+          placeholder="https://…"
+          style={{ width: "100%", padding: "10px 12px", background: BG, border: `1px solid ${BORDER}`, borderRadius: 8, color: HI, fontSize: 13, fontFamily: "inherit", outline: "none", boxSizing: "border-box" }}
+        />
+        <div style={{ display: "flex", gap: 8, marginTop: 12, alignItems: "center" }}>
+          <button onClick={saveVideo} disabled={busy === "video"} style={{ ...btnPrimary, opacity: busy === "video" ? 0.5 : 1 }}>{busy === "video" ? "A guardar…" : "Guardar vídeo"}</button>
+          {videoValid && <a href={videoUrl.trim()} target="_blank" rel="noopener noreferrer" style={{ ...btnGhost, textDecoration: "none" }}>Abrir</a>}
+        </div>
+      </Section>
+
       <Section title="Alvos de vendas">
         <p style={{ fontSize: 12, color: LO, margin: "0 0 16px" }}>Valores usados pela calculadora de alvos e pelas metas do dashboard de equipa.</p>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 12, marginBottom: 16 }}>

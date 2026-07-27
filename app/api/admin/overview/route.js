@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getCurrentUser } from '../../../lib/auth';
 import { getObsSnapshot, getCostTrend } from '../../../lib/obs';
-import { checkEnv, getSalesConfig, getCronLastRun, getRebuildingState, CRON_CATALOGUE } from '../../../lib/adminInfra';
+import { checkEnv, getSalesConfig, getVideoUrl, getCronLastRun, getRebuildingState, CRON_CATALOGUE } from '../../../lib/adminInfra';
 import { listCreators, SUMMARY_VERSION } from '../../../lib/creators';
 import { getAutopilotEnabled } from '../../../lib/discovery';
 
@@ -14,10 +14,11 @@ export async function GET(request) {
   const u = await getCurrentUser(request);
   if (!u || u.role !== 'team') return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
 
-  const [obs, costTrend, sales, autopilotEnabled, rebuilding, creators, ...cronRuns] = await Promise.all([
+  const [obs, costTrend, sales, videoUrl, autopilotEnabled, rebuilding, creators, ...cronRuns] = await Promise.all([
     getObsSnapshot({ recentErrors: 25 }).catch(() => ({ available: false })),
     getCostTrend(30).catch(() => []),
     getSalesConfig().catch(() => ({})),
+    getVideoUrl().catch(() => ''),
     getAutopilotEnabled().catch(() => false),
     getRebuildingState().catch(() => false),
     listCreators().catch(() => []),
@@ -38,5 +39,6 @@ export async function GET(request) {
     crons,
     autopilotEnabled,
     sales,
+    videoUrl,
   });
 }
