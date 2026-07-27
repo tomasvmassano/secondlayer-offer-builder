@@ -26,6 +26,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
  */
 
 const MILESTONE_STYLES = {
+  videoNudge: { label: "Vídeo", color: "#8b5cf6", bg: "rgba(139,92,246,0.12)", border: "rgba(139,92,246,0.3)" },
   softNudge: { label: "Dia 3",  color: "#f59e0b", bg: "rgba(245,158,11,0.12)", border: "rgba(245,158,11,0.3)" },
   valueDrop: { label: "Dia 7",  color: "#f97316", bg: "rgba(249,115,22,0.12)", border: "rgba(249,115,22,0.3)" },
   lastTouch: { label: "Dia 14", color: "#ea580c", bg: "rgba(234,88,12,0.12)",  border: "rgba(234,88,12,0.3)" },
@@ -115,6 +116,7 @@ export default function FollowUpTray({ onAfterCopy }) {
 
   // Group counts for the expanded header.
   const counts = {
+    videoNudge: items.filter(i => i.milestone === "videoNudge").length,
     lastTouch: items.filter(i => i.milestone === "lastTouch").length,
     valueDrop: items.filter(i => i.milestone === "valueDrop").length,
     softNudge: items.filter(i => i.milestone === "softNudge").length,

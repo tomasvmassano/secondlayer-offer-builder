@@ -25,6 +25,10 @@ export async function POST(request, { params }) {
   let body = {};
   try { body = await request.json(); } catch { /* empty body is fine */ }
   const channel = body.channel === 'email' ? 'email' : 'dm';
+  // videoNudge is the volume-model video→booking touch. It must NOT increment
+  // the no-reply followUpsDone counter (that would corrupt the dia-3/7/14
+  // cadence for a creator who already replied) — it records its own timestamp.
+  const isVideoNudge = body.milestone === 'videoNudge';
   const milestone = ['softNudge', 'valueDrop', 'lastTouch'].includes(body.milestone)
     ? body.milestone
     : null;
@@ -40,6 +44,15 @@ export async function POST(request, { params }) {
       error: 'Este criador pertence a outro operador',
       ownedBy: creator.addedBy.firstName || null,
     }, { status: 403 });
+  }
+
+  if (isVideoNudge) {
+    const at = new Date().toISOString();
+    const by = { userId: user.userId, firstName: displayFirstName(user), email: user.email };
+    const updated = await updateCreator(id, {
+      outreach: { ...creator.outreach, videoNudgedAt: at, videoNudgedBy: by },
+    });
+    return NextResponse.json({ ok: true, videoNudge: true, creator: updated });
   }
 
   const existing = Array.isArray(creator.outreach?.followUps) ? creator.outreach.followUps : [];

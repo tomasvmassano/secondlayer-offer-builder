@@ -34,7 +34,9 @@ const CADENCE = {
   valueDrop: { day: 7,  followUpsDoneCap: 1, label: 'Dia 7'  },
   lastTouch: { day: 14, followUpsDoneCap: 2, label: 'Dia 14' },
 };
-const URGENCY = { lastTouch: 3, valueDrop: 2, softNudge: 1 };
+// videoNudge (video sent, no booking) is the warmest — it sorts to the top.
+const URGENCY = { videoNudge: 4, lastTouch: 3, valueDrop: 2, softNudge: 1 };
+const VIDEO_NUDGE_DAY = 2; // days after videoSentAt before the first nudge is due
 
 export async function GET(request) {
   const user = await getCurrentUser(request);
@@ -129,6 +131,56 @@ export async function GET(request) {
     });
   }
 
+  // ── Video→booking nudges (volume model) ──
+  // Separate pass: these creators REPLIED (so they're excluded above) and got
+  // the generic video but haven't booked. Summary-only gate first, then a full
+  // fetch for the ones that qualify.
+  const videoCandidates = summaries.filter(s => {
+    const st = s.pipelineStatus || 'prospect';
+    if (st === 'signed' || st === 'cold') return false;
+    if (s.addedByUserId !== user.userId) return false;
+    if (!s.videoSentAt) return false;
+    if (s.callBookedAt || s.callHeldAt || s.pitchSentAt) return false;
+    return daysBetween(s.videoSentAt, now) >= VIDEO_NUDGE_DAY;
+  });
+  const videoFulls = [];
+  for (let i = 0; i < videoCandidates.length; i += 25) {
+    const chunk = videoCandidates.slice(i, i + 25);
+    videoFulls.push(...await Promise.all(chunk.map(s => getCreator(s.id).catch(() => null))));
+  }
+  for (const c of videoFulls) {
+    if (!c) continue;
+    const out = c.outreach || {};
+    if (out.callBookedAt || out.callAgreedAt || out.callHeldAt || c.pitch?.sentAt) continue;
+    if (!out.videoSentAt) continue;
+    const vdays = daysBetween(out.videoSentAt, now);
+    if (vdays < VIDEO_NUDGE_DAY) continue;
+    // Deduped: skip if the operator already nudged in the last couple of days.
+    if (out.videoNudgedAt && daysBetween(out.videoNudgedAt, now) < VIDEO_NUDGE_DAY) continue;
+    const creatorFirstName = (c.name || '').split(/\s+/)[0] || 'pessoa';
+    const ownerFirstName = out.videoSentBy?.firstName || c.addedBy?.firstName || 'Raul';
+    const lang = (c.primaryLanguage || 'pt').toLowerCase();
+    const langCode = lang === 'en' ? 'en' : lang === 'es' ? 'es' : 'pt';
+    const igUrl = c.platforms?.instagram?.url
+      || (c.platforms?.instagram?.handle ? `https://instagram.com/${c.platforms.instagram.handle.replace(/^@/, '')}` : null);
+    items.push({
+      id: c.id,
+      name: c.name,
+      niche: c.niche,
+      profilePicUrl: c.profilePicUrl || null,
+      daysSinceDM: vdays, // reused for sort — here it's days-since-video
+      followUpsDone: 0,
+      milestone: 'videoNudge',
+      milestoneLabel: 'Vídeo',
+      dmText: buildFollowUpDm('videoNudge', creatorFirstName, ownerFirstName, langCode),
+      igUrl,
+      hasContactEmail: !!(c.contactEmail || c.email),
+      contactEmail: c.contactEmail || c.email || null,
+      emailSubject: null,
+      emailBody: null,
+    });
+  }
+
   items.sort((a, b) => {
     const u = (URGENCY[b.milestone] || 0) - (URGENCY[a.milestone] || 0);
     if (u !== 0) return u;
@@ -139,6 +191,7 @@ export async function GET(request) {
     items,
     total: items.length,
     byMilestone: {
+      videoNudge: items.filter(i => i.milestone === 'videoNudge').length,
       lastTouch: items.filter(i => i.milestone === 'lastTouch').length,
       valueDrop: items.filter(i => i.milestone === 'valueDrop').length,
       softNudge: items.filter(i => i.milestone === 'softNudge').length,
