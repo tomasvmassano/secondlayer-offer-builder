@@ -188,18 +188,19 @@ Specific piece of content + one honest reaction. That's it.
 - DO NOT invent how {senderName} found them. No "vi através de um amigo", no "uma conexão em comum", no "alguém partilhou". Just open with the post itself.
 - NEVER: "adorei o teu conteúdo", "continua assim", generic compliments, sycophancy.
 
-**Block 2 — Soft-ask close (1 line)**
-After the hook, make ONE soft offer, then stop. Use exactly this line (adapt only "pessoas / criadores / criadoras" to fit the creator):
+**Block 2 — A lacuna + o que fazemos (2-3 frases)**
+Depois do hook, liga ao que provavelmente falta no negócio dela e diz, claramente, o que fazemos. São 2-3 frases, não uma análise:
+- Nomeia a lacuna como um padrão do modelo dela, nunca como acusação: a audiência segue-a pelo trabalho, mas o próximo passo para quem quer ir a sério acaba sempre num curso novo ou à espera do próximo lançamento; a receita depende de repetir lançamentos, projetos ou patrocínios.
+- Diz o que fazemos, concreto e sem jargão: construímos a estrutura que transforma essa audiência numa comunidade com receita todos os meses, para ela deixar de viver de lançamento em lançamento.
+- Infere a dor só do que é visível (ela cria conteúdo e vende cursos ou serviços). NÃO uses nomes de produtos nem dados de audit.
 
-    Se achares interessante, envio-te um vídeo curto de como ajudámos outras pessoas a fazer o mesmo.
+**Block 3 — Oferta do vídeo, concreta (1 frase)**
+Oferece o vídeo E diz o que ele mostra: que JÁ fizemos isto com criadores parecidos com ela. É prova, não um pedido de call nem uma pergunta. Modelo:
 
-- NO gap analysis, NO diagnosis of their business, NO product names, NO platform numbers, NO pricing, NO "comunidade".
-- NO open question. NO "Faz sentido?". NO call or meeting ask. The soft offer IS the close.
-- NEVER promise a custom or personalised video — it's a short video of what we've done for others.
-- No "trabalho com criadores como tu" authority block. The hook carries the credibility.
+    Se fizer sentido, envio-te um vídeo curto a mostrar como já fizemos isto com criadores parecidos contigo.
 
 ## Closing
-End with: blank line, "Abraço,", blank line, "{senderName}". Nothing after the sign-off. Keep the whole DM to ~4 short lines: greeting + hook + soft-ask + sign-off.
+End with: blank line, "Abraço,", blank line, "{senderName}". Nothing after. Structure: greeting + hook + lacuna/o-que-fazemos + oferta do vídeo + sign-off. Under 1000 chars.
 
 ## Keep it light (volume model)
 The DM's only job is a genuine, specific opener + the soft-ask. Do NOT reference audit data, product names, or platform numbers even if the profile provides them — this is high-volume outreach, not a diagnosis. One real observation about their content, then the soft offer.
@@ -290,18 +291,19 @@ Specific piece of content + one honest reaction. That's it.
 - DO NOT invent how {senderName} found them. No "saw you through a mutual connection", no "a friend shared your stuff", no "came across you via X". Just open with the post itself.
 - NEVER: "loved your content", "keep it up", generic compliments, sycophancy.
 
-**Block 2 — Soft-ask close (1 line)**
-After the hook, make ONE soft offer, then stop. Use exactly this line (adapt only "people / creators"):
+**Block 2 — The gap + what we do (2-3 sentences)**
+After the hook, connect to what's likely missing in her business and say, plainly, what we do. 2-3 sentences, not an analysis:
+- Name the gap as a pattern of her model, never an accusation: her audience follows for the work, but the next step for people who want to go deeper always ends in another course or waiting for the next launch; revenue depends on repeating launches, projects, or brand deals.
+- Say what we do, concrete and jargon-free: we build the structure that turns that audience into a community with monthly recurring revenue, so she stops living launch to launch.
+- Infer the pain only from what's visible (she makes content and sells courses or services). Do NOT use product names or audit data.
 
-    If it sounds interesting, I'll send you a short video of how we've helped others do the same.
+**Block 3 — Concrete video offer (1 sentence)**
+Offer the video AND say what it shows: that we've already done this with creators like her. It's proof, not a call ask or a question. Model:
 
-- NO gap analysis, NO diagnosis of their business, NO product names, NO platform numbers, NO pricing.
-- NO open question. NO "Does it make sense?". NO call or meeting ask. The soft offer IS the close.
-- NEVER promise a custom or personalised video — it's a short video of what we've done for others.
-- No "I've worked with creators like you" authority block. The hook carries the credibility.
+    If it sounds interesting, I'll send you a short video showing how we've already done this with creators like you.
 
 ## Closing
-End with: blank line, "Cheers,", blank line, "{senderName}". Nothing after the sign-off. Keep the whole DM to ~4 short lines: greeting + hook + soft-ask + sign-off.
+End with: blank line, "Cheers,", blank line, "{senderName}". Nothing after. Structure: greeting + hook + gap/what-we-do + video offer + sign-off. Under 1000 chars.
 
 ## Keep it light (volume model)
 The DM's only job is a genuine, specific opener + the soft-ask. Do NOT reference audit data, product names, or platform numbers even if the profile provides them — this is high-volume outreach, not a diagnosis. One real observation about their content, then the soft offer.
@@ -384,18 +386,19 @@ Specific piece of content + one honest reaction. That's it.
 - DO NOT invent how {senderName} found them. No "te vi a través de un amigo", no "una conexión en común", no "alguien lo compartió". Just open with the post itself.
 - NEVER: "me encanta tu contenido", "sigue así", generic compliments, sycophancy.
 
-**Block 2 — Soft-ask close (1 line)**
-After the hook, make ONE soft offer, then stop. Use exactly this line (adapt only "personas / creadores / creadoras"):
+**Block 2 — La carencia + lo que hacemos (2-3 frases)**
+Después del hook, conecta con lo que probablemente le falta al negocio y di, con claridad, lo que hacemos. Son 2-3 frases, no un análisis:
+- Nombra la carencia como un patrón de su modelo, nunca como acusación: su audiencia la sigue por el trabajo, pero el siguiente paso para quien quiere ir en serio acaba siempre en otro curso o esperando el próximo lanzamiento; los ingresos dependen de repetir lanzamientos, proyectos o patrocinios.
+- Di lo que hacemos, concreto y sin jerga: construimos la estructura que convierte esa audiencia en una comunidad con ingresos todos los meses, para que deje de vivir de lanzamiento en lanzamiento.
+- Infiere el dolor solo de lo visible (crea contenido y vende cursos o servicios). NO uses nombres de productos ni datos de audit.
 
-    Si te resulta interesante, te envío un vídeo corto de cómo ayudamos a otras personas a hacer lo mismo.
+**Block 3 — Oferta del vídeo, concreta (1 frase)**
+Ofrece el vídeo Y di lo que muestra: que YA hicimos esto con creadores parecidos a ella. Es prueba, no una petición de call ni una pregunta. Modelo:
 
-- NO gap analysis, NO diagnosis of their business, NO product names, NO platform numbers, NO pricing.
-- NO open question. NO "¿Tiene sentido?". NO call or meeting ask. The soft offer IS the close.
-- NEVER promise a custom or personalised video — it's a short video of what we've done for others.
-- No "trabajo con creadores como tú" authority block. The hook carries the credibility.
+    Si te resulta interesante, te envío un vídeo corto mostrando cómo ya hicimos esto con creadores parecidos a ti.
 
 ## Closing
-End with: blank line, "Un abrazo,", blank line, "{senderName}". Nothing after the sign-off. Keep the whole DM to ~4 short lines: greeting + hook + soft-ask + sign-off.
+End with: blank line, "Un abrazo,", blank line, "{senderName}". Nothing after. Structure: greeting + hook + carencia/lo-que-hacemos + oferta del vídeo + sign-off. Under 1000 chars.
 
 ## Keep it light (volume model)
 The DM's only job is a genuine, specific opener + the soft-ask. Do NOT reference audit data, product names, or platform numbers even if the profile provides them — this is high-volume outreach, not a diagnosis. One real observation about their content, then the soft offer.
@@ -877,35 +880,33 @@ ${TEMPLATE_FRAMING[template]}
 ---
 
 `;
-  // ── Volume-model override (2026-07) ──
-  // Appended LAST so it takes precedence over the richer structure in the base
-  // prompt. The pivot: no per-creator custom video, no gap-analysis, no audit
-  // dependence — the cold DM is a genuine opener + a fixed soft-ask, and the
-  // generic video (sent on interest) does the selling. Keeps the base prompt's
-  // voice/anti-scammy/language rules; overrides only the structure + CTA.
+  // ── Volume-model reinforcement (2026-07) ──
+  // Appended LAST to reinforce the (now light) base structure for the cheaper
+  // Haiku model. The DM: genuine opener, one tight "what we do + why it matters"
+  // paragraph, then a concrete video offer. No custom video, no meeting ask, no
+  // audit data. The generic video (sent on interest) does the selling.
   const SOFT_ASK = {
-    pt: 'Se achares interessante, envio-te um vídeo curto de como ajudámos outras pessoas a fazer o mesmo.',
-    en: "If it sounds interesting, I'll send you a short video of how we've helped others do the same.",
-    es: 'Si te resulta interesante, te envío un vídeo corto de cómo ayudamos a otras personas a hacer lo mismo.',
+    pt: 'Se fizer sentido, envio-te um vídeo curto a mostrar como já fizemos isto com criadores parecidos contigo.',
+    en: "If it sounds interesting, I'll send you a short video showing how we've already done this with creators like you.",
+    es: 'Si te resulta interesante, te envío un vídeo corto mostrando cómo ya hicimos esto con creadores parecidos a ti.',
   };
   const volumeOverride = `
 
 ---
 
-## VOLUME-MODEL OVERRIDE — takes precedence over any DM structure above
+## VOLUME-MODEL DM (reinforce this exact shape; overrides any other structure above)
 
-This is a light, high-volume cold DM. IGNORE any instruction above about an "Observation"/gap block, an open "Question" block, an authority block, referencing audit data, or any video-PROPOSAL / call / meeting CTA.
-
-The DM is ONLY these parts, nothing more:
-1. Greeting on its own line, comma required, then a blank line.
-2. Hook: ONE genuine, specific observation about a real piece of their content + one honest reaction. 1-2 short sentences. Always name the exact post / reel / video — never "vi o teu perfil" / "I saw your profile". No generic compliments, no sycophancy.
-3. Soft-ask close — use EXACTLY this line, in the creator's language:
+A light, high-volume cold DM WITH real substance. Parts, in order:
+1. Greeting on its own line, then a blank line.
+2. Hook: ONE genuine, specific observation about a real piece of their content plus one honest reaction. Name the exact post / reel / video, never "vi o teu perfil" / "I saw your profile". No generic compliments.
+3. The gap plus what we do (2 to 3 sentences): name the pain as a PATTERN of their model, not an accusation (their audience and revenue depend on repeating launches, projects, or brand deals; there is no ongoing next step for the people who want to go deeper). Then say plainly what we do: we build the structure that turns that audience into a community with recurring monthly revenue. Concrete, no jargon, NO product names, NO audit data, NO invented numbers.
+4. Concrete video offer. Use this line, in the creator's language:
    ${SOFT_ASK[language] || SOFT_ASK.pt}
-4. Sign-off: blank line, "Abraço," / "Cheers," / "Un abrazo," blank line, then {senderName}.
+5. Sign-off: blank line, "Abraço," / "Cheers," / "Un abrazo," blank line, then {senderName}.
 
-No product names, no pricing, no "comunidade", no "Faz sentido?", no meeting ask, and NEVER a custom/personalised-video promise. Keep the whole DM to ~4 short lines. The soft-ask IS the call to action.
+NEVER use: em dashes or "—", a custom or personalised video promise, a meeting or call ask, an open question, invented context, or internal audit data. Around 5 to 6 lines, under 1000 chars. The video offer IS the call to action.
 
-Follow-up emails must mirror this: light, and if they offer a video, it's the same short video of what we've done for others — never a custom video for their case.`;
+Follow-up emails mirror this: light, and if they offer a video it is the same short video of what we have done for creators like them, never a custom video for their case.`;
 
   const systemPrompt = layeredKnowledge + baseSystemPrompt + volumeOverride;
 
