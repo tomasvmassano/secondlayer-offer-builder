@@ -53,7 +53,7 @@ function scrubSurrogatesInPlace(node, ctx = { changed: false }) {
 // warm instance stampeded a full-CRM rebuild (50-100K commands in an
 // hour). Now a version bump still triggers a rebuild, but it's gated by
 // a Redis lock so only one instance does it.
-export const SUMMARY_VERSION = 4;
+export const SUMMARY_VERSION = 5;
 
 function buildSummary(creator, createdAt) {
   let dealScoreGrade = null;
@@ -81,6 +81,9 @@ function buildSummary(creator, createdAt) {
     loomRequestedAt: creator.outreach?.loomRequestedAt || null,
     proposalReadyAt: creator.outreach?.proposalReadyAt || null,
     loomSentAt:      creator.outreach?.loomSentAt      || null,
+    // videoSentAt — the volume model's touchpoint: operator sent the generic
+    // video after the creator replied. Drives the video→booking follow-up.
+    videoSentAt:     creator.outreach?.videoSentAt     || null,
     callBookedAt:    creator.outreach?.callBookedAt    || creator.outreach?.callAgreedAt || null,
     callHeldAt:      creator.outreach?.callHeldAt      || null,
     notInterestedAt: creator.outreach?.notInterestedAt || null,
@@ -431,6 +434,9 @@ export async function saveCreator(data) {
       // 'dm' | 'email' | null. Critical for measuring per-channel
       // conversion rate on the team dashboard.
       repliedChannel: null,
+      // videoSentAt — operator sent the generic video after the reply (volume
+      // model). Drives the video→booking follow-up nudge.
+      videoSentAt: null,
       callAgreedAt: null,
       callHeldAt: null,
       remindersSent: { followUp1: null, followUp2: null, followUp3: null, autoCold: null },
