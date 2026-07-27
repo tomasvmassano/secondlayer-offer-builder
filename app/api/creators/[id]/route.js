@@ -33,6 +33,11 @@ function stampOutreachActor(outreach, user) {
   if (outreach.repliedAt && !outreach.repliedMarkedBy) {
     stamped.repliedMarkedBy = actorFromUser(user, outreach.repliedAt);
   }
+  // Who sent the generic video (volume model) — credits the operator on the
+  // scoreboard and lets the funnel time the video→booking gap.
+  if (outreach.videoSentAt && !outreach.videoSentBy) {
+    stamped.videoSentBy = actorFromUser(user, outreach.videoSentAt);
+  }
   // New sales-funnel stages: call agreed, call held. Stamped the same way.
   if (outreach.callAgreedAt && !outreach.callAgreedBy) {
     stamped.callAgreedBy = actorFromUser(user, outreach.callAgreedAt);
@@ -59,6 +64,7 @@ function stampOutreachActor(outreach, user) {
     // Clearing the reply also clears its channel attribution.
     stamped.repliedChannel = null;
   }
+  if (outreach.videoSentAt === null) stamped.videoSentBy = null;
   if (outreach.callAgreedAt === null) stamped.callAgreedBy = null;
   if (outreach.callHeldAt === null) stamped.callHeldBy = null;
   return stamped;

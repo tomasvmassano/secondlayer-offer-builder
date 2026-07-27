@@ -9,13 +9,14 @@
  *   1. Por contactar        — added, no DM/email sent yet
  *   2. Em outreach          — DM/email sent, no reply yet
  *   3. Follow-up dia 3/7/14 — no-reply nudge cadence
- *   4. Respondeu            — creator replied (interested). Operator sends the
- *                             ONE generic video here (outreach.videoSentAt),
- *                             then the setter books the call. No column change.
- *   5. Reunião marcada      — discovery call booked
- *   6. Reunião realizada    — call happened (callHeldAt)
- *   7. Proposta             — post-meeting offer / proposal sent (pitch.sentAt)
- *   8. Frio                 — cold (manual or auto-aged-out)
+ *   4. Respondeu            — creator replied (interested), video not sent yet
+ *   5. Vídeo enviado        — the ONE generic video was sent (outreach.videoSentAt);
+ *                             awaiting a booking. The warm-lead column that the
+ *                             automated video→booking follow-up watches.
+ *   6. Reunião marcada      — discovery call booked (setter, manual)
+ *   7. Reunião realizada    — call happened (callHeldAt)
+ *   8. Proposta             — post-meeting offer / proposal sent (pitch.sentAt)
+ *   9. Frio                 — cold (manual or auto-aged-out)
  *
  * The per-creator Loom stages (pediu_loom / proposta_terminada / loom_enviado)
  * were removed in the volume pivot. Cards that sat in them re-bucket to
@@ -35,7 +36,8 @@ export const STAGES = [
   { key: 'followup_14',          label: 'Follow-up · dia 14', accent: '#ea580c', description: 'Último toque · 7 dias até Frio' },
   // Replied. The operator sends the generic video here and the setter books —
   // both happen inside this column (tracked via outreach.videoSentAt).
-  { key: 'contacto_feito',       label: 'Respondeu',          accent: '#3b82f6', description: 'Respondeu · enviar vídeo / marcar call' },
+  { key: 'contacto_feito',       label: 'Respondeu',          accent: '#3b82f6', description: 'Respondeu · enviar o vídeo' },
+  { key: 'video_enviado',        label: 'Vídeo enviado',      accent: '#8b5cf6', description: 'Vídeo enviado · à espera de marcação' },
   { key: 'reuniao_marcada',      label: 'Reunião marcada',    accent: '#22c55e', description: 'Call de descoberta agendada' },
   { key: 'reuniao_realizada',    label: 'Reunião realizada',  accent: '#16a34a', description: 'Call feita · preparar proposta' },
   { key: 'apresentacao_enviada', label: 'Proposta',           accent: '#7A0E18', description: 'Proposta / oferta enviada · à espera de decisão' },
@@ -81,6 +83,7 @@ export function computeOutreachStage(creator) {
   const pitchSentAt     = creator.pitch?.sentAt || creator.pitchSentAt;
   const callHeldAt      = o.callHeldAt    || creator.callHeldAt;
   const callBookedAt    = o.callBookedAt  || o.callAgreedAt || creator.callBookedAt;
+  const videoSentAt     = o.videoSentAt   || creator.videoSentAt;
   const repliedAt       = o.repliedAt     || creator.repliedAt;
   const dmSentAt        = o.dmSentAt      || creator.dmSentAt;
   const emailSentAt     = o.emailSentAt   || creator.emailSentAt;
@@ -91,7 +94,8 @@ export function computeOutreachStage(creator) {
   if (pitchSentAt)                  return 'apresentacao_enviada'; // Proposta
   if (callHeldAt)                   return 'reuniao_realizada';
   if (callBookedAt)                 return 'reuniao_marcada';
-  if (repliedAt)                    return 'contacto_feito';       // Respondeu
+  if (videoSentAt)                  return 'video_enviado';        // generic video sent, no booking yet
+  if (repliedAt)                    return 'contacto_feito';       // Respondeu (no video yet)
   // Day-14 follow-up sent + N days, no reply → Frio (silent auto-cold).
   if (followUpsDone >= 3 && lastFollowUpAt) {
     const ms = Date.now() - new Date(lastFollowUpAt).getTime();
@@ -172,12 +176,27 @@ export function stagePatch(creator, targetStage) {
       };
     }
     case 'contacto_feito':
-      // Replied. Preserve videoSentAt (set separately by "marcar vídeo enviado").
+      // Replied, video not sent yet — clear videoSentAt so a drag back here
+      // truly means "still needs the video".
       return {
         pipelineStatus: 'prospect',
         outreach: {
           dmSentAt: getOutreach('dmSentAt') || now,
           repliedAt: getOutreach('repliedAt') || now,
+          videoSentAt: null,
+          callBookedAt: null, callAgreedAt: null, callHeldAt: null,
+          notInterestedAt: null,
+        },
+        pitch: { sentAt: null },
+      };
+    case 'video_enviado':
+      // Generic video sent — awaiting booking. This is the warm-lead column.
+      return {
+        pipelineStatus: 'prospect',
+        outreach: {
+          dmSentAt: getOutreach('dmSentAt') || now,
+          repliedAt: getOutreach('repliedAt') || now,
+          videoSentAt: getOutreach('videoSentAt') || now,
           callBookedAt: null, callAgreedAt: null, callHeldAt: null,
           notInterestedAt: null,
         },
@@ -268,16 +287,15 @@ export function stageStaleness(creator) {
       return { days: d, level: 'ok', stale: false };
     }
     case 'contacto_feito': {
-      // Warmer read now: once the video is sent, the clock is the video→booking
-      // gap (the warm-lead killer). Before the video, it's the reply age.
-      const videoSentAt = o.videoSentAt || creator?.videoSentAt;
-      if (videoSentAt) {
-        const d = daysSince(videoSentAt);
-        if (d > 4) return { days: d, level: 'cold', stale: true };
-        if (d > 2) return { days: d, level: 'warn', stale: true };
-        return { days: d, level: 'ok', stale: false };
-      }
+      // Replied, video not sent yet — the operator should send it fast.
       const d = daysSince(o.repliedAt || creator?.repliedAt);
+      if (d > 2) return { days: d, level: 'warn', stale: true };
+      return { days: d, level: 'ok', stale: false };
+    }
+    case 'video_enviado': {
+      // The video→booking gap — the warm-lead killer, so it colds faster.
+      const d = daysSince(o.videoSentAt || creator?.videoSentAt);
+      if (d > 4) return { days: d, level: 'cold', stale: true };
       if (d > 2) return { days: d, level: 'warn', stale: true };
       return { days: d, level: 'ok', stale: false };
     }
