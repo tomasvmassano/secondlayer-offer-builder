@@ -103,20 +103,44 @@ const sectionTitleStyle = { fontSize: 11, fontWeight: 600, color: "#555", textTr
 const inputStyle = { width: "100%", padding: "10px 14px", background: "#1a1a1a", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 8, color: "#f5f5f5", fontSize: 13, fontFamily: "inherit", outline: "none", boxSizing: "border-box", resize: "vertical" };
 
 // ─────────────────────────────────────────────────────────────────
-// LeadJourney — the lead's path through the pipeline, with time spent in
-// each stage. Derived (stageTimeline) from the same timestamps the Kanban
-// stamps, so it always matches the board. The last stage of an active lead
-// is marked "atual" and its time counts up to now. Terminal outcomes
-// (Assinado / Frio) cap the journey. Data-quality note lives in the UI copy:
-// stages a lead skipped simply don't appear.
+// LeadJourney — the lead's path through the pipeline as a horizontal event
+// log, in Kanban order (Adicionado → 1ª DM → Respondeu → …). Each node shows
+// WHEN that event happened (absolute date + time); the connector between two
+// nodes shows how long the lead sat before advancing. Derived from the same
+// timestamps the Kanban stamps (stageTimeline), so it always matches the
+// board. Only the CURRENT stage of an active lead is time-relative ("há X") —
+// everything else is a fixed historical date, so nothing looks like it's
+// mutating on open. Skipped stages simply don't appear. Scrolls horizontally
+// when the journey is longer than the panel.
 // ─────────────────────────────────────────────────────────────────
 function LeadJourney({ creator }) {
   const { steps, terminal, totalMs } = stageTimeline(creator);
+  // The most important node (current stage / outcome) is the rightmost one.
+  // On open, scroll the rail to the end so it's visible without a manual drag;
+  // the operator can scroll left for the earlier history.
+  const scrollRef = useRef(null);
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (el) el.scrollLeft = el.scrollWidth;
+  }, [creator?.id, steps.length]);
   const fmtDate = (iso) => {
     if (!iso) return "";
-    try { return new Date(iso).toLocaleDateString("pt-PT", { day: "numeric", month: "short" }); }
+    try { return new Date(iso).toLocaleDateString("pt-PT", { day: "2-digit", month: "short" }); }
     catch { return ""; }
   };
+  const fmtTime = (iso) => {
+    if (!iso) return "";
+    try { return new Date(iso).toLocaleTimeString("pt-PT", { hour: "2-digit", minute: "2-digit" }); }
+    catch { return ""; }
+  };
+  // Gap shown on a connector = time the lead sat in the previous stage. Sub-
+  // hour gaps (same drag / same session) read as "<1h" instead of a misleading
+  // "agora".
+  const fmtGap = (ms) => (ms == null ? "" : ms < 3_600_000 ? "<1h" : formatDurationShort(ms));
+
+  // Flatten steps + terminal into one node list so the connector logic is uniform.
+  const nodes = steps.map(s => ({ ...s }));
+  if (terminal) nodes.push({ ...terminal, durationMs: 0, ongoing: false, isTerminal: true });
 
   return (
     <div style={{ marginBottom: 34 }}>
@@ -128,51 +152,60 @@ function LeadJourney({ creator }) {
           </span>
         )}
       </div>
-      <p style={{ fontSize: 11, color: "#555", margin: "0 0 16px", lineHeight: 1.5 }}>
-        Tempo em cada fase por onde este lead passou. Fases saltadas não aparecem.
+      <p style={{ fontSize: 11, color: "#555", margin: "0 0 18px", lineHeight: 1.5 }}>
+        Cada evento e quando aconteceu, pela ordem do Kanban. O tempo entre etapas aparece nas setas. Fases saltadas não aparecem.
       </p>
 
       {steps.length === 0 ? (
         <div style={{ fontSize: 12, color: "#555", padding: "14px 0" }}>Ainda sem atividade registada.</div>
       ) : (
-        <div style={{ position: "relative" }}>
-          {steps.map((s, i) => {
-            const last = i === steps.length - 1 && !terminal;
-            return (
-              <div key={s.key + i} style={{ display: "flex", gap: 12, position: "relative", paddingBottom: last ? 0 : 18 }}>
-                {/* Rail + dot */}
-                <div style={{ display: "flex", flexDirection: "column", alignItems: "center", flexShrink: 0 }}>
-                  <span style={{ width: 11, height: 11, borderRadius: "50%", background: s.accent, border: s.ongoing ? "2px solid #fff" : "2px solid transparent", boxShadow: s.ongoing ? `0 0 0 3px ${s.accent}44` : "none", marginTop: 3 }} />
-                  {!last && <span style={{ flex: 1, width: 2, background: "rgba(255,255,255,0.08)", marginTop: 3, minHeight: 22 }} />}
-                </div>
-                {/* Row content */}
-                <div style={{ flex: 1, minWidth: 0, display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 10 }}>
-                  <div style={{ minWidth: 0 }}>
-                    <span style={{ fontSize: 13, fontWeight: 600, color: s.ongoing ? "#f5f5f5" : "#cfcfcf" }}>{s.label}</span>
-                    {s.ongoing && <span style={{ marginLeft: 8, fontSize: 9, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: s.accent }}>atual</span>}
-                    <span style={{ display: "block", fontSize: 10, color: "#555", marginTop: 2 }}>desde {fmtDate(s.enteredAt)}</span>
+        <div ref={scrollRef} style={{ overflowX: "auto", overflowY: "hidden", paddingBottom: 8, margin: "0 -4px" }}>
+          <div style={{ display: "flex", alignItems: "flex-start", minWidth: "min-content", padding: "0 4px" }}>
+            {nodes.map((n, i) => {
+              const prev = i > 0 ? nodes[i - 1] : null;
+              return (
+                <React.Fragment key={n.key + i}>
+                  {/* Connector — gap the lead spent in the PREVIOUS stage.
+                      Line is aligned to the node dots (marginTop ≈ dot centre);
+                      the gap label sits beneath the arrow. */}
+                  {i > 0 && (
+                    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", flexShrink: 0, minWidth: 52, marginTop: 5.5 }}>
+                      <span style={{ width: "100%", height: 2, background: "rgba(255,255,255,0.1)", position: "relative" }}>
+                        <span style={{ position: "absolute", right: -1, top: -3, width: 0, height: 0, borderTop: "4px solid transparent", borderBottom: "4px solid transparent", borderLeft: "5px solid rgba(255,255,255,0.2)" }} />
+                      </span>
+                      <span style={{ fontSize: 9, color: "#6b6b6b", fontFamily: "ui-monospace, monospace", marginTop: 7, whiteSpace: "nowrap" }}>{fmtGap(prev.durationMs)}</span>
+                    </div>
+                  )}
+                  {/* Node — the event + when it happened */}
+                  <div style={{ display: "flex", flexDirection: "column", alignItems: "center", width: 92, flexShrink: 0, textAlign: "center" }}>
+                    <span style={{
+                      width: 13, height: 13,
+                      borderRadius: n.isTerminal && n.key === "frio" ? 3 : "50%",
+                      background: n.accent,
+                      border: n.ongoing ? "2px solid #fff" : "2px solid transparent",
+                      boxShadow: n.ongoing ? `0 0 0 3px ${n.accent}44` : "none",
+                    }} />
+                    <span style={{ fontSize: 11, fontWeight: 600, color: n.ongoing ? "#f5f5f5" : n.isTerminal && n.key === "signed" ? "#22c55e" : "#cfcfcf", marginTop: 9, lineHeight: 1.25 }}>
+                      {n.eventLabel || n.label}
+                    </span>
+                    {n.enteredAt ? (
+                      <>
+                        <span style={{ fontSize: 10, color: "#8a8a8a", fontFamily: "ui-monospace, monospace", marginTop: 4 }}>{fmtDate(n.enteredAt)}</span>
+                        <span style={{ fontSize: 9, color: "#555", marginTop: 1 }}>{fmtTime(n.enteredAt)}</span>
+                      </>
+                    ) : (
+                      <span style={{ fontSize: 9, color: "#555", marginTop: 4 }}>sem data</span>
+                    )}
+                    {n.ongoing && (
+                      <span style={{ fontSize: 8.5, fontWeight: 700, letterSpacing: "0.05em", textTransform: "uppercase", color: n.accent, marginTop: 5, lineHeight: 1.3 }}>
+                        atual<br />há {formatDurationShort(n.durationMs)}
+                      </span>
+                    )}
                   </div>
-                  <span style={{ fontSize: 12, fontWeight: 700, fontFamily: "ui-monospace, monospace", color: s.ongoing ? s.accent : "#888", whiteSpace: "nowrap" }}>
-                    {s.ongoing ? `há ${formatDurationShort(s.durationMs)}` : formatDurationShort(s.durationMs)}
-                  </span>
-                </div>
-              </div>
-            );
-          })}
-          {/* Terminal outcome */}
-          {terminal && (
-            <div style={{ display: "flex", gap: 12, position: "relative" }}>
-              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", flexShrink: 0 }}>
-                <span style={{ width: 11, height: 11, borderRadius: 3, background: terminal.accent, marginTop: 3 }} />
-              </div>
-              <div style={{ flex: 1, display: "flex", alignItems: "baseline", justifyContent: "space-between" }}>
-                <div>
-                  <span style={{ fontSize: 13, fontWeight: 700, color: terminal.key === "signed" ? "#22c55e" : "#888" }}>{terminal.label}</span>
-                  {terminal.enteredAt && <span style={{ display: "block", fontSize: 10, color: "#555", marginTop: 2 }}>{fmtDate(terminal.enteredAt)}</span>}
-                </div>
-              </div>
-            </div>
-          )}
+                </React.Fragment>
+              );
+            })}
+          </div>
         </div>
       )}
     </div>

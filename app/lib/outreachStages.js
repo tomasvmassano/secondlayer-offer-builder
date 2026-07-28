@@ -50,6 +50,26 @@ export const STAGES = [
 export const STAGE_KEYS = STAGES.map(s => s.key);
 export const STAGE_INDEX = Object.fromEntries(STAGES.map((s, i) => [s.key, i]));
 
+// Event-phrased labels for the per-lead journey timeline. The Kanban column
+// names describe a *state* ("Em outreach"); the journey wants the *event* that
+// put the lead there ("1ª DM"). Same stages, worded as a log: Adicionado → 1ª
+// DM → Respondeu → … Terminal outcomes get their own labels.
+export const STAGE_EVENT_LABELS = {
+  por_contactar:        'Adicionado',
+  em_outreach:          '1ª DM',
+  followup_3:           'Follow-up 1',
+  followup_7:           'Follow-up 2',
+  followup_14:          'Follow-up 3',
+  contacto_feito:       'Respondeu',
+  video_pedido:         'Pediu vídeo',
+  video_enviado:        'Vídeo enviado',
+  reuniao_marcada:      'Reunião marcada',
+  reuniao_realizada:    'Reunião realizada',
+  apresentacao_enviada: 'Proposta',
+  signed:               'Fechado',
+  frio:                 'Frio',
+};
+
 // Follow-up stage ↔ cron-milestone mapping. Single source of truth so the
 // tray, the Kanban, and the cron all agree which "dia X" matches which
 // template ('softNudge' / 'valueDrop' / 'lastTouch').
@@ -336,6 +356,7 @@ export function stageTimeline(creator, nowMs = Date.now()) {
     return {
       key: e.key,
       label: meta.label || e.key,
+      eventLabel: STAGE_EVENT_LABELS[e.key] || meta.label || e.key,
       accent: meta.accent || '#666',
       enteredAt: e.at,
       durationMs: Math.max(0, endMs - startMs),
@@ -344,8 +365,8 @@ export function stageTimeline(creator, nowMs = Date.now()) {
   });
 
   let terminal = null;
-  if (isSigned) terminal = { key: 'signed', label: 'Assinado', accent: '#22c55e', enteredAt: terminalAt || null };
-  else if (isFrio) terminal = { key: 'frio', label: 'Frio', accent: '#444', enteredAt: terminalAt || null };
+  if (isSigned) terminal = { key: 'signed', label: 'Assinado', eventLabel: STAGE_EVENT_LABELS.signed, accent: '#22c55e', enteredAt: terminalAt || null };
+  else if (isFrio) terminal = { key: 'frio', label: 'Frio', eventLabel: STAGE_EVENT_LABELS.frio, accent: '#444', enteredAt: terminalAt || null };
 
   const firstMs = present.length ? new Date(present[0].at).getTime() : null;
   const endTotalMs = (terminal && terminal.enteredAt) ? new Date(terminal.enteredAt).getTime()
