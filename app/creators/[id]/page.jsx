@@ -114,37 +114,32 @@ const inputStyle = { width: "100%", padding: "10px 14px", background: "#1a1a1a",
 // when the journey is longer than the panel.
 // ─────────────────────────────────────────────────────────────────
 function LeadJourney({ creator }) {
-  const { steps, terminal, totalMs } = stageTimeline(creator);
-  // The most important node (current stage / outcome) is the rightmost one.
-  // On open, scroll the rail to the end so it's visible without a manual drag;
-  // the operator can scroll left for the earlier history.
-  const scrollRef = useRef(null);
+  const { steps, terminal, future, totalMs } = stageTimeline(creator);
+  // Bring the CURRENT stage into view. On desktop the whole rail fits at full
+  // width (no-op); on narrow screens the rail scrolls and this centres it.
+  const currentRef = useRef(null);
   useEffect(() => {
-    const el = scrollRef.current;
-    if (el) el.scrollLeft = el.scrollWidth;
+    const el = currentRef.current;
+    if (el && el.scrollIntoView) el.scrollIntoView({ block: "nearest", inline: "center" });
   }, [creator?.id, steps.length]);
-  const fmtDate = (iso) => {
-    if (!iso) return "";
-    try { return new Date(iso).toLocaleDateString("pt-PT", { day: "2-digit", month: "short" }); }
-    catch { return ""; }
-  };
-  const fmtTime = (iso) => {
-    if (!iso) return "";
-    try { return new Date(iso).toLocaleTimeString("pt-PT", { hour: "2-digit", minute: "2-digit" }); }
-    catch { return ""; }
-  };
-  // Gap shown on a connector = time the lead sat in the previous stage. Sub-
-  // hour gaps (same drag / same session) read as "<1h" instead of a misleading
-  // "agora".
+
+  const fmtDate = (iso) => { if (!iso) return ""; try { return new Date(iso).toLocaleDateString("pt-PT", { day: "2-digit", month: "short" }); } catch { return ""; } };
+  const fmtTime = (iso) => { if (!iso) return ""; try { return new Date(iso).toLocaleTimeString("pt-PT", { hour: "2-digit", minute: "2-digit" }); } catch { return ""; } };
+  // Gap on a connector = time the lead sat in the previous stage. Sub-hour gaps
+  // (a same-session drag) read as "<1h" instead of a misleading "agora".
   const fmtGap = (ms) => (ms == null ? "" : ms < 3_600_000 ? "<1h" : formatDurationShort(ms));
 
-  // Flatten steps + terminal into one node list so the connector logic is uniform.
-  const nodes = steps.map(s => ({ ...s }));
-  if (terminal) nodes.push({ ...terminal, durationMs: 0, ongoing: false, isTerminal: true });
+  // One flat list: reached steps → dimmed upcoming stages → terminal outcome.
+  const nodes = [
+    ...steps.map(s => ({ ...s })),
+    ...(future || []).map(f => ({ ...f, dimmed: true })),
+    ...(terminal ? [{ ...terminal, isTerminal: true }] : []),
+  ];
 
   return (
-    <div style={{ marginBottom: 34 }}>
-      <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 4 }}>
+    <div style={{ marginBottom: 40 }}>
+      <style>{`@keyframes slLeadPulse{0%{transform:scale(.7);opacity:.5}70%{transform:scale(1.75);opacity:0}100%{opacity:0}}`}</style>
+      <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 4, flexWrap: "wrap", gap: 8, maxWidth: 640 }}>
         <h3 style={{ ...sectionTitleStyle, margin: 0 }}>Percurso do lead</h3>
         {totalMs != null && steps.length > 0 && (
           <span style={{ fontSize: 11, color: "#777" }}>
@@ -152,40 +147,48 @@ function LeadJourney({ creator }) {
           </span>
         )}
       </div>
-      <p style={{ fontSize: 11, color: "#555", margin: "0 0 18px", lineHeight: 1.5 }}>
-        Cada evento e quando aconteceu, pela ordem do Kanban. O tempo entre etapas aparece nas setas. Fases saltadas não aparecem.
+      <p style={{ fontSize: 11, color: "#555", margin: "0 0 22px", lineHeight: 1.5, maxWidth: 640 }}>
+        Cada evento e quando aconteceu, pela ordem do Kanban. As fases a cinzento ainda estão por chegar.
       </p>
 
-      {steps.length === 0 ? (
+      {nodes.length === 0 ? (
         <div style={{ fontSize: 12, color: "#555", padding: "14px 0" }}>Ainda sem atividade registada.</div>
       ) : (
-        <div ref={scrollRef} style={{ overflowX: "auto", overflowY: "hidden", paddingBottom: 8, margin: "0 -4px" }}>
-          <div style={{ display: "flex", alignItems: "flex-start", minWidth: "min-content", padding: "0 4px" }}>
+        <div style={{ overflowX: "auto", overflowY: "hidden", paddingBottom: 6 }}>
+          <div style={{ display: "flex", alignItems: "flex-start", width: "100%" }}>
             {nodes.map((n, i) => {
               const prev = i > 0 ? nodes[i - 1] : null;
+              // A gap value is only meaningful between two REACHED nodes.
+              const solidConn = prev && !prev.dimmed && !n.dimmed;
               return (
                 <React.Fragment key={n.key + i}>
-                  {/* Connector — gap the lead spent in the PREVIOUS stage.
-                      Line is aligned to the node dots (marginTop ≈ dot centre);
-                      the gap label sits beneath the arrow. */}
                   {i > 0 && (
-                    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", flexShrink: 0, minWidth: 52, marginTop: 5.5 }}>
-                      <span style={{ width: "100%", height: 2, background: "rgba(255,255,255,0.1)", position: "relative" }}>
-                        <span style={{ position: "absolute", right: -1, top: -3, width: 0, height: 0, borderTop: "4px solid transparent", borderBottom: "4px solid transparent", borderLeft: "5px solid rgba(255,255,255,0.2)" }} />
+                    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", flex: "1 1 34px", minWidth: 34, marginTop: 6 }}>
+                      <span style={{ width: "100%", height: 2, background: solidConn ? "rgba(255,255,255,0.16)" : "rgba(255,255,255,0.05)", position: "relative" }}>
+                        <span style={{ position: "absolute", right: -1, top: -3, width: 0, height: 0, borderTop: "4px solid transparent", borderBottom: "4px solid transparent", borderLeft: `5px solid ${solidConn ? "rgba(255,255,255,0.26)" : "rgba(255,255,255,0.09)"}` }} />
                       </span>
-                      <span style={{ fontSize: 9, color: "#6b6b6b", fontFamily: "ui-monospace, monospace", marginTop: 7, whiteSpace: "nowrap" }}>{fmtGap(prev.durationMs)}</span>
+                      {solidConn && (
+                        <span style={{ fontSize: 9, color: "#6b6b6b", fontFamily: "ui-monospace, monospace", marginTop: 7, whiteSpace: "nowrap" }}>{fmtGap(prev.durationMs)}</span>
+                      )}
                     </div>
                   )}
-                  {/* Node — the event + when it happened */}
-                  <div style={{ display: "flex", flexDirection: "column", alignItems: "center", width: 92, flexShrink: 0, textAlign: "center" }}>
-                    <span style={{
-                      width: 13, height: 13,
-                      borderRadius: n.isTerminal && n.key === "frio" ? 3 : "50%",
-                      background: n.accent,
-                      border: n.ongoing ? "2px solid #fff" : "2px solid transparent",
-                      boxShadow: n.ongoing ? `0 0 0 3px ${n.accent}44` : "none",
-                    }} />
-                    <span style={{ fontSize: 11, fontWeight: 600, color: n.ongoing ? "#f5f5f5" : n.isTerminal && n.key === "signed" ? "#22c55e" : "#cfcfcf", marginTop: 9, lineHeight: 1.25 }}>
+                  <div
+                    ref={n.ongoing ? currentRef : null}
+                    style={{ display: "flex", flexDirection: "column", alignItems: "center", flex: "0 0 96px", width: 96, textAlign: "center", opacity: n.dimmed ? 0.42 : 1 }}
+                  >
+                    {/* Dot (filled = reached, hollow = upcoming), with a pulse ring on the current stage */}
+                    <span style={{ position: "relative", width: 14, height: 14, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                      {n.ongoing && <span style={{ position: "absolute", inset: -3, borderRadius: "50%", border: `1.5px solid ${n.accent}`, animation: "slLeadPulse 2.4s ease-out infinite" }} />}
+                      <span style={{
+                        width: 13, height: 13,
+                        borderRadius: n.isTerminal && n.key === "frio" ? 3 : "50%",
+                        background: n.dimmed ? "transparent" : n.accent,
+                        border: n.dimmed ? `2px solid ${n.accent}` : n.ongoing ? "2px solid #fff" : "2px solid transparent",
+                        boxSizing: "border-box",
+                        boxShadow: n.ongoing ? `0 0 0 3px ${n.accent}33` : "none",
+                      }} />
+                    </span>
+                    <span style={{ fontSize: 11, fontWeight: 600, color: n.ongoing ? "#f5f5f5" : n.isTerminal && n.key === "signed" ? "#22c55e" : n.dimmed ? "#8a8a8a" : "#cfcfcf", marginTop: 10, lineHeight: 1.25 }}>
                       {n.eventLabel || n.label}
                     </span>
                     {n.enteredAt ? (
@@ -193,11 +196,11 @@ function LeadJourney({ creator }) {
                         <span style={{ fontSize: 10, color: "#8a8a8a", fontFamily: "ui-monospace, monospace", marginTop: 4 }}>{fmtDate(n.enteredAt)}</span>
                         <span style={{ fontSize: 9, color: "#555", marginTop: 1 }}>{fmtTime(n.enteredAt)}</span>
                       </>
-                    ) : (
+                    ) : !n.dimmed ? (
                       <span style={{ fontSize: 9, color: "#555", marginTop: 4 }}>sem data</span>
-                    )}
+                    ) : null}
                     {n.ongoing && (
-                      <span style={{ fontSize: 8.5, fontWeight: 700, letterSpacing: "0.05em", textTransform: "uppercase", color: n.accent, marginTop: 5, lineHeight: 1.3 }}>
+                      <span style={{ fontSize: 8.5, fontWeight: 700, letterSpacing: "0.05em", textTransform: "uppercase", color: n.accent, marginTop: 6, lineHeight: 1.3 }}>
                         atual<br />há {formatDurationShort(n.durationMs)}
                       </span>
                     )}
@@ -248,14 +251,16 @@ function DealPanel({ creator, patchCreator }) {
   const valuePreview = digitsForPreview ? "€" + Number(digitsForPreview).toLocaleString("pt-PT") : "";
 
   return (
-    <div style={{ maxWidth: 640 }}>
-      <p style={{ fontSize: 12, color: "#666", margin: "0 0 28px", lineHeight: 1.6 }}>
+    <div>
+      <p style={{ fontSize: 12, color: "#666", margin: "0 0 28px", lineHeight: 1.6, maxWidth: 640 }}>
         Tudo o que precisas antes de mandar a DM, num sítio só — quanto vamos fechar, o link do vídeo, e as notas do contacto.
       </p>
 
-      {/* Percurso do lead — tempo em cada fase */}
+      {/* Percurso do lead — full-width band (spans the content area, like the tab divider) */}
       <LeadJourney creator={creator} />
 
+      {/* Deal fields stay in a comfortable single column */}
+      <div style={{ maxWidth: 640 }}>
       {/* Valor a fechar */}
       <div style={{ marginBottom: 30 }}>
         <h3 style={sectionTitleStyle}>Valor a fechar</h3>
@@ -308,6 +313,7 @@ function DealPanel({ creator, patchCreator }) {
           placeholder="Contexto, objeções, próximos passos…"
           style={{ ...inputStyle, minHeight: 160, lineHeight: 1.6 }}
         />
+      </div>
       </div>
     </div>
   );

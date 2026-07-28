@@ -70,6 +70,15 @@ export const STAGE_EVENT_LABELS = {
   frio:                 'Frio',
 };
 
+// The forward "happy path" — the sequence a winning lead walks, ending at
+// Fechado. Drives the dimmed not-yet-reached nodes on the journey timeline.
+// Deliberately excludes the no-reply follow-up windows (a branch) and Frio (a
+// failure outcome), which are handled separately.
+export const HAPPY_PATH = [
+  'por_contactar', 'em_outreach', 'contacto_feito', 'video_pedido', 'video_enviado',
+  'reuniao_marcada', 'reuniao_realizada', 'apresentacao_enviada', 'signed',
+];
+
 // Follow-up stage ↔ cron-milestone mapping. Single source of truth so the
 // tray, the Kanban, and the cron all agree which "dia X" matches which
 // template ('softNudge' / 'valueDrop' / 'lastTouch').
@@ -368,13 +377,33 @@ export function stageTimeline(creator, nowMs = Date.now()) {
   if (isSigned) terminal = { key: 'signed', label: 'Assinado', eventLabel: STAGE_EVENT_LABELS.signed, accent: '#22c55e', enteredAt: terminalAt || null };
   else if (isFrio) terminal = { key: 'frio', label: 'Frio', eventLabel: STAGE_EVENT_LABELS.frio, accent: '#444', enteredAt: terminalAt || null };
 
+  // Upcoming stages the lead hasn't reached yet — rendered as dimmed
+  // placeholders so the whole road ahead (ending at Fechado) is always visible.
+  // The happy path only: the no-reply follow-up windows are a branch, not a
+  // forward step, so they're excluded. Empty for terminal (signed / frio) leads.
+  let future = [];
+  if (!isSigned && !isFrio) {
+    // Map the current stage onto the happy path. Follow-up stages sit at the
+    // same point as "1ª DM" (still pre-reply), so the road ahead starts at
+    // "Respondeu".
+    const preReply = { followup_3: 1, followup_7: 1, followup_14: 1 };
+    const idx = preReply[currentKey] != null ? preReply[currentKey] : HAPPY_PATH.indexOf(currentKey);
+    if (idx >= 0) {
+      future = HAPPY_PATH.slice(idx + 1).map(k => ({
+        key: k,
+        eventLabel: STAGE_EVENT_LABELS[k] || k,
+        accent: k === 'signed' ? '#22c55e' : (STAGES.find(s => s.key === k)?.accent || '#666'),
+      }));
+    }
+  }
+
   const firstMs = present.length ? new Date(present[0].at).getTime() : null;
   const endTotalMs = (terminal && terminal.enteredAt) ? new Date(terminal.enteredAt).getTime()
                    : (isSigned || isFrio) ? (present.length ? new Date(present[present.length - 1].at).getTime() : null)
                    : nowMs;
   const totalMs = (firstMs != null && endTotalMs != null) ? Math.max(0, endTotalMs - firstMs) : null;
 
-  return { steps, terminal, totalMs, currentKey };
+  return { steps, terminal, future, totalMs, currentKey };
 }
 
 /**
