@@ -55,6 +55,24 @@ const VIDEO_CADENCE = [
 ];
 const VIDEO_COLD_DAYS = 7;
 
+// Pediu-vídeo cadence (volume model). Creator showed interest / asked for the
+// video (outreach.videoRequestedAt) but went quiet before we sent it or before
+// they replied again. Warmest lead in the pipeline — they literally asked — so
+// we chase harder: nudge at days 1/3/5/7/9/12/14, then auto-cool at +16.
+// Highest-day-first so we pick the latest nudge reached-but-not-yet-sent.
+// NOTE: 7 touches is aggressive; the array is the single tuning knob if the
+// team wants to soften it. Reminder keys are pv1..pv7 (stored in remindersSent).
+const PEDIU_VIDEO_CADENCE = [
+  { day: 14, reminderKey: 'pv7' },
+  { day: 12, reminderKey: 'pv6' },
+  { day: 9,  reminderKey: 'pv5' },
+  { day: 7,  reminderKey: 'pv4' },
+  { day: 5,  reminderKey: 'pv3' },
+  { day: 3,  reminderKey: 'pv2' },
+  { day: 1,  reminderKey: 'pv1' },
+];
+const PEDIU_VIDEO_COLD_DAYS = 16;
+
 const DAY_MS = 86_400_000;
 const daysBetween = (a, b) => Math.floor((new Date(b).getTime() - new Date(a).getTime()) / DAY_MS);
 
@@ -134,7 +152,13 @@ export async function GET(request) {
   // full-record read.)
   const candidates = summaries.filter(s => {
     const st = s.pipelineStatus || 'prospect';
-    return st !== 'signed' && st !== 'cold' && !s.repliedAt;
+    if (st === 'signed' || st === 'cold') return false;
+    // Video-stage creators (Pediu vídeo / Vídeo enviado) have repliedAt set but
+    // still need their own nudge cadences — keep them despite the reply. The
+    // per-block !hasBooking guards inside the loop skip any that already booked.
+    if (s.videoRequestedAt || s.videoSentAt) return true;
+    // Everyone else: once they replied, the no-reply cadence stops.
+    return !s.repliedAt;
   });
 
   // Batch-load full records in parallel chunks of 25 instead of the old
@@ -149,7 +173,7 @@ export async function GET(request) {
     fulls.push(...loaded);
   }
 
-  const buckets = { lastTouch: [], valueDrop: [], softNudge: [], videoNudge: [], noDm: [], autoCold: [] };
+  const buckets = { lastTouch: [], valueDrop: [], softNudge: [], videoNudge: [], pediuVideo: [], noDm: [], autoCold: [] };
   const cooled = []; // creators we auto-mark cold this run
 
   for (const c of fulls) {
@@ -205,6 +229,61 @@ export async function GET(request) {
         if (!isCatchup) {
           await updateCreator(c.id, {
             outreach: { ...out, remindersSent: { ...rs, [vmatched.reminderKey]: now.toISOString() } },
+          }).catch(() => null);
+        }
+      }
+      continue;
+    }
+
+    // ── Pediu-vídeo cadence (volume model) ──
+    // Creator showed interest / asked for the video (videoRequestedAt) but went
+    // quiet before we sent it — and it's genuinely not sent yet (videoSentAt is
+    // handled by the block above). These DID reply, so handle them here BEFORE
+    // the no-reply skip below. Nudge at 1/3/5/7/9/12/14, auto-cool at +16.
+    const videoRequestedAt = out.videoRequestedAt || null;
+    if (videoRequestedAt && !videoSentAt && !hasBooking && c.pipelineStatus !== 'cold' && c.pipelineStatus !== 'signed') {
+      const pdays = daysBetween(videoRequestedAt, now);
+      const rs = out.remindersSent || {};
+      const pOwner = FIRSTNAME_TO_EMAIL[canonicaliseName(
+        out.videoRequestedBy?.firstName || out.dmSentBy?.firstName || c.addedBy?.firstName || ''
+      )] || null;
+      if (pdays >= PEDIU_VIDEO_COLD_DAYS) {
+        cooled.push({ id: c.id, name: c.name, daysSinceDM: pdays });
+        if (!isCatchup) {
+          const fresh = await getCreator(c.id, { fresh: true }).catch(() => null);
+          const fo = fresh?.outreach || {};
+          if (!(fo.videoSentAt || fo.callBookedAt || fo.callAgreedAt || fo.callHeldAt)) {
+            await updateCreator(c.id, {
+              pipelineStatus: 'cold',
+              outreach: { remindersSent: { autoCold: now.toISOString() } },
+            }).catch(() => null);
+          }
+        }
+        buckets.autoCold.push({ id: c.id, name: c.name, niche: c.niche, daysSinceDM: pdays, ownerEmail: pOwner });
+        continue;
+      }
+      let pmatched = null;
+      for (const pc of PEDIU_VIDEO_CADENCE) {
+        const already = !isCatchup && rs[pc.reminderKey];
+        if (pdays >= pc.day && !already) { pmatched = pc; break; }
+      }
+      if (pmatched) {
+        const ownerFirstName = out.videoRequestedBy?.firstName || c.addedBy?.firstName || 'Raul';
+        const lang = (c.primaryLanguage || 'pt').toLowerCase();
+        const langCode = lang === 'en' ? 'en' : lang === 'es' ? 'es' : 'pt';
+        const creatorFirstName = (c.name || '').split(/\s+/)[0] || 'pessoa';
+        const igUrl = c.platforms?.instagram?.url
+          || (c.platforms?.instagram?.handle ? `https://instagram.com/${c.platforms.instagram.handle.replace(/^@/, '')}` : null);
+        buckets.pediuVideo.push({
+          id: c.id, name: c.name, niche: c.niche, followers: pickFollowers(c),
+          daysSinceRequest: pdays, ownerEmail: pOwner, igUrl,
+          followUpDm: buildFollowUpDm('pediuVideo', creatorFirstName, ownerFirstName, langCode),
+          milestoneKey: 'pediuVideo',
+          hasContactEmail: !!(c.contactEmail || c.email),
+        });
+        if (!isCatchup) {
+          await updateCreator(c.id, {
+            outreach: { ...out, remindersSent: { ...rs, [pmatched.reminderKey]: now.toISOString() } },
           }).catch(() => null);
         }
       }
@@ -331,7 +410,7 @@ export async function GET(request) {
     }
   }
 
-  const totalDue = buckets.lastTouch.length + buckets.valueDrop.length + buckets.softNudge.length + buckets.videoNudge.length;
+  const totalDue = buckets.lastTouch.length + buckets.valueDrop.length + buckets.softNudge.length + buckets.videoNudge.length + buckets.pediuVideo.length;
   const stats = {
     type: 'dm-reminders',
     status: 'ok',
@@ -339,6 +418,7 @@ export async function GET(request) {
     valueDrop: buckets.valueDrop.length,
     softNudge: buckets.softNudge.length,
     videoNudge: buckets.videoNudge.length,
+    pediuVideo: buckets.pediuVideo.length,
     noDm: buckets.noDm.length,
     autoCold: buckets.autoCold.length,
     totalDue,
@@ -360,7 +440,7 @@ export async function GET(request) {
   }
   for (const op of targetOps) {
     const view = filterForOperator(buckets, op.email);
-    const opTotalDue = view.lastTouch.length + view.valueDrop.length + view.softNudge.length + view.videoNudge.length;
+    const opTotalDue = view.lastTouch.length + view.valueDrop.length + view.softNudge.length + view.videoNudge.length + view.pediuVideo.length;
     const actionable = opTotalDue > 0 || view.noDm.length > 0 || view.autoCold.length > 0;
     if (!actionable) {
       perOperator.push({ email: op.email, sent: false, reason: 'nothing-due' });
@@ -400,6 +480,7 @@ function filterForOperator(buckets, operatorEmail) {
     valueDrop: buckets.valueDrop.filter(keep),
     softNudge: buckets.softNudge.filter(keep),
     videoNudge: buckets.videoNudge.filter(keep),
+    pediuVideo: buckets.pediuVideo.filter(keep),
     noDm:      buckets.noDm.filter(keep),
     autoCold:  buckets.autoCold.filter(keep),
   };
@@ -424,19 +505,23 @@ const DM_TEMPLATES = {
     valueDrop:  `Olá {creator},\n\nA acompanhar. Trabalhei com alguém parecido contigo e o resultado deu-me uma ideia concreta para o teu caso. Se quiseres, mostro-te num vídeo curto como fizemos.\n\nAbraço,\n{sender}`,
     lastTouch:  `Olá {creator},\n\nÚltimo toque do meu lado. Não vou voltar a mandar mensagem. Se um dia mudar de ideias, a porta fica aberta.\n\nAbraço,\n{sender}`,
     // Video sent, no booking yet — nudge to the call.
-    videoNudge: `Olá {creator},\n\nSó a confirmar que viste o vídeo que te enviei. Se fez sentido, o próximo passo é uma conversa rápida de 15 min — queres que te passe alguns horários?\n\nAbraço,\n{sender}`,
+    videoNudge: `Olá {creator},\n\nSó a confirmar que viste o vídeo que te enviei. Se fez sentido, o próximo passo é uma conversa rápida de 15 min. Queres que te passe alguns horários?\n\nAbraço,\n{sender}`,
+    // Showed interest / asked for the video but went quiet before we sent it.
+    pediuVideo: `Olá {creator},\n\nDisseste que querias que te mandasse o vídeo a explicar melhor o que fazemos. Ainda faz sentido para ti? Se sim, mando-to já.\n\nAbraço,\n{sender}`,
   },
   en: {
     softNudge:  `Hey {creator},\n\nNot trying to be pushy. Just thinking about what I sent the other day and wondering if it landed for your case. Even a quick "not now" helps.\n\nCheers,\n{sender}`,
     valueDrop:  `Hey {creator},\n\nFollowing up. I worked with someone close to your profile and the result gave me a concrete idea for your case. If you're up for it, I'll show you in a short video how we did it.\n\nCheers,\n{sender}`,
     lastTouch:  `Hey {creator},\n\nLast message from my side. I won't reach out again. If anything changes down the line, the door stays open.\n\nCheers,\n{sender}`,
-    videoNudge: `Hey {creator},\n\nJust checking you saw the video I sent. If it made sense, the next step is a quick 15-min chat — want me to share a few times?\n\nCheers,\n{sender}`,
+    videoNudge: `Hey {creator},\n\nJust checking you saw the video I sent. If it made sense, the next step is a quick 15-min chat. Want me to share a few times?\n\nCheers,\n{sender}`,
+    pediuVideo: `Hey {creator},\n\nYou said you wanted me to send over the video explaining what we do in more detail. Still up for it? If so, I'll send it right now.\n\nCheers,\n{sender}`,
   },
   es: {
     softNudge:  `Hola {creator},\n\nNo quiero ser pesado. Volví a pensar en lo que te escribí y quería saber si tuvo sentido para tu caso. Aunque no sea el momento, cualquier feedback ayuda.\n\nUn abrazo,\n{sender}`,
     valueDrop:  `Hola {creator},\n\nAtento. Trabajé con alguien parecido a ti y el resultado me dio una idea concreta para tu caso. Si quieres, te enseño en un vídeo corto cómo lo hicimos.\n\nUn abrazo,\n{sender}`,
     lastTouch:  `Hola {creator},\n\nÚltimo mensaje de mi lado. No te volveré a escribir. Si algún día cambia, la puerta queda abierta.\n\nUn abrazo,\n{sender}`,
-    videoNudge: `Hola {creator},\n\nSolo confirmo que viste el vídeo que te envié. Si te encajó, el siguiente paso es una charla rápida de 15 min — ¿te paso algunos horarios?\n\nUn abrazo,\n{sender}`,
+    videoNudge: `Hola {creator},\n\nSolo confirmo que viste el vídeo que te envié. Si te encajó, el siguiente paso es una charla rápida de 15 min. ¿Te paso algunos horarios?\n\nUn abrazo,\n{sender}`,
+    pediuVideo: `Hola {creator},\n\nDijiste que querías que te mandara el vídeo explicando mejor lo que hacemos. ¿Todavía te encaja? Si es así, te lo mando ya.\n\nUn abrazo,\n{sender}`,
   },
 };
 
@@ -500,6 +585,7 @@ async function sendDigest(operator, buckets, stats, opts = {}) {
       : `Tens ${headlineCount} follow-up${headlineCount === 1 ? '' : 's'} para fazer hoje.`,
     ``,
   ];
+  if (buckets.pediuVideo?.length) lines.push(`• ${buckets.pediuVideo.length} pediu vídeo (à espera do envio)`);
   if (buckets.videoNudge?.length) lines.push(`• ${buckets.videoNudge.length} vídeo enviado (sem marcação)`);
   if (buckets.lastTouch.length) lines.push(`• ${buckets.lastTouch.length} dia 14 (último toque)`);
   if (buckets.valueDrop.length) lines.push(`• ${buckets.valueDrop.length} dia 7 (value drop)`);
@@ -537,6 +623,7 @@ async function sendDigest(operator, buckets, stats, opts = {}) {
 
   ${headlineCount === 0 ? '' : `
     <div style="margin: 4px 0 22px;">
+      ${counterRow('#a855f7', 'Pediu vídeo', buckets.pediuVideo?.length || 0)}
       ${counterRow('#8b5cf6', 'Vídeo',   buckets.videoNudge?.length || 0)}
       ${counterRow('#ea580c', 'Dia 14',  buckets.lastTouch.length)}
       ${counterRow('#f97316', 'Dia 7',   buckets.valueDrop.length)}

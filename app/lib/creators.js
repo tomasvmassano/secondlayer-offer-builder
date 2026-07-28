@@ -53,7 +53,7 @@ function scrubSurrogatesInPlace(node, ctx = { changed: false }) {
 // warm instance stampeded a full-CRM rebuild (50-100K commands in an
 // hour). Now a version bump still triggers a rebuild, but it's gated by
 // a Redis lock so only one instance does it.
-export const SUMMARY_VERSION = 5;
+export const SUMMARY_VERSION = 6;
 
 function buildSummary(creator, createdAt) {
   let dealScoreGrade = null;
@@ -81,6 +81,9 @@ function buildSummary(creator, createdAt) {
     loomRequestedAt: creator.outreach?.loomRequestedAt || null,
     proposalReadyAt: creator.outreach?.proposalReadyAt || null,
     loomSentAt:      creator.outreach?.loomSentAt      || null,
+    // videoRequestedAt — creator showed interest / asked for the video ("Pediu
+    // vídeo" stage). Drives the pediu-vídeo follow-up cadence.
+    videoRequestedAt: creator.outreach?.videoRequestedAt || null,
     // videoSentAt — the volume model's touchpoint: operator sent the generic
     // video after the creator replied. Drives the video→booking follow-up.
     videoSentAt:     creator.outreach?.videoSentAt     || null,
@@ -434,6 +437,8 @@ export async function saveCreator(data) {
       // 'dm' | 'email' | null. Critical for measuring per-channel
       // conversion rate on the team dashboard.
       repliedChannel: null,
+      // videoRequestedAt — creator asked for / accepted the video (Pediu vídeo).
+      videoRequestedAt: null,
       // videoSentAt — operator sent the generic video after the reply (volume
       // model). Drives the video→booking follow-up nudge.
       videoSentAt: null,

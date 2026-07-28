@@ -36,7 +36,10 @@ export const STAGES = [
   { key: 'followup_14',          label: 'Follow-up · dia 14', accent: '#ea580c', description: 'Último toque · 7 dias até Frio' },
   // Replied. The operator sends the generic video here and the setter books —
   // both happen inside this column (tracked via outreach.videoSentAt).
-  { key: 'contacto_feito',       label: 'Respondeu',          accent: '#3b82f6', description: 'Respondeu · enviar o vídeo' },
+  { key: 'contacto_feito',       label: 'Respondeu',          accent: '#3b82f6', description: 'Respondeu · sem pedir o vídeo ainda' },
+  // Showed interest / asked for the video. The card sits here while the
+  // automated reminders nudge those who go quiet (outreach.videoRequestedAt).
+  { key: 'video_pedido',         label: 'Pediu vídeo',        accent: '#a855f7', description: 'Mostrou interesse / pediu o vídeo · à espera' },
   { key: 'video_enviado',        label: 'Vídeo enviado',      accent: '#8b5cf6', description: 'Vídeo enviado · à espera de marcação' },
   { key: 'reuniao_marcada',      label: 'Reunião marcada',    accent: '#22c55e', description: 'Call de descoberta agendada' },
   { key: 'reuniao_realizada',    label: 'Reunião realizada',  accent: '#16a34a', description: 'Call feita · preparar proposta' },
@@ -84,6 +87,7 @@ export function computeOutreachStage(creator) {
   const callHeldAt      = o.callHeldAt    || creator.callHeldAt;
   const callBookedAt    = o.callBookedAt  || o.callAgreedAt || creator.callBookedAt;
   const videoSentAt     = o.videoSentAt   || creator.videoSentAt;
+  const videoRequestedAt = o.videoRequestedAt || creator.videoRequestedAt;
   const repliedAt       = o.repliedAt     || creator.repliedAt;
   const dmSentAt        = o.dmSentAt      || creator.dmSentAt;
   const emailSentAt     = o.emailSentAt   || creator.emailSentAt;
@@ -95,6 +99,7 @@ export function computeOutreachStage(creator) {
   if (callHeldAt)                   return 'reuniao_realizada';
   if (callBookedAt)                 return 'reuniao_marcada';
   if (videoSentAt)                  return 'video_enviado';        // generic video sent, no booking yet
+  if (videoRequestedAt)             return 'video_pedido';         // showed interest / asked for the video
   if (repliedAt)                    return 'contacto_feito';       // Respondeu (no video yet)
   // Day-14 follow-up sent + N days, no reply → Frio (silent auto-cold).
   if (followUpsDone >= 3 && lastFollowUpAt) {
@@ -128,7 +133,7 @@ export function stagePatch(creator, targetStage) {
           dmSentAt: null, emailSentAt: null,
           repliedAt: null, repliedChannel: null,
           followUps: [], followUpsDone: 0, lastFollowUpAt: null,
-          videoSentAt: null,
+          videoSentAt: null, videoRequestedAt: null,
           callBookedAt: null, callAgreedAt: null, callHeldAt: null,
           notInterestedAt: null,
         },
@@ -142,7 +147,7 @@ export function stagePatch(creator, targetStage) {
           dmSentAt: getOutreach('dmSentAt') || now,
           repliedAt: null, repliedChannel: null,
           followUps: [], followUpsDone: 0, lastFollowUpAt: null,
-          videoSentAt: null,
+          videoSentAt: null, videoRequestedAt: null,
           callBookedAt: null, callAgreedAt: null, callHeldAt: null,
           notInterestedAt: null,
         },
@@ -168,7 +173,7 @@ export function stagePatch(creator, targetStage) {
           followUps: trimmed,
           followUpsDone: trimmed.length,
           lastFollowUpAt: last?.at || now,
-          videoSentAt: null,
+          videoSentAt: null, videoRequestedAt: null,
           callBookedAt: null, callAgreedAt: null, callHeldAt: null,
           notInterestedAt: null,
         },
@@ -183,6 +188,21 @@ export function stagePatch(creator, targetStage) {
         outreach: {
           dmSentAt: getOutreach('dmSentAt') || now,
           repliedAt: getOutreach('repliedAt') || now,
+          videoSentAt: null, videoRequestedAt: null,
+          callBookedAt: null, callAgreedAt: null, callHeldAt: null,
+          notInterestedAt: null,
+        },
+        pitch: { sentAt: null },
+      };
+    case 'video_pedido':
+      // Showed interest / asked for the video, not sent yet. Automated
+      // reminders nudge from here; clear videoSentAt so it stays pre-send.
+      return {
+        pipelineStatus: 'prospect',
+        outreach: {
+          dmSentAt: getOutreach('dmSentAt') || now,
+          repliedAt: getOutreach('repliedAt') || now,
+          videoRequestedAt: getOutreach('videoRequestedAt') || now,
           videoSentAt: null,
           callBookedAt: null, callAgreedAt: null, callHeldAt: null,
           notInterestedAt: null,
@@ -191,6 +211,7 @@ export function stagePatch(creator, targetStage) {
       };
     case 'video_enviado':
       // Generic video sent — awaiting booking. This is the warm-lead column.
+      // Preserve videoRequestedAt (they did ask) by not mentioning it.
       return {
         pipelineStatus: 'prospect',
         outreach: {
@@ -290,6 +311,14 @@ export function stageStaleness(creator) {
       // Replied, video not sent yet — the operator should send it fast.
       const d = daysSince(o.repliedAt || creator?.repliedAt);
       if (d > 2) return { days: d, level: 'warn', stale: true };
+      return { days: d, level: 'ok', stale: false };
+    }
+    case 'video_pedido': {
+      // Asked for the video but went quiet. Warm lead — the automated
+      // reminders are chasing it, so warn early and cold near the cadence end.
+      const d = daysSince(o.videoRequestedAt || creator?.videoRequestedAt);
+      if (d > 14) return { days: d, level: 'cold', stale: true };
+      if (d > 3)  return { days: d, level: 'warn', stale: true };
       return { days: d, level: 'ok', stale: false };
     }
     case 'video_enviado': {

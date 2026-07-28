@@ -26,6 +26,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
  */
 
 const MILESTONE_STYLES = {
+  pediuVideo: { label: "Pediu vídeo", color: "#a855f7", bg: "rgba(168,85,247,0.12)", border: "rgba(168,85,247,0.3)" },
   videoNudge: { label: "Vídeo", color: "#8b5cf6", bg: "rgba(139,92,246,0.12)", border: "rgba(139,92,246,0.3)" },
   softNudge: { label: "Dia 3",  color: "#f59e0b", bg: "rgba(245,158,11,0.12)", border: "rgba(245,158,11,0.3)" },
   valueDrop: { label: "Dia 7",  color: "#f97316", bg: "rgba(249,115,22,0.12)", border: "rgba(249,115,22,0.3)" },
@@ -116,6 +117,7 @@ export default function FollowUpTray({ onAfterCopy }) {
 
   // Group counts for the expanded header.
   const counts = {
+    pediuVideo: items.filter(i => i.milestone === "pediuVideo").length,
     videoNudge: items.filter(i => i.milestone === "videoNudge").length,
     lastTouch: items.filter(i => i.milestone === "lastTouch").length,
     valueDrop: items.filter(i => i.milestone === "valueDrop").length,

@@ -25,10 +25,13 @@ export async function POST(request, { params }) {
   let body = {};
   try { body = await request.json(); } catch { /* empty body is fine */ }
   const channel = body.channel === 'email' ? 'email' : 'dm';
-  // videoNudge is the volume-model video→booking touch. It must NOT increment
-  // the no-reply followUpsDone counter (that would corrupt the dia-3/7/14
-  // cadence for a creator who already replied) — it records its own timestamp.
+  // videoNudge (video sent → booking) and pediuVideo (asked for the video, not
+  // sent yet) are volume-model touches for creators who already replied. They
+  // must NOT increment the no-reply followUpsDone counter (that would corrupt
+  // the dia-3/7/14 cadence) and must NOT move the card out of its column — they
+  // record their own dedup timestamp and leave the derived stage intact.
   const isVideoNudge = body.milestone === 'videoNudge';
+  const isPediuVideo = body.milestone === 'pediuVideo';
   const milestone = ['softNudge', 'valueDrop', 'lastTouch'].includes(body.milestone)
     ? body.milestone
     : null;
@@ -53,6 +56,15 @@ export async function POST(request, { params }) {
       outreach: { ...creator.outreach, videoNudgedAt: at, videoNudgedBy: by },
     });
     return NextResponse.json({ ok: true, videoNudge: true, creator: updated });
+  }
+
+  if (isPediuVideo) {
+    const at = new Date().toISOString();
+    const by = { userId: user.userId, firstName: displayFirstName(user), email: user.email };
+    const updated = await updateCreator(id, {
+      outreach: { ...creator.outreach, pediuVideoNudgedAt: at, pediuVideoNudgedBy: by },
+    });
+    return NextResponse.json({ ok: true, pediuVideo: true, creator: updated });
   }
 
   const existing = Array.isArray(creator.outreach?.followUps) ? creator.outreach.followUps : [];

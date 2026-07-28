@@ -34,9 +34,11 @@ const CADENCE = {
   valueDrop: { day: 7,  followUpsDoneCap: 1, label: 'Dia 7'  },
   lastTouch: { day: 14, followUpsDoneCap: 2, label: 'Dia 14' },
 };
-// videoNudge (video sent, no booking) is the warmest — it sorts to the top.
-const URGENCY = { videoNudge: 4, lastTouch: 3, valueDrop: 2, softNudge: 1 };
+// pediuVideo (asked for the video, not sent yet) is the warmest — they literally
+// asked and we owe them the send — so it sorts above everything.
+const URGENCY = { pediuVideo: 5, videoNudge: 4, lastTouch: 3, valueDrop: 2, softNudge: 1 };
 const VIDEO_NUDGE_DAY = 2; // days after videoSentAt before the first nudge is due
+const PEDIU_VIDEO_NUDGE_DAY = 1; // days after videoRequestedAt before the first nudge is due
 
 export async function GET(request) {
   const user = await getCurrentUser(request);
@@ -181,6 +183,58 @@ export async function GET(request) {
     });
   }
 
+  // ── Pediu-vídeo nudges (volume model) ──
+  // Creators who asked for / accepted the video (videoRequestedAt) but we
+  // haven't sent it yet (no videoSentAt) and they haven't booked. They also
+  // REPLIED, so they're excluded from the top pass — separate gate here.
+  const pediuCandidates = summaries.filter(s => {
+    const st = s.pipelineStatus || 'prospect';
+    if (st === 'signed' || st === 'cold') return false;
+    if (s.addedByUserId !== user.userId) return false;
+    if (!s.videoRequestedAt) return false;
+    if (s.videoSentAt) return false; // already sent → handled by the video pass
+    if (s.callBookedAt || s.callHeldAt || s.pitchSentAt) return false;
+    return daysBetween(s.videoRequestedAt, now) >= PEDIU_VIDEO_NUDGE_DAY;
+  });
+  const pediuFulls = [];
+  for (let i = 0; i < pediuCandidates.length; i += 25) {
+    const chunk = pediuCandidates.slice(i, i + 25);
+    pediuFulls.push(...await Promise.all(chunk.map(s => getCreator(s.id).catch(() => null))));
+  }
+  for (const c of pediuFulls) {
+    if (!c) continue;
+    const out = c.outreach || {};
+    if (out.videoSentAt) continue;
+    if (out.callBookedAt || out.callAgreedAt || out.callHeldAt || c.pitch?.sentAt) continue;
+    if (!out.videoRequestedAt) continue;
+    const pdays = daysBetween(out.videoRequestedAt, now);
+    if (pdays < PEDIU_VIDEO_NUDGE_DAY) continue;
+    // Deduped: skip if the operator already nudged in the last day.
+    if (out.pediuVideoNudgedAt && daysBetween(out.pediuVideoNudgedAt, now) < PEDIU_VIDEO_NUDGE_DAY) continue;
+    const creatorFirstName = (c.name || '').split(/\s+/)[0] || 'pessoa';
+    const ownerFirstName = out.videoRequestedBy?.firstName || c.addedBy?.firstName || 'Raul';
+    const lang = (c.primaryLanguage || 'pt').toLowerCase();
+    const langCode = lang === 'en' ? 'en' : lang === 'es' ? 'es' : 'pt';
+    const igUrl = c.platforms?.instagram?.url
+      || (c.platforms?.instagram?.handle ? `https://instagram.com/${c.platforms.instagram.handle.replace(/^@/, '')}` : null);
+    items.push({
+      id: c.id,
+      name: c.name,
+      niche: c.niche,
+      profilePicUrl: c.profilePicUrl || null,
+      daysSinceDM: pdays, // reused for sort — here it's days-since-request
+      followUpsDone: 0,
+      milestone: 'pediuVideo',
+      milestoneLabel: 'Pediu vídeo',
+      dmText: buildFollowUpDm('pediuVideo', creatorFirstName, ownerFirstName, langCode),
+      igUrl,
+      hasContactEmail: !!(c.contactEmail || c.email),
+      contactEmail: c.contactEmail || c.email || null,
+      emailSubject: null,
+      emailBody: null,
+    });
+  }
+
   items.sort((a, b) => {
     const u = (URGENCY[b.milestone] || 0) - (URGENCY[a.milestone] || 0);
     if (u !== 0) return u;
@@ -191,6 +245,7 @@ export async function GET(request) {
     items,
     total: items.length,
     byMilestone: {
+      pediuVideo: items.filter(i => i.milestone === 'pediuVideo').length,
       videoNudge: items.filter(i => i.milestone === 'videoNudge').length,
       lastTouch: items.filter(i => i.milestone === 'lastTouch').length,
       valueDrop: items.filter(i => i.milestone === 'valueDrop').length,
