@@ -138,11 +138,9 @@ function LeadJourney({ creator }) {
   const N = nodes.length;
   // Combine date + time into one mono meta line ("02 jul · 14:32").
   const fmtStamp = (iso) => { const d = fmtDate(iso); const t = fmtTime(iso); return t ? `${d} · ${t}` : d; };
-  const NODE_MIN = 128;
 
   return (
     <div style={{ marginBottom: 40 }}>
-      <style>{`@keyframes slLeadPulse{0%{transform:scale(.6);opacity:.5}70%{transform:scale(1.85);opacity:0}100%{opacity:0}}`}</style>
       <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 4, flexWrap: "wrap", gap: 8, maxWidth: 640 }}>
         <h3 style={{ ...sectionTitleStyle, margin: 0 }}>Percurso do lead</h3>
         {totalMs != null && steps.length > 0 && (
@@ -158,58 +156,46 @@ function LeadJourney({ creator }) {
       {N === 0 ? (
         <div style={{ fontSize: 12, color: "#555", padding: "14px 0" }}>Ainda sem atividade registada.</div>
       ) : (
+        // Cards flex-shrink to fit the column (no forced min-width → no clipping);
+        // overflow-x is a safety net for extreme journeys on narrow screens.
         <div style={{ overflowX: "auto", overflowY: "hidden", paddingBottom: 4 }}>
-          <div style={{ display: "flex", alignItems: "stretch", width: "100%", minWidth: N * (NODE_MIN + 24) }}>
+          <div style={{ display: "flex", alignItems: "stretch", width: "100%" }}>
             {nodes.map((n, i) => {
               const prev = i > 0 ? nodes[i - 1] : null;
               const solidConn = prev && !prev.dimmed && !n.dimmed;
               const isSigned = n.isTerminal && n.key === "signed";
-              const isFrioT = n.isTerminal && n.key === "frio";
               // Card surface: reached = faint fill, current = brighter frame,
               // upcoming = faint outline only.
-              const cardBorder = n.ongoing ? "rgba(255,255,255,0.22)" : n.dimmed ? "rgba(255,255,255,0.05)" : "rgba(255,255,255,0.09)";
+              const cardBorder = n.ongoing ? "rgba(255,255,255,0.24)" : n.dimmed ? "rgba(255,255,255,0.05)" : "rgba(255,255,255,0.09)";
               const cardBg = n.ongoing ? "rgba(255,255,255,0.05)" : n.dimmed ? "transparent" : "rgba(255,255,255,0.02)";
               return (
                 <React.Fragment key={n.key + i}>
                   {/* Connector — 1px line through the gap; gap value above it for reached pairs */}
                   {i > 0 && (
-                    <div style={{ flex: "0 0 auto", width: 24, position: "relative" }}>
+                    <div style={{ flex: "0 0 20px", position: "relative" }}>
                       <div style={{ position: "absolute", top: "50%", left: 0, right: 0, height: 1, background: solidConn ? "rgba(255,255,255,0.14)" : "rgba(255,255,255,0.05)" }} />
                       {solidConn && (
-                        <span style={{ position: "absolute", top: "calc(50% - 15px)", left: "50%", transform: "translateX(-50%)", fontSize: 8, color: "#5f5f5f", fontFamily: "ui-monospace, monospace", whiteSpace: "nowrap" }}>
+                        <span style={{ position: "absolute", top: "calc(50% - 14px)", left: "50%", transform: "translateX(-50%)", fontSize: 8, color: "#5f5f5f", fontFamily: "ui-monospace, monospace", whiteSpace: "nowrap" }}>
                           {fmtGap(prev.durationMs)}
                         </span>
                       )}
                     </div>
                   )}
-                  {/* Stage card */}
+                  {/* Stage card — no dot, shrinks to fit */}
                   <div
                     ref={n.ongoing ? currentRef : null}
                     style={{
-                      flex: 1, minWidth: NODE_MIN, boxSizing: "border-box",
-                      border: `1px solid ${cardBorder}`, background: cardBg, borderRadius: 10,
-                      padding: "11px 13px", display: "flex", flexDirection: "column", gap: 8,
+                      flex: "1 1 0", minWidth: 72, boxSizing: "border-box",
+                      border: `1px solid ${cardBorder}`, background: cardBg, borderRadius: 8,
+                      padding: "8px 10px", display: "flex", flexDirection: "column", gap: 5,
                       opacity: n.dimmed ? 0.72 : 1,
                     }}
                   >
-                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                      <span style={{ position: "relative", width: 9, height: 9, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                        {n.ongoing && <span style={{ position: "absolute", inset: -2, borderRadius: "50%", border: "1.5px solid rgba(255,255,255,0.5)", animation: "slLeadPulse 2.6s ease-out infinite" }} />}
-                        <span style={{
-                          width: n.dimmed ? 8 : 9, height: n.dimmed ? 8 : 9,
-                          borderRadius: isFrioT ? 2 : "50%",
-                          background: n.dimmed ? "transparent" : n.accent,
-                          border: n.dimmed ? "1.5px solid #3a3a3a" : "none",
-                          boxSizing: "border-box",
-                          boxShadow: n.ongoing ? "0 0 8px rgba(255,255,255,0.35)" : "none",
-                        }} />
-                      </span>
-                      <span style={{ fontSize: 11, fontWeight: n.ongoing ? 700 : 600, color: n.ongoing ? "#f5f5f5" : isSigned ? "#22c55e" : n.dimmed ? "#6a6a6a" : "#d3d3d3", lineHeight: 1.2, letterSpacing: "-0.01em" }}>
-                        {n.eventLabel || n.label}
-                      </span>
-                    </div>
+                    <span style={{ fontSize: 11, fontWeight: n.ongoing ? 700 : 600, color: n.ongoing ? "#f5f5f5" : isSigned ? "#22c55e" : n.dimmed ? "#6a6a6a" : "#d3d3d3", lineHeight: 1.2, letterSpacing: "-0.01em" }}>
+                      {n.eventLabel || n.label}
+                    </span>
                     {n.ongoing ? (
-                      <span style={{ alignSelf: "flex-start", fontSize: 8, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: "#eaeaea", background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.13)", borderRadius: 999, padding: "2px 8px", whiteSpace: "nowrap" }}>
+                      <span style={{ alignSelf: "flex-start", fontSize: 8, fontWeight: 700, letterSpacing: "0.05em", textTransform: "uppercase", color: "#eaeaea", background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.13)", borderRadius: 999, padding: "2px 7px", whiteSpace: "nowrap" }}>
                         atual · há {formatDurationShort(n.durationMs)}
                       </span>
                     ) : n.enteredAt ? (
