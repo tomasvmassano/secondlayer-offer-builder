@@ -277,6 +277,9 @@ ${postPerformanceData || 'No post data'}`,
       }
     }
 
+    // source (capture gap #3) — these creators came from the discovery engine.
+    profile.source = 'discovery';
+
     // Save to CRM as Novos (or return existing if already exists)
     const saved = await saveCreator(profile);
 

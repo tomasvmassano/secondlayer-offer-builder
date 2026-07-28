@@ -252,6 +252,11 @@ RESEARCH: [2-3 paragraph summary]`,
       };
     }
 
+    // source (capture gap #3) — how the creator entered the CRM. The caller
+    // (import UI) can pass an explicit source; otherwise we infer: a bulk
+    // import always carries minDealScore, a single manual add doesn't.
+    profile.source = body.source || (body.minDealScore != null ? 'import' : 'manual');
+
     // saveCreator dedupes by IG handle internally: if the creator already
     // exists, it returns { id: <existing>, duplicate: true } without writing.
     // We need to surface that to the caller so the UI can show "already in CRM"
