@@ -1071,8 +1071,15 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
     return () => { clearTimeout(tid); window.removeEventListener('keydown', onKey); };
   }, [undoToast, undoDelete]);
   const markSent = useCallback(async (id) => {
-    await writeRows(rows => rows.map(m => m.id === id ? ({ ...m, sentAt: new Date().toISOString() }) : m));
-  }, [writeRows]);
+    const at = new Date().toISOString();
+    await writeRows(rows => rows.map(m => m.id === id ? ({ ...m, sentAt: at }) : m));
+    // Response-latency capture (gap #4): the first reply we send back stamps
+    // firstResponseAt. The server derives the lag from the creator's repliedAt.
+    const cur = creatorRef.current;
+    if (cur?.outreach?.repliedAt && !cur?.outreach?.firstResponseAt) {
+      patchCreator({ outreach: { firstResponseAt: at } });
+    }
+  }, [writeRows, patchCreator]);
   const regenerateAi = useCallback(async (id) => {
     // Read via ref so we always look up against the LATEST state, not the
     // creator captured when the row was rendered.
@@ -1266,9 +1273,31 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
       return;
     }
     const [reasonKey] = reasons[idx];
+
+    // Objection picklist — the specific pushback voiced. Only asked for
+    // engaged losses (a ghost never voiced one). Optional: blank keeps it null.
+    let objection = null;
+    if (reasonKey !== 'ghost') {
+      const objections = [
+        ['price',        'Preço'],
+        ['no_time',      'Sem tempo / largura de banda'],
+        ['no_trust',     'Falta de confiança / prova'],
+        ['has_solution', 'Já tem solução'],
+        ['not_priority', 'Não é prioridade agora'],
+        ['no_fit',       'Não faz sentido para ela'],
+      ];
+      const oMsg = 'Objeção principal? (opcional)\n\n' + objections.map((r, i) => `${i + 1}. ${r[1]}`).join('\n') + '\n\nEscreve 1-6 (ou deixa vazio):';
+      const oRaw = window.prompt(oMsg, '');
+      const oIdx = Number(String(oRaw || '').trim()) - 1;
+      if (Number.isInteger(oIdx) && oIdx >= 0 && oIdx < objections.length) {
+        objection = objections[oIdx][0];
+      }
+    }
+
     await patchCreator({
       pipelineStatus: 'cold',
       lostReason: reasonKey,
+      objection,
       lostAt: new Date().toISOString(),
     });
   }, [patchCreator]);

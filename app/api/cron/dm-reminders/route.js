@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { listCreators, getCreator, updateCreator } from '../../../lib/creators';
 import { getCurrentUser } from '../../../lib/auth';
 import { recordCronRun } from '../../../lib/adminInfra';
+import { computeOutreachStage } from '../../../lib/outreachStages';
 
 // Daily cron should finish in seconds — listCreators returns summaries, we
 // fetch full records only for prospects that haven't replied.
@@ -206,6 +207,9 @@ export async function GET(request) {
           if (!(fo.callBookedAt || fo.callAgreedAt || fo.callHeldAt)) {
             await updateCreator(c.id, {
               pipelineStatus: 'cold',
+              lostReason: 'ghost',
+              lostAt: now.toISOString(),
+              lostStage: computeOutreachStage(c),
               outreach: { remindersSent: { autoCold: now.toISOString() } },
             }).catch(() => null);
           }
@@ -261,6 +265,9 @@ export async function GET(request) {
           if (!(fo.videoSentAt || fo.callBookedAt || fo.callAgreedAt || fo.callHeldAt)) {
             await updateCreator(c.id, {
               pipelineStatus: 'cold',
+              lostReason: 'ghost',
+              lostAt: now.toISOString(),
+              lostStage: computeOutreachStage(c),
               outreach: { remindersSent: { autoCold: now.toISOString() } },
             }).catch(() => null);
           }
@@ -345,6 +352,9 @@ export async function GET(request) {
         if (!freshCheck?.outreach?.repliedAt) {
           await updateCreator(c.id, {
             pipelineStatus: 'cold',
+            lostReason: 'ghost',
+            lostAt: now.toISOString(),
+            lostStage: computeOutreachStage(c),
             outreach: { remindersSent: { autoCold: now.toISOString() } },
           }).catch(() => null);
         }

@@ -149,6 +149,24 @@ export async function PATCH(request, { params }) {
       body.outreach = { ...body.outreach, ...computeReplyAttribution(before, body.outreach.repliedAt) };
     }
 
+    // Stage-at-loss (capture gap #2) — when a lead first goes cold, record the
+    // stage it died in, derived from the pre-cold state. Reason/objection come
+    // from the loss prompt; this fills in the "where" automatically.
+    if (body.pipelineStatus === 'cold' && before?.pipelineStatus !== 'cold' && body.lostStage == null) {
+      body.lostStage = computeOutreachStage(before);
+    }
+
+    // Response latency (capture gap #4) — the first time the operator marks
+    // their reply sent, derive the lag from the creator's reply. Needs both
+    // ends: repliedAt (theirs) and firstResponseAt (ours).
+    if (body.outreach?.firstResponseAt && !before?.outreach?.firstResponseAt) {
+      const repliedAt = before?.outreach?.repliedAt || body.outreach?.repliedAt;
+      if (repliedAt) {
+        const hrs = (new Date(body.outreach.firstResponseAt).getTime() - new Date(repliedAt).getTime()) / 3_600_000;
+        if (Number.isFinite(hrs)) body.outreach.firstResponseLatencyHrs = Math.max(0, Math.round(hrs * 10) / 10);
+      }
+    }
+
     const updated = await updateCreator(id, body);
     if (!updated) {
       return NextResponse.json({ error: 'Creator not found' }, { status: 404 });

@@ -414,6 +414,17 @@ export async function saveCreator(data) {
     // ghost | competitor | other. Null while the deal is still live.
     lostReason: data.lostReason || null,
     lostAt: data.lostAt || null,
+    // Loss detail (capture gap #2). lostStage = kanban stage the lead died in
+    // (stamped server-side at the cold transition). objection = the specific
+    // pushback voiced, from a fixed picklist (engaged losses only).
+    lostStage: data.lostStage || null,
+    objection: data.objection || null,
+    // source (capture gap #3) — how the creator entered the CRM, stamped at
+    // creation by whoever added them (discovery / import / manual / referral).
+    source: data.source || null,
+    // dmVariant (capture gap #3) — which cold-DM opener variant this creator
+    // was assigned, for reply-rate A/B. Assigned once on first DM generation.
+    dmVariant: data.dmVariant || null,
     // Outreach tracking — drives the daily reminders digest.
     //   dmSentAt, emailSentAt: when the initial outreach was sent (manually marked)
     //   followUpsDone: 0..3 — count of follow-up touches completed
@@ -446,6 +457,11 @@ export async function saveCreator(data) {
       repliedFromStage: null,
       repliedAfterTouch: null,
       repliedTouchAgeHrs: null,
+      // Response latency (capture gap #4) — when the operator first replied
+      // back after the creator's reply. firstResponseLatencyHrs is derived
+      // server-side (firstResponseAt − repliedAt). The warm-lead killer metric.
+      firstResponseAt: null,
+      firstResponseLatencyHrs: null,
       // videoRequestedAt — creator asked for / accepted the video (Pediu vídeo).
       videoRequestedAt: null,
       // videoSentAt — operator sent the generic video after the reply (volume
