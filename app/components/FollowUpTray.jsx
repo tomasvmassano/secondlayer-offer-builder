@@ -26,6 +26,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
  */
 
 const MILESTONE_STYLES = {
+  voiceNote: { label: "Nota de voz", color: "#14b8a6", bg: "rgba(20,184,166,0.12)", border: "rgba(20,184,166,0.3)" },
   pediuVideo: { label: "Pediu vídeo", color: "#a855f7", bg: "rgba(168,85,247,0.12)", border: "rgba(168,85,247,0.3)" },
   videoNudge: { label: "Vídeo", color: "#8b5cf6", bg: "rgba(139,92,246,0.12)", border: "rgba(139,92,246,0.3)" },
   softNudge: { label: "Dia 3",  color: "#f59e0b", bg: "rgba(245,158,11,0.12)", border: "rgba(245,158,11,0.3)" },
@@ -117,6 +118,7 @@ export default function FollowUpTray({ onAfterCopy }) {
 
   // Group counts for the expanded header.
   const counts = {
+    voiceNote: items.filter(i => i.milestone === "voiceNote").length,
     pediuVideo: items.filter(i => i.milestone === "pediuVideo").length,
     videoNudge: items.filter(i => i.milestone === "videoNudge").length,
     lastTouch: items.filter(i => i.milestone === "lastTouch").length,
@@ -308,6 +310,26 @@ export default function FollowUpTray({ onAfterCopy }) {
                         {m.label}
                       </span>
                     </div>
+                    {item.milestone === "voiceNote" && item.dmText && (
+                      <div style={{
+                        margin: "0 0 8px",
+                        padding: "8px 10px",
+                        background: "rgba(20,184,166,0.06)",
+                        border: "1px solid rgba(20,184,166,0.18)",
+                        borderRadius: 6,
+                        fontSize: 11,
+                        lineHeight: 1.5,
+                        color: "#cbd5d1",
+                        maxHeight: 132,
+                        overflowY: "auto",
+                        whiteSpace: "pre-wrap",
+                      }}>
+                        <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.05em", textTransform: "uppercase", color: "#14b8a6", marginBottom: 4 }}>
+                          Guião do áudio · lê em voz alta
+                        </div>
+                        {item.dmText}
+                      </div>
+                    )}
                     <div style={{ display: "flex", gap: 6 }}>
                       <a
                         href={`/creators/${item.id}`}
@@ -347,7 +369,10 @@ export default function FollowUpTray({ onAfterCopy }) {
                           transition: "background 0.15s, color 0.15s",
                         }}
                       >
-                        {wasCopied ? "Copiado ✓ a abrir IG" : isBusy ? "…" : "Copiar e abrir Instagram"}
+                        {wasCopied
+                          ? (item.milestone === "voiceNote" ? "Guião copiado ✓ a abrir IG" : "Copiado ✓ a abrir IG")
+                          : isBusy ? "…"
+                          : (item.milestone === "voiceNote" ? "Copiar guião e abrir Instagram" : "Copiar e abrir Instagram")}
                       </button>
                     </div>
                   </div>

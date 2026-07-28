@@ -32,6 +32,10 @@ export async function POST(request, { params }) {
   // record their own dedup timestamp and leave the derived stage intact.
   const isVideoNudge = body.milestone === 'videoNudge';
   const isPediuVideo = body.milestone === 'pediuVideo';
+  // voiceNote is the day-45 revival touch. It's fired against a COLD lead and
+  // must not change pipelineStatus or the counter — it only records that the
+  // voice note went out (dedup for both the tray and the cron digest).
+  const isVoiceNote = body.milestone === 'voiceNote';
   const milestone = ['softNudge', 'valueDrop', 'lastTouch'].includes(body.milestone)
     ? body.milestone
     : null;
@@ -65,6 +69,21 @@ export async function POST(request, { params }) {
       outreach: { ...creator.outreach, pediuVideoNudgedAt: at, pediuVideoNudgedBy: by },
     });
     return NextResponse.json({ ok: true, pediuVideo: true, creator: updated });
+  }
+
+  if (isVoiceNote) {
+    const at = new Date().toISOString();
+    const by = { userId: user.userId, firstName: displayFirstName(user), email: user.email };
+    const updated = await updateCreator(id, {
+      outreach: {
+        ...creator.outreach,
+        voiceNotedAt: at,
+        voiceNotedBy: by,
+        // Mirror the cron dedup key so the daily digest won't also chase it.
+        remindersSent: { ...(creator.outreach?.remindersSent || {}), voiceNote45: at },
+      },
+    });
+    return NextResponse.json({ ok: true, voiceNote: true, creator: updated });
   }
 
   const existing = Array.isArray(creator.outreach?.followUps) ? creator.outreach.followUps : [];

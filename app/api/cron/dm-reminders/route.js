@@ -57,21 +57,27 @@ const VIDEO_COLD_DAYS = 7;
 
 // Pediu-vídeo cadence (volume model). Creator showed interest / asked for the
 // video (outreach.videoRequestedAt) but went quiet before we sent it or before
-// they replied again. Warmest lead in the pipeline — they literally asked — so
-// we chase harder: nudge at days 1/3/5/7/9/12/14, then auto-cool at +16.
+// they replied again. Nudge at days 2/4/9/14, then auto-cool at +16.
 // Highest-day-first so we pick the latest nudge reached-but-not-yet-sent.
-// NOTE: 7 touches is aggressive; the array is the single tuning knob if the
-// team wants to soften it. Reminder keys are pv1..pv7 (stored in remindersSent).
+// The array is the single tuning knob. Reminder keys pv1..pv4 (in remindersSent).
 const PEDIU_VIDEO_CADENCE = [
-  { day: 14, reminderKey: 'pv7' },
-  { day: 12, reminderKey: 'pv6' },
-  { day: 9,  reminderKey: 'pv5' },
-  { day: 7,  reminderKey: 'pv4' },
-  { day: 5,  reminderKey: 'pv3' },
-  { day: 3,  reminderKey: 'pv2' },
-  { day: 1,  reminderKey: 'pv1' },
+  { day: 14, reminderKey: 'pv4' },
+  { day: 9,  reminderKey: 'pv3' },
+  { day: 4,  reminderKey: 'pv2' },
+  { day: 2,  reminderKey: 'pv1' },
 ];
 const PEDIU_VIDEO_COLD_DAYS = 16;
+
+// Day-45 voice note (manual, high-effort). One personal audio touch to REVIVE a
+// lead that went cold without ever converting. Works for both paths: pediu-vídeo
+// ghosts (measured from videoRequestedAt) and first-DM non-responders (measured
+// from dmSentAt). The operator records + sends it by hand — the system only
+// surfaces the reminder + the script (see buildFollowUpDm 'voiceNote'). Only
+// AUTO-cooled leads qualify; anyone who explicitly said no (notInterestedAt) is
+// left alone. Windowed (45..60d) so shipping doesn't surface a huge backlog of
+// ancient cold leads at once; deduped via remindersSent.voiceNote45 (fires once).
+const VOICE_NOTE_DAY = 45;
+const VOICE_NOTE_WINDOW_END = 60;
 
 const DAY_MS = 86_400_000;
 const daysBetween = (a, b) => Math.floor((new Date(b).getTime() - new Date(a).getTime()) / DAY_MS);
@@ -173,7 +179,7 @@ export async function GET(request) {
     fulls.push(...loaded);
   }
 
-  const buckets = { lastTouch: [], valueDrop: [], softNudge: [], videoNudge: [], pediuVideo: [], noDm: [], autoCold: [] };
+  const buckets = { lastTouch: [], valueDrop: [], softNudge: [], videoNudge: [], pediuVideo: [], voiceNote: [], noDm: [], autoCold: [] };
   const cooled = []; // creators we auto-mark cold this run
 
   for (const c of fulls) {
@@ -410,7 +416,57 @@ export async function GET(request) {
     }
   }
 
-  const totalDue = buckets.lastTouch.length + buckets.valueDrop.length + buckets.softNudge.length + buckets.videoNudge.length + buckets.pediuVideo.length;
+  // ── Day-45 voice-note revival (cold leads) ──
+  // The main loop only sees non-cold candidates. This separate scan targets
+  // leads that went cold WITHOUT converting and surfaces ONE manual voice-note
+  // task (with a script) ~45 days after their first DM / video request. Explicit
+  // "não interessado" leads (notInterestedAt) are excluded — they said no.
+  const voiceCandidates = summaries.filter(s => {
+    if ((s.pipelineStatus || 'prospect') !== 'cold') return false;
+    const anchor = s.videoRequestedAt || s.dmSentAt || null;
+    if (!anchor) return false;
+    const d = daysBetween(anchor, now);
+    return d >= VOICE_NOTE_DAY && d <= VOICE_NOTE_WINDOW_END;
+  });
+  const voiceFulls = [];
+  for (let i = 0; i < voiceCandidates.length; i += 25) {
+    const chunk = voiceCandidates.slice(i, i + 25);
+    voiceFulls.push(...await Promise.all(chunk.map(s => getCreator(s.id).catch(() => null))));
+  }
+  for (const c of voiceFulls) {
+    if (!c) continue;
+    const out = c.outreach || {};
+    if (out.notInterestedAt) continue;                                  // said no → leave alone
+    if (out.callBookedAt || out.callAgreedAt || out.callHeldAt || c.pitch?.sentAt) continue; // progressed → skip
+    const rs = out.remindersSent || {};
+    if (!isCatchup && rs.voiceNote45) continue;                         // already surfaced once
+    const anchor = out.videoRequestedAt || out.dmSentAt || c.dmSequence?.generatedAt || null;
+    if (!anchor) continue;
+    const vdays = daysBetween(anchor, now);
+    const owner = FIRSTNAME_TO_EMAIL[canonicaliseName(
+      out.videoRequestedBy?.firstName || out.dmSentBy?.firstName || c.addedBy?.firstName || ''
+    )] || null;
+    const ownerFirstName = out.videoRequestedBy?.firstName || out.dmSentBy?.firstName || c.addedBy?.firstName || 'Raul';
+    const lang = (c.primaryLanguage || 'pt').toLowerCase();
+    const langCode = lang === 'en' ? 'en' : lang === 'es' ? 'es' : 'pt';
+    const creatorFirstName = (c.name || '').split(/\s+/)[0] || 'pessoa';
+    const igUrl = c.platforms?.instagram?.url
+      || (c.platforms?.instagram?.handle ? `https://instagram.com/${c.platforms.instagram.handle.replace(/^@/, '')}` : null);
+    buckets.voiceNote.push({
+      id: c.id, name: c.name, niche: c.niche, followers: pickFollowers(c),
+      daysSinceRequest: vdays, ownerEmail: owner, igUrl,
+      followUpDm: buildFollowUpDm('voiceNote', creatorFirstName, ownerFirstName, langCode),
+      milestoneKey: 'voiceNote',
+      hasContactEmail: !!(c.contactEmail || c.email),
+    });
+    if (!isCatchup) {
+      await updateCreator(c.id, {
+        outreach: { ...out, remindersSent: { ...rs, voiceNote45: now.toISOString() } },
+      }).catch(() => null);
+    }
+  }
+
+  const totalDue = buckets.lastTouch.length + buckets.valueDrop.length + buckets.softNudge.length + buckets.videoNudge.length + buckets.pediuVideo.length + buckets.voiceNote.length;
   const stats = {
     type: 'dm-reminders',
     status: 'ok',
@@ -419,6 +475,7 @@ export async function GET(request) {
     softNudge: buckets.softNudge.length,
     videoNudge: buckets.videoNudge.length,
     pediuVideo: buckets.pediuVideo.length,
+    voiceNote: buckets.voiceNote.length,
     noDm: buckets.noDm.length,
     autoCold: buckets.autoCold.length,
     totalDue,
@@ -440,7 +497,7 @@ export async function GET(request) {
   }
   for (const op of targetOps) {
     const view = filterForOperator(buckets, op.email);
-    const opTotalDue = view.lastTouch.length + view.valueDrop.length + view.softNudge.length + view.videoNudge.length + view.pediuVideo.length;
+    const opTotalDue = view.lastTouch.length + view.valueDrop.length + view.softNudge.length + view.videoNudge.length + view.pediuVideo.length + view.voiceNote.length;
     const actionable = opTotalDue > 0 || view.noDm.length > 0 || view.autoCold.length > 0;
     if (!actionable) {
       perOperator.push({ email: op.email, sent: false, reason: 'nothing-due' });
@@ -481,6 +538,7 @@ function filterForOperator(buckets, operatorEmail) {
     softNudge: buckets.softNudge.filter(keep),
     videoNudge: buckets.videoNudge.filter(keep),
     pediuVideo: buckets.pediuVideo.filter(keep),
+    voiceNote:  buckets.voiceNote.filter(keep),
     noDm:      buckets.noDm.filter(keep),
     autoCold:  buckets.autoCold.filter(keep),
   };
@@ -508,6 +566,10 @@ const DM_TEMPLATES = {
     videoNudge: `Olá {creator},\n\nSó a confirmar que viste o vídeo que te enviei. Se fez sentido, o próximo passo é uma conversa rápida de 15 min. Queres que te passe alguns horários?\n\nAbraço,\n{sender}`,
     // Showed interest / asked for the video but went quiet before we sent it.
     pediuVideo: `Olá {creator},\n\nDisseste que querias que te mandasse o vídeo a explicar melhor o que fazemos. Ainda faz sentido para ti? Se sim, mando-to já.\n\nAbraço,\n{sender}`,
+    // Day-45 voice-note SCRIPT (spoken, not pasted). The operator records this as
+    // an audio note in the DM and sends it by hand. Kept short, natural, and
+    // generic enough to work whether or not the creator ever replied.
+    voiceNote: `Olá {creator}, fala o {sender} da Second Layer, vou ser rápido. Já te tinha escrito há umas semanas mas sei que a caixa de entrada enche, por isso preferi gravar em vez de escrever. Nós ajudamos criadores como tu a transformar a audiência que já têm numa receita recorrente e mais previsível, com uma comunidade à volta do que já fazes, sem depender de marcas nem do algoritmo. Não sei se é o teu momento, mas se tiveres um bocadinho de curiosidade respondo-te aqui a qualquer pergunta, ou mando-te um vídeo curto a explicar como funciona. Diz-me só se queres. Um abraço.`,
   },
   en: {
     softNudge:  `Hey {creator},\n\nNot trying to be pushy. Just thinking about what I sent the other day and wondering if it landed for your case. Even a quick "not now" helps.\n\nCheers,\n{sender}`,
@@ -515,6 +577,7 @@ const DM_TEMPLATES = {
     lastTouch:  `Hey {creator},\n\nLast message from my side. I won't reach out again. If anything changes down the line, the door stays open.\n\nCheers,\n{sender}`,
     videoNudge: `Hey {creator},\n\nJust checking you saw the video I sent. If it made sense, the next step is a quick 15-min chat. Want me to share a few times?\n\nCheers,\n{sender}`,
     pediuVideo: `Hey {creator},\n\nYou said you wanted me to send over the video explaining what we do in more detail. Still up for it? If so, I'll send it right now.\n\nCheers,\n{sender}`,
+    voiceNote: `Hey {creator}, it's {sender} from Second Layer, I'll keep this quick. I messaged you a few weeks back but I know the inbox gets buried, so I figured I'd just record this instead of writing. We help creators like you turn the audience you already have into recurring, more predictable revenue, by building a community around what you already do, without relying on brand deals or the algorithm. I don't know if the timing's right for you, but if you're even a bit curious I'm happy to answer anything here, or send you a short video explaining how it works. Just let me know. Cheers.`,
   },
   es: {
     softNudge:  `Hola {creator},\n\nNo quiero ser pesado. Volví a pensar en lo que te escribí y quería saber si tuvo sentido para tu caso. Aunque no sea el momento, cualquier feedback ayuda.\n\nUn abrazo,\n{sender}`,
@@ -522,6 +585,7 @@ const DM_TEMPLATES = {
     lastTouch:  `Hola {creator},\n\nÚltimo mensaje de mi lado. No te volveré a escribir. Si algún día cambia, la puerta queda abierta.\n\nUn abrazo,\n{sender}`,
     videoNudge: `Hola {creator},\n\nSolo confirmo que viste el vídeo que te envié. Si te encajó, el siguiente paso es una charla rápida de 15 min. ¿Te paso algunos horarios?\n\nUn abrazo,\n{sender}`,
     pediuVideo: `Hola {creator},\n\nDijiste que querías que te mandara el vídeo explicando mejor lo que hacemos. ¿Todavía te encaja? Si es así, te lo mando ya.\n\nUn abrazo,\n{sender}`,
+    voiceNote: `Hola {creator}, soy {sender} de Second Layer, voy a ser rápido. Ya te había escrito hace unas semanas pero sé que la bandeja de entrada se llena, así que preferí grabarte esto en vez de escribir. Ayudamos a creadores como tú a convertir la audiencia que ya tienes en ingresos recurrentes y más previsibles, con una comunidad alrededor de lo que ya haces, sin depender de marcas ni del algoritmo. No sé si es tu momento, pero si tienes algo de curiosidad te respondo aquí a lo que quieras, o te mando un vídeo corto explicando cómo funciona. Dime y ya está. Un abrazo.`,
   },
 };
 
@@ -585,6 +649,7 @@ async function sendDigest(operator, buckets, stats, opts = {}) {
       : `Tens ${headlineCount} follow-up${headlineCount === 1 ? '' : 's'} para fazer hoje.`,
     ``,
   ];
+  if (buckets.voiceNote?.length) lines.push(`• ${buckets.voiceNote.length} nota de voz dia 45 (reativar frios)`);
   if (buckets.pediuVideo?.length) lines.push(`• ${buckets.pediuVideo.length} pediu vídeo (à espera do envio)`);
   if (buckets.videoNudge?.length) lines.push(`• ${buckets.videoNudge.length} vídeo enviado (sem marcação)`);
   if (buckets.lastTouch.length) lines.push(`• ${buckets.lastTouch.length} dia 14 (último toque)`);
@@ -623,6 +688,7 @@ async function sendDigest(operator, buckets, stats, opts = {}) {
 
   ${headlineCount === 0 ? '' : `
     <div style="margin: 4px 0 22px;">
+      ${counterRow('#14b8a6', 'Nota de voz', buckets.voiceNote?.length || 0)}
       ${counterRow('#a855f7', 'Pediu vídeo', buckets.pediuVideo?.length || 0)}
       ${counterRow('#8b5cf6', 'Vídeo',   buckets.videoNudge?.length || 0)}
       ${counterRow('#ea580c', 'Dia 14',  buckets.lastTouch.length)}
