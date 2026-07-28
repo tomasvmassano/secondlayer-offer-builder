@@ -9,7 +9,7 @@ import { detectCurrency, CURRENCY_SYMBOLS, convert as fxConvert, convertPriceStr
 import { renderMd, parseOutput, extractAudience } from "../../lib/offerParser";
 import { legacyParsedToOfferState, CHECKPOINTS, readCheckpointProgress, readOfferState } from "../../lib/offerSchema";
 import WorkspaceDashboard from "./workspace/WorkspaceDashboard";
-import { STAGES, computeOutreachStage, stagePatch } from "../../lib/outreachStages";
+import { STAGES, computeOutreachStage, stagePatch, stageTimeline, formatDurationShort } from "../../lib/outreachStages";
 import { OFFER_ARCHETYPE_LABELS_PT as OFFER_ARCHETYPE_LABELS, OFFER_ARCHETYPE_DESCRIPTIONS_PT as OFFER_ARCHETYPE_DESCRIPTIONS } from "../../lib/schemas/offerArchetypes";
 import { parseJsonSafe } from "../../lib/clientFetch";
 import { safeStringify } from "../../lib/safeJson";
@@ -103,6 +103,82 @@ const sectionTitleStyle = { fontSize: 11, fontWeight: 600, color: "#555", textTr
 const inputStyle = { width: "100%", padding: "10px 14px", background: "#1a1a1a", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 8, color: "#f5f5f5", fontSize: 13, fontFamily: "inherit", outline: "none", boxSizing: "border-box", resize: "vertical" };
 
 // ─────────────────────────────────────────────────────────────────
+// LeadJourney — the lead's path through the pipeline, with time spent in
+// each stage. Derived (stageTimeline) from the same timestamps the Kanban
+// stamps, so it always matches the board. The last stage of an active lead
+// is marked "atual" and its time counts up to now. Terminal outcomes
+// (Assinado / Frio) cap the journey. Data-quality note lives in the UI copy:
+// stages a lead skipped simply don't appear.
+// ─────────────────────────────────────────────────────────────────
+function LeadJourney({ creator }) {
+  const { steps, terminal, totalMs } = stageTimeline(creator);
+  const fmtDate = (iso) => {
+    if (!iso) return "";
+    try { return new Date(iso).toLocaleDateString("pt-PT", { day: "numeric", month: "short" }); }
+    catch { return ""; }
+  };
+
+  return (
+    <div style={{ marginBottom: 34 }}>
+      <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 4 }}>
+        <h3 style={{ ...sectionTitleStyle, margin: 0 }}>Percurso do lead</h3>
+        {totalMs != null && steps.length > 0 && (
+          <span style={{ fontSize: 11, color: "#777" }}>
+            Total no pipeline: <strong style={{ color: "#bbb", fontFamily: "ui-monospace, monospace" }}>{formatDurationShort(totalMs)}</strong>
+          </span>
+        )}
+      </div>
+      <p style={{ fontSize: 11, color: "#555", margin: "0 0 16px", lineHeight: 1.5 }}>
+        Tempo em cada fase por onde este lead passou. Fases saltadas não aparecem.
+      </p>
+
+      {steps.length === 0 ? (
+        <div style={{ fontSize: 12, color: "#555", padding: "14px 0" }}>Ainda sem atividade registada.</div>
+      ) : (
+        <div style={{ position: "relative" }}>
+          {steps.map((s, i) => {
+            const last = i === steps.length - 1 && !terminal;
+            return (
+              <div key={s.key + i} style={{ display: "flex", gap: 12, position: "relative", paddingBottom: last ? 0 : 18 }}>
+                {/* Rail + dot */}
+                <div style={{ display: "flex", flexDirection: "column", alignItems: "center", flexShrink: 0 }}>
+                  <span style={{ width: 11, height: 11, borderRadius: "50%", background: s.accent, border: s.ongoing ? "2px solid #fff" : "2px solid transparent", boxShadow: s.ongoing ? `0 0 0 3px ${s.accent}44` : "none", marginTop: 3 }} />
+                  {!last && <span style={{ flex: 1, width: 2, background: "rgba(255,255,255,0.08)", marginTop: 3, minHeight: 22 }} />}
+                </div>
+                {/* Row content */}
+                <div style={{ flex: 1, minWidth: 0, display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 10 }}>
+                  <div style={{ minWidth: 0 }}>
+                    <span style={{ fontSize: 13, fontWeight: 600, color: s.ongoing ? "#f5f5f5" : "#cfcfcf" }}>{s.label}</span>
+                    {s.ongoing && <span style={{ marginLeft: 8, fontSize: 9, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: s.accent }}>atual</span>}
+                    <span style={{ display: "block", fontSize: 10, color: "#555", marginTop: 2 }}>desde {fmtDate(s.enteredAt)}</span>
+                  </div>
+                  <span style={{ fontSize: 12, fontWeight: 700, fontFamily: "ui-monospace, monospace", color: s.ongoing ? s.accent : "#888", whiteSpace: "nowrap" }}>
+                    {s.ongoing ? `há ${formatDurationShort(s.durationMs)}` : formatDurationShort(s.durationMs)}
+                  </span>
+                </div>
+              </div>
+            );
+          })}
+          {/* Terminal outcome */}
+          {terminal && (
+            <div style={{ display: "flex", gap: 12, position: "relative" }}>
+              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", flexShrink: 0 }}>
+                <span style={{ width: 11, height: 11, borderRadius: 3, background: terminal.accent, marginTop: 3 }} />
+              </div>
+              <div style={{ flex: 1, display: "flex", alignItems: "baseline", justifyContent: "space-between" }}>
+                <div>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: terminal.key === "signed" ? "#22c55e" : "#888" }}>{terminal.label}</span>
+                  {terminal.enteredAt && <span style={{ display: "block", fontSize: 10, color: "#555", marginTop: 2 }}>{fmtDate(terminal.enteredAt)}</span>}
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // DealPanel — the "Negócio" tab. Centralises the three things a
 // DM-sender needs on hand: the deal value (por quanto vamos fechar),
 // the Loom link (kept with the creator so nobody hunts for it across
@@ -143,6 +219,9 @@ function DealPanel({ creator, patchCreator }) {
       <p style={{ fontSize: 12, color: "#666", margin: "0 0 28px", lineHeight: 1.6 }}>
         Tudo o que precisas antes de mandar a DM, num sítio só — quanto vamos fechar, o link do vídeo, e as notas do contacto.
       </p>
+
+      {/* Percurso do lead — tempo em cada fase */}
+      <LeadJourney creator={creator} />
 
       {/* Valor a fechar */}
       <div style={{ marginBottom: 30 }}>

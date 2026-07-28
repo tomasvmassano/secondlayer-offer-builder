@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import {
   getTeamStats, getDailyScoreboard,
-  getFunnels, getTeamFunnel, getFunnelTiming, getStreaks, getPipelineHealth, getVelocity,
+  getFunnels, getTeamFunnel, getFunnelTiming, getStageAnalytics, getStreaks, getPipelineHealth, getVelocity,
   getQualityBreakdowns, getMonthlyTally, getNeedsAttention,
   getDeltas, getRevenueForecast, getActivitySeries,
   getHeatmap, getRecentActivity, getPacing,
@@ -68,6 +68,7 @@ export async function GET(request) {
       funnels,
       teamFunnel,
       funnelTiming,
+      stageAnalytics,
       streaks,
       pipeline,
       velocity,
@@ -100,6 +101,9 @@ export async function GET(request) {
       // Both derived from the Kanban timestamps — no manual entry.
       getTeamFunnel({ window: window === 'today' || window === 'yesterday' ? 'month' : window }),
       getFunnelTiming(),
+      // Full-pipeline stage analytics (all-time): step conversion + median
+      // time-in-stage across every volume-model stage. Team-wide.
+      getStageAnalytics(),
       getStreaks({ target }),
       getPipelineHealth(),
       getVelocity(),
@@ -138,7 +142,7 @@ export async function GET(request) {
 
     const payload = {
       window, target, quotaEurPerQuarter,
-      rows, scoreboard, funnels, teamFunnel, funnelTiming, streaks, pipeline, velocity, quality,
+      rows, scoreboard, funnels, teamFunnel, funnelTiming, stageAnalytics, streaks, pipeline, velocity, quality,
       monthlyTally, needsAttention, deltas, revenue, activity,
       heatmap, recentActivity, pacing,
       coverage, cac, touchpoints, showUp, lossReasons, followUpEff,

@@ -22,6 +22,7 @@
  */
 
 import { listCreators, getCreator } from './creators';
+import { stageEntries, STAGES, STAGE_KEYS } from './outreachStages';
 
 const TIMEZONE = 'Europe/Lisbon';
 
@@ -478,6 +479,97 @@ export async function getFunnelTiming({ now = new Date() } = {}) {
     cicloTotal:        avg(b.cicloTotal),
     sampleSize:        b.cicloTotal.length,
   };
+}
+
+// STAGE ANALYTICS — the full volume-model pipeline, team-wide, all-time
+// (post-reset). Two views the team asked for, both derived from the same
+// Kanban timestamps as the per-lead journey timeline (stageEntries), so the
+// card and the dashboard can never disagree:
+//
+//   1. rateSteps  — step conversion between the eight funnel MILESTONES
+//      (Contactado → Respondeu → Pediu vídeo → Vídeo enviado → Marcada →
+//      Realizada → Proposta → Assinado). Follow-ups are re-engagement, not
+//      funnel steps, so they're folded into "Contactado" here. Uses cumulative
+//      "reached this stage OR any later one" so leads that skip a stage (e.g.
+//      reply then book straight away, no video) still count as progressed —
+//      the counts stay monotonic and the % is honest.
+//
+//   2. timeSteps  — MEDIAN days spent in each Kanban stage (incl. the three
+//      follow-up windows). Counts ONLY leads that MOVED PAST the stage (a
+//      completed transition to whatever stage they entered next), so it reads
+//      as "how long this stage takes to clear". Median, not mean — a couple of
+//      leads that sit for weeks would wreck an average. A stage nobody has
+//      cleared yet returns null (shown as "—"), never a fake zero.
+export async function getStageAnalytics({ now = new Date() } = {}) {
+  const all = await loadAllCreators();
+
+  // ── 1. Rate funnel (milestones) ──
+  const CHAIN = ['contactado', 'respondeu', 'pediu_video', 'video', 'marcada', 'realizada', 'proposta', 'assinado'];
+  const CHAIN_LABELS = {
+    contactado: 'Contactado', respondeu: 'Respondeu', pediu_video: 'Pediu vídeo',
+    video: 'Vídeo enviado', marcada: 'Reunião marcada', realizada: 'Reunião realizada',
+    proposta: 'Proposta', assinado: 'Assinado',
+  };
+  const milestoneAt = (c) => {
+    const o = c.outreach || {};
+    const at = {
+      contactado:  o.dmSentAt || o.emailSentAt || null,
+      respondeu:   o.repliedAt || null,
+      pediu_video: o.videoRequestedAt || null,
+      video:       o.videoSentAt || null,
+      marcada:     o.callBookedAt || o.callAgreedAt || null,
+      realizada:   o.callHeldAt || null,
+      proposta:    c.pitch?.sentAt || null,
+      assinado:    c.pipelineStatus === 'signed' ? (c.signedAt || null) : null,
+    };
+    for (const k of CHAIN) if (!postReset(at[k])) at[k] = null; // competition-window gate
+    return at;
+  };
+  const reached = Object.fromEntries(CHAIN.map(k => [k, 0]));
+  for (const c of all) {
+    const at = milestoneAt(c);
+    let maxIdx = -1;
+    for (let i = 0; i < CHAIN.length; i++) if (at[CHAIN[i]]) maxIdx = i;
+    for (let i = 0; i <= maxIdx; i++) reached[CHAIN[i]] += 1;
+  }
+  const rateSteps = CHAIN.map((k, i) => {
+    const next = CHAIN[i + 1];
+    return {
+      key: k,
+      label: CHAIN_LABELS[k],
+      reached: reached[k],
+      toNextRate: next && reached[k] > 0 ? Math.round((reached[next] / reached[k]) * 100) : null,
+    };
+  });
+
+  // ── 2. Median time-in-stage (all Kanban stages, completed transitions) ──
+  const dwell = {}; // stageKey → [days]
+  for (const c of all) {
+    const { entries } = stageEntries(c);
+    const present = entries.filter(e => e.at && postReset(e.at));
+    for (let i = 0; i + 1 < present.length; i++) {
+      const a = new Date(present[i].at).getTime();
+      const z = new Date(present[i + 1].at).getTime();
+      if (!(z >= a)) continue; // guard against out-of-order drag artifacts
+      (dwell[present[i].key] ||= []).push((z - a) / DAY_MS);
+    }
+  }
+  const median = (arr) => {
+    if (!arr || arr.length === 0) return null;
+    const s = [...arr].sort((x, y) => x - y);
+    const mid = Math.floor(s.length / 2);
+    const m = s.length % 2 ? s[mid] : (s[mid - 1] + s[mid]) / 2;
+    return Math.round(m * 10) / 10;
+  };
+  const timeSteps = STAGE_KEYS
+    .filter(k => k !== 'frio') // terminal — no dwell to measure
+    .map(k => {
+      const meta = STAGES.find(s => s.key === k) || {};
+      const arr = dwell[k] || [];
+      return { key: k, label: meta.label || k, accent: meta.accent || '#666', medianDays: median(arr), sample: arr.length };
+    });
+
+  return { rateSteps, timeSteps, sampleSize: all.length };
 }
 
 // STREAK — count of consecutive recent weekdays (Mon-Fri) where each

@@ -347,6 +347,17 @@ export default function EquipaPage() {
               </SectionBlock>
             </div>
 
+            {/* Tempo e conversão por fase — pipeline completo do modelo de volume.
+                Onde gastamos o tempo (mediana por fase) + conversão entre fases. */}
+            <div style={{ marginBottom: 18 }}>
+              <SectionBlock
+                title="Tempo e conversão por fase"
+                subtitle="Pipeline completo · mediana · só quem passou pela fase · sempre"
+              >
+                <StageAnalytics data={data.stageAnalytics} />
+              </SectionBlock>
+            </div>
+
             {/* Calculadora de alvos — planeamento inverso. Taxas pré-preenchidas
                 com as taxas REAIS medidas acima (editáveis). */}
             <div style={{ marginBottom: 18 }}>
@@ -1341,6 +1352,86 @@ function TeamFunnel({ funnel, timing }) {
             {T.sampleSize > 0 && <span style={{ fontSize: 10, color: TEXT_DIM, marginLeft: 8 }}>({T.sampleSize} {T.sampleSize === 1 ? "negócio" : "negócios"})</span>}
           </div>
         </div>
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────
+// StageAnalytics — the whole volume-model pipeline, two lenses side by side:
+//   • Tempo mediano por fase — where the team's time actually goes. Median
+//     days in each Kanban stage, counted only from leads that MOVED PAST it
+//     (a completed transition). Bars are scaled to the slowest stage so the
+//     bottleneck jumps out. n = sample size, so thin stages read as tentative.
+//   • Conversão entre fases — step conversion across the eight funnel
+//     milestones (incl. Pediu vídeo + Vídeo enviado, which the six-step
+//     "Funil de vendas" above doesn't split out). Cumulative "reached this or
+//     later", so leads that skip a stage still count as progressed.
+// All team-wide, all-time (post-reset), measured from the Kanban timestamps.
+// ─────────────────────────────────────────────────────────────────
+function StageAnalytics({ data }) {
+  const time = data?.timeSteps || [];
+  const rate = data?.rateSteps || [];
+  const maxMed = Math.max(1, ...time.map(t => t.medianDays || 0));
+  const anyTime = time.some(t => t.medianDays != null);
+  return (
+    <div className="sl-grid-2" style={{ display: "grid", gridTemplateColumns: "1.15fr 1fr", gap: 26 }}>
+      {/* Tempo mediano por fase */}
+      <div>
+        <div style={{ fontSize: 9, fontWeight: 600, color: TEXT_LO, letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 12 }}>Tempo mediano por fase</div>
+        {!anyTime ? (
+          <div style={{ fontSize: 11, color: TEXT_DIM }}>Ainda sem transições completas para medir — preenche-se à medida que os leads avançam.</div>
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column", gap: 9 }}>
+            {time.map(t => {
+              const dim = t.sample === 0 || t.medianDays == null;
+              const w = t.medianDays != null ? (t.medianDays / maxMed) * 100 : 0;
+              return (
+                <div key={t.key}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 4 }}>
+                    <span style={{ display: "flex", alignItems: "center", gap: 7, fontSize: 11, color: dim ? TEXT_DIM : TEXT_MID }}>
+                      <span style={{ width: 7, height: 7, borderRadius: "50%", background: t.accent, opacity: dim ? 0.35 : 1, flexShrink: 0 }} />
+                      {t.label}
+                    </span>
+                    <span style={{ ...monoNum, fontSize: 12, fontWeight: 700, color: dim ? TEXT_DIM : TEXT_HI, whiteSpace: "nowrap" }}>
+                      {t.medianDays != null ? `${t.medianDays}d` : "—"}
+                      {t.sample > 0 && <span style={{ fontSize: 9, color: TEXT_DIM, marginLeft: 6, fontWeight: 500 }}>n={t.sample}</span>}
+                    </span>
+                  </div>
+                  <div style={{ height: 6, borderRadius: 4, background: SURFACE_0, border: `1px solid ${BORDER}`, overflow: "hidden" }}>
+                    <div style={{ height: "100%", width: `${dim ? 0 : Math.max(3, w)}%`, background: t.accent, opacity: 0.55, borderRadius: 4, transition: "width 500ms cubic-bezier(.2,.7,.2,1)" }} />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+      {/* Conversão entre fases */}
+      <div>
+        <div style={{ fontSize: 9, fontWeight: 600, color: TEXT_LO, letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 12 }}>Conversão entre fases</div>
+        {(rate[0]?.reached || 0) === 0 ? (
+          <div style={{ fontSize: 11, color: TEXT_DIM }}>Sem contactos registados ainda.</div>
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column" }}>
+            {rate.map((s, i) => {
+              const last = i === rate.length - 1;
+              return (
+                <div key={s.key}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "5px 0" }}>
+                    <span style={{ fontSize: 11, color: last ? "#22c55e" : TEXT_MID, fontWeight: last ? 700 : 500 }}>{s.label}</span>
+                    <span style={{ ...monoNum, fontSize: 13, fontWeight: 700, color: TEXT_HI }}>{s.reached}</span>
+                  </div>
+                  {!last && (
+                    <div style={{ fontSize: 9, color: TEXT_DIM, paddingLeft: 8, marginLeft: 2, borderLeft: `1px solid ${BORDER}`, paddingTop: 1, paddingBottom: 1 }}>
+                      ↓ {s.toNextRate != null ? `${s.toNextRate}%` : "—"}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
     </div>
   );

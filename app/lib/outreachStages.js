@@ -270,6 +270,112 @@ export function stagePatch(creator, targetStage) {
 }
 
 /**
+ * Ordered stage → entry-timestamp extractor. Returns, for every pipeline
+ * stage, the ISO moment the creator ENTERED it (or null if never), in the
+ * canonical STAGES order. This is the single source of truth behind both the
+ * per-lead journey timeline (Negócio card) and the team stage analytics, so
+ * the two can never disagree about when a stage started.
+ *
+ * Tolerant of both shapes: full record (creator.outreach.*) and CRM summary
+ * (flattened to the top level), mirroring computeOutreachStage.
+ */
+export function stageEntries(creator) {
+  if (!creator) return { entries: [], signedAt: null, frioAt: null };
+  const o = creator.outreach || {};
+  const pick = (k) => o[k] ?? creator[k] ?? null;
+  const followUps = Array.isArray(o.followUps) ? o.followUps
+                   : Array.isArray(creator.followUps) ? creator.followUps : [];
+  const entries = [
+    { key: 'por_contactar',        at: creator.createdAt || null },
+    { key: 'em_outreach',          at: pick('dmSentAt') || pick('emailSentAt') || null },
+    { key: 'followup_3',           at: followUps[0]?.at || null },
+    { key: 'followup_7',           at: followUps[1]?.at || null },
+    { key: 'followup_14',          at: followUps[2]?.at || null },
+    { key: 'contacto_feito',       at: pick('repliedAt') || null },
+    { key: 'video_pedido',         at: pick('videoRequestedAt') || null },
+    { key: 'video_enviado',        at: pick('videoSentAt') || null },
+    { key: 'reuniao_marcada',      at: pick('callBookedAt') || pick('callAgreedAt') || null },
+    { key: 'reuniao_realizada',    at: pick('callHeldAt') || null },
+    { key: 'apresentacao_enviada', at: creator.pitch?.sentAt || pick('pitchSentAt') || null },
+  ];
+  const signedAt = creator.pipelineStatus === 'signed' ? (creator.signedAt || null) : null;
+  const frioAt = pick('notInterestedAt') || o.remindersSent?.autoCold || null;
+  return { entries, signedAt, frioAt };
+}
+
+/**
+ * Build the lead's journey as an ordered list of stages it actually entered,
+ * each with the time spent there. Duration of a stage = (entry of the NEXT
+ * stage the lead entered) − (entry of this stage), so skipped stages don't
+ * break the chain. The final active stage is marked `ongoing` and measured to
+ * `nowMs`. Terminal outcomes (Assinado / Frio) are returned separately so the
+ * UI can cap the journey.
+ */
+export function stageTimeline(creator, nowMs = Date.now()) {
+  const { entries, signedAt, frioAt } = stageEntries(creator);
+  const present = entries.filter(e => e.at && Number.isFinite(new Date(e.at).getTime()));
+  const currentKey = computeOutreachStage(creator);
+  const isSigned = creator?.pipelineStatus === 'signed' || currentKey === 'signed';
+  const isFrio = currentKey === 'frio';
+  const terminalAt = isSigned ? signedAt : isFrio ? frioAt : null;
+
+  const steps = present.map((e, i) => {
+    const meta = STAGES.find(s => s.key === e.key) || {};
+    const startMs = new Date(e.at).getTime();
+    let endMs;
+    let ongoing = false;
+    if (i + 1 < present.length) {
+      endMs = new Date(present[i + 1].at).getTime();
+    } else if ((isSigned || isFrio) && terminalAt) {
+      endMs = new Date(terminalAt).getTime();
+    } else if (isSigned || isFrio) {
+      endMs = startMs; // terminal but no reliable end stamp → 0 dwell
+    } else {
+      endMs = nowMs; ongoing = true; // still sitting here
+    }
+    return {
+      key: e.key,
+      label: meta.label || e.key,
+      accent: meta.accent || '#666',
+      enteredAt: e.at,
+      durationMs: Math.max(0, endMs - startMs),
+      ongoing,
+    };
+  });
+
+  let terminal = null;
+  if (isSigned) terminal = { key: 'signed', label: 'Assinado', accent: '#22c55e', enteredAt: terminalAt || null };
+  else if (isFrio) terminal = { key: 'frio', label: 'Frio', accent: '#444', enteredAt: terminalAt || null };
+
+  const firstMs = present.length ? new Date(present[0].at).getTime() : null;
+  const endTotalMs = (terminal && terminal.enteredAt) ? new Date(terminal.enteredAt).getTime()
+                   : (isSigned || isFrio) ? (present.length ? new Date(present[present.length - 1].at).getTime() : null)
+                   : nowMs;
+  const totalMs = (firstMs != null && endTotalMs != null) ? Math.max(0, endTotalMs - firstMs) : null;
+
+  return { steps, terminal, totalMs, currentKey };
+}
+
+/**
+ * Compact human duration in PT-PT. Tuned for pipeline dwell times: minutes →
+ * hours → days → weeks → months. Always one significant unit.
+ */
+export function formatDurationShort(ms) {
+  if (ms == null || !Number.isFinite(ms)) return '—';
+  if (ms < 60_000) return 'agora';
+  const mins = ms / 60_000;
+  if (mins < 60) return `${Math.round(mins)}min`;
+  const hours = mins / 60;
+  if (hours < 24) return `${Math.round(hours)}h`;
+  const days = hours / 24;
+  if (days < 14) return `${Math.round(days)}d`;
+  const weeks = days / 7;
+  if (weeks < 9) return `${Math.round(weeks)} sem`;
+  const months = days / 30;
+  return `${Math.round(months)} ${Math.round(months) === 1 ? 'mês' : 'meses'}`;
+}
+
+/**
  * Group an array of creators by computed stage. Empty stages still get an
  * empty array so the Kanban can render every column.
  */
