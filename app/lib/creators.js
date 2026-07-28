@@ -437,6 +437,15 @@ export async function saveCreator(data) {
       // 'dm' | 'email' | null. Critical for measuring per-channel
       // conversion rate on the team dashboard.
       repliedChannel: null,
+      // Reply attribution (capture gap #1) — stamped server-side the instant a
+      // reply first lands, derived from the pre-reply state (no operator work):
+      //   repliedFromStage   — kanban stage the lead was in when it replied
+      //   repliedAfterTouch  — which touch earned the reply (dm / followup_N /
+      //                        videoNudge / pediuVideo / voiceNote / unknown)
+      //   repliedTouchAgeHrs — hours between that touch and the reply
+      repliedFromStage: null,
+      repliedAfterTouch: null,
+      repliedTouchAgeHrs: null,
       // videoRequestedAt — creator asked for / accepted the video (Pediu vídeo).
       videoRequestedAt: null,
       // videoSentAt — operator sent the generic video after the reply (volume

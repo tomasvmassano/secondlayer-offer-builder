@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getCreator, updateCreator, deleteCreator } from '../../../lib/creators';
 import { sendWelcomeEmail } from '../../../lib/welcomeEmail';
 import { getCurrentUser, displayFirstName } from '../../../lib/auth';
+import { computeOutreachStage } from '../../../lib/outreachStages';
 
 // Attribution helper — when a PATCH sets an outreach action timestamp
 // (dmSentAt, emailSentAt, lastFollowUpAt, repliedAt) we automatically stamp
@@ -75,6 +76,39 @@ function stampOutreachActor(outreach, user) {
   return stamped;
 }
 
+// Reply attribution (capture gap #1). Given the state a lead was in BEFORE the
+// reply landed, work out which touch earned it and which stage it came from.
+// Pure derivation from timestamps already on the record, so it costs the
+// operator nothing. Runs once, the instant repliedAt first appears.
+function computeReplyAttribution(before, repliedAtISO) {
+  const o = before?.outreach || {};
+  const replyMs = new Date(repliedAtISO).getTime();
+  const fu = Array.isArray(o.followUps) ? o.followUps : [];
+  const lastFu = fu.length ? fu[fu.length - 1] : null;
+  const fuStage = lastFu
+    ? (lastFu.milestone === 'lastTouch' ? 'followup_14'
+      : lastFu.milestone === 'valueDrop' ? 'followup_7' : 'followup_3')
+    : null;
+  // Every touch that could have earned the reply, kept only if it landed
+  // at-or-before the reply. The latest one wins.
+  const cands = [
+    { touch: 'dm',         at: o.dmSentAt || o.emailSentAt },
+    { touch: fuStage,      at: lastFu?.at },
+    { touch: 'videoNudge', at: o.videoNudgedAt },
+    { touch: 'pediuVideo', at: o.pediuVideoNudgedAt },
+    { touch: 'voiceNote',  at: o.voiceNotedAt },
+  ].filter(c => c.touch && c.at && Number.isFinite(new Date(c.at).getTime()) && new Date(c.at).getTime() <= replyMs);
+
+  const repliedFromStage = computeOutreachStage(before);
+  if (!cands.length) {
+    return { repliedFromStage, repliedAfterTouch: 'unknown', repliedTouchAgeHrs: null };
+  }
+  cands.sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime());
+  const top = cands[0];
+  const ageHrs = Math.round(((replyMs - new Date(top.at).getTime()) / 3_600_000) * 10) / 10;
+  return { repliedFromStage, repliedAfterTouch: top.touch, repliedTouchAgeHrs: ageHrs };
+}
+
 export async function GET(request, { params }) {
   try {
     const { id } = await params;
@@ -107,6 +141,14 @@ export async function PATCH(request, { params }) {
     }
 
     const before = await getCreator(id);
+
+    // Reply attribution (capture gap #1) — the first time repliedAt appears,
+    // stamp which touch earned the reply and which stage it came from, derived
+    // from the pre-reply state. Folded into this same write so it persists atomically.
+    if (body.outreach?.repliedAt && !before?.outreach?.repliedAt) {
+      body.outreach = { ...body.outreach, ...computeReplyAttribution(before, body.outreach.repliedAt) };
+    }
+
     const updated = await updateCreator(id, body);
     if (!updated) {
       return NextResponse.json({ error: 'Creator not found' }, { status: 404 });
