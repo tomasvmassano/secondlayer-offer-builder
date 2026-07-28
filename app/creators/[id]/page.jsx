@@ -136,29 +136,13 @@ function LeadJourney({ creator }) {
     ...(terminal ? [{ ...terminal, isTerminal: true }] : []),
   ];
   const N = nodes.length;
-
-  // Where the filled rail stops = the live/terminal node (fallback: last reached).
-  const progressIdx = (() => {
-    const oi = nodes.findIndex(n => n.ongoing);
-    if (oi >= 0) return oi;
-    const ti = nodes.findIndex(n => n.isTerminal);
-    if (ti >= 0) return ti;
-    let last = 0; nodes.forEach((n, i) => { if (!n.dimmed) last = i; });
-    return last;
-  })();
-
-  // Continuous rail geometry. Nodes are evenly distributed (flex:1), so dot i
-  // sits at (i+0.5)/N of the width — the rail + gap labels are positioned to
-  // match. minWidth keeps it legible and lets it scroll on narrow screens.
-  const NODE_MIN = 96;
-  const RAIL_TOP = 30;
-  const railLeft = N > 1 ? (0.5 / N) * 100 : 0;
-  const railWidth = N > 1 ? ((N - 1) / N) * 100 : 0;
-  const progWidth = N > 1 ? (progressIdx / N) * 100 : 0;
+  // Combine date + time into one mono meta line ("02 jul · 14:32").
+  const fmtStamp = (iso) => { const d = fmtDate(iso); const t = fmtTime(iso); return t ? `${d} · ${t}` : d; };
+  const NODE_MIN = 128;
 
   return (
     <div style={{ marginBottom: 40 }}>
-      <style>{`@keyframes slLeadPulse{0%{transform:scale(.55);opacity:.4}70%{transform:scale(1.9);opacity:0}100%{opacity:0}}`}</style>
+      <style>{`@keyframes slLeadPulse{0%{transform:scale(.6);opacity:.5}70%{transform:scale(1.85);opacity:0}100%{opacity:0}}`}</style>
       <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 4, flexWrap: "wrap", gap: 8, maxWidth: 640 }}>
         <h3 style={{ ...sectionTitleStyle, margin: 0 }}>Percurso do lead</h3>
         {totalMs != null && steps.length > 0 && (
@@ -167,7 +151,7 @@ function LeadJourney({ creator }) {
           </span>
         )}
       </div>
-      <p style={{ fontSize: 11, color: "#555", margin: "0 0 24px", lineHeight: 1.5, maxWidth: 640 }}>
+      <p style={{ fontSize: 11, color: "#555", margin: "0 0 22px", lineHeight: 1.5, maxWidth: 640 }}>
         Cada evento e quando aconteceu, pela ordem do Kanban. As fases a cinzento ainda estão por chegar.
       </p>
 
@@ -175,64 +159,68 @@ function LeadJourney({ creator }) {
         <div style={{ fontSize: 12, color: "#555", padding: "14px 0" }}>Ainda sem atividade registada.</div>
       ) : (
         <div style={{ overflowX: "auto", overflowY: "hidden", paddingBottom: 4 }}>
-          <div style={{ position: "relative", width: "100%", minWidth: N * NODE_MIN }}>
-            {/* Continuous rail — dim base + filled progress up to the live stage */}
-            {N > 1 && (
-              <>
-                <div style={{ position: "absolute", top: RAIL_TOP, height: 2, left: `${railLeft}%`, width: `${railWidth}%`, background: "rgba(255,255,255,0.07)", borderRadius: 2 }} />
-                {progWidth > 0 && (
-                  <div style={{ position: "absolute", top: RAIL_TOP, height: 2, left: `${railLeft}%`, width: `${progWidth}%`, background: "rgba(255,255,255,0.22)", borderRadius: 2 }} />
-                )}
-              </>
-            )}
-            {/* Gap labels sit above the rail, centred between two reached dots */}
+          <div style={{ display: "flex", alignItems: "stretch", width: "100%", minWidth: N * (NODE_MIN + 24) }}>
             {nodes.map((n, i) => {
-              if (i === 0) return null;
-              const prev = nodes[i - 1];
-              if (prev.dimmed || n.dimmed) return null;
+              const prev = i > 0 ? nodes[i - 1] : null;
+              const solidConn = prev && !prev.dimmed && !n.dimmed;
+              const isSigned = n.isTerminal && n.key === "signed";
+              const isFrioT = n.isTerminal && n.key === "frio";
+              // Card surface: reached = faint fill, current = brighter frame,
+              // upcoming = faint outline only.
+              const cardBorder = n.ongoing ? "rgba(255,255,255,0.22)" : n.dimmed ? "rgba(255,255,255,0.05)" : "rgba(255,255,255,0.09)";
+              const cardBg = n.ongoing ? "rgba(255,255,255,0.05)" : n.dimmed ? "transparent" : "rgba(255,255,255,0.02)";
               return (
-                <span key={"gap" + i} style={{ position: "absolute", top: RAIL_TOP - 20, left: `${(i / N) * 100}%`, transform: "translateX(-50%)", fontSize: 8.5, color: "#575757", fontFamily: "ui-monospace, monospace", whiteSpace: "nowrap" }}>
-                  {fmtGap(prev.durationMs)}
-                </span>
-              );
-            })}
-            {/* Nodes */}
-            <div style={{ display: "flex" }}>
-              {nodes.map((n, i) => {
-                const isSigned = n.isTerminal && n.key === "signed";
-                const isFrioT = n.isTerminal && n.key === "frio";
-                return (
-                  <div key={n.key + i} ref={n.ongoing ? currentRef : null} style={{ flex: 1, minWidth: NODE_MIN, display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center", paddingTop: 22 }}>
-                    {/* Dot — halo mask keeps the rail from showing through */}
-                    <span style={{ position: "relative", width: 18, height: 18, borderRadius: "50%", background: "#0a0a0a", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                      {n.ongoing && <span style={{ position: "absolute", inset: 0, borderRadius: "50%", border: "1.5px solid rgba(255,255,255,0.55)", animation: "slLeadPulse 2.6s ease-out infinite" }} />}
-                      <span style={{
-                        width: n.ongoing ? 13 : n.dimmed ? 9 : 11,
-                        height: n.ongoing ? 13 : n.dimmed ? 9 : 11,
-                        borderRadius: isFrioT ? 3 : "50%",
-                        background: n.dimmed ? "transparent" : n.accent,
-                        border: n.dimmed ? "1.5px solid #3a3a3a" : "none",
-                        boxSizing: "border-box",
-                        boxShadow: n.ongoing ? "0 0 0 3px rgba(255,255,255,0.12), 0 0 11px rgba(255,255,255,0.18)" : "none",
-                      }} />
-                    </span>
-                    <span style={{ fontSize: 11, fontWeight: n.ongoing ? 700 : 600, color: n.ongoing ? "#f5f5f5" : isSigned ? "#22c55e" : n.dimmed ? "#666" : "#d3d3d3", marginTop: 11, lineHeight: 1.25, letterSpacing: "-0.01em" }}>
-                      {n.eventLabel || n.label}
-                    </span>
+                <React.Fragment key={n.key + i}>
+                  {/* Connector — 1px line through the gap; gap value above it for reached pairs */}
+                  {i > 0 && (
+                    <div style={{ flex: "0 0 auto", width: 24, position: "relative" }}>
+                      <div style={{ position: "absolute", top: "50%", left: 0, right: 0, height: 1, background: solidConn ? "rgba(255,255,255,0.14)" : "rgba(255,255,255,0.05)" }} />
+                      {solidConn && (
+                        <span style={{ position: "absolute", top: "calc(50% - 15px)", left: "50%", transform: "translateX(-50%)", fontSize: 8, color: "#5f5f5f", fontFamily: "ui-monospace, monospace", whiteSpace: "nowrap" }}>
+                          {fmtGap(prev.durationMs)}
+                        </span>
+                      )}
+                    </div>
+                  )}
+                  {/* Stage card */}
+                  <div
+                    ref={n.ongoing ? currentRef : null}
+                    style={{
+                      flex: 1, minWidth: NODE_MIN, boxSizing: "border-box",
+                      border: `1px solid ${cardBorder}`, background: cardBg, borderRadius: 10,
+                      padding: "11px 13px", display: "flex", flexDirection: "column", gap: 8,
+                      opacity: n.dimmed ? 0.72 : 1,
+                    }}
+                  >
+                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <span style={{ position: "relative", width: 9, height: 9, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                        {n.ongoing && <span style={{ position: "absolute", inset: -2, borderRadius: "50%", border: "1.5px solid rgba(255,255,255,0.5)", animation: "slLeadPulse 2.6s ease-out infinite" }} />}
+                        <span style={{
+                          width: n.dimmed ? 8 : 9, height: n.dimmed ? 8 : 9,
+                          borderRadius: isFrioT ? 2 : "50%",
+                          background: n.dimmed ? "transparent" : n.accent,
+                          border: n.dimmed ? "1.5px solid #3a3a3a" : "none",
+                          boxSizing: "border-box",
+                          boxShadow: n.ongoing ? "0 0 8px rgba(255,255,255,0.35)" : "none",
+                        }} />
+                      </span>
+                      <span style={{ fontSize: 11, fontWeight: n.ongoing ? 700 : 600, color: n.ongoing ? "#f5f5f5" : isSigned ? "#22c55e" : n.dimmed ? "#6a6a6a" : "#d3d3d3", lineHeight: 1.2, letterSpacing: "-0.01em" }}>
+                        {n.eventLabel || n.label}
+                      </span>
+                    </div>
                     {n.ongoing ? (
-                      <span style={{ marginTop: 7, display: "inline-block", fontSize: 8.5, fontWeight: 700, letterSpacing: "0.04em", color: "#f0f0f0", background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.14)", borderRadius: 999, padding: "2px 9px", whiteSpace: "nowrap" }}>
+                      <span style={{ alignSelf: "flex-start", fontSize: 8, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: "#eaeaea", background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.13)", borderRadius: 999, padding: "2px 8px", whiteSpace: "nowrap" }}>
                         atual · há {formatDurationShort(n.durationMs)}
                       </span>
                     ) : n.enteredAt ? (
-                      <>
-                        <span style={{ fontSize: 10, color: "#7a7a7a", fontFamily: "ui-monospace, monospace", marginTop: 5 }}>{fmtDate(n.enteredAt)}</span>
-                        <span style={{ fontSize: 9, color: "#555", marginTop: 2 }}>{fmtTime(n.enteredAt)}</span>
-                      </>
-                    ) : null}
+                      <span style={{ fontSize: 9.5, color: "#767676", fontFamily: "ui-monospace, monospace" }}>{fmtStamp(n.enteredAt)}</span>
+                    ) : (
+                      <span style={{ fontSize: 9.5, color: "#444", fontFamily: "ui-monospace, monospace" }}>por chegar</span>
+                    )}
                   </div>
-                );
-              })}
-            </div>
+                </React.Fragment>
+              );
+            })}
           </div>
         </div>
       )}
