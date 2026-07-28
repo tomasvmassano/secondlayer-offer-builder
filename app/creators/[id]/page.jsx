@@ -135,10 +135,30 @@ function LeadJourney({ creator }) {
     ...(future || []).map(f => ({ ...f, dimmed: true })),
     ...(terminal ? [{ ...terminal, isTerminal: true }] : []),
   ];
+  const N = nodes.length;
+
+  // Where the filled rail stops = the live/terminal node (fallback: last reached).
+  const progressIdx = (() => {
+    const oi = nodes.findIndex(n => n.ongoing);
+    if (oi >= 0) return oi;
+    const ti = nodes.findIndex(n => n.isTerminal);
+    if (ti >= 0) return ti;
+    let last = 0; nodes.forEach((n, i) => { if (!n.dimmed) last = i; });
+    return last;
+  })();
+
+  // Continuous rail geometry. Nodes are evenly distributed (flex:1), so dot i
+  // sits at (i+0.5)/N of the width — the rail + gap labels are positioned to
+  // match. minWidth keeps it legible and lets it scroll on narrow screens.
+  const NODE_MIN = 96;
+  const RAIL_TOP = 30;
+  const railLeft = N > 1 ? (0.5 / N) * 100 : 0;
+  const railWidth = N > 1 ? ((N - 1) / N) * 100 : 0;
+  const progWidth = N > 1 ? (progressIdx / N) * 100 : 0;
 
   return (
     <div style={{ marginBottom: 40 }}>
-      <style>{`@keyframes slLeadPulse{0%{transform:scale(.7);opacity:.5}70%{transform:scale(1.75);opacity:0}100%{opacity:0}}`}</style>
+      <style>{`@keyframes slLeadPulse{0%{transform:scale(.55);opacity:.4}70%{transform:scale(1.9);opacity:0}100%{opacity:0}}`}</style>
       <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 4, flexWrap: "wrap", gap: 8, maxWidth: 640 }}>
         <h3 style={{ ...sectionTitleStyle, margin: 0 }}>Percurso do lead</h3>
         {totalMs != null && steps.length > 0 && (
@@ -147,67 +167,72 @@ function LeadJourney({ creator }) {
           </span>
         )}
       </div>
-      <p style={{ fontSize: 11, color: "#555", margin: "0 0 22px", lineHeight: 1.5, maxWidth: 640 }}>
+      <p style={{ fontSize: 11, color: "#555", margin: "0 0 24px", lineHeight: 1.5, maxWidth: 640 }}>
         Cada evento e quando aconteceu, pela ordem do Kanban. As fases a cinzento ainda estão por chegar.
       </p>
 
-      {nodes.length === 0 ? (
+      {N === 0 ? (
         <div style={{ fontSize: 12, color: "#555", padding: "14px 0" }}>Ainda sem atividade registada.</div>
       ) : (
-        <div style={{ overflowX: "auto", overflowY: "hidden", paddingBottom: 6 }}>
-          <div style={{ display: "flex", alignItems: "flex-start", width: "100%" }}>
+        <div style={{ overflowX: "auto", overflowY: "hidden", paddingBottom: 4 }}>
+          <div style={{ position: "relative", width: "100%", minWidth: N * NODE_MIN }}>
+            {/* Continuous rail — dim base + filled progress up to the live stage */}
+            {N > 1 && (
+              <>
+                <div style={{ position: "absolute", top: RAIL_TOP, height: 2, left: `${railLeft}%`, width: `${railWidth}%`, background: "rgba(255,255,255,0.07)", borderRadius: 2 }} />
+                {progWidth > 0 && (
+                  <div style={{ position: "absolute", top: RAIL_TOP, height: 2, left: `${railLeft}%`, width: `${progWidth}%`, background: "rgba(255,255,255,0.22)", borderRadius: 2 }} />
+                )}
+              </>
+            )}
+            {/* Gap labels sit above the rail, centred between two reached dots */}
             {nodes.map((n, i) => {
-              const prev = i > 0 ? nodes[i - 1] : null;
-              // A gap value is only meaningful between two REACHED nodes.
-              const solidConn = prev && !prev.dimmed && !n.dimmed;
+              if (i === 0) return null;
+              const prev = nodes[i - 1];
+              if (prev.dimmed || n.dimmed) return null;
               return (
-                <React.Fragment key={n.key + i}>
-                  {i > 0 && (
-                    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", flex: "1 1 34px", minWidth: 34, marginTop: 6 }}>
-                      <span style={{ width: "100%", height: 2, background: solidConn ? "rgba(255,255,255,0.16)" : "rgba(255,255,255,0.05)", position: "relative" }}>
-                        <span style={{ position: "absolute", right: -1, top: -3, width: 0, height: 0, borderTop: "4px solid transparent", borderBottom: "4px solid transparent", borderLeft: `5px solid ${solidConn ? "rgba(255,255,255,0.26)" : "rgba(255,255,255,0.09)"}` }} />
-                      </span>
-                      {solidConn && (
-                        <span style={{ fontSize: 9, color: "#6b6b6b", fontFamily: "ui-monospace, monospace", marginTop: 7, whiteSpace: "nowrap" }}>{fmtGap(prev.durationMs)}</span>
-                      )}
-                    </div>
-                  )}
-                  <div
-                    ref={n.ongoing ? currentRef : null}
-                    style={{ display: "flex", flexDirection: "column", alignItems: "center", flex: "0 0 96px", width: 96, textAlign: "center", opacity: n.dimmed ? 0.42 : 1 }}
-                  >
-                    {/* Dot (filled = reached, hollow = upcoming), with a pulse ring on the current stage */}
-                    <span style={{ position: "relative", width: 14, height: 14, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                      {n.ongoing && <span style={{ position: "absolute", inset: -3, borderRadius: "50%", border: `1.5px solid ${n.accent}`, animation: "slLeadPulse 2.4s ease-out infinite" }} />}
-                      <span style={{
-                        width: 13, height: 13,
-                        borderRadius: n.isTerminal && n.key === "frio" ? 3 : "50%",
-                        background: n.dimmed ? "transparent" : n.accent,
-                        border: n.dimmed ? `2px solid ${n.accent}` : n.ongoing ? "2px solid #fff" : "2px solid transparent",
-                        boxSizing: "border-box",
-                        boxShadow: n.ongoing ? `0 0 0 3px ${n.accent}33` : "none",
-                      }} />
-                    </span>
-                    <span style={{ fontSize: 11, fontWeight: 600, color: n.ongoing ? "#f5f5f5" : n.isTerminal && n.key === "signed" ? "#22c55e" : n.dimmed ? "#8a8a8a" : "#cfcfcf", marginTop: 10, lineHeight: 1.25 }}>
-                      {n.eventLabel || n.label}
-                    </span>
-                    {n.enteredAt ? (
-                      <>
-                        <span style={{ fontSize: 10, color: "#8a8a8a", fontFamily: "ui-monospace, monospace", marginTop: 4 }}>{fmtDate(n.enteredAt)}</span>
-                        <span style={{ fontSize: 9, color: "#555", marginTop: 1 }}>{fmtTime(n.enteredAt)}</span>
-                      </>
-                    ) : !n.dimmed ? (
-                      <span style={{ fontSize: 9, color: "#555", marginTop: 4 }}>sem data</span>
-                    ) : null}
-                    {n.ongoing && (
-                      <span style={{ fontSize: 8.5, fontWeight: 700, letterSpacing: "0.05em", textTransform: "uppercase", color: n.accent, marginTop: 6, lineHeight: 1.3 }}>
-                        atual<br />há {formatDurationShort(n.durationMs)}
-                      </span>
-                    )}
-                  </div>
-                </React.Fragment>
+                <span key={"gap" + i} style={{ position: "absolute", top: RAIL_TOP - 20, left: `${(i / N) * 100}%`, transform: "translateX(-50%)", fontSize: 8.5, color: "#575757", fontFamily: "ui-monospace, monospace", whiteSpace: "nowrap" }}>
+                  {fmtGap(prev.durationMs)}
+                </span>
               );
             })}
+            {/* Nodes */}
+            <div style={{ display: "flex" }}>
+              {nodes.map((n, i) => {
+                const isSigned = n.isTerminal && n.key === "signed";
+                const isFrioT = n.isTerminal && n.key === "frio";
+                return (
+                  <div key={n.key + i} ref={n.ongoing ? currentRef : null} style={{ flex: 1, minWidth: NODE_MIN, display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center", paddingTop: 22 }}>
+                    {/* Dot — halo mask keeps the rail from showing through */}
+                    <span style={{ position: "relative", width: 18, height: 18, borderRadius: "50%", background: "#0a0a0a", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                      {n.ongoing && <span style={{ position: "absolute", inset: 0, borderRadius: "50%", border: "1.5px solid rgba(255,255,255,0.55)", animation: "slLeadPulse 2.6s ease-out infinite" }} />}
+                      <span style={{
+                        width: n.ongoing ? 13 : n.dimmed ? 9 : 11,
+                        height: n.ongoing ? 13 : n.dimmed ? 9 : 11,
+                        borderRadius: isFrioT ? 3 : "50%",
+                        background: n.dimmed ? "transparent" : n.accent,
+                        border: n.dimmed ? "1.5px solid #3a3a3a" : "none",
+                        boxSizing: "border-box",
+                        boxShadow: n.ongoing ? "0 0 0 3px rgba(255,255,255,0.12), 0 0 11px rgba(255,255,255,0.18)" : "none",
+                      }} />
+                    </span>
+                    <span style={{ fontSize: 11, fontWeight: n.ongoing ? 700 : 600, color: n.ongoing ? "#f5f5f5" : isSigned ? "#22c55e" : n.dimmed ? "#666" : "#d3d3d3", marginTop: 11, lineHeight: 1.25, letterSpacing: "-0.01em" }}>
+                      {n.eventLabel || n.label}
+                    </span>
+                    {n.ongoing ? (
+                      <span style={{ marginTop: 7, display: "inline-block", fontSize: 8.5, fontWeight: 700, letterSpacing: "0.04em", color: "#f0f0f0", background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.14)", borderRadius: 999, padding: "2px 9px", whiteSpace: "nowrap" }}>
+                        atual · há {formatDurationShort(n.durationMs)}
+                      </span>
+                    ) : n.enteredAt ? (
+                      <>
+                        <span style={{ fontSize: 10, color: "#7a7a7a", fontFamily: "ui-monospace, monospace", marginTop: 5 }}>{fmtDate(n.enteredAt)}</span>
+                        <span style={{ fontSize: 9, color: "#555", marginTop: 2 }}>{fmtTime(n.enteredAt)}</span>
+                      </>
+                    ) : null}
+                  </div>
+                );
+              })}
+            </div>
           </div>
         </div>
       )}
