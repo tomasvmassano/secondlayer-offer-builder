@@ -68,26 +68,27 @@ function SignInPageImpl() {
     }
   };
 
-  return (
-    <div style={{ minHeight: "100vh", background: "#0a0a0a", color: "#f5f5f5", fontFamily: "'Geist', 'Helvetica Neue', Helvetica, Arial, sans-serif", display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
-      <link rel="preconnect" href="https://fonts.googleapis.com" />
-      <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Geist:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  const labelStyle = { fontSize: 12, fontWeight: 600, color: "var(--sl-text-muted)", letterSpacing: "0.08em", textTransform: "uppercase" };
+  const inputStyle = { padding: "14px 16px", borderRadius: "var(--sl-r-input)", fontSize: 15 };
+  const primaryBtn = { marginTop: 8, padding: "15px 18px", fontSize: 15, fontWeight: 600, width: "100%" };
 
+  return (
+    <div style={{ minHeight: "100vh", background: "var(--sl-bg)", color: "var(--sl-text)", display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
       <div style={{ width: "100%", maxWidth: 420 }}>
-        {/* Logo / wordmark */}
+        {/* Logo / wordmark — monochrome per brand (burgundy is reserved for the CTA) */}
         <div style={{ textAlign: "center", marginBottom: 48 }}>
-          <div style={{ fontSize: 22, letterSpacing: "0.02em" }}>
-            <span style={{ fontFamily: "'Instrument Serif', serif", fontStyle: "italic", color: "#B11E2F" }}>Second</span><span style={{ fontWeight: 700, letterSpacing: "-0.01em" }}>Layer</span>
+          <div style={{ fontSize: 26, letterSpacing: "0.01em" }}>
+            <span style={{ fontFamily: "var(--sl-font-serif)", fontStyle: "italic" }}>Second</span><span style={{ fontWeight: 700, letterSpacing: "-0.015em" }}>Layer</span>
           </div>
-          <div style={{ fontSize: 11, letterSpacing: "0.22em", textTransform: "uppercase", color: "#666", marginTop: 6, fontFamily: "'JetBrains Mono', ui-monospace, monospace" }}>Hub · Entrar</div>
+          <div style={{ fontSize: 12, letterSpacing: "0.18em", textTransform: "uppercase", color: "var(--sl-text-faint)", marginTop: 8, fontFamily: "var(--sl-font-mono)" }}>Hub · Entrar</div>
         </div>
 
         {stage === 'email' && (
           <form onSubmit={submitEmail} style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-            <h1 style={{ fontSize: 32, fontWeight: 700, margin: 0, lineHeight: 1.15, letterSpacing: "-0.02em", marginBottom: 8 }}>Entrar</h1>
-            <p style={{ fontSize: 14, color: "#888", margin: "0 0 16px" }}>Enviamos um link mágico para o teu email. Sem palavras-passe.</p>
+            <h1 style={{ fontSize: 32, fontWeight: 600, margin: 0, lineHeight: 1.15, letterSpacing: "-0.02em", marginBottom: 8 }}>Entrar</h1>
+            <p style={{ fontSize: 15, color: "var(--sl-text-muted)", margin: "0 0 16px", lineHeight: 1.55 }}>Enviamos um link mágico para o teu email. Sem palavras-passe.</p>
 
-            <label style={{ fontSize: 11, fontWeight: 600, color: "#888", letterSpacing: "0.12em", textTransform: "uppercase" }}>Email</label>
+            <label style={labelStyle}>Email</label>
             <input
               type="email"
               autoFocus
@@ -95,12 +96,13 @@ function SignInPageImpl() {
               onChange={(e) => setEmail(e.target.value)}
               placeholder="tu@dominio.com"
               autoComplete="email"
-              style={{ padding: "14px 16px", background: "#141414", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 8, color: "#f5f5f5", fontSize: 15, fontFamily: "inherit", outline: "none" }}
+              className="sl-input"
+              style={inputStyle}
             />
 
-            {error && <div style={{ fontSize: 12, color: "#ef4444", marginTop: 4 }}>{error}</div>}
+            {error && <div style={{ fontSize: 13, color: "var(--sl-danger)", marginTop: 4 }}>{error}</div>}
 
-            <button type="submit" disabled={submitting} style={{ marginTop: 8, padding: "14px 18px", background: submitting ? "#3a0a10" : "#B11E2F", color: "#fff", border: "none", borderRadius: 8, fontSize: 14, fontWeight: 600, cursor: submitting ? "default" : "pointer", fontFamily: "inherit" }}>
+            <button type="submit" disabled={submitting} className="sl-btn-primary" style={primaryBtn}>
               {submitting ? 'A enviar…' : 'Enviar link de acesso'}
             </button>
           </form>
@@ -108,13 +110,13 @@ function SignInPageImpl() {
 
         {stage === 'sent' && (
           <form onSubmit={submitCode} style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-            <h1 style={{ fontSize: 28, fontWeight: 700, margin: 0, lineHeight: 1.15, letterSpacing: "-0.02em", marginBottom: 8 }}>Vê o teu email</h1>
-            <p style={{ fontSize: 14, color: "#888", margin: "0 0 16px" }}>
-              Enviámos um link e um código de 6 dígitos para <strong style={{ color: "#f5f5f5" }}>{email}</strong>.<br />
+            <h1 style={{ fontSize: 28, fontWeight: 600, margin: 0, lineHeight: 1.15, letterSpacing: "-0.02em", marginBottom: 8 }}>Vê o teu email</h1>
+            <p style={{ fontSize: 15, color: "var(--sl-text-muted)", margin: "0 0 16px", lineHeight: 1.55 }}>
+              Enviámos um link e um código de 6 dígitos para <strong style={{ color: "var(--sl-text)" }}>{email}</strong>.<br />
               Clica no link <em>ou</em> cola o código aqui.
             </p>
 
-            <label style={{ fontSize: 11, fontWeight: 600, color: "#888", letterSpacing: "0.12em", textTransform: "uppercase" }}>Código de 6 dígitos</label>
+            <label style={labelStyle}>Código de 6 dígitos</label>
             <input
               autoFocus
               inputMode="numeric"
@@ -123,23 +125,24 @@ function SignInPageImpl() {
               onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
               placeholder="123456"
               autoComplete="one-time-code"
-              style={{ padding: "16px 18px", background: "#141414", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 8, color: "#f5f5f5", fontSize: 24, fontFamily: "'JetBrains Mono', ui-monospace, monospace", outline: "none", letterSpacing: "0.4em", textAlign: "center" }}
+              className="sl-input"
+              style={{ padding: "16px 18px", borderRadius: "var(--sl-r-input)", fontSize: 24, fontFamily: "var(--sl-font-mono)", letterSpacing: "0.4em", textAlign: "center" }}
             />
 
-            {error && <div style={{ fontSize: 12, color: "#ef4444", marginTop: 4 }}>{error}</div>}
+            {error && <div style={{ fontSize: 13, color: "var(--sl-danger)", marginTop: 4 }}>{error}</div>}
 
-            <button type="submit" disabled={submitting || code.length !== 6} style={{ marginTop: 8, padding: "14px 18px", background: (submitting || code.length !== 6) ? "#3a0a10" : "#B11E2F", color: "#fff", border: "none", borderRadius: 8, fontSize: 14, fontWeight: 600, cursor: (submitting || code.length !== 6) ? "default" : "pointer", fontFamily: "inherit" }}>
+            <button type="submit" disabled={submitting || code.length !== 6} className="sl-btn-primary" style={primaryBtn}>
               {submitting ? 'A verificar…' : 'Entrar'}
             </button>
 
             <button type="button" onClick={() => { setStage('email'); setCode(''); setError(''); }}
-              style={{ marginTop: 4, padding: "10px", background: "transparent", color: "#666", border: "none", fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>
+              style={{ marginTop: 4, padding: "10px", background: "transparent", color: "var(--sl-text-faint)", border: "none", fontSize: 13, cursor: "pointer", fontFamily: "inherit" }}>
               ← Usar outro email
             </button>
           </form>
         )}
 
-        <div style={{ fontSize: 10, color: "#444", marginTop: 32, textAlign: "center", letterSpacing: "0.06em", textTransform: "uppercase", fontFamily: "'JetBrains Mono', ui-monospace, monospace" }}>
+        <div style={{ fontSize: 11, color: "var(--sl-text-faint)", marginTop: 32, textAlign: "center", letterSpacing: "0.06em", textTransform: "uppercase", fontFamily: "var(--sl-font-mono)" }}>
           Second Layer · Lisboa · 2026
         </div>
       </div>
@@ -149,7 +152,7 @@ function SignInPageImpl() {
 
 export default function SignInPage() {
   return (
-    <Suspense fallback={<div style={{ minHeight: "100vh", background: "#0a0a0a" }} />}>
+    <Suspense fallback={<div style={{ minHeight: "100vh", background: "var(--sl-bg)" }} />}>
       <SignInPageImpl />
     </Suspense>
   );
