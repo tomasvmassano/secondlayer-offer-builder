@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getCreator, updateCreator } from '../../../../../../lib/creators';
-import { validateModule, VALID_FORMATS } from '../../../../../../lib/schemas/modules';
+import { validateModule, normalizeModule, VALID_FORMATS } from '../../../../../../lib/schemas/modules';
 import { readCheckpointProgress } from '../../../../../../lib/offerSchema';
 import { MODULES_SYSTEM_PROMPT } from '../route';
 
@@ -172,7 +172,10 @@ ${instruction ? `## OPERATOR INSTRUCTION FOR THIS REGEN\n${instruction}\n\n` : '
   }
 
   // If the model wrapped it in { modules: [...] } anyway, unwrap.
-  const moduleObj = parsed.modules && Array.isArray(parsed.modules) && parsed.modules[0] ? parsed.modules[0] : parsed;
+  const unwrapped = parsed.modules && Array.isArray(parsed.modules) && parsed.modules[0] ? parsed.modules[0] : parsed;
+  // Self-heal cosmetic length overshoots before validation (same as the batch
+  // route) so a slightly-long delivery_cadence doesn't bounce the regen.
+  const moduleObj = normalizeModule(unwrapped);
 
   const errors = validateModule(moduleObj, usableCount, 'module');
   if (errors.length > 0) {

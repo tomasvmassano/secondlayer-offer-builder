@@ -44,6 +44,51 @@ function isStrAt(v, max) { return typeof v === 'string' && v.length > 0 && (max 
 
 function isStr(v) { return typeof v === 'string' && v.length > 0; }
 
+// Character caps per field. Single source of truth shared by the validator
+// AND the normalizer below, so they can never drift. delivery_cadence is 110
+// (was 80) — the model reliably wants ~90-115 chars for "Every Tuesday 18:00,
+// live + async follow-up in the community thread", and an 81-char string
+// bouncing the whole CP3 batch (and re-billing the operator) was absurd.
+const MODULE_CAPS = { name: 80, description: 300, transformation_delivered: 200, delivery_cadence: 110 };
+const WEEKLY_CAPS = { name: 60, type: 40, desc: 140 };
+const LIBRARY_CAPS = { name: 60, format: 40, desc: 140 };
+
+// Trim a free-text field to a hard char cap WITHOUT cutting a word in half.
+// Backs up to the last space when the cut lands mid-word, then strips any
+// trailing separator/space. Deterministic self-heal for the LLM's small
+// length overshoots — cosmetic, so a single verbose line never fails the run.
+function clampField(v, max) {
+  if (typeof v !== 'string' || v.length <= max) return v;
+  let cut = v.slice(0, max);
+  const lastSpace = cut.lastIndexOf(' ');
+  if (lastSpace > max * 0.6) cut = cut.slice(0, lastSpace);
+  return cut.replace(/[\s,;:.–—-]+$/, '').trim();
+}
+
+function clampObjFields(o, caps) {
+  if (!o || typeof o !== 'object' || Array.isArray(o)) return o;
+  const out = { ...o };
+  for (const [k, max] of Object.entries(caps)) out[k] = clampField(o[k], max);
+  return out;
+}
+
+// Normalize a single module in place-safe (returns a new object). Runs BEFORE
+// validateModule so cosmetic overshoots self-heal instead of hard-failing.
+export function normalizeModule(m) {
+  return clampObjFields(m, MODULE_CAPS);
+}
+
+// Normalize the full CP3 batch (modules + weekly_formats + library). Called
+// right before validateModules in the route.
+export function normalizeModules(obj) {
+  if (!obj || typeof obj !== 'object' || Array.isArray(obj)) return obj;
+  const out = { ...obj };
+  if (Array.isArray(obj.modules)) out.modules = obj.modules.map(normalizeModule);
+  if (Array.isArray(obj.weekly_formats)) out.weekly_formats = obj.weekly_formats.map(w => clampObjFields(w, WEEKLY_CAPS));
+  if (Array.isArray(obj.library)) out.library = obj.library.map(l => clampObjFields(l, LIBRARY_CAPS));
+  return out;
+}
+
 // Validate a single module — used for both batch generation and
 // single-module regen. `availableElementCount` is the Phase 3 elements.length;
 // indices in linked_unique_elements must be 0..availableElementCount-1.
@@ -54,14 +99,14 @@ export function validateModule(m, availableElementCount, path = 'module') {
     return [`${path}: must be an object`];
   }
   if (!isStr(m.name)) push(`${path}.name`, 'required non-empty string');
-  else if (m.name.length > 80) push(`${path}.name`, `should be ≤80 chars (got ${m.name.length})`);
+  else if (m.name.length > MODULE_CAPS.name) push(`${path}.name`, `should be ≤${MODULE_CAPS.name} chars (got ${m.name.length})`);
   if (!isStr(m.description)) push(`${path}.description`, 'required non-empty string (1-2 sentences on what this module IS)');
-  else if (m.description.length > 300) push(`${path}.description`, `should be ≤300 chars (got ${m.description.length})`);
+  else if (m.description.length > MODULE_CAPS.description) push(`${path}.description`, `should be ≤${MODULE_CAPS.description} chars (got ${m.description.length})`);
   if (!isStr(m.transformation_delivered)) push(`${path}.transformation_delivered`, 'required non-empty string (specific outcome this module produces)');
-  else if (m.transformation_delivered.length > 200) push(`${path}.transformation_delivered`, `should be ≤200 chars (got ${m.transformation_delivered.length})`);
+  else if (m.transformation_delivered.length > MODULE_CAPS.transformation_delivered) push(`${path}.transformation_delivered`, `should be ≤${MODULE_CAPS.transformation_delivered} chars (got ${m.transformation_delivered.length})`);
   if (!VALID_FORMATS.includes(m.format)) push(`${path}.format`, `must be one of ${VALID_FORMATS.join('|')}`);
   if (!isStr(m.delivery_cadence)) push(`${path}.delivery_cadence`, 'required non-empty string (e.g. "Weekly Tuesday 18:00", "On enrollment")');
-  else if (m.delivery_cadence.length > 80) push(`${path}.delivery_cadence`, `should be ≤80 chars (got ${m.delivery_cadence.length})`);
+  else if (m.delivery_cadence.length > MODULE_CAPS.delivery_cadence) push(`${path}.delivery_cadence`, `should be ≤${MODULE_CAPS.delivery_cadence} chars (got ${m.delivery_cadence.length})`);
 
   // The defensibility chain: every module must cite at least one Phase 3
   // uniqueness element. Schema-enforced because without this constraint the

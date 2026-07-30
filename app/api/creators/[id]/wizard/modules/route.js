@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { recordLlmUsage, logError } from '../../../../../lib/obs';
 import { repairJsonWithHaiku } from '../../../../../lib/jsonRepair';
 import { getCreator, updateCreator } from '../../../../../lib/creators';
-import { validateModules } from '../../../../../lib/schemas/modules';
+import { validateModules, normalizeModules } from '../../../../../lib/schemas/modules';
 import { formatStrategicFrameForPrompt } from '../../../../../lib/schemas/strategicFrame';
 import { readCheckpointProgress } from '../../../../../lib/offerSchema';
 import { OPERATOR_INSTRUCTIONS_RULE, formatInstructionsBlock, formatInstructionsReminder } from '../../../../../lib/operatorInstructions';
@@ -214,7 +214,7 @@ Return ONLY a JSON object. No prose, no markdown.
       "transformation_delivered": "string (≤200 chars, specific outcome)",
       "format": "live_call" | "recorded_module" | "doc" | "template" | "community_ritual",
       "linked_unique_elements": [0, 3],  // 0-based indices into PHASE 3 UNIQUENESS ELEMENTS. MUST be a non-empty array. Example shown; pick real indices.
-      "delivery_cadence": "string (≤80 chars, when/how often)"
+      "delivery_cadence": "string (≤110 chars, when/how often)"
     },
     ...
   ],
@@ -349,6 +349,11 @@ Return ONLY the JSON object per the schema in the system prompt.${formatInstruct
     if (repaired) { parsed = repaired; }
     else return { error: 'Model returned non-JSON output', raw: rawText, errors: [], retries: retryCount };
   }
+
+  // Self-heal cosmetic length overshoots (a single verbose delivery_cadence
+  // used to bounce the whole batch and re-bill the operator) before the
+  // validator sees the payload.
+  parsed = normalizeModules(parsed);
 
   const validation = validateModules(parsed, usableCount);
   if (!validation.valid) {
