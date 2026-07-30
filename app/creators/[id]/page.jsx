@@ -1695,16 +1695,16 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
           setLaunchEditContent={setLaunchEditContent}
         />
       ) : (
-      <div className="sl-page" style={{ maxWidth: 900, margin: "0 auto", padding: "32px 24px 80px" }}>
+      <div className="sl-page" style={{ maxWidth: 1240, margin: "0 auto", padding: "32px 32px 96px" }}>
 
         {/* Profile Header */}
         <div style={{ display: "flex", alignItems: "flex-start", gap: 16, marginBottom: 20 }}>
           {creator.profilePicUrl ? (
             <img src={`/api/proxy-image?url=${encodeURIComponent(creator.profilePicUrl)}`} alt={creator.name}
               onError={e => { e.target.style.display = "none"; e.target.nextSibling && (e.target.nextSibling.style.display = "flex"); }}
-              style={{ width: 56, height: 56, borderRadius: "50%", objectFit: "cover", border: "2px solid var(--sl-border)", flexShrink: 0 }} />
+              style={{ width: 64, height: 64, borderRadius: "50%", objectFit: "cover", border: "2px solid var(--sl-border)", flexShrink: 0 }} />
           ) : null}
-          <div style={{ display: creator.profilePicUrl ? "none" : "flex", width: 56, height: 56, borderRadius: "50%", background: "var(--sl-surface-raised)", border: "2px solid var(--sl-border)", alignItems: "center", justifyContent: "center", flexShrink: 0, fontSize: 22, fontWeight: 700, color: "var(--sl-text-faint)" }}>
+          <div style={{ display: creator.profilePicUrl ? "none" : "flex", width: 64, height: 64, borderRadius: "50%", background: "var(--sl-surface-raised)", border: "2px solid var(--sl-border)", alignItems: "center", justifyContent: "center", flexShrink: 0, fontSize: 26, fontWeight: 700, color: "var(--sl-text-faint)" }}>
             {(creator.name || "?")[0].toUpperCase()}
           </div>
           <div style={{ flex: 1 }}>
@@ -1712,9 +1712,9 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
               <input ref={nameRef} defaultValue={creator.name} autoFocus
                 onBlur={e => { const v = e.target.value.trim(); if (v && v !== creator.name) patchCreator({ name: v }); setEditName(false); }}
                 onKeyDown={e => { if (e.key === "Enter") e.target.blur(); }}
-                style={{ fontSize: 24, fontWeight: 700, background: "transparent", border: "1px solid var(--sl-border-strong)", borderRadius: 8, color: "var(--sl-text)", padding: "2px 6px", outline: "none", fontFamily: "inherit", width: "100%" }} />
+                style={{ fontSize: 30, fontWeight: 700, letterSpacing: "-0.02em", background: "transparent", border: "1px solid var(--sl-border-strong)", borderRadius: 8, color: "var(--sl-text)", padding: "2px 6px", outline: "none", fontFamily: "inherit", width: "100%" }} />
             ) : (
-              <h1 onClick={() => setEditName(true)} style={{ fontSize: 24, fontWeight: 700, margin: 0, cursor: "pointer", display: "flex", alignItems: "center", gap: 8 }} title="Clica para editar">
+              <h1 onClick={() => setEditName(true)} style={{ fontSize: 30, fontWeight: 700, letterSpacing: "-0.02em", margin: 0, cursor: "pointer", display: "flex", alignItems: "center", gap: 8 }} title="Clica para editar">
                 {creator.name}
                 {creator.isVerified && <span style={{ fontSize: 12, color: "var(--sl-info)" }} title="Verificado">&#10003;</span>}
               </h1>
@@ -1955,7 +1955,7 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
         </div>
 
         {/* ════════════ PERFIL TAB ════════════ */}
-        {tab === "perfil" && (<div style={{ maxWidth: 860 }}>
+        {tab === "perfil" && (<div style={{ maxWidth: 1080 }}>
           <div style={{ minWidth: 0 }}>
 
           {/* Deal Score Card */}
