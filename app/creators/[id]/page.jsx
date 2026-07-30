@@ -96,11 +96,11 @@ function currencySymbol(code) {
   }
 }
 
-const metricCardStyle = { padding: "12px 16px", background: "#141414", border: "1px solid rgba(255,255,255,0.04)", borderRadius: 8, minWidth: 0 };
-const metricLabelStyle = { fontSize: 10, fontWeight: 600, color: "#555", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 4 };
-const metricValueStyle = { fontSize: 16, fontWeight: 700, color: "#f5f5f5" };
-const sectionTitleStyle = { fontSize: 11, fontWeight: 600, color: "#555", textTransform: "uppercase", letterSpacing: "0.08em", margin: "0 0 12px" };
-const inputStyle = { width: "100%", padding: "10px 14px", background: "#1a1a1a", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 8, color: "#f5f5f5", fontSize: 13, fontFamily: "inherit", outline: "none", boxSizing: "border-box", resize: "vertical" };
+const metricCardStyle = { padding: "12px 16px", background: "var(--sl-surface)", border: "1px solid var(--sl-border)", borderRadius: 8, minWidth: 0 };
+const metricLabelStyle = { fontSize: 12, fontWeight: 600, color: "var(--sl-text-faint)", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 4 };
+const metricValueStyle = { fontSize: 16, fontWeight: 700, color: "var(--sl-text)" };
+const sectionTitleStyle = { fontSize: 12, fontWeight: 600, color: "var(--sl-text-faint)", textTransform: "uppercase", letterSpacing: "0.08em", margin: "0 0 12px" };
+const inputStyle = { width: "100%", padding: "10px 14px", background: "var(--sl-surface-raised)", border: "1px solid var(--sl-border)", borderRadius: 8, color: "var(--sl-text)", fontSize: 13, fontFamily: "inherit", outline: "none", boxSizing: "border-box", resize: "vertical" };
 
 // ─────────────────────────────────────────────────────────────────
 // LeadJourney — the lead's path through the pipeline as a horizontal event
@@ -144,17 +144,17 @@ function LeadJourney({ creator }) {
       <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 4, flexWrap: "wrap", gap: 8, maxWidth: 640 }}>
         <h3 style={{ ...sectionTitleStyle, margin: 0 }}>Percurso do lead</h3>
         {totalMs != null && steps.length > 0 && (
-          <span style={{ fontSize: 11, color: "#777" }}>
-            Total no pipeline: <strong style={{ color: "#bbb", fontFamily: "ui-monospace, monospace" }}>{formatDurationShort(totalMs)}</strong>
+          <span style={{ fontSize: 12, color: "var(--sl-text-faint)" }}>
+            Total no pipeline: <strong style={{ color: "var(--sl-text-muted)", fontFamily: "ui-monospace, monospace" }}>{formatDurationShort(totalMs)}</strong>
           </span>
         )}
       </div>
-      <p style={{ fontSize: 11, color: "#555", margin: "0 0 22px", lineHeight: 1.5, maxWidth: 640 }}>
+      <p style={{ fontSize: 12, color: "var(--sl-text-faint)", margin: "0 0 22px", lineHeight: 1.5, maxWidth: 640 }}>
         Cada evento e quando aconteceu, pela ordem do Kanban. As fases a cinzento ainda estão por chegar.
       </p>
 
       {N === 0 ? (
-        <div style={{ fontSize: 12, color: "#555", padding: "14px 0" }}>Ainda sem atividade registada.</div>
+        <div style={{ fontSize: 12, color: "var(--sl-text-faint)", padding: "14px 0" }}>Ainda sem atividade registada.</div>
       ) : (
         // Cards flex-shrink to fit the column (no forced min-width → no clipping);
         // overflow-x is a safety net for extreme journeys on narrow screens.
@@ -166,16 +166,16 @@ function LeadJourney({ creator }) {
               const isSigned = n.isTerminal && n.key === "signed";
               // Card surface: reached = faint fill, current = brighter frame,
               // upcoming = faint outline only.
-              const cardBorder = n.ongoing ? "rgba(255,255,255,0.24)" : n.dimmed ? "rgba(255,255,255,0.05)" : "rgba(255,255,255,0.09)";
-              const cardBg = n.ongoing ? "rgba(255,255,255,0.05)" : n.dimmed ? "transparent" : "rgba(255,255,255,0.02)";
+              const cardBorder = n.ongoing ? "color-mix(in srgb, var(--sl-text) 24%, transparent)" : n.dimmed ? "color-mix(in srgb, var(--sl-text) 5%, transparent)" : "color-mix(in srgb, var(--sl-text) 9%, transparent)";
+              const cardBg = n.ongoing ? "color-mix(in srgb, var(--sl-text) 5%, transparent)" : n.dimmed ? "transparent" : "color-mix(in srgb, var(--sl-text) 2%, transparent)";
               return (
                 <React.Fragment key={n.key + i}>
                   {/* Connector — 1px line through the gap; gap value above it for reached pairs */}
                   {i > 0 && (
                     <div style={{ flex: "0 0 20px", position: "relative" }}>
-                      <div style={{ position: "absolute", top: "50%", left: 0, right: 0, height: 1, background: solidConn ? "rgba(255,255,255,0.14)" : "rgba(255,255,255,0.05)" }} />
+                      <div style={{ position: "absolute", top: "50%", left: 0, right: 0, height: 1, background: solidConn ? "color-mix(in srgb, var(--sl-text) 14%, transparent)" : "color-mix(in srgb, var(--sl-text) 5%, transparent)" }} />
                       {solidConn && (
-                        <span style={{ position: "absolute", top: "calc(50% - 14px)", left: "50%", transform: "translateX(-50%)", fontSize: 8, color: "#5f5f5f", fontFamily: "ui-monospace, monospace", whiteSpace: "nowrap" }}>
+                        <span style={{ position: "absolute", top: "calc(50% - 14px)", left: "50%", transform: "translateX(-50%)", fontSize: 8, color: "var(--sl-text-faint)", fontFamily: "ui-monospace, monospace", whiteSpace: "nowrap" }}>
                           {fmtGap(prev.durationMs)}
                         </span>
                       )}
@@ -191,17 +191,17 @@ function LeadJourney({ creator }) {
                       opacity: n.dimmed ? 0.72 : 1,
                     }}
                   >
-                    <span style={{ fontSize: 11, fontWeight: n.ongoing ? 700 : 600, color: n.ongoing ? "#f5f5f5" : isSigned ? "#22c55e" : n.dimmed ? "#6a6a6a" : "#d3d3d3", lineHeight: 1.2, letterSpacing: "-0.01em" }}>
+                    <span style={{ fontSize: 12, fontWeight: n.ongoing ? 700 : 600, color: n.ongoing ? "var(--sl-text)" : isSigned ? "var(--sl-success)" : n.dimmed ? "var(--sl-text-faint)" : "var(--sl-text-muted)", lineHeight: 1.2, letterSpacing: "-0.01em" }}>
                       {n.eventLabel || n.label}
                     </span>
                     {n.ongoing ? (
-                      <span style={{ alignSelf: "flex-start", fontSize: 8, fontWeight: 700, letterSpacing: "0.05em", textTransform: "uppercase", color: "#eaeaea", background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.13)", borderRadius: 999, padding: "2px 7px", whiteSpace: "nowrap" }}>
+                      <span style={{ alignSelf: "flex-start", fontSize: 8, fontWeight: 700, letterSpacing: "0.05em", textTransform: "uppercase", color: "var(--sl-text-muted)", background: "color-mix(in srgb, var(--sl-text) 7%, transparent)", border: "1px solid var(--sl-border-strong)", borderRadius: 999, padding: "2px 7px", whiteSpace: "nowrap" }}>
                         atual · há {formatDurationShort(n.durationMs)}
                       </span>
                     ) : n.enteredAt ? (
-                      <span style={{ fontSize: 9.5, color: "#767676", fontFamily: "ui-monospace, monospace" }}>{fmtStamp(n.enteredAt)}</span>
+                      <span style={{ fontSize: 12.5, color: "var(--sl-text-faint)", fontFamily: "ui-monospace, monospace" }}>{fmtStamp(n.enteredAt)}</span>
                     ) : (
-                      <span style={{ fontSize: 9.5, color: "#444", fontFamily: "ui-monospace, monospace" }}>por chegar</span>
+                      <span style={{ fontSize: 12.5, color: "var(--sl-text-faint)", fontFamily: "ui-monospace, monospace" }}>por chegar</span>
                     )}
                   </div>
                 </React.Fragment>
@@ -251,7 +251,7 @@ function DealPanel({ creator, patchCreator }) {
 
   return (
     <div>
-      <p style={{ fontSize: 12, color: "#666", margin: "0 0 28px", lineHeight: 1.6, maxWidth: 640 }}>
+      <p style={{ fontSize: 12, color: "var(--sl-text-faint)", margin: "0 0 28px", lineHeight: 1.6, maxWidth: 640 }}>
         Tudo o que precisas antes de mandar a DM, num sítio só — quanto vamos fechar, o link do vídeo, e as notas do contacto.
       </p>
 
@@ -264,7 +264,7 @@ function DealPanel({ creator, patchCreator }) {
       <div style={{ marginBottom: 30 }}>
         <h3 style={sectionTitleStyle}>Valor a fechar</h3>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <span style={{ fontSize: 22, fontWeight: 700, color: "#4ade80" }}>€</span>
+          <span style={{ fontSize: 22, fontWeight: 700, color: "var(--sl-success)" }}>€</span>
           <input
             value={dealValue}
             onChange={e => setDealValue(e.target.value)}
@@ -273,7 +273,7 @@ function DealPanel({ creator, patchCreator }) {
             placeholder="Ex: 1500"
             style={{ ...inputStyle, fontSize: 18, fontFamily: "ui-monospace, monospace", maxWidth: 260 }}
           />
-          {valuePreview && <span style={{ fontSize: 13, color: "#555" }}>{valuePreview}</span>}
+          {valuePreview && <span style={{ fontSize: 13, color: "var(--sl-text-faint)" }}>{valuePreview}</span>}
         </div>
       </div>
 
@@ -292,11 +292,11 @@ function DealPanel({ creator, patchCreator }) {
             href={loomValid ? loomUrl.trim() : undefined}
             target="_blank" rel="noopener noreferrer"
             onClick={e => { if (!loomValid) e.preventDefault(); }}
-            style={{ padding: "8px 16px", borderRadius: 7, fontSize: 12, fontWeight: 600, textDecoration: "none", color: "#f5f5f5", background: "rgba(122,14,24,0.25)", border: "1px solid rgba(122,14,24,0.5)", opacity: loomValid ? 1 : 0.4, pointerEvents: loomValid ? "auto" : "none" }}
+            style={{ padding: "8px 16px", borderRadius: 7, fontSize: 12, fontWeight: 600, textDecoration: "none", color: "var(--sl-text)", background: "color-mix(in srgb, var(--sl-primary) 25%, transparent)", border: "1px solid color-mix(in srgb, var(--sl-primary) 50%, transparent)", opacity: loomValid ? 1 : 0.4, pointerEvents: loomValid ? "auto" : "none" }}
           >
             Abrir vídeo
           </a>
-          <button onClick={copyLoom} disabled={!loomValid} style={{ padding: "8px 16px", borderRadius: 7, fontSize: 12, fontWeight: 600, color: "#ccc", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.1)", cursor: loomValid ? "pointer" : "not-allowed", opacity: loomValid ? 1 : 0.4, fontFamily: "inherit" }}>
+          <button onClick={copyLoom} disabled={!loomValid} style={{ padding: "8px 16px", borderRadius: 7, fontSize: 12, fontWeight: 600, color: "var(--sl-text-muted)", background: "color-mix(in srgb, var(--sl-text) 4%, transparent)", border: "1px solid var(--sl-border-strong)", cursor: loomValid ? "pointer" : "not-allowed", opacity: loomValid ? 1 : 0.4, fontFamily: "inherit" }}>
             {copied ? "Copiado ✓" : "Copiar link"}
           </button>
         </div>
@@ -332,28 +332,28 @@ const MessageCard = ({ label, type, content, accent, children }) => {
   const len = (content || '').length;
   const over = isDm && len > DM_CHAR_CAP;
   const close = isDm && !over && len > DM_CHAR_CAP - 50;
-  const counterColor = over ? '#ef4444' : close ? '#eab308' : '#666';
+  const counterColor = over ? 'var(--sl-danger)' : close ? 'var(--sl-warning)' : 'var(--sl-text-faint)';
   return (
-    <div style={{ padding: "16px 18px", borderRadius: 8, background: "#141414", border: `1px solid ${over ? 'rgba(239,68,68,0.45)' : accent ? "rgba(122,14,24,0.2)" : "rgba(255,255,255,0.04)"}`, marginBottom: 10 }}>
+    <div style={{ padding: "16px 18px", borderRadius: 8, background: "var(--sl-surface)", border: `1px solid ${over ? 'color-mix(in srgb, var(--sl-danger) 45%, transparent)' : accent ? "color-mix(in srgb, var(--sl-primary) 20%, transparent)" : "color-mix(in srgb, var(--sl-text) 4%, transparent)"}`, marginBottom: 10 }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: accent ? "#7A0E18" : "#888" }}>{label}</span>
-          <span style={{ fontSize: 8, padding: "1px 6px", borderRadius: 3, background: type === "email" ? "#1a1520" : "rgba(255,255,255,0.03)", color: type === "email" ? "#9a7abf" : "#666", fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase" }}>{type}</span>
+          <span style={{ fontSize: 12, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: accent ? "var(--sl-accent-text)" : "var(--sl-text-muted)" }}>{label}</span>
+          <span style={{ fontSize: 8, padding: "1px 6px", borderRadius: 3, background: type === "email" ? "var(--sl-surface-raised)" : "color-mix(in srgb, var(--sl-text) 3%, transparent)", color: type === "email" ? "var(--sl-info)" : "var(--sl-text-faint)", fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase" }}>{type}</span>
           {isDm && (
             <span
               title={over ? `Acima do limite do Instagram (1000). Instagram corta o que passar.` : close ? `Perto do limite do Instagram (1000)` : `Limite do Instagram: 1000 caracteres`}
-              style={{ fontSize: 9, padding: "1px 6px", borderRadius: 3, background: over ? "rgba(239,68,68,0.12)" : close ? "rgba(234,179,8,0.10)" : "rgba(255,255,255,0.03)", color: counterColor, fontWeight: 600, fontFamily: "'JetBrains Mono', ui-monospace, monospace", letterSpacing: "0.04em" }}
+              style={{ fontSize: 12, padding: "1px 6px", borderRadius: 3, background: over ? "color-mix(in srgb, var(--sl-danger) 12%, transparent)" : close ? "color-mix(in srgb, var(--sl-warning) 10%, transparent)" : "color-mix(in srgb, var(--sl-text) 3%, transparent)", color: counterColor, fontWeight: 600, fontFamily: "'JetBrains Mono', ui-monospace, monospace", letterSpacing: "0.04em" }}
             >
               {len}/{DM_CHAR_CAP}
               {over ? ' ⚠' : ''}
             </span>
           )}
         </div>
-        <button onClick={() => navigator.clipboard.writeText(content)} style={{ padding: "4px 10px", borderRadius: 4, border: "1px solid rgba(255,255,255,0.06)", background: "transparent", color: "#666", fontSize: 9, cursor: "pointer", fontFamily: "inherit" }}>Copiar</button>
+        <button onClick={() => navigator.clipboard.writeText(content)} style={{ padding: "4px 10px", borderRadius: 4, border: "1px solid var(--sl-border)", background: "transparent", color: "var(--sl-text-faint)", fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>Copiar</button>
       </div>
-      <div style={{ fontSize: 13, color: "#ccc", lineHeight: 1.7, whiteSpace: "pre-wrap" }}>{content}</div>
+      <div style={{ fontSize: 13, color: "var(--sl-text-muted)", lineHeight: 1.7, whiteSpace: "pre-wrap" }}>{content}</div>
       {over && (
-        <div style={{ marginTop: 10, padding: "8px 10px", background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.25)", borderRadius: 6, fontSize: 11, color: "#ef4444", lineHeight: 1.5 }}>
+        <div style={{ marginTop: 10, padding: "8px 10px", background: "color-mix(in srgb, var(--sl-danger) 8%, transparent)", border: "1px solid color-mix(in srgb, var(--sl-danger) 25%, transparent)", borderRadius: 6, fontSize: 12, color: "var(--sl-danger)", lineHeight: 1.5 }}>
           DM está {len - DM_CHAR_CAP} caracteres acima do limite do Instagram. Pede um rewrite mais curto antes de enviar — o IG corta o que passar.
         </div>
       )}
@@ -396,7 +396,7 @@ function ElapsedTimer({ running, expectedMax = 60 }) {
   if (!running) return null;
   const over = secs > expectedMax;
   return (
-    <span style={{ marginLeft: 8, fontFamily: "'JetBrains Mono', ui-monospace, monospace", fontSize: 10, fontWeight: 700, color: over ? '#eab308' : '#888' }}>
+    <span style={{ marginLeft: 8, fontFamily: "'JetBrains Mono', ui-monospace, monospace", fontSize: 12, fontWeight: 700, color: over ? 'var(--sl-warning)' : 'var(--sl-text-muted)' }}>
       · {secs}s{over ? ' (mais que o normal…)' : ''}
     </span>
   );
@@ -431,15 +431,15 @@ const OpenProfileButton = ({ profileUrl, platformLabel, dmText, alreadySent, onM
         ? `Copia a DM gerada e abre o perfil ${platformLabel} em nova aba. Depois é só seguir → mensagem → colar (Cmd+V).`
         : `Abre o perfil ${platformLabel} em nova aba. Gera a DM primeiro para a copiares automaticamente.`}
       style={{
-        fontSize: 9,
+        fontSize: 12,
         fontWeight: 700,
         letterSpacing: "0.06em",
         textTransform: "uppercase",
         padding: "3px 10px",
         borderRadius: 4,
-        background: copied ? "rgba(34,197,94,0.15)" : "rgba(122,14,24,0.1)",
-        color: copied ? "#22c55e" : "#7A0E18",
-        border: `1px solid ${copied ? "rgba(34,197,94,0.4)" : "rgba(122,14,24,0.25)"}`,
+        background: copied ? "color-mix(in srgb, var(--sl-success) 15%, transparent)" : "color-mix(in srgb, var(--sl-primary) 10%, transparent)",
+        color: copied ? "var(--sl-success)" : "var(--sl-accent-text)",
+        border: `1px solid ${copied ? "color-mix(in srgb, var(--sl-success) 40%, transparent)" : "color-mix(in srgb, var(--sl-primary) 25%, transparent)"}`,
         cursor: "pointer",
         fontFamily: "inherit",
         textDecoration: "none",
@@ -505,7 +505,7 @@ const EditableContactEmail = ({ creator, patchCreator }) => {
     return (
       <button
         onClick={() => setEditing(true)}
-        style={{ marginTop: 8, padding: "6px 10px", background: "rgba(255,255,255,0.02)", border: "1px dashed rgba(255,255,255,0.10)", borderRadius: 6, color: "#666", fontSize: 11, cursor: "pointer", fontFamily: "inherit", width: "100%", textAlign: "left" }}
+        style={{ marginTop: 8, padding: "6px 10px", background: "color-mix(in srgb, var(--sl-text) 2%, transparent)", border: "1px dashed color-mix(in srgb, var(--sl-text) 10%, transparent)", borderRadius: 6, color: "var(--sl-text-faint)", fontSize: 12, cursor: "pointer", fontFamily: "inherit", width: "100%", textAlign: "left" }}
       >
         + Adicionar email manualmente
       </button>
@@ -515,8 +515,8 @@ const EditableContactEmail = ({ creator, patchCreator }) => {
   // Edit mode (either from empty or from "edit existing").
   if (editing) {
     return (
-      <div style={{ marginTop: 8, display: "flex", alignItems: "center", gap: 8, padding: "6px 10px", background: "rgba(34,197,94,0.06)", border: "1px solid rgba(34,197,94,0.30)", borderRadius: 6 }}>
-        <span style={{ fontSize: 9, fontWeight: 700, color: "#22c55e", letterSpacing: "0.10em", textTransform: "uppercase" }}>Email</span>
+      <div style={{ marginTop: 8, display: "flex", alignItems: "center", gap: 8, padding: "6px 10px", background: "color-mix(in srgb, var(--sl-success) 6%, transparent)", border: "1px solid color-mix(in srgb, var(--sl-success) 30%, transparent)", borderRadius: 6 }}>
+        <span style={{ fontSize: 12, fontWeight: 700, color: "var(--sl-success)", letterSpacing: "0.10em", textTransform: "uppercase" }}>Email</span>
         <input
           ref={inputRef}
           type="email"
@@ -528,18 +528,18 @@ const EditableContactEmail = ({ creator, patchCreator }) => {
           }}
           placeholder="nome@dominio.com"
           autoComplete="off"
-          style={{ flex: 1, fontSize: 12, padding: "4px 6px", border: "1px solid rgba(34,197,94,0.3)", background: "rgba(0,0,0,0.3)", color: "#f5f5f5", borderRadius: 4, fontFamily: "'JetBrains Mono', ui-monospace, monospace", outline: "none" }}
+          style={{ flex: 1, fontSize: 12, padding: "4px 6px", border: "1px solid color-mix(in srgb, var(--sl-success) 30%, transparent)", background: "rgba(0,0,0,0.3)", color: "var(--sl-text)", borderRadius: 4, fontFamily: "'JetBrains Mono', ui-monospace, monospace", outline: "none" }}
         />
         <button
           onClick={save}
           disabled={saving}
-          style={{ padding: "2px 10px", borderRadius: 4, border: "1px solid rgba(34,197,94,0.45)", background: saving ? "transparent" : "rgba(34,197,94,0.15)", color: "#22c55e", fontSize: 9, fontWeight: 700, cursor: saving ? "wait" : "pointer", fontFamily: "inherit" }}
+          style={{ padding: "2px 10px", borderRadius: 4, border: "1px solid color-mix(in srgb, var(--sl-success) 45%, transparent)", background: saving ? "transparent" : "color-mix(in srgb, var(--sl-success) 15%, transparent)", color: "var(--sl-success)", fontSize: 12, fontWeight: 700, cursor: saving ? "wait" : "pointer", fontFamily: "inherit" }}
         >
           {saving ? "..." : "Guardar"}
         </button>
         <button
           onClick={() => { setDraft(creator?.contactEmail || ''); setEditing(false); }}
-          style={{ padding: "2px 8px", borderRadius: 4, border: "1px solid rgba(255,255,255,0.10)", background: "transparent", color: "#888", fontSize: 9, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}
+          style={{ padding: "2px 8px", borderRadius: 4, border: "1px solid var(--sl-border-strong)", background: "transparent", color: "var(--sl-text-muted)", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}
         >
           Cancelar
         </button>
@@ -560,29 +560,29 @@ const EditableContactEmail = ({ creator, patchCreator }) => {
   if (body) params.set('body', body);
   const gmailUrl = `https://mail.google.com/mail/?${params.toString()}`;
   return (
-    <div style={{ marginTop: 8, display: "flex", alignItems: "center", gap: 8, padding: "6px 10px", background: "rgba(34,197,94,0.06)", border: "1px solid rgba(34,197,94,0.20)", borderRadius: 6 }}>
-      <span style={{ fontSize: 9, fontWeight: 700, color: "#22c55e", letterSpacing: "0.10em", textTransform: "uppercase" }}>Email</span>
-      <a href={`mailto:${creator.contactEmail}`} style={{ fontSize: 12, color: "#22c55e", textDecoration: "none", fontFamily: "'JetBrains Mono', ui-monospace, monospace" }}>{creator.contactEmail}</a>
+    <div style={{ marginTop: 8, display: "flex", alignItems: "center", gap: 8, padding: "6px 10px", background: "color-mix(in srgb, var(--sl-success) 6%, transparent)", border: "1px solid color-mix(in srgb, var(--sl-success) 20%, transparent)", borderRadius: 6 }}>
+      <span style={{ fontSize: 12, fontWeight: 700, color: "var(--sl-success)", letterSpacing: "0.10em", textTransform: "uppercase" }}>Email</span>
+      <a href={`mailto:${creator.contactEmail}`} style={{ fontSize: 12, color: "var(--sl-success)", textDecoration: "none", fontFamily: "'JetBrains Mono', ui-monospace, monospace" }}>{creator.contactEmail}</a>
       <a
         href={gmailUrl}
         target="_blank"
         rel="noopener noreferrer"
         title={day1 ? "Open Gmail compose · Day 1 pre-filled" : "Open Gmail compose"}
-        style={{ marginLeft: "auto", padding: "2px 8px", borderRadius: 4, border: "1px solid rgba(34,197,94,0.35)", background: "rgba(34,197,94,0.10)", color: "#22c55e", fontSize: 9, fontWeight: 700, textDecoration: "none", fontFamily: "inherit", letterSpacing: "0.04em" }}
+        style={{ marginLeft: "auto", padding: "2px 8px", borderRadius: 4, border: "1px solid color-mix(in srgb, var(--sl-success) 35%, transparent)", background: "color-mix(in srgb, var(--sl-success) 10%, transparent)", color: "var(--sl-success)", fontSize: 12, fontWeight: 700, textDecoration: "none", fontFamily: "inherit", letterSpacing: "0.04em" }}
       >
         ✉ Gmail{day1 ? " · Day 1" : ""}
       </a>
       <button
         onClick={() => navigator.clipboard.writeText(creator.contactEmail)}
         title="Copy email"
-        style={{ padding: "2px 8px", borderRadius: 4, border: "1px solid rgba(34,197,94,0.25)", background: "transparent", color: "#22c55e", fontSize: 9, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}
+        style={{ padding: "2px 8px", borderRadius: 4, border: "1px solid color-mix(in srgb, var(--sl-success) 25%, transparent)", background: "transparent", color: "var(--sl-success)", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}
       >
         Copy
       </button>
       <button
         onClick={() => setEditing(true)}
         title="Editar email"
-        style={{ padding: "2px 8px", borderRadius: 4, border: "1px solid rgba(255,255,255,0.10)", background: "transparent", color: "#888", fontSize: 9, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}
+        style={{ padding: "2px 8px", borderRadius: 4, border: "1px solid var(--sl-border-strong)", background: "transparent", color: "var(--sl-text-muted)", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}
       >
         ✏ Edit
       </button>
@@ -601,11 +601,11 @@ const CascadeRegenButton = ({ label, onClick }) => (
       title="Regenera este checkpoint e todos os seguintes em cascata"
       style={{
         padding: "6px 12px",
-        background: "rgba(122,14,24,0.05)",
-        color: "#888",
-        border: "1px dashed rgba(122,14,24,0.25)",
+        background: "color-mix(in srgb, var(--sl-primary) 5%, transparent)",
+        color: "var(--sl-text-muted)",
+        border: "1px dashed color-mix(in srgb, var(--sl-primary) 25%, transparent)",
         borderRadius: 5,
-        fontSize: 10,
+        fontSize: 12,
         fontWeight: 600,
         letterSpacing: "0.06em",
         cursor: "pointer",
@@ -616,17 +616,17 @@ const CascadeRegenButton = ({ label, onClick }) => (
 );
 
 const PendingEmailCard = ({ label, hint, loading, onClick }) => (
-  <div style={{ padding: "16px 18px", borderRadius: 8, background: "transparent", border: "1px dashed rgba(255,255,255,0.08)", marginBottom: 10 }}>
+  <div style={{ padding: "16px 18px", borderRadius: 8, background: "transparent", border: "1px dashed color-mix(in srgb, var(--sl-text) 8%, transparent)", marginBottom: 10 }}>
     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-        <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "#555" }}>{label}</span>
-        <span style={{ fontSize: 8, padding: "1px 6px", borderRadius: 3, background: "rgba(255,255,255,0.03)", color: "#555", fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase" }}>pendente</span>
+        <span style={{ fontSize: 12, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--sl-text-faint)" }}>{label}</span>
+        <span style={{ fontSize: 8, padding: "1px 6px", borderRadius: 3, background: "color-mix(in srgb, var(--sl-text) 3%, transparent)", color: "var(--sl-text-faint)", fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase" }}>pendente</span>
       </div>
-      <button onClick={onClick} disabled={loading} style={{ padding: "5px 14px", borderRadius: 6, border: "1px solid rgba(122,14,24,0.35)", background: loading ? "transparent" : "rgba(122,14,24,0.08)", color: loading ? "#555" : "#B11E2F", fontSize: 10, fontWeight: 600, cursor: loading ? "wait" : "pointer", fontFamily: "inherit" }}>
+      <button onClick={onClick} disabled={loading} style={{ padding: "5px 14px", borderRadius: 6, border: "1px solid color-mix(in srgb, var(--sl-primary) 35%, transparent)", background: loading ? "transparent" : "color-mix(in srgb, var(--sl-primary) 8%, transparent)", color: loading ? "var(--sl-text-faint)" : "var(--sl-accent-text)", fontSize: 12, fontWeight: 600, cursor: loading ? "wait" : "pointer", fontFamily: "inherit" }}>
         {loading ? "A gerar..." : "Gerar"}
       </button>
     </div>
-    <div style={{ fontSize: 11, color: "#555", lineHeight: 1.5 }}>{hint}</div>
+    <div style={{ fontSize: 12, color: "var(--sl-text-faint)", lineHeight: 1.5 }}>{hint}</div>
   </div>
 );
 
@@ -645,7 +645,7 @@ const RegenWithInstructionBlock = ({ placeholder, busy, onRegen, disabled }) => 
         <button
           onClick={() => setOpen(true)}
           disabled={busy}
-          style={{ padding: "6px 12px", borderRadius: 4, border: "1px dashed rgba(255,255,255,0.12)", background: "transparent", color: "#888", fontSize: 10, fontWeight: 600, cursor: busy ? "wait" : "pointer", fontFamily: "inherit", letterSpacing: "0.04em" }}
+          style={{ padding: "6px 12px", borderRadius: 4, border: "1px dashed color-mix(in srgb, var(--sl-text) 12%, transparent)", background: "transparent", color: "var(--sl-text-muted)", fontSize: 12, fontWeight: 600, cursor: busy ? "wait" : "pointer", fontFamily: "inherit", letterSpacing: "0.04em" }}
         >
           + Regenerar com instrução
         </button>
@@ -657,7 +657,7 @@ const RegenWithInstructionBlock = ({ placeholder, busy, onRegen, disabled }) => 
             defaultValue=""
             disabled={busy}
             rows={2}
-            style={{ flex: 1, padding: "8px 12px", background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 4, color: "#ddd", fontSize: 11, fontFamily: "inherit", resize: "vertical", minHeight: 38 }}
+            style={{ flex: 1, padding: "8px 12px", background: "color-mix(in srgb, var(--sl-text) 2%, transparent)", border: "1px solid var(--sl-border)", borderRadius: 4, color: "var(--sl-text)", fontSize: 12, fontFamily: "inherit", resize: "vertical", minHeight: 38 }}
           />
           <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
             <button
@@ -667,14 +667,14 @@ const RegenWithInstructionBlock = ({ placeholder, busy, onRegen, disabled }) => 
                 setOpen(false);
               }}
               disabled={busy}
-              style={{ padding: "8px 14px", borderRadius: 4, border: "1px solid rgba(122,14,24,0.45)", background: busy ? "rgba(255,255,255,0.02)" : "rgba(122,14,24,0.08)", color: busy ? "#555" : "#B11E2F", fontSize: 10, fontWeight: 700, cursor: busy ? "wait" : "pointer", fontFamily: "inherit", whiteSpace: "nowrap" }}
+              style={{ padding: "8px 14px", borderRadius: 4, border: "1px solid color-mix(in srgb, var(--sl-primary) 45%, transparent)", background: busy ? "color-mix(in srgb, var(--sl-text) 2%, transparent)" : "color-mix(in srgb, var(--sl-primary) 8%, transparent)", color: busy ? "var(--sl-text-faint)" : "var(--sl-accent-text)", fontSize: 12, fontWeight: 700, cursor: busy ? "wait" : "pointer", fontFamily: "inherit", whiteSpace: "nowrap" }}
             >
               {busy ? "..." : "↻ Regenerar"}
             </button>
             <button
               onClick={() => setOpen(false)}
               disabled={busy}
-              style={{ padding: "4px 14px", borderRadius: 4, border: "1px solid rgba(255,255,255,0.06)", background: "transparent", color: "#555", fontSize: 9, fontWeight: 500, cursor: busy ? "wait" : "pointer", fontFamily: "inherit" }}
+              style={{ padding: "4px 14px", borderRadius: 4, border: "1px solid var(--sl-border)", background: "transparent", color: "var(--sl-text-faint)", fontSize: 12, fontWeight: 500, cursor: busy ? "wait" : "pointer", fontFamily: "inherit" }}
             >
               cancelar
             </button>
@@ -1605,18 +1605,18 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
   }, [creator, patchCreator]);
 
   if (loading) return (
-    <div style={{ minHeight: "100vh", background: "#0a0a0a", color: "#f5f5f5", fontFamily: "'Inter', sans-serif", display: "flex", alignItems: "center", justifyContent: "center" }}>
+    <div style={{ minHeight: "100vh", background: "var(--sl-bg)", color: "var(--sl-text)", fontFamily: "'Inter', sans-serif", display: "flex", alignItems: "center", justifyContent: "center" }}>
       <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
-      <p style={{ color: "#555" }}>A carregar...</p>
+      <p style={{ color: "var(--sl-text-faint)" }}>A carregar...</p>
     </div>
   );
 
   if (error || !creator) return (
-    <div style={{ minHeight: "100vh", background: "#0a0a0a", color: "#f5f5f5", fontFamily: "'Inter', sans-serif", display: "flex", alignItems: "center", justifyContent: "center" }}>
+    <div style={{ minHeight: "100vh", background: "var(--sl-bg)", color: "var(--sl-text)", fontFamily: "'Inter', sans-serif", display: "flex", alignItems: "center", justifyContent: "center" }}>
       <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
       <div style={{ textAlign: "center" }}>
-        <p style={{ color: "#ef4444", marginBottom: 16 }}>{error || "Creator não encontrado"}</p>
-        <a href="/creators" style={{ color: "#7A0E18", textDecoration: "none", fontSize: 14 }}>Voltar</a>
+        <p style={{ color: "var(--sl-danger)", marginBottom: 16 }}>{error || "Creator não encontrado"}</p>
+        <a href="/creators" style={{ color: "var(--sl-accent-text)", textDecoration: "none", fontSize: 14 }}>Voltar</a>
       </div>
     </div>
   );
@@ -1648,31 +1648,31 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
   ];
 
   return (
-    <div style={{ minHeight: "100vh", background: "#0a0a0a", color: "#f5f5f5", fontFamily: "'Inter', 'Helvetica Neue', Helvetica, Arial, sans-serif" }}>
+    <div style={{ minHeight: "100vh", background: "var(--sl-bg)", color: "var(--sl-text)", fontFamily: "inherit" }}>
       <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
       <style>{`
         [data-tip]{position:relative}
-        [data-tip]:hover::after{content:attr(data-tip);position:absolute;left:0;top:100%;margin-top:4px;padding:8px 12px;background:#1a1a1a;border:1px solid rgba(255,255,255,0.1);border-radius:6px;font-size:11px;color:#ccc;white-space:pre-line;line-height:1.5;z-index:100;min-width:200px;max-width:320px;pointer-events:none;box-shadow:0 4px 12px rgba(0,0,0,0.4)}
+        [data-tip]:hover::after{content:attr(data-tip);position:absolute;left:0;top:100%;margin-top:4px;padding:8px 12px;background:var(--sl-surface-raised);border:1px solid var(--sl-border-strong);border-radius:6px;font-size:11px;color:var(--sl-text-muted);white-space:pre-line;line-height:1.5;z-index:100;min-width:200px;max-width:320px;pointer-events:none;box-shadow:0 4px 12px rgba(0,0,0,0.4)}
       `}</style>
 
       {/* Header */}
-      <div style={{ padding: "20px 28px", borderBottom: "1px solid rgba(255,255,255,0.04)", display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+      <div style={{ padding: "20px 28px", borderBottom: "1px solid var(--sl-border)", display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap", minWidth: 0 }}>
           <a href="/" style={{ display: "flex", alignItems: "center", textDecoration: "none" }}><img src={LOGO_B64} alt="SL" style={{ height: 16, opacity: 0.85 }} /></a>
-          <span style={{ color: "#333", fontSize: 14 }}>|</span>
-          <a href="/creators" style={{ fontSize: 10, fontWeight: 600, letterSpacing: "0.12em", textTransform: "uppercase", color: "#555", textDecoration: "none" }}>CRM</a>
-          <span style={{ color: "#333", fontSize: 14 }}>/</span>
-          <span style={{ fontSize: 10, fontWeight: 600, letterSpacing: "0.12em", textTransform: "uppercase", color: "#888", overflow: "hidden", textOverflow: "ellipsis" }}>{creator.name}</span>
+          <span style={{ color: "var(--sl-border-strong)", fontSize: 14 }}>|</span>
+          <a href="/creators" style={{ fontSize: 12, fontWeight: 600, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--sl-text-faint)", textDecoration: "none" }}>CRM</a>
+          <span style={{ color: "var(--sl-border-strong)", fontSize: 14 }}>/</span>
+          <span style={{ fontSize: 12, fontWeight: 600, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--sl-text-muted)", overflow: "hidden", textOverflow: "ellipsis" }}>{creator.name}</span>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          {saving && <span style={{ fontSize: 11, color: saving.includes("Erro") ? "#ef4444" : "#22c55e" }}>{saving}</span>}
+          {saving && <span style={{ fontSize: 12, color: saving.includes("Erro") ? "var(--sl-danger)" : "var(--sl-success)" }}>{saving}</span>}
           {forcedCrmView && creator.pipelineStatus === 'signed' && (
-            <a href={`/creators/${params?.id}`} style={{ fontSize: 11, color: "#aaa", textDecoration: "none", padding: "6px 12px", borderRadius: 6, border: "1px solid rgba(122,14,24,0.4)", background: "rgba(122,14,24,0.08)" }}>← Workspace</a>
+            <a href={`/creators/${params?.id}`} style={{ fontSize: 12, color: "var(--sl-text-muted)", textDecoration: "none", padding: "6px 12px", borderRadius: 6, border: "1px solid color-mix(in srgb, var(--sl-primary) 40%, transparent)", background: "color-mix(in srgb, var(--sl-primary) 8%, transparent)" }}>← Workspace</a>
           )}
           {creator.pipelineStatus === 'signed' ? (
-            <a href="/pipeline" style={{ fontSize: 11, color: "#555", textDecoration: "none", padding: "6px 12px", borderRadius: 6, border: "1px solid rgba(255,255,255,0.06)" }}>Pipeline</a>
+            <a href="/pipeline" style={{ fontSize: 12, color: "var(--sl-text-faint)", textDecoration: "none", padding: "6px 12px", borderRadius: 6, border: "1px solid var(--sl-border)" }}>Pipeline</a>
           ) : (
-            <a href="/creators" style={{ fontSize: 12, color: "#555", textDecoration: "none" }}>Voltar</a>
+            <a href="/creators" style={{ fontSize: 12, color: "var(--sl-text-faint)", textDecoration: "none" }}>Voltar</a>
           )}
         </div>
       </div>
@@ -1702,9 +1702,9 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
           {creator.profilePicUrl ? (
             <img src={`/api/proxy-image?url=${encodeURIComponent(creator.profilePicUrl)}`} alt={creator.name}
               onError={e => { e.target.style.display = "none"; e.target.nextSibling && (e.target.nextSibling.style.display = "flex"); }}
-              style={{ width: 56, height: 56, borderRadius: "50%", objectFit: "cover", border: "2px solid rgba(255,255,255,0.06)", flexShrink: 0 }} />
+              style={{ width: 56, height: 56, borderRadius: "50%", objectFit: "cover", border: "2px solid var(--sl-border)", flexShrink: 0 }} />
           ) : null}
-          <div style={{ display: creator.profilePicUrl ? "none" : "flex", width: 56, height: 56, borderRadius: "50%", background: "#1a1a1a", border: "2px solid rgba(255,255,255,0.06)", alignItems: "center", justifyContent: "center", flexShrink: 0, fontSize: 22, fontWeight: 700, color: "#555" }}>
+          <div style={{ display: creator.profilePicUrl ? "none" : "flex", width: 56, height: 56, borderRadius: "50%", background: "var(--sl-surface-raised)", border: "2px solid var(--sl-border)", alignItems: "center", justifyContent: "center", flexShrink: 0, fontSize: 22, fontWeight: 700, color: "var(--sl-text-faint)" }}>
             {(creator.name || "?")[0].toUpperCase()}
           </div>
           <div style={{ flex: 1 }}>
@@ -1712,15 +1712,15 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
               <input ref={nameRef} defaultValue={creator.name} autoFocus
                 onBlur={e => { const v = e.target.value.trim(); if (v && v !== creator.name) patchCreator({ name: v }); setEditName(false); }}
                 onKeyDown={e => { if (e.key === "Enter") e.target.blur(); }}
-                style={{ fontSize: 24, fontWeight: 700, background: "transparent", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, color: "#f5f5f5", padding: "2px 6px", outline: "none", fontFamily: "inherit", width: "100%" }} />
+                style={{ fontSize: 24, fontWeight: 700, background: "transparent", border: "1px solid var(--sl-border-strong)", borderRadius: 8, color: "var(--sl-text)", padding: "2px 6px", outline: "none", fontFamily: "inherit", width: "100%" }} />
             ) : (
               <h1 onClick={() => setEditName(true)} style={{ fontSize: 24, fontWeight: 700, margin: 0, cursor: "pointer", display: "flex", alignItems: "center", gap: 8 }} title="Clica para editar">
                 {creator.name}
-                {creator.isVerified && <span style={{ fontSize: 12, color: "#3b82f6" }} title="Verificado">&#10003;</span>}
+                {creator.isVerified && <span style={{ fontSize: 12, color: "var(--sl-info)" }} title="Verificado">&#10003;</span>}
               </h1>
             )}
             <div style={{ display: "flex", gap: 6, marginTop: 4, flexWrap: "wrap", alignItems: "center" }}>
-              {creator.pipelineStatus === 'signed' && <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", padding: "3px 8px", borderRadius: 4, background: "rgba(34,197,94,0.1)", color: "#22c55e", border: "1px solid rgba(34,197,94,0.25)" }}>Assinado ✓</span>}
+              {creator.pipelineStatus === 'signed' && <span style={{ fontSize: 12, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", padding: "3px 8px", borderRadius: 4, background: "color-mix(in srgb, var(--sl-success) 10%, transparent)", color: "var(--sl-success)", border: "1px solid color-mix(in srgb, var(--sl-success) 25%, transparent)" }}>Assinado ✓</span>}
               {/* Stage selector — operator picks the current pipeline stage
                   directly without having to drag the card on the CRM Kanban.
                   Calls stagePatch() to compute the right field-set then
@@ -1730,8 +1730,8 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
                 const currentStage = computeOutreachStage(creator);
                 const stage = STAGES.find(s => s.key === currentStage);
                 return (
-                  <div style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "3px 6px 3px 10px", borderRadius: 4, background: "rgba(255,255,255,0.03)", border: `1px solid ${stage?.accent || '#444'}55` }}>
-                    <span style={{ width: 6, height: 6, borderRadius: "50%", background: stage?.accent || '#666' }} />
+                  <div style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "3px 6px 3px 10px", borderRadius: 4, background: "color-mix(in srgb, var(--sl-text) 3%, transparent)", border: `1px solid ${stage?.accent || 'var(--sl-text-faint)'}55` }}>
+                    <span style={{ width: 6, height: 6, borderRadius: "50%", background: stage?.accent || 'var(--sl-text-faint)' }} />
                     <select
                       value={currentStage}
                       onChange={async (e) => {
@@ -1742,14 +1742,14 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
                       }}
                       style={{
                         background: "transparent", border: "none", outline: "none",
-                        color: "#f5f5f5", fontSize: 11, fontWeight: 700, letterSpacing: "0.04em", textTransform: "uppercase",
+                        color: "var(--sl-text)", fontSize: 12, fontWeight: 700, letterSpacing: "0.04em", textTransform: "uppercase",
                         fontFamily: "inherit", cursor: "pointer", padding: "1px 4px",
                         appearance: "none", WebkitAppearance: "none",
                       }}
                       title="Mudar stage no pipeline"
                     >
                       {STAGES.map(s => (
-                        <option key={s.key} value={s.key} style={{ background: "#141414" }}>{s.label}</option>
+                        <option key={s.key} value={s.key} style={{ background: "var(--sl-surface)" }}>{s.label}</option>
                       ))}
                     </select>
                   </div>
@@ -1766,10 +1766,10 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
                     await patchCreator({ pipelineStatus: 'signed', signedAt: new Date().toISOString() });
                   }}
                   style={{
-                    fontSize: 10, fontWeight: 700, letterSpacing: "0.04em",
+                    fontSize: 12, fontWeight: 700, letterSpacing: "0.04em",
                     padding: "3px 10px", borderRadius: 4,
-                    background: "rgba(34,197,94,0.06)", color: "#22c55e",
-                    border: "1px solid rgba(34,197,94,0.3)",
+                    background: "color-mix(in srgb, var(--sl-success) 6%, transparent)", color: "var(--sl-success)",
+                    border: "1px solid color-mix(in srgb, var(--sl-success) 30%, transparent)",
                     cursor: "pointer", fontFamily: "inherit",
                   }}
                   title="Fechar deal — marca como assinado e dispara boas-vindas + onboarding"
@@ -1777,7 +1777,7 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
                   ✓ Marcar assinado
                 </button>
               )}
-              {creator.niche && <span style={{ fontSize: 11, color: "#888", padding: "3px 8px", background: "rgba(255,255,255,0.03)", borderRadius: 4 }}>{creator.niche}</span>}
+              {creator.niche && <span style={{ fontSize: 12, color: "var(--sl-text-muted)", padding: "3px 8px", background: "color-mix(in srgb, var(--sl-text) 3%, transparent)", borderRadius: 4 }}>{creator.niche}</span>}
               {(() => {
                 const lang = creator.primaryLanguage;
                 const audienceHint = creator.intelligence?.audience?.primaryLanguage || creator.audienceEstimate?.language || '';
@@ -1797,19 +1797,19 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
                 // Each language gets its own colour bucket — green = PT (legacy
                 // home market), blue = EN (international), amber = ES (new).
                 const colors = lang === 'en'
-                  ? { bg: 'rgba(59,130,246,0.1)', fg: '#3b82f6', border: 'rgba(59,130,246,0.25)' }
+                  ? { bg: 'color-mix(in srgb, var(--sl-info) 10%, transparent)', fg: 'var(--sl-info)', border: 'color-mix(in srgb, var(--sl-info) 25%, transparent)' }
                   : lang === 'pt'
-                  ? { bg: 'rgba(34,197,94,0.1)', fg: '#22c55e', border: 'rgba(34,197,94,0.25)' }
+                  ? { bg: 'color-mix(in srgb, var(--sl-success) 10%, transparent)', fg: 'var(--sl-success)', border: 'color-mix(in srgb, var(--sl-success) 25%, transparent)' }
                   : lang === 'es'
-                  ? { bg: 'rgba(234,179,8,0.1)', fg: '#eab308', border: 'rgba(234,179,8,0.25)' }
-                  : { bg: 'rgba(255,255,255,0.03)', fg: '#888', border: 'rgba(255,255,255,0.08)' };
+                  ? { bg: 'color-mix(in srgb, var(--sl-warning) 10%, transparent)', fg: 'var(--sl-warning)', border: 'color-mix(in srgb, var(--sl-warning) 25%, transparent)' }
+                  : { bg: 'color-mix(in srgb, var(--sl-text) 3%, transparent)', fg: 'var(--sl-text-muted)', border: 'color-mix(in srgb, var(--sl-text) 8%, transparent)' };
                 const label = lang === 'en' ? 'EN' : lang === 'pt' ? 'PT' : lang === 'es' ? 'ES' : 'Lang ?';
                 return (
                   <button
                     onClick={cycleLanguage}
                     title={audienceHint ? `Audiência: ${audienceHint}\nClica para alternar PT → EN → ES.` : 'Clica para alternar PT → EN → ES.'}
                     style={{
-                      fontSize: 11, fontWeight: 700, padding: "3px 8px",
+                      fontSize: 12, fontWeight: 700, padding: "3px 8px",
                       background: colors.bg,
                       color: colors.fg,
                       border: `1px solid ${colors.border}`,
@@ -1820,7 +1820,7 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
                   </button>
                 );
               })()}
-              {dealScore && <span style={{ fontSize: 11, fontWeight: 700, color: dealScore.colors.color, padding: "3px 8px", background: dealScore.colors.bg, border: `1px solid ${dealScore.colors.border}`, borderRadius: 4 }}>Score {dealScore.grade} ({dealScore.score})</span>}
+              {dealScore && <span style={{ fontSize: 12, fontWeight: 700, color: dealScore.colors.color, padding: "3px 8px", background: dealScore.colors.bg, border: `1px solid ${dealScore.colors.border}`, borderRadius: 4 }}>Score {dealScore.grade} ({dealScore.score})</span>}
               {/* Analysis-derived price only — shows the operator-set revenuePrice
                   or CP2's target_price when one exists. Used to fall back to the
                   niche-DB bucket (e.g. "AI / Tech / Business" → €97/mês), which
@@ -1832,18 +1832,18 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
                   ? `€${creator.revenuePrice}/mês`
                   : (cfoTarget && String(cfoTarget).trim() ? String(cfoTarget).trim() : null);
                 if (!display) return null;
-                return <span style={{ fontSize: 11, color: "#555", padding: "3px 8px", background: "rgba(255,255,255,0.02)", borderRadius: 4 }}>{display}</span>;
+                return <span style={{ fontSize: 12, color: "var(--sl-text-faint)", padding: "3px 8px", background: "color-mix(in srgb, var(--sl-text) 2%, transparent)", borderRadius: 4 }}>{display}</span>;
               })()}
               {/* Scrape-level chip — lean = top-of-funnel (IG only), full = ready to build offer */}
               {(() => {
                 const level = creator.scrapeLevel || (creator.intelligence?.bioLinks?.length || creator.platforms?.tiktok?.followers || creator.platforms?.youtube?.subscribers ? 'full' : 'lean');
                 if (level === 'full') {
                   return (
-                    <span title="Full scrape concluído — IG deep + TikTok + YouTube + products + competitors" style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", padding: "3px 8px", borderRadius: 4, background: "rgba(34,197,94,0.08)", color: "#22c55e", border: "1px solid rgba(34,197,94,0.25)" }}>● Full</span>
+                    <span title="Full scrape concluído — IG deep + TikTok + YouTube + products + competitors" style={{ fontSize: 12, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", padding: "3px 8px", borderRadius: 4, background: "color-mix(in srgb, var(--sl-success) 8%, transparent)", color: "var(--sl-success)", border: "1px solid color-mix(in srgb, var(--sl-success) 25%, transparent)" }}>● Full</span>
                   );
                 }
                 return (
-                  <span title="Lean scrape — só Instagram. Corre full scrape antes de gerar a offer." style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", padding: "3px 8px", borderRadius: 4, background: "rgba(234,179,8,0.08)", color: "#eab308", border: "1px solid rgba(234,179,8,0.25)" }}>○ Lean</span>
+                  <span title="Lean scrape — só Instagram. Corre full scrape antes de gerar a offer." style={{ fontSize: 12, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", padding: "3px 8px", borderRadius: 4, background: "color-mix(in srgb, var(--sl-warning) 8%, transparent)", color: "var(--sl-warning)", border: "1px solid color-mix(in srgb, var(--sl-warning) 25%, transparent)" }}>○ Lean</span>
                 );
               })()}
               {/* Run Full Scrape button — appears for lean creators before they're signed */}
@@ -1852,7 +1852,7 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
                   onClick={runFullScrape}
                   disabled={runningFullScrape}
                   title="Corre o full scrape: Instagram deep + TikTok + YouTube + produtos do bio link + análise de competidores. Necessário antes de gerar a offer."
-                  style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", padding: "3px 10px", borderRadius: 4, background: runningFullScrape ? "rgba(255,255,255,0.04)" : "rgba(59,130,246,0.1)", color: runningFullScrape ? "#555" : "#3b82f6", border: `1px solid ${runningFullScrape ? "rgba(255,255,255,0.08)" : "rgba(59,130,246,0.25)"}`, cursor: runningFullScrape ? "wait" : "pointer", fontFamily: "inherit" }}
+                  style={{ fontSize: 12, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", padding: "3px 10px", borderRadius: 4, background: runningFullScrape ? "color-mix(in srgb, var(--sl-text) 4%, transparent)" : "color-mix(in srgb, var(--sl-info) 10%, transparent)", color: runningFullScrape ? "var(--sl-text-faint)" : "var(--sl-info)", border: `1px solid ${runningFullScrape ? "color-mix(in srgb, var(--sl-text) 8%, transparent)" : "color-mix(in srgb, var(--sl-info) 25%, transparent)"}`, cursor: runningFullScrape ? "wait" : "pointer", fontFamily: "inherit" }}
                 >
                   {runningFullScrape ? "A scrapear..." : "↻ Full Scrape"}
                 </button>
@@ -1924,7 +1924,7 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
                     rel="noopener noreferrer"
                     onClick={() => { if (!alreadySent) markOutreach('email'); }}
                     title={day1 ? `Abrir Gmail · Day 1 pré-preenchido (${creator.contactEmail})` : `Abrir Gmail · ${creator.contactEmail}`}
-                    style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", padding: "3px 10px", borderRadius: 4, background: "rgba(34,197,94,0.1)", color: "#22c55e", border: "1px solid rgba(34,197,94,0.25)", cursor: "pointer", fontFamily: "inherit", textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 4 }}
+                    style={{ fontSize: 12, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", padding: "3px 10px", borderRadius: 4, background: "color-mix(in srgb, var(--sl-success) 10%, transparent)", color: "var(--sl-success)", border: "1px solid color-mix(in srgb, var(--sl-success) 25%, transparent)", cursor: "pointer", fontFamily: "inherit", textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 4 }}
                   >
                     ✉ Email{day1 ? " · Day 1" : ""}
                   </a>
@@ -1935,21 +1935,21 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
         </div>
 
         {/* Tab Bar */}
-        <div className="sl-tabs sl-hscroll" style={{ display: "flex", gap: 0, marginBottom: 24, borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
+        <div className="sl-tabs sl-hscroll" style={{ display: "flex", gap: 0, marginBottom: 24, borderBottom: "1px solid var(--sl-border)" }}>
           {TABS.map(t => (
             <button key={t.key} onClick={() => setTab(t.key)} style={{
               padding: "12px 20px", border: "none", background: "transparent",
-              color: tab === t.key ? "#f5f5f5" : "#444",
+              color: tab === t.key ? "var(--sl-text)" : "var(--sl-text-faint)",
               fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit",
               letterSpacing: "0.04em", textTransform: "uppercase",
-              borderBottom: tab === t.key ? "2px solid #7A0E18" : "2px solid transparent",
+              borderBottom: tab === t.key ? "2px solid var(--sl-primary)" : "2px solid transparent",
               marginBottom: -1, transition: "all 0.15s",
             }}>
               {t.label}
-              {t.key === "audit" && creator?.offer?.internal_metadata?.ecosystem_audit && <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#22c55e", display: "inline-block", marginLeft: 6 }} />}
-              {t.key === "dm" && creator.dmSequence && <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#22c55e", display: "inline-block", marginLeft: 6 }} />}
-              {t.key === "oferta" && creator.offer && <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#22c55e", display: "inline-block", marginLeft: 6 }} />}
-              {t.key === "launch" && Object.keys(creator.launch || {}).length > 0 && <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#22c55e", display: "inline-block", marginLeft: 6 }} />}
+              {t.key === "audit" && creator?.offer?.internal_metadata?.ecosystem_audit && <span style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--sl-success)", display: "inline-block", marginLeft: 6 }} />}
+              {t.key === "dm" && creator.dmSequence && <span style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--sl-success)", display: "inline-block", marginLeft: 6 }} />}
+              {t.key === "oferta" && creator.offer && <span style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--sl-success)", display: "inline-block", marginLeft: 6 }} />}
+              {t.key === "launch" && Object.keys(creator.launch || {}).length > 0 && <span style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--sl-success)", display: "inline-block", marginLeft: 6 }} />}
             </button>
           ))}
         </div>
@@ -1966,8 +1966,8 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
                   {dealScore.grade}
                 </div>
                 <div>
-                  <div style={{ fontSize: 14, fontWeight: 700, color: "#f5f5f5" }}>Deal Score: {dealScore.score}/{dealScore.maxScore}</div>
-                  <div style={{ fontSize: 11, color: "#666", marginTop: 2 }}>
+                  <div style={{ fontSize: 14, fontWeight: 700, color: "var(--sl-text)" }}>Deal Score: {dealScore.score}/{dealScore.maxScore}</div>
+                  <div style={{ fontSize: 12, color: "var(--sl-text-faint)", marginTop: 2 }}>
                     {dealScore.grade === 'A' ? 'Oportunidade excelente' : dealScore.grade === 'B' ? 'Bom potencial' : dealScore.grade === 'C' ? 'Potencial moderado' : 'Potencial baixo'}
                   </div>
                 </div>
@@ -1983,8 +1983,8 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
                   if (!display) return null;
                   return (
                     <div style={{ marginLeft: "auto", textAlign: "right" }}>
-                      <div style={{ fontSize: 10, color: "#555", textTransform: "uppercase", letterSpacing: "0.06em" }}>Preço</div>
-                      <div style={{ fontSize: 16, fontWeight: 700, color: "#f5f5f5" }}>{display.amount}{display.suffix && <span style={{ fontSize: 11, color: "#555", fontWeight: 400 }}>{display.suffix}</span>}</div>
+                      <div style={{ fontSize: 12, color: "var(--sl-text-faint)", textTransform: "uppercase", letterSpacing: "0.06em" }}>Preço</div>
+                      <div style={{ fontSize: 16, fontWeight: 700, color: "var(--sl-text)" }}>{display.amount}{display.suffix && <span style={{ fontSize: 12, color: "var(--sl-text-faint)", fontWeight: 400 }}>{display.suffix}</span>}</div>
                     </div>
                   );
                 })()}
@@ -1996,11 +1996,11 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
                   return (
                     <div key={key} data-tip={dealScore.tooltips?.[key] || ''} style={{ padding: "5px 8px", background: "rgba(0,0,0,0.3)", borderRadius: 6, cursor: "help" }}>
                       <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 2 }}>
-                        <span style={{ fontSize: 8, color: "#666", textTransform: "uppercase" }}>{dealScore.labels[key]}</span>
-                        <span style={{ fontSize: 8, color: "#888", fontWeight: 600 }}>{points}/{maxPts}</span>
+                        <span style={{ fontSize: 8, color: "var(--sl-text-faint)", textTransform: "uppercase" }}>{dealScore.labels[key]}</span>
+                        <span style={{ fontSize: 8, color: "var(--sl-text-muted)", fontWeight: 600 }}>{points}/{maxPts}</span>
                       </div>
-                      <div style={{ height: 2, background: "rgba(255,255,255,0.06)", borderRadius: 2 }}>
-                        <div style={{ height: 2, borderRadius: 2, width: pct + "%", background: pct >= 70 ? "#22c55e" : pct >= 40 ? "#eab308" : "#ef4444" }} />
+                      <div style={{ height: 2, background: "color-mix(in srgb, var(--sl-text) 6%, transparent)", borderRadius: 2 }}>
+                        <div style={{ height: 2, borderRadius: 2, width: pct + "%", background: pct >= 70 ? "var(--sl-success)" : pct >= 40 ? "var(--sl-warning)" : "var(--sl-danger)" }} />
                       </div>
                     </div>
                   );
@@ -2011,22 +2011,22 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
 
           {/* Audience Estimate */}
           {creator.audienceEstimate && (
-            <div style={{ marginBottom: 24, padding: "16px 20px", background: "#141414", border: "1px solid rgba(255,255,255,0.04)", borderRadius: 10 }}>
+            <div style={{ marginBottom: 24, padding: "16px 20px", background: "var(--sl-surface)", border: "1px solid var(--sl-border)", borderRadius: 10 }}>
               <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 10 }}>
                 <span style={{ ...sectionTitleStyle, margin: 0 }}>Audiência Estimada</span>
-                <span style={{ fontSize: 8, color: "#555", padding: "2px 6px", background: "rgba(255,255,255,0.04)", borderRadius: 4, textTransform: "uppercase" }}>AI</span>
+                <span style={{ fontSize: 8, color: "var(--sl-text-faint)", padding: "2px 6px", background: "color-mix(in srgb, var(--sl-text) 4%, transparent)", borderRadius: 4, textTransform: "uppercase" }}>AI</span>
               </div>
               <div className="sl-grid-2" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-                {creator.audienceEstimate.gender && <div><div style={{ fontSize: 9, color: "#555", textTransform: "uppercase", marginBottom: 2 }}>Género</div><div style={{ fontSize: 12, color: "#ccc" }}>{creator.audienceEstimate.gender}</div></div>}
-                {creator.audienceEstimate.age && <div><div style={{ fontSize: 9, color: "#555", textTransform: "uppercase", marginBottom: 2 }}>Idade</div><div style={{ fontSize: 12, color: "#ccc" }}>{creator.audienceEstimate.age}</div></div>}
-                {creator.audienceEstimate.location && <div><div style={{ fontSize: 9, color: "#555", textTransform: "uppercase", marginBottom: 2 }}>Localização</div><div style={{ fontSize: 12, color: "#ccc" }}>{creator.audienceEstimate.location}</div></div>}
-                {creator.audienceEstimate.language && <div><div style={{ fontSize: 9, color: "#555", textTransform: "uppercase", marginBottom: 2 }}>Idioma</div><div style={{ fontSize: 12, color: "#ccc" }}>{creator.audienceEstimate.language}</div></div>}
+                {creator.audienceEstimate.gender && <div><div style={{ fontSize: 12, color: "var(--sl-text-faint)", textTransform: "uppercase", marginBottom: 2 }}>Género</div><div style={{ fontSize: 12, color: "var(--sl-text-muted)" }}>{creator.audienceEstimate.gender}</div></div>}
+                {creator.audienceEstimate.age && <div><div style={{ fontSize: 12, color: "var(--sl-text-faint)", textTransform: "uppercase", marginBottom: 2 }}>Idade</div><div style={{ fontSize: 12, color: "var(--sl-text-muted)" }}>{creator.audienceEstimate.age}</div></div>}
+                {creator.audienceEstimate.location && <div><div style={{ fontSize: 12, color: "var(--sl-text-faint)", textTransform: "uppercase", marginBottom: 2 }}>Localização</div><div style={{ fontSize: 12, color: "var(--sl-text-muted)" }}>{creator.audienceEstimate.location}</div></div>}
+                {creator.audienceEstimate.language && <div><div style={{ fontSize: 12, color: "var(--sl-text-faint)", textTransform: "uppercase", marginBottom: 2 }}>Idioma</div><div style={{ fontSize: 12, color: "var(--sl-text-muted)" }}>{creator.audienceEstimate.language}</div></div>}
               </div>
               {creator.audienceEstimate.interests?.length > 0 && (
-                <div style={{ marginTop: 10, paddingTop: 8, borderTop: "1px solid rgba(255,255,255,0.04)" }}>
-                  <div style={{ fontSize: 9, color: "#555", textTransform: "uppercase", marginBottom: 6 }}>Interesses</div>
+                <div style={{ marginTop: 10, paddingTop: 8, borderTop: "1px solid var(--sl-border)" }}>
+                  <div style={{ fontSize: 12, color: "var(--sl-text-faint)", textTransform: "uppercase", marginBottom: 6 }}>Interesses</div>
                   <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
-                    {creator.audienceEstimate.interests.map((i, idx) => <span key={idx} style={{ fontSize: 10, color: "#aaa", padding: "3px 8px", background: "rgba(255,255,255,0.04)", borderRadius: 4 }}>{i}</span>)}
+                    {creator.audienceEstimate.interests.map((i, idx) => <span key={idx} style={{ fontSize: 12, color: "var(--sl-text-muted)", padding: "3px 8px", background: "color-mix(in srgb, var(--sl-text) 4%, transparent)", borderRadius: 4 }}>{i}</span>)}
                   </div>
                 </div>
               )}
@@ -2036,14 +2036,14 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
           {/* Instagram */}
           {igData && (
             <div style={{ marginBottom: 24 }}>
-              <h3 style={sectionTitleStyle}>Instagram {igData.url && <a href={igData.url} target="_blank" rel="noopener noreferrer" style={{ fontSize: 10, color: "#7A0E18", textDecoration: "none", marginLeft: 8, fontWeight: 400, textTransform: "none", letterSpacing: 0 }}>Ver perfil</a>}</h3>
+              <h3 style={sectionTitleStyle}>Instagram {igData.url && <a href={igData.url} target="_blank" rel="noopener noreferrer" style={{ fontSize: 12, color: "var(--sl-accent-text)", textDecoration: "none", marginLeft: 8, fontWeight: 400, textTransform: "none", letterSpacing: 0 }}>Ver perfil</a>}</h3>
               {/* Bio + external link + editable email card. Always renders for
                   IG-scraped creators so the "+ Adicionar email manualmente"
                   affordance is visible even when bio/externalUrl are empty —
                   letting the operator paste an address they found by hand. */}
-              <div style={{ marginBottom: 12, padding: "12px 14px", background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.04)", borderRadius: 8 }}>
-                {creator.bio && <p style={{ fontSize: 12, color: "#bbb", margin: 0, lineHeight: 1.6, whiteSpace: "pre-wrap" }}>{creator.bio}</p>}
-                {creator.externalUrl && <a href={creator.externalUrl.startsWith("http") ? creator.externalUrl : "https://" + creator.externalUrl} target="_blank" rel="noopener noreferrer" style={{ display: "block", marginTop: 6, fontSize: 11, color: "#7A0E18", textDecoration: "none" }}>{creator.externalUrl}</a>}
+              <div style={{ marginBottom: 12, padding: "12px 14px", background: "color-mix(in srgb, var(--sl-text) 2%, transparent)", border: "1px solid var(--sl-border)", borderRadius: 8 }}>
+                {creator.bio && <p style={{ fontSize: 12, color: "var(--sl-text-muted)", margin: 0, lineHeight: 1.6, whiteSpace: "pre-wrap" }}>{creator.bio}</p>}
+                {creator.externalUrl && <a href={creator.externalUrl.startsWith("http") ? creator.externalUrl : "https://" + creator.externalUrl} target="_blank" rel="noopener noreferrer" style={{ display: "block", marginTop: 6, fontSize: 12, color: "var(--sl-accent-text)", textDecoration: "none" }}>{creator.externalUrl}</a>}
                 <EditableContactEmail creator={creator} patchCreator={patchCreator} />
               </div>
               {/* IG multi-link bio — Instagram's native "Links" feature, up to 5
@@ -2051,16 +2051,16 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
                   silently if the actor didn't return any (some accounts have
                   only one externalUrl which is already shown above). */}
               {(igData.bioLinks || []).length > 0 && (
-                <div style={{ marginBottom: 12, padding: "10px 14px", background: "rgba(122,14,24,0.04)", border: "1px solid rgba(122,14,24,0.15)", borderRadius: 8 }}>
-                  <div style={{ fontSize: 9, fontWeight: 700, color: "#7A0E18", letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 8 }}>Bio Links · {igData.bioLinks.length}</div>
+                <div style={{ marginBottom: 12, padding: "10px 14px", background: "color-mix(in srgb, var(--sl-primary) 4%, transparent)", border: "1px solid color-mix(in srgb, var(--sl-primary) 15%, transparent)", borderRadius: 8 }}>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: "var(--sl-accent-text)", letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 8 }}>Bio Links · {igData.bioLinks.length}</div>
                   <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 6 }}>
                     {igData.bioLinks.map((l, i) => (
                       <li key={i} style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
-                        <span style={{ fontFamily: "'JetBrains Mono', ui-monospace, monospace", fontSize: 9, color: "#555", minWidth: 18 }}>{String(i + 1).padStart(2, '0')}</span>
-                        <span style={{ flex: 1, fontSize: 12, color: "#ccc" }}>
-                          {l.title && <span style={{ fontWeight: 600, color: "#f5f5f5" }}>{l.title}</span>}
-                          {l.title && l.url && <span style={{ color: "#444", margin: "0 6px" }}>·</span>}
-                          <a href={l.url} target="_blank" rel="noopener noreferrer" style={{ color: "#7A0E18", textDecoration: "none", wordBreak: "break-all" }}>{l.url}</a>
+                        <span style={{ fontFamily: "'JetBrains Mono', ui-monospace, monospace", fontSize: 12, color: "var(--sl-text-faint)", minWidth: 18 }}>{String(i + 1).padStart(2, '0')}</span>
+                        <span style={{ flex: 1, fontSize: 12, color: "var(--sl-text-muted)" }}>
+                          {l.title && <span style={{ fontWeight: 600, color: "var(--sl-text)" }}>{l.title}</span>}
+                          {l.title && l.url && <span style={{ color: "var(--sl-text-faint)", margin: "0 6px" }}>·</span>}
+                          <a href={l.url} target="_blank" rel="noopener noreferrer" style={{ color: "var(--sl-accent-text)", textDecoration: "none", wordBreak: "break-all" }}>{l.url}</a>
                         </span>
                       </li>
                     ))}
@@ -2074,17 +2074,17 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
                 {igData.avgLikes > 0 && <div style={metricCardStyle}><div style={metricLabelStyle}>Média Likes</div><div style={metricValueStyle}>{formatFollowers(igData.avgLikes)}</div></div>}
                 {igData.avgComments > 0 && <div style={metricCardStyle}><div style={metricLabelStyle}>Média Com.</div><div style={metricValueStyle}>{formatFollowers(igData.avgComments)}</div></div>}
                 {(igData.engagementRate || creator.engagement) && <div style={metricCardStyle} data-tip={"(Avg Likes + Avg Comments) / Followers × 100\nMeasures how actively the audience interacts"}><div style={{ ...metricLabelStyle, cursor: "help" }}>Engagement</div><div style={metricValueStyle}>{igData.engagementRate || creator.engagement}</div></div>}
-                {igData.botScore != null && <div style={{ ...metricCardStyle, background: igData.botScore <= 0.3 ? "#22c55e0a" : "#ef44440a" }} data-tip={"Bot score: " + (igData.botScore * 100).toFixed(0) + "%\n0% = fully real audience\n100% = mostly bots\n≤30% = Low (good) | 30-60% = Medium | >60% = High (bad)"}><div style={{ ...metricLabelStyle, cursor: "help" }}>Fake Followers</div><div style={{ ...metricValueStyle, color: igData.botScore <= 0.3 ? "#22c55e" : igData.botScore <= 0.6 ? "#eab308" : "#ef4444" }}>{igData.botScore <= 0.3 ? "Low" : igData.botScore <= 0.6 ? "Med" : "High"} <span style={{ fontSize: 10, color: "#555", fontWeight: 400 }}>{(igData.botScore * 100).toFixed(0)}%</span></div></div>}
+                {igData.botScore != null && <div style={{ ...metricCardStyle, background: igData.botScore <= 0.3 ? "#22c55e0a" : "#ef44440a" }} data-tip={"Bot score: " + (igData.botScore * 100).toFixed(0) + "%\n0% = fully real audience\n100% = mostly bots\n≤30% = Low (good) | 30-60% = Medium | >60% = High (bad)"}><div style={{ ...metricLabelStyle, cursor: "help" }}>Fake Followers</div><div style={{ ...metricValueStyle, color: igData.botScore <= 0.3 ? "var(--sl-success)" : igData.botScore <= 0.6 ? "var(--sl-warning)" : "var(--sl-danger)" }}>{igData.botScore <= 0.3 ? "Low" : igData.botScore <= 0.6 ? "Med" : "High"} <span style={{ fontSize: 12, color: "var(--sl-text-faint)", fontWeight: 400 }}>{(igData.botScore * 100).toFixed(0)}%</span></div></div>}
               </div>
               {(igData.recentPosts || []).length > 0 && (
-                <div><div style={{ fontSize: 10, fontWeight: 600, color: "#444", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>Posts Recentes</div>
+                <div><div style={{ fontSize: 12, fontWeight: 600, color: "var(--sl-text-faint)", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>Posts Recentes</div>
                 <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
                   {igData.recentPosts.slice(0, 6).map((p, i) => (
-                    <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 12px", background: "#141414", border: "1px solid rgba(255,255,255,0.03)", borderRadius: 6 }}>
-                      <span style={{ flex: 1, fontSize: 11, color: "#ccc", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.caption || "(sem legenda)"}</span>
-                      {p.type && <span style={{ fontSize: 9, color: "#444", padding: "1px 5px", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 3 }}>{p.type}</span>}
-                      <span style={{ fontSize: 10, color: "#888", whiteSpace: "nowrap" }}>{formatFollowers(p.likes)} likes</span>
-                      <span style={{ fontSize: 10, color: "#555", whiteSpace: "nowrap" }}>{p.comments} com.</span>
+                    <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 12px", background: "var(--sl-surface)", border: "1px solid var(--sl-border)", borderRadius: 6 }}>
+                      <span style={{ flex: 1, fontSize: 12, color: "var(--sl-text-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.caption || "(sem legenda)"}</span>
+                      {p.type && <span style={{ fontSize: 12, color: "var(--sl-text-faint)", padding: "1px 5px", border: "1px solid var(--sl-border)", borderRadius: 3 }}>{p.type}</span>}
+                      <span style={{ fontSize: 12, color: "var(--sl-text-muted)", whiteSpace: "nowrap" }}>{formatFollowers(p.likes)} likes</span>
+                      <span style={{ fontSize: 12, color: "var(--sl-text-faint)", whiteSpace: "nowrap" }}>{p.comments} com.</span>
                     </div>
                   ))}
                 </div></div>
@@ -2094,32 +2094,32 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
 
           {/* Phase 2 — TikTok + YouTube (lean creators only) */}
           {(creator.scrapeLevel || 'lean') !== 'full' && (
-            <div style={{ marginBottom: 24, padding: "16px 20px", background: "#141414", border: `1px solid ${creator.outreach?.repliedAt ? "rgba(34,197,94,0.3)" : "rgba(234,179,8,0.15)"}`, borderRadius: 10 }}>
+            <div style={{ marginBottom: 24, padding: "16px 20px", background: "var(--sl-surface)", border: `1px solid ${creator.outreach?.repliedAt ? "color-mix(in srgb, var(--sl-success) 30%, transparent)" : "color-mix(in srgb, var(--sl-warning) 15%, transparent)"}`, borderRadius: 10 }}>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
-                <span style={{ fontSize: 12, fontWeight: 700, color: creator.outreach?.repliedAt ? "#22c55e" : "#eab308" }}>
+                <span style={{ fontSize: 12, fontWeight: 700, color: creator.outreach?.repliedAt ? "var(--sl-success)" : "var(--sl-warning)" }}>
                   {creator.outreach?.repliedAt ? "● Fase 2 — Pronto para scrape completo" : "○ Fase 2 — Após o criador responder"}
                 </span>
               </div>
-              <p style={{ fontSize: 11, color: "#555", margin: "0 0 14px", lineHeight: 1.5 }}>
+              <p style={{ fontSize: 12, color: "var(--sl-text-faint)", margin: "0 0 14px", lineHeight: 1.5 }}>
                 Adiciona TikTok e YouTube para enriquecer o audit, archetype e unicidade antes de construir a offer.
               </p>
               <div className="sl-grid-2" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 12 }}>
                 <div>
-                  <label style={{ display: "block", fontSize: 10, fontWeight: 600, color: "#555", marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.05em" }}>TikTok URL</label>
+                  <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "var(--sl-text-faint)", marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.05em" }}>TikTok URL</label>
                   <input type="text" style={inputStyle} placeholder="https://tiktok.com/@username"
                     defaultValue={creator.tiktokUrl || creator.platforms?.tiktok?.url || ""}
                     onBlur={e => { const v = e.target.value.trim(); const cur = creator.tiktokUrl || creator.platforms?.tiktok?.url || ""; if (v !== cur) patchCreator({ tiktokUrl: v || null }); }}
                   />
                 </div>
                 <div>
-                  <label style={{ display: "block", fontSize: 10, fontWeight: 600, color: "#555", marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.05em" }}>YouTube URL</label>
+                  <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "var(--sl-text-faint)", marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.05em" }}>YouTube URL</label>
                   <input type="text" style={inputStyle} placeholder="https://youtube.com/@channel"
                     defaultValue={creator.youtubeUrl || creator.platforms?.youtube?.url || ""}
                     onBlur={e => { const v = e.target.value.trim(); const cur = creator.youtubeUrl || creator.platforms?.youtube?.url || ""; if (v !== cur) patchCreator({ youtubeUrl: v || null }); }}
                   />
                 </div>
               </div>
-              <button onClick={runFullScrape} disabled={runningFullScrape} style={{ padding: "10px 24px", borderRadius: 6, border: "none", background: creator.outreach?.repliedAt ? "#22c55e" : "rgba(234,179,8,0.12)", color: creator.outreach?.repliedAt ? "#000" : "#eab308", fontSize: 12, fontWeight: 700, cursor: runningFullScrape ? "wait" : "pointer", fontFamily: "inherit", opacity: runningFullScrape ? 0.6 : 1 }}>
+              <button onClick={runFullScrape} disabled={runningFullScrape} style={{ padding: "10px 24px", borderRadius: 6, border: "none", background: creator.outreach?.repliedAt ? "var(--sl-success)" : "color-mix(in srgb, var(--sl-warning) 12%, transparent)", color: creator.outreach?.repliedAt ? "var(--sl-bg)" : "var(--sl-warning)", fontSize: 12, fontWeight: 700, cursor: runningFullScrape ? "wait" : "pointer", fontFamily: "inherit", opacity: runningFullScrape ? 0.6 : 1 }}>
                 {runningFullScrape ? "A scrapear..." : "↻ Full Scrape"}
               </button>
             </div>
@@ -2128,7 +2128,7 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
           {/* TikTok */}
           {tkData && (
             <div style={{ marginBottom: 24 }}>
-              <h3 style={sectionTitleStyle}>TikTok {tkData.url && <a href={tkData.url} target="_blank" rel="noopener noreferrer" style={{ fontSize: 10, color: "#7A0E18", textDecoration: "none", marginLeft: 8, fontWeight: 400, textTransform: "none", letterSpacing: 0 }}>Ver perfil</a>}</h3>
+              <h3 style={sectionTitleStyle}>TikTok {tkData.url && <a href={tkData.url} target="_blank" rel="noopener noreferrer" style={{ fontSize: 12, color: "var(--sl-accent-text)", textDecoration: "none", marginLeft: 8, fontWeight: 400, textTransform: "none", letterSpacing: 0 }}>Ver perfil</a>}</h3>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(110px, 1fr))", gap: 6, marginBottom: 10 }}>
                 {tkData.followers > 0 && <div style={metricCardStyle}><div style={metricLabelStyle}>Followers</div><div style={metricValueStyle}>{formatFollowers(tkData.followers)}</div></div>}
                 {tkData.totalLikes > 0 && <div style={metricCardStyle}><div style={metricLabelStyle}>Total Likes</div><div style={metricValueStyle}>{formatFollowers(tkData.totalLikes)}</div></div>}
@@ -2136,14 +2136,14 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
                 {tkData.avgViews > 0 && <div style={metricCardStyle}><div style={metricLabelStyle}>Média Views</div><div style={metricValueStyle}>{formatFollowers(tkData.avgViews)}</div></div>}
               </div>
               {(tkData.recentVideos || []).length > 0 && (
-                <div><div style={{ fontSize: 10, fontWeight: 600, color: "#444", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>Vídeos Recentes</div>
+                <div><div style={{ fontSize: 12, fontWeight: 600, color: "var(--sl-text-faint)", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>Vídeos Recentes</div>
                 <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
                   {tkData.recentVideos.slice(0, 6).map((v, i) => (
-                    <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 12px", background: "#141414", border: "1px solid rgba(255,255,255,0.03)", borderRadius: 6 }}>
-                      <span style={{ flex: 1, fontSize: 11, color: "#ccc", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{v.caption || "(sem legenda)"}</span>
-                      <span style={{ fontSize: 10, color: "#888", whiteSpace: "nowrap" }}>{formatFollowers(v.views)} views</span>
-                      <span style={{ fontSize: 10, color: "#888", whiteSpace: "nowrap" }}>{formatFollowers(v.likes)} likes</span>
-                      <span style={{ fontSize: 10, color: "#555", whiteSpace: "nowrap" }}>{v.shares} shares</span>
+                    <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 12px", background: "var(--sl-surface)", border: "1px solid var(--sl-border)", borderRadius: 6 }}>
+                      <span style={{ flex: 1, fontSize: 12, color: "var(--sl-text-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{v.caption || "(sem legenda)"}</span>
+                      <span style={{ fontSize: 12, color: "var(--sl-text-muted)", whiteSpace: "nowrap" }}>{formatFollowers(v.views)} views</span>
+                      <span style={{ fontSize: 12, color: "var(--sl-text-muted)", whiteSpace: "nowrap" }}>{formatFollowers(v.likes)} likes</span>
+                      <span style={{ fontSize: 12, color: "var(--sl-text-faint)", whiteSpace: "nowrap" }}>{v.shares} shares</span>
                     </div>
                   ))}
                 </div></div>
@@ -2154,25 +2154,25 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
           {/* YouTube */}
           {ytData && (
             <div style={{ marginBottom: 24 }}>
-              <h3 style={sectionTitleStyle}>YouTube {ytData.url && <a href={ytData.url} target="_blank" rel="noopener noreferrer" style={{ fontSize: 10, color: "#7A0E18", textDecoration: "none", marginLeft: 8, fontWeight: 400, textTransform: "none", letterSpacing: 0 }}>Ver canal</a>}</h3>
+              <h3 style={sectionTitleStyle}>YouTube {ytData.url && <a href={ytData.url} target="_blank" rel="noopener noreferrer" style={{ fontSize: 12, color: "var(--sl-accent-text)", textDecoration: "none", marginLeft: 8, fontWeight: 400, textTransform: "none", letterSpacing: 0 }}>Ver canal</a>}</h3>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(110px, 1fr))", gap: 6, marginBottom: 10 }}>
                 {ytData.subscribers > 0 && <div style={metricCardStyle}><div style={metricLabelStyle}>Subscribers</div><div style={metricValueStyle}>{formatFollowers(ytData.subscribers)}</div></div>}
                 {ytData.videoCount > 0 && <div style={metricCardStyle}><div style={metricLabelStyle}>Vídeos</div><div style={metricValueStyle}>{formatFollowers(ytData.videoCount)}</div></div>}
                 {ytData.totalViews > 0 && <div style={metricCardStyle}><div style={metricLabelStyle}>Total Views</div><div style={metricValueStyle}>{formatFollowers(ytData.totalViews)}</div></div>}
                 {ytData.avgViews > 0 && <div style={metricCardStyle}><div style={metricLabelStyle}>Média Views</div><div style={metricValueStyle}>{formatFollowers(ytData.avgViews)}</div></div>}
-                {ytData.viewEngagement && ytData.viewEngagement !== '' && <div style={{ ...metricCardStyle, background: "#1a1410" }} data-tip={"Avg Views / Subscribers × 100\nMeasures what % of subscribers watch each video\n>100% = content reaches beyond subscribers"}><div style={{ ...metricLabelStyle, cursor: "help" }}>Taxa de visualização</div><div style={metricValueStyle}>{ytData.viewEngagement}</div></div>}
+                {ytData.viewEngagement && ytData.viewEngagement !== '' && <div style={{ ...metricCardStyle, background: "var(--sl-surface-raised)" }} data-tip={"Avg Views / Subscribers × 100\nMeasures what % of subscribers watch each video\n>100% = content reaches beyond subscribers"}><div style={{ ...metricLabelStyle, cursor: "help" }}>Taxa de visualização</div><div style={metricValueStyle}>{ytData.viewEngagement}</div></div>}
                 {ytData.joinedDate && <div style={metricCardStyle}><div style={metricLabelStyle}>Desde</div><div style={{ ...metricValueStyle, fontSize: 12 }}>{ytData.joinedDate}</div></div>}
               </div>
               {(ytData.recentVideos || []).length > 0 && (
-                <div><div style={{ fontSize: 10, fontWeight: 600, color: "#444", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>Vídeos Recentes</div>
+                <div><div style={{ fontSize: 12, fontWeight: 600, color: "var(--sl-text-faint)", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>Vídeos Recentes</div>
                 <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
                   {ytData.recentVideos.slice(0, 3).map((v, i) => (
-                    <div key={i} style={{ padding: "8px 12px", background: "#141414", border: "1px solid rgba(255,255,255,0.03)", borderRadius: 6 }}>
-                      <div style={{ fontSize: 11, color: "#ccc", marginBottom: 3 }}>{v.url ? <a href={v.url} target="_blank" rel="noopener noreferrer" style={{ color: "#ccc", textDecoration: "none" }}>{v.title}</a> : v.title}</div>
+                    <div key={i} style={{ padding: "8px 12px", background: "var(--sl-surface)", border: "1px solid var(--sl-border)", borderRadius: 6 }}>
+                      <div style={{ fontSize: 12, color: "var(--sl-text-muted)", marginBottom: 3 }}>{v.url ? <a href={v.url} target="_blank" rel="noopener noreferrer" style={{ color: "var(--sl-text-muted)", textDecoration: "none" }}>{v.title}</a> : v.title}</div>
                       <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-                        <span style={{ fontSize: 10, color: "#888" }}>{formatFollowers(v.views)} views</span>
-                        {v.duration && <span style={{ fontSize: 10, color: "#555" }}>{v.duration}</span>}
-                        {v.date && <span style={{ fontSize: 10, color: "#444" }}>{v.date}</span>}
+                        <span style={{ fontSize: 12, color: "var(--sl-text-muted)" }}>{formatFollowers(v.views)} views</span>
+                        {v.duration && <span style={{ fontSize: 12, color: "var(--sl-text-faint)" }}>{v.duration}</span>}
+                        {v.date && <span style={{ fontSize: 12, color: "var(--sl-text-faint)" }}>{v.date}</span>}
                       </div>
                     </div>
                   ))}
@@ -2184,25 +2184,25 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
           {/* Content Analysis */}
           {(creator.intelligence?.topPosts?.length > 0 || creator.intelligence?.contentStyle) && (
             <div style={{ marginBottom: 24 }}>
-              <h3 style={sectionTitleStyle}>Análise de Conteúdo <span style={{ fontSize: 8, color: "#555", padding: "2px 6px", background: "rgba(255,255,255,0.04)", borderRadius: 4, textTransform: "uppercase", fontWeight: 400, marginLeft: 8 }}>AI</span></h3>
+              <h3 style={sectionTitleStyle}>Análise de Conteúdo <span style={{ fontSize: 8, color: "var(--sl-text-faint)", padding: "2px 6px", background: "color-mix(in srgb, var(--sl-text) 4%, transparent)", borderRadius: 4, textTransform: "uppercase", fontWeight: 400, marginLeft: 8 }}>AI</span></h3>
 
               {/* Format breakdown */}
               {creator.intelligence.contentStyle && (
                 <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
                   {[
-                    { label: "Reels", value: creator.intelligence.contentStyle.formatBreakdown?.reels, color: "#7A0E18" },
-                    { label: "Carousels", value: creator.intelligence.contentStyle.formatBreakdown?.carousels, color: "#3b82f6" },
-                    { label: "Estático", value: creator.intelligence.contentStyle.formatBreakdown?.static, color: "#555" },
+                    { label: "Reels", value: creator.intelligence.contentStyle.formatBreakdown?.reels, color: "var(--sl-accent-text)" },
+                    { label: "Carousels", value: creator.intelligence.contentStyle.formatBreakdown?.carousels, color: "var(--sl-info)" },
+                    { label: "Estático", value: creator.intelligence.contentStyle.formatBreakdown?.static, color: "var(--sl-text-faint)" },
                   ].filter(f => f.value > 0).map((f, i) => (
-                    <div key={i} style={{ flex: 1, padding: "10px 12px", background: "#141414", border: "1px solid rgba(255,255,255,0.04)", borderRadius: 8, textAlign: "center" }}>
+                    <div key={i} style={{ flex: 1, padding: "10px 12px", background: "var(--sl-surface)", border: "1px solid var(--sl-border)", borderRadius: 8, textAlign: "center" }}>
                       <div style={{ fontSize: 18, fontWeight: 700, color: f.color }}>{f.value}%</div>
-                      <div style={{ fontSize: 9, color: "#555", textTransform: "uppercase", marginTop: 2 }}>{f.label}</div>
+                      <div style={{ fontSize: 12, color: "var(--sl-text-faint)", textTransform: "uppercase", marginTop: 2 }}>{f.label}</div>
                     </div>
                   ))}
                   {creator.intelligence.contentStyle.postsPerWeek > 0 && (
-                    <div style={{ flex: 1, padding: "10px 12px", background: "#141414", border: "1px solid rgba(255,255,255,0.04)", borderRadius: 8, textAlign: "center" }}>
-                      <div style={{ fontSize: 18, fontWeight: 700, color: "#22c55e" }}>{creator.intelligence.contentStyle.postsPerWeek}</div>
-                      <div style={{ fontSize: 9, color: "#555", textTransform: "uppercase", marginTop: 2 }}>Posts/semana</div>
+                    <div style={{ flex: 1, padding: "10px 12px", background: "var(--sl-surface)", border: "1px solid var(--sl-border)", borderRadius: 8, textAlign: "center" }}>
+                      <div style={{ fontSize: 18, fontWeight: 700, color: "var(--sl-success)" }}>{creator.intelligence.contentStyle.postsPerWeek}</div>
+                      <div style={{ fontSize: 12, color: "var(--sl-text-faint)", textTransform: "uppercase", marginTop: 2 }}>Posts/semana</div>
                     </div>
                   )}
                 </div>
@@ -2211,15 +2211,15 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
               {/* Top posts */}
               {creator.intelligence.topPosts?.length > 0 && (
                 <div>
-                  <div style={{ fontSize: 10, fontWeight: 600, color: "#444", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>Top Posts</div>
+                  <div style={{ fontSize: 12, fontWeight: 600, color: "var(--sl-text-faint)", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>Top Posts</div>
                   <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
                     {creator.intelligence.topPosts.map((p, i) => (
-                      <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 12px", background: "#141414", border: "1px solid rgba(255,255,255,0.03)", borderRadius: 6 }}>
-                        <span style={{ fontSize: 10, fontWeight: 700, color: "#22c55e", minWidth: 16 }}>#{i + 1}</span>
-                        <span style={{ flex: 1, fontSize: 11, color: "#ccc", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.caption}</span>
-                        {p.format && <span style={{ fontSize: 9, color: "#444", padding: "1px 5px", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 3 }}>{p.format}</span>}
-                        {p.topic && <span style={{ fontSize: 9, color: "#888", padding: "1px 6px", background: "rgba(122,14,24,0.15)", borderRadius: 3 }}>{p.topic}</span>}
-                        {p.engagementRate && <span style={{ fontSize: 10, color: "#22c55e", fontWeight: 600, whiteSpace: "nowrap" }}>{p.engagementRate}</span>}
+                      <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 12px", background: "var(--sl-surface)", border: "1px solid var(--sl-border)", borderRadius: 6 }}>
+                        <span style={{ fontSize: 12, fontWeight: 700, color: "var(--sl-success)", minWidth: 16 }}>#{i + 1}</span>
+                        <span style={{ flex: 1, fontSize: 12, color: "var(--sl-text-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.caption}</span>
+                        {p.format && <span style={{ fontSize: 12, color: "var(--sl-text-faint)", padding: "1px 5px", border: "1px solid var(--sl-border)", borderRadius: 3 }}>{p.format}</span>}
+                        {p.topic && <span style={{ fontSize: 12, color: "var(--sl-text-muted)", padding: "1px 6px", background: "color-mix(in srgb, var(--sl-primary) 15%, transparent)", borderRadius: 3 }}>{p.topic}</span>}
+                        {p.engagementRate && <span style={{ fontSize: 12, color: "var(--sl-success)", fontWeight: 600, whiteSpace: "nowrap" }}>{p.engagementRate}</span>}
                       </div>
                     ))}
                   </div>
@@ -2231,19 +2231,19 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
           {/* Products & Revenue Signals */}
           {(creator.intelligence?.bioLinks?.length > 0 || creator.products?.length > 0 || creator.bioLinks?.length > 0) && (
             <div style={{ marginBottom: 24 }}>
-              <h3 style={sectionTitleStyle}>Produtos & Revenue <span style={{ fontSize: 8, color: "#555", padding: "2px 6px", background: "rgba(255,255,255,0.04)", borderRadius: 4, textTransform: "uppercase", fontWeight: 400, marginLeft: 8 }}>AI</span></h3>
+              <h3 style={sectionTitleStyle}>Produtos & Revenue <span style={{ fontSize: 8, color: "var(--sl-text-faint)", padding: "2px 6px", background: "color-mix(in srgb, var(--sl-text) 4%, transparent)", borderRadius: 4, textTransform: "uppercase", fontWeight: 400, marginLeft: 8 }}>AI</span></h3>
 
               {/* Intelligence bio link products (with platform + pricing) */}
               {creator.intelligence?.bioLinks?.length > 0 && (
                 <div style={{ display: "flex", flexDirection: "column", gap: 4, marginBottom: 10 }}>
                   {creator.intelligence.bioLinks.map((p, i) => (
-                    <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 14px", background: "#141414", border: "1px solid rgba(255,255,255,0.04)", borderRadius: 8 }}>
+                    <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 14px", background: "var(--sl-surface)", border: "1px solid var(--sl-border)", borderRadius: 8 }}>
                       <div style={{ flex: 1 }}>
-                        <div style={{ fontSize: 12, fontWeight: 600, color: "#f5f5f5" }}>{p.productName}</div>
-                        <div style={{ fontSize: 10, color: "#555", marginTop: 2 }}>{p.platform}{p.url ? ` — ${p.url}` : ''}</div>
+                        <div style={{ fontSize: 12, fontWeight: 600, color: "var(--sl-text)" }}>{p.productName}</div>
+                        <div style={{ fontSize: 12, color: "var(--sl-text-faint)", marginTop: 2 }}>{p.platform}{p.url ? ` — ${p.url}` : ''}</div>
                       </div>
                       {p.price && (
-                        <div style={{ padding: "4px 10px", background: "rgba(34,197,94,0.1)", border: "1px solid rgba(34,197,94,0.2)", borderRadius: 6, fontSize: 13, fontWeight: 700, color: "#22c55e" }}>
+                        <div style={{ padding: "4px 10px", background: "color-mix(in srgb, var(--sl-success) 10%, transparent)", border: "1px solid color-mix(in srgb, var(--sl-success) 20%, transparent)", borderRadius: 6, fontSize: 13, fontWeight: 700, color: "var(--sl-success)" }}>
                           {p.currency === 'EUR' || !p.currency ? '€' : p.currency}{p.price}
                         </div>
                       )}
@@ -2255,9 +2255,9 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
               {/* Raw bio links (from Linktree scraper) */}
               {creator.bioLinks?.length > 0 && (
                 <div style={{ marginBottom: 8 }}>
-                  <div style={{ fontSize: 10, fontWeight: 600, color: "#444", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>Links na Bio</div>
+                  <div style={{ fontSize: 12, fontWeight: 600, color: "var(--sl-text-faint)", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>Links na Bio</div>
                   <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
-                    {creator.bioLinks.map((l, i) => <a key={i} href={l.url?.startsWith("http") ? l.url : "https://" + l.url} target="_blank" rel="noopener noreferrer" style={{ fontSize: 11, color: "#7A0E18", textDecoration: "none", padding: "6px 10px", background: "#141414", borderRadius: 6, wordBreak: "break-all" }}>{l.title || l.url}</a>)}
+                    {creator.bioLinks.map((l, i) => <a key={i} href={l.url?.startsWith("http") ? l.url : "https://" + l.url} target="_blank" rel="noopener noreferrer" style={{ fontSize: 12, color: "var(--sl-accent-text)", textDecoration: "none", padding: "6px 10px", background: "var(--sl-surface)", borderRadius: 6, wordBreak: "break-all" }}>{l.title || l.url}</a>)}
                   </div>
                 </div>
               )}
@@ -2265,27 +2265,27 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
               {/* AI-detected products */}
               {creator.products?.length > 0 && (
                 <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                  {creator.products.map((p, i) => <span key={i} style={{ fontSize: 11, color: "#f5f5f5", padding: "4px 10px", background: "rgba(122,14,24,0.15)", border: "1px solid rgba(122,14,24,0.25)", borderRadius: 4 }}>{p}</span>)}
+                  {creator.products.map((p, i) => <span key={i} style={{ fontSize: 12, color: "var(--sl-text)", padding: "4px 10px", background: "color-mix(in srgb, var(--sl-primary) 15%, transparent)", border: "1px solid color-mix(in srgb, var(--sl-primary) 25%, transparent)", borderRadius: 4 }}>{p}</span>)}
                 </div>
               )}
             </div>
           )}
 
           {/* Discovery — always visible */}
-          <div style={{ marginBottom: 24, padding: "14px 16px", background: "#141414", border: "1px solid rgba(255,255,255,0.04)", borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+          <div style={{ marginBottom: 24, padding: "14px 16px", background: "var(--sl-surface)", border: "1px solid var(--sl-border)", borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
             <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 12, fontWeight: 600, color: "#f5f5f5", marginBottom: 2 }}>Descobrir similares</div>
-              <div style={{ fontSize: 10, color: "#666" }}>
+              <div style={{ fontSize: 12, fontWeight: 600, color: "var(--sl-text)", marginBottom: 2 }}>Descobrir similares</div>
+              <div style={{ fontSize: 12, color: "var(--sl-text-faint)" }}>
                 Scanear 5 creators similares no Instagram e adicionar ao Discovery queue. ~€0.75
               </div>
               {similarResult && (
-                <div style={{ fontSize: 10, color: similarResult.startsWith("Erro") ? "#ef4444" : "#22c55e", marginTop: 4 }}>{similarResult}</div>
+                <div style={{ fontSize: 12, color: similarResult.startsWith("Erro") ? "var(--sl-danger)" : "var(--sl-success)", marginTop: 4 }}>{similarResult}</div>
               )}
             </div>
             <button
               onClick={findSimilar}
               disabled={findingSimilar}
-              style={{ fontSize: 11, fontWeight: 600, padding: "8px 14px", background: findingSimilar ? "#222" : "#7A0E18", border: "none", borderRadius: 6, color: findingSimilar ? "#555" : "#fff", cursor: findingSimilar ? "wait" : "pointer", fontFamily: "inherit", whiteSpace: "nowrap" }}
+              style={{ fontSize: 12, fontWeight: 600, padding: "8px 14px", background: findingSimilar ? "var(--sl-surface-raised)" : "var(--sl-primary)", border: "none", borderRadius: 6, color: findingSimilar ? "var(--sl-text-faint)" : "var(--sl-text)", cursor: findingSimilar ? "wait" : "pointer", fontFamily: "inherit", whiteSpace: "nowrap" }}
             >
               {findingSimilar ? "A descobrir..." : "Find 5 similar"}
             </button>
@@ -2294,24 +2294,24 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
           {/* Competitors (intelligence version + Instagram similar) */}
           {(creator.intelligence?.competitors?.length > 0 || creator.competitors?.length > 0) && (
             <div style={{ marginBottom: 24 }}>
-              <h3 style={sectionTitleStyle}>Competidores no Nicho <span style={{ fontSize: 8, color: "#555", padding: "2px 6px", background: "rgba(255,255,255,0.04)", borderRadius: 4, textTransform: "uppercase", fontWeight: 400, marginLeft: 8 }}>AI</span></h3>
+              <h3 style={sectionTitleStyle}>Competidores no Nicho <span style={{ fontSize: 8, color: "var(--sl-text-faint)", padding: "2px 6px", background: "color-mix(in srgb, var(--sl-text) 4%, transparent)", borderRadius: 4, textTransform: "uppercase", fontWeight: 400, marginLeft: 8 }}>AI</span></h3>
 
               {/* Intelligence competitors (with pricing) */}
               {creator.intelligence?.competitors?.length > 0 && (
                 <div style={{ display: "flex", flexDirection: "column", gap: 4, marginBottom: 10 }}>
                   {creator.intelligence.competitors.map((c, i) => (
-                    <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 14px", background: "#141414", border: "1px solid rgba(255,255,255,0.04)", borderRadius: 8 }}>
+                    <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 14px", background: "var(--sl-surface)", border: "1px solid var(--sl-border)", borderRadius: 8 }}>
                       <div style={{ flex: 1 }}>
-                        <div style={{ fontSize: 12, fontWeight: 600, color: "#ccc" }}>
-                          {c.url ? <a href={c.url.startsWith("http") ? c.url : "https://" + c.url} target="_blank" rel="noopener noreferrer" style={{ color: "#ccc", textDecoration: "none" }}>{c.name}</a> : c.name}
+                        <div style={{ fontSize: 12, fontWeight: 600, color: "var(--sl-text-muted)" }}>
+                          {c.url ? <a href={c.url.startsWith("http") ? c.url : "https://" + c.url} target="_blank" rel="noopener noreferrer" style={{ color: "var(--sl-text-muted)", textDecoration: "none" }}>{c.name}</a> : c.name}
                         </div>
-                        <div style={{ fontSize: 10, color: "#555", marginTop: 2 }}>
+                        <div style={{ fontSize: 12, color: "var(--sl-text-faint)", marginTop: 2 }}>
                           {c.platform}
                           {c.estimatedSize && <span style={{ marginLeft: 8 }}>{c.estimatedSize} membros</span>}
                         </div>
                       </div>
                       {c.price && (
-                        <div style={{ padding: "4px 10px", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 6, fontSize: 12, fontWeight: 600, color: "#eab308" }}>
+                        <div style={{ padding: "4px 10px", background: "color-mix(in srgb, var(--sl-text) 4%, transparent)", border: "1px solid var(--sl-border)", borderRadius: 6, fontSize: 12, fontWeight: 600, color: "var(--sl-warning)" }}>
                           {c.currency === 'EUR' || !c.currency ? '€' : c.currency}{c.price}
                         </div>
                       )}
@@ -2323,12 +2323,12 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
               {/* Instagram similar profiles (existing data) */}
               {creator.competitors?.length > 0 && creator.competitors[0]?.username && (
                 <div>
-                  <div style={{ fontSize: 10, fontWeight: 600, color: "#444", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>Instagram Similares</div>
+                  <div style={{ fontSize: 12, fontWeight: 600, color: "var(--sl-text-faint)", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>Instagram Similares</div>
                   <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
                     {creator.competitors.slice(0, 5).map((c, i) => (
-                      <a key={i} href={c.url || `https://instagram.com/${c.username}`} target="_blank" rel="noopener noreferrer" style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 12px", background: "#141414", border: "1px solid rgba(255,255,255,0.03)", borderRadius: 6, textDecoration: "none" }}>
-                        <div style={{ fontSize: 12, color: "#ccc", flex: 1 }}>{c.fullName || c.username} <span style={{ color: "#555" }}>@{c.username}</span></div>
-                        {c.followers > 0 && <span style={{ fontSize: 11, color: "#888", fontWeight: 600 }}>{formatFollowers(c.followers)}</span>}
+                      <a key={i} href={c.url || `https://instagram.com/${c.username}`} target="_blank" rel="noopener noreferrer" style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 12px", background: "var(--sl-surface)", border: "1px solid var(--sl-border)", borderRadius: 6, textDecoration: "none" }}>
+                        <div style={{ fontSize: 12, color: "var(--sl-text-muted)", flex: 1 }}>{c.fullName || c.username} <span style={{ color: "var(--sl-text-faint)" }}>@{c.username}</span></div>
+                        {c.followers > 0 && <span style={{ fontSize: 12, color: "var(--sl-text-muted)", fontWeight: 600 }}>{formatFollowers(c.followers)}</span>}
                       </a>
                     ))}
                   </div>
@@ -2338,15 +2338,15 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
           )}
 
           {/* Reputation */}
-          {creator.reputation && <div style={{ marginBottom: 24 }}><h3 style={sectionTitleStyle}>Reputação</h3><p style={{ fontSize: 12, color: "#888", margin: 0, lineHeight: 1.6 }}>{creator.reputation}</p></div>}
+          {creator.reputation && <div style={{ marginBottom: 24 }}><h3 style={sectionTitleStyle}>Reputação</h3><p style={{ fontSize: 12, color: "var(--sl-text-muted)", margin: 0, lineHeight: 1.6 }}>{creator.reputation}</p></div>}
 
           {/* Research */}
           {creator.research && (
             <div style={{ marginBottom: 24 }}>
-              <button onClick={() => setShowResearch(!showResearch)} style={{ fontSize: 11, fontWeight: 600, color: "#555", textTransform: "uppercase", letterSpacing: "0.08em", background: "transparent", border: "none", cursor: "pointer", padding: 0, marginBottom: 10, fontFamily: "inherit" }}>
+              <button onClick={() => setShowResearch(!showResearch)} style={{ fontSize: 12, fontWeight: 600, color: "var(--sl-text-faint)", textTransform: "uppercase", letterSpacing: "0.08em", background: "transparent", border: "none", cursor: "pointer", padding: 0, marginBottom: 10, fontFamily: "inherit" }}>
                 Pesquisa Completa {showResearch ? "[-]" : "[+]"}
               </button>
-              {showResearch && <div style={{ padding: 16, background: "#141414", border: "1px solid rgba(255,255,255,0.04)", borderRadius: 8, fontSize: 11, color: "#888", lineHeight: 1.7, whiteSpace: "pre-wrap", maxHeight: 400, overflowY: "auto" }}>{creator.research}</div>}
+              {showResearch && <div style={{ padding: 16, background: "var(--sl-surface)", border: "1px solid var(--sl-border)", borderRadius: 8, fontSize: 12, color: "var(--sl-text-muted)", lineHeight: 1.7, whiteSpace: "pre-wrap", maxHeight: 400, overflowY: "auto" }}>{creator.research}</div>}
             </div>
           )}
 
@@ -2354,8 +2354,8 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
               centralised there) so a DM-sender has everything in one place. */}
 
           {/* Delete */}
-          <div style={{ marginTop: 40, paddingTop: 20, borderTop: "1px solid rgba(255,255,255,0.04)" }}>
-            <button onClick={handleDelete} disabled={deleting} style={{ padding: "8px 16px", background: "transparent", border: "1px solid #dc2626", borderRadius: 6, color: "#dc2626", fontSize: 11, fontWeight: 600, cursor: deleting ? "not-allowed" : "pointer", fontFamily: "inherit", opacity: deleting ? 0.5 : 1 }}>
+          <div style={{ marginTop: 40, paddingTop: 20, borderTop: "1px solid var(--sl-border)" }}>
+            <button onClick={handleDelete} disabled={deleting} style={{ padding: "8px 16px", background: "transparent", border: "1px solid var(--sl-danger)", borderRadius: 6, color: "var(--sl-danger)", fontSize: 12, fontWeight: 600, cursor: deleting ? "not-allowed" : "pointer", fontFamily: "inherit", opacity: deleting ? 0.5 : 1 }}>
               {deleting ? "A eliminar..." : "Eliminar Creator"}
             </button>
           </div>
@@ -2395,9 +2395,9 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
               />
             </>
           ) : (
-            <div style={{ marginTop: 12, padding: "24px", textAlign: "center", border: "1px dashed rgba(255,255,255,0.06)", borderRadius: 8, background: "rgba(255,255,255,0.01)" }}>
-              <p style={{ color: "#444", fontSize: 12, margin: "0 0 4px", fontWeight: 600 }}>Archetype + Unicidade</p>
-              <p style={{ color: "#333", fontSize: 11, margin: 0 }}>Disponível após o criador responder à DM. Marca "Respondeu" na tab DM.</p>
+            <div style={{ marginTop: 12, padding: "24px", textAlign: "center", border: "1px dashed color-mix(in srgb, var(--sl-text) 6%, transparent)", borderRadius: 8, background: "color-mix(in srgb, var(--sl-text) 1%, transparent)" }}>
+              <p style={{ color: "var(--sl-text-faint)", fontSize: 12, margin: "0 0 4px", fontWeight: 600 }}>Archetype + Unicidade</p>
+              <p style={{ color: "var(--sl-border-strong)", fontSize: 12, margin: 0 }}>Disponível após o criador responder à DM. Marca "Respondeu" na tab DM.</p>
             </div>
           )}
         </>)}
@@ -2406,47 +2406,47 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
         {tab === "dm" && (<>
           {!creator.dmSequence && !dmLoading && (
             !creator?.offer?.internal_metadata?.ecosystem_audit ? (
-              <div style={{ padding: "48px 24px", textAlign: "center", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 8, marginBottom: 24 }}>
-                <p style={{ color: "#aaa", fontSize: 13, marginBottom: 8 }}>A auditoria de ecossistema é necessária para gerar a DM.</p>
-                <p style={{ color: "#666", fontSize: 11, marginBottom: 20 }}>Os dados do audit garantem que a mensagem é específica ao criador e com o ângulo certo.</p>
-                <button onClick={() => setTab("audit")} style={{ padding: "10px 24px", borderRadius: 6, border: "none", background: "#7A0E18", color: "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>Correr Audit →</button>
+              <div style={{ padding: "48px 24px", textAlign: "center", border: "1px solid var(--sl-border)", borderRadius: 8, marginBottom: 24 }}>
+                <p style={{ color: "var(--sl-text-muted)", fontSize: 13, marginBottom: 8 }}>A auditoria de ecossistema é necessária para gerar a DM.</p>
+                <p style={{ color: "var(--sl-text-faint)", fontSize: 12, marginBottom: 20 }}>Os dados do audit garantem que a mensagem é específica ao criador e com o ângulo certo.</p>
+                <button onClick={() => setTab("audit")} style={{ padding: "10px 24px", borderRadius: 6, border: "none", background: "var(--sl-primary)", color: "var(--sl-primary-contrast)", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>Correr Audit →</button>
               </div>
             ) : (
             <div>
               <div className="sl-grid-3" style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12, marginBottom: 16 }}>
                 <div>
-                  <label style={{ display: "block", fontSize: 10, fontWeight: 600, color: "#555", marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.05em" }}>Primeiro Nome</label>
+                  <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "var(--sl-text-faint)", marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.05em" }}>Primeiro Nome</label>
                   <input type="text" style={inputStyle} placeholder="Ex: Mariana" value={dmInputs.primeiro_nome || ""} onChange={e => setDmInputs(p => ({ ...p, primeiro_nome: e.target.value }))} />
                 </div>
                 <div>
-                  <label style={{ display: "block", fontSize: 10, fontWeight: 600, color: "#555", marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.05em" }}>Idioma</label>
+                  <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "var(--sl-text-faint)", marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.05em" }}>Idioma</label>
                   <select style={inputStyle} value={dmLanguage} onChange={e => setDmLanguage(e.target.value)}>
                     <option value="pt">Português (PT)</option>
                     <option value="en">English (EN)</option>
                     <option value="es">Español (ES)</option>
                   </select>
                   {creator?.primaryLanguage && dmLanguage !== String(creator.primaryLanguage).toLowerCase() && (
-                    <div style={{ fontSize: 9, color: "#eab308", marginTop: 6, lineHeight: 1.4 }}>A audiência principal está em <strong>{String(creator.primaryLanguage).toUpperCase()}</strong>.</div>
+                    <div style={{ fontSize: 12, color: "var(--sl-warning)", marginTop: 6, lineHeight: 1.4 }}>A audiência principal está em <strong>{String(creator.primaryLanguage).toUpperCase()}</strong>.</div>
                   )}
                 </div>
                 <div>
-                  <label style={{ display: "block", fontSize: 10, fontWeight: 600, color: "#555", marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.05em" }}>Notas <span style={{ fontWeight: 400, color: "#333" }}>(opcional)</span></label>
+                  <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "var(--sl-text-faint)", marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.05em" }}>Notas <span style={{ fontWeight: 400, color: "var(--sl-border-strong)" }}>(opcional)</span></label>
                   <input type="text" style={inputStyle} placeholder="Contexto extra..." value={dmNotes} onChange={e => setDmNotes(e.target.value)} />
                 </div>
               </div>
-              <div style={{ fontSize: 10, color: "#555", marginBottom: 8, lineHeight: 1.4 }}>DM curto (modelo de volume) — abertura personalizada + oferta do vídeo. Assinado por <strong style={{ color: "#888" }}>{senderName}</strong>.</div>
-              <button onClick={() => generateDM('initial')} style={{ padding: "12px 32px", borderRadius: 8, border: "none", background: "#7A0E18", color: "#fff", fontSize: 14, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", width: "100%" }}>Gerar DM</button>
+              <div style={{ fontSize: 12, color: "var(--sl-text-faint)", marginBottom: 8, lineHeight: 1.4 }}>DM curto (modelo de volume) — abertura personalizada + oferta do vídeo. Assinado por <strong style={{ color: "var(--sl-text-muted)" }}>{senderName}</strong>.</div>
+              <button onClick={() => generateDM('initial')} style={{ padding: "12px 32px", borderRadius: 8, border: "none", background: "var(--sl-primary)", color: "var(--sl-primary-contrast)", fontSize: 14, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", width: "100%" }}>Gerar DM</button>
             </div>
             )
           )}
           {dmLoading && (
             <div style={{ textAlign: "center", padding: 40 }}>
-              <div style={{ width: 20, height: 20, margin: "0 auto 12px", border: "2px solid #222", borderTopColor: "#7A0E18", borderRadius: "50%", animation: "sl-spin 0.8s linear infinite" }} />
-              <p style={{ fontSize: 12, color: "#555" }}>A analisar perfil e gerar outreach... (30-60s)</p>
+              <div style={{ width: 20, height: 20, margin: "0 auto 12px", border: "2px solid var(--sl-surface-raised)", borderTopColor: "var(--sl-primary)", borderRadius: "50%", animation: "sl-spin 0.8s linear infinite" }} />
+              <p style={{ fontSize: 12, color: "var(--sl-text-faint)" }}>A analisar perfil e gerar outreach... (30-60s)</p>
               <style>{`@keyframes sl-spin{to{transform:rotate(360deg)}}`}</style>
             </div>
           )}
-          {dmError && <div style={{ padding: "10px 14px", borderRadius: 6, background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.2)", color: "#ef4444", fontSize: 11, marginBottom: 16 }}>{dmError}</div>}
+          {dmError && <div style={{ padding: "10px 14px", borderRadius: 6, background: "color-mix(in srgb, var(--sl-danger) 10%, transparent)", border: "1px solid color-mix(in srgb, var(--sl-danger) 20%, transparent)", color: "var(--sl-danger)", fontSize: 12, marginBottom: 16 }}>{dmError}</div>}
           {creator.dmSequence && (() => {
             const seq = creator.dmSequence;
             const firstName = seq.inputs?.primeiro_nome || creator.name?.split(" ")[0] || "";
@@ -2470,10 +2470,10 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
               <div>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    <span style={{ fontSize: 10, color: "#555" }}>Gerado: {new Date(seq.generatedAt).toLocaleString("pt-PT")}</span>
-                    <span style={{ fontSize: 8, padding: "1px 6px", borderRadius: 3, background: "rgba(122,14,24,0.1)", color: "#7A0E18", fontWeight: 600 }}>Template {seq.template || "A"}</span>
+                    <span style={{ fontSize: 12, color: "var(--sl-text-faint)" }}>Gerado: {new Date(seq.generatedAt).toLocaleString("pt-PT")}</span>
+                    <span style={{ fontSize: 8, padding: "1px 6px", borderRadius: 3, background: "color-mix(in srgb, var(--sl-primary) 10%, transparent)", color: "var(--sl-accent-text)", fontWeight: 600 }}>Template {seq.template || "A"}</span>
                   </div>
-                  <button onClick={() => { patchCreator({ dmSequence: null }); setReplyResult(null); setReplyText(""); }} style={{ padding: "6px 14px", borderRadius: 6, border: "1px solid rgba(255,255,255,0.08)", background: "transparent", color: "#888", fontSize: 10, cursor: "pointer", fontFamily: "inherit" }}>Regenerar</button>
+                  <button onClick={() => { patchCreator({ dmSequence: null }); setReplyResult(null); setReplyText(""); }} style={{ padding: "6px 14px", borderRadius: 6, border: "1px solid var(--sl-border)", background: "transparent", color: "var(--sl-text-muted)", fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>Regenerar</button>
                 </div>
 
                 {/* Outreach tracker — drives the daily reminder digest. Each chip
@@ -2486,10 +2486,10 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
                       onClick={onClick}
                       title={sent ? `Marcado a ${new Date(sent).toLocaleString('pt-PT')} · Clica para desmarcar` : 'Clica quando enviares'}
                       style={{
-                        padding: "4px 10px", borderRadius: 4, fontSize: 10, fontWeight: 600, cursor: "pointer", fontFamily: "inherit",
-                        border: `1px solid ${sent ? 'rgba(34,197,94,0.3)' : 'rgba(255,255,255,0.08)'}`,
-                        background: sent ? 'rgba(34,197,94,0.08)' : 'transparent',
-                        color: sent ? '#22c55e' : '#888',
+                        padding: "4px 10px", borderRadius: 4, fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit",
+                        border: `1px solid ${sent ? 'color-mix(in srgb, var(--sl-success) 30%, transparent)' : 'color-mix(in srgb, var(--sl-text) 8%, transparent)'}`,
+                        background: sent ? 'color-mix(in srgb, var(--sl-success) 8%, transparent)' : 'transparent',
+                        color: sent ? 'var(--sl-success)' : 'var(--sl-text-muted)',
                       }}
                     >
                       {sent ? `✓ ${label}` : `○ ${label}`}
@@ -2501,11 +2501,11 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
                     return days === 0 ? 'hoje' : days === 1 ? 'há 1 dia' : `há ${days} dias`;
                   };
                   return (
-                    <div style={{ padding: "10px 14px", marginBottom: 16, background: "#141414", border: "1px solid rgba(255,255,255,0.04)", borderRadius: 8, display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center" }}>
-                      <span style={{ fontSize: 9, fontWeight: 700, color: "#666", letterSpacing: "0.08em", textTransform: "uppercase" }}>Outreach</span>
+                    <div style={{ padding: "10px 14px", marginBottom: 16, background: "var(--sl-surface)", border: "1px solid var(--sl-border)", borderRadius: 8, display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center" }}>
+                      <span style={{ fontSize: 12, fontWeight: 700, color: "var(--sl-text-faint)", letterSpacing: "0.08em", textTransform: "uppercase" }}>Outreach</span>
                       {sentChip(out.dmSentAt, 'DM', () => markOutreach('dm'))}
                       {sentChip(out.emailSentAt, 'Email', () => markOutreach('email'))}
-                      <span style={{ fontSize: 9, color: "#444" }}>·</span>
+                      <span style={{ fontSize: 12, color: "var(--sl-text-faint)" }}>·</span>
                       {/* Follow-ups split by channel so the dashboard can
                           show DM-followups vs Email-followups effectiveness.
                           Cap at 3 across channels combined. */}
@@ -2521,7 +2521,7 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
                               onClick={() => markOutreach('followUpDm')}
                               title="Marca quando enviares um follow-up por DM"
                               disabled={capped}
-                              style={{ padding: "4px 10px", borderRadius: 4, fontSize: 10, fontWeight: 600, cursor: capped ? "default" : "pointer", fontFamily: "inherit", border: "1px solid rgba(255,255,255,0.08)", background: dmFu > 0 ? "rgba(59,130,246,0.08)" : "transparent", color: dmFu > 0 ? "#3b82f6" : "#888" }}
+                              style={{ padding: "4px 10px", borderRadius: 4, fontSize: 12, fontWeight: 600, cursor: capped ? "default" : "pointer", fontFamily: "inherit", border: "1px solid var(--sl-border)", background: dmFu > 0 ? "color-mix(in srgb, var(--sl-info) 8%, transparent)" : "transparent", color: dmFu > 0 ? "var(--sl-info)" : "var(--sl-text-muted)" }}
                             >
                               + Follow-up DM{dmFu > 0 ? ` (${dmFu})` : ''}
                             </button>
@@ -2529,54 +2529,54 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
                               onClick={() => markOutreach('followUpEmail')}
                               title="Marca quando enviares um follow-up por email"
                               disabled={capped}
-                              style={{ padding: "4px 10px", borderRadius: 4, fontSize: 10, fontWeight: 600, cursor: capped ? "default" : "pointer", fontFamily: "inherit", border: "1px solid rgba(255,255,255,0.08)", background: emFu > 0 ? "rgba(59,130,246,0.08)" : "transparent", color: emFu > 0 ? "#3b82f6" : "#888" }}
+                              style={{ padding: "4px 10px", borderRadius: 4, fontSize: 12, fontWeight: 600, cursor: capped ? "default" : "pointer", fontFamily: "inherit", border: "1px solid var(--sl-border)", background: emFu > 0 ? "color-mix(in srgb, var(--sl-info) 8%, transparent)" : "transparent", color: emFu > 0 ? "var(--sl-info)" : "var(--sl-text-muted)" }}
                             >
                               + Follow-up Email{emFu > 0 ? ` (${emFu})` : ''}
                             </button>
                             {totalFu > 0 && (
-                              <span style={{ fontSize: 10, color: "#666" }}>· {totalFu}/3{out.lastFollowUpAt ? ` · ${fmtRelative(out.lastFollowUpAt)}` : ''}</span>
+                              <span style={{ fontSize: 12, color: "var(--sl-text-faint)" }}>· {totalFu}/3{out.lastFollowUpAt ? ` · ${fmtRelative(out.lastFollowUpAt)}` : ''}</span>
                             )}
                           </>
                         );
                       })()}
-                      <span style={{ fontSize: 9, color: "#444" }}>·</span>
+                      <span style={{ fontSize: 12, color: "var(--sl-text-faint)" }}>·</span>
                       {/* Reply attribution — split by channel so we know
                           where the conversion happened. After marking, the
                           chip shows which channel was used. */}
                       {out.repliedAt ? (
-                        <button onClick={() => markOutreach('unreplied')} title={`Respondeu via ${out.repliedChannel === 'email' ? 'Email' : 'DM'} ${fmtRelative(out.repliedAt)} · Clica para desmarcar`} style={{ padding: "4px 10px", borderRadius: 4, fontSize: 10, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", border: "1px solid rgba(34,197,94,0.3)", background: "rgba(34,197,94,0.08)", color: "#22c55e" }}>
+                        <button onClick={() => markOutreach('unreplied')} title={`Respondeu via ${out.repliedChannel === 'email' ? 'Email' : 'DM'} ${fmtRelative(out.repliedAt)} · Clica para desmarcar`} style={{ padding: "4px 10px", borderRadius: 4, fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", border: "1px solid color-mix(in srgb, var(--sl-success) 30%, transparent)", background: "color-mix(in srgb, var(--sl-success) 8%, transparent)", color: "var(--sl-success)" }}>
                           ✓ Respondeu via {out.repliedChannel === 'email' ? 'Email' : out.repliedChannel === 'dm' ? 'DM' : '?'} · {fmtRelative(out.repliedAt)}
                         </button>
                       ) : (
                         <>
-                          <button onClick={() => markOutreach('repliedDm')} title="Marca quando o creator responder via DM." style={{ padding: "4px 10px", borderRadius: 4, fontSize: 10, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", border: "1px solid rgba(255,255,255,0.08)", background: "transparent", color: "#888" }}>
+                          <button onClick={() => markOutreach('repliedDm')} title="Marca quando o creator responder via DM." style={{ padding: "4px 10px", borderRadius: 4, fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", border: "1px solid var(--sl-border)", background: "transparent", color: "var(--sl-text-muted)" }}>
                             ○ Respondeu (DM)
                           </button>
-                          <button onClick={() => markOutreach('repliedEmail')} title="Marca quando o creator responder via email." style={{ padding: "4px 10px", borderRadius: 4, fontSize: 10, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", border: "1px solid rgba(255,255,255,0.08)", background: "transparent", color: "#888" }}>
+                          <button onClick={() => markOutreach('repliedEmail')} title="Marca quando o creator responder via email." style={{ padding: "4px 10px", borderRadius: 4, fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", border: "1px solid var(--sl-border)", background: "transparent", color: "var(--sl-text-muted)" }}>
                             ○ Respondeu (Email)
                           </button>
                         </>
                       )}
-                      <span style={{ fontSize: 9, color: "#444" }}>·</span>
+                      <span style={{ fontSize: 12, color: "var(--sl-text-faint)" }}>·</span>
                       {/* Sales-call stages — feed show-up rate + extended funnel.
                           callAgreed = creator said yes to a call. callHeld = call
                           actually happened. Show as separate chips so they can
                           flip independently (e.g. cancelled calls). */}
                       {out.callAgreedAt ? (
-                        <button onClick={() => markOutreach('uncallAgreed')} title={`Call agendada ${fmtRelative(out.callAgreedAt)} · Clica para desmarcar`} style={{ padding: "4px 10px", borderRadius: 4, fontSize: 10, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", border: "1px solid rgba(168,85,247,0.3)", background: "rgba(168,85,247,0.08)", color: "#a855f7" }}>
+                        <button onClick={() => markOutreach('uncallAgreed')} title={`Call agendada ${fmtRelative(out.callAgreedAt)} · Clica para desmarcar`} style={{ padding: "4px 10px", borderRadius: 4, fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", border: "1px solid color-mix(in srgb, var(--sl-info) 30%, transparent)", background: "color-mix(in srgb, var(--sl-info) 8%, transparent)", color: "var(--sl-info)" }}>
                           ✓ Call agendada
                         </button>
                       ) : (
-                        <button onClick={() => markOutreach('callAgreed')} title="Marca quando o criador aceita uma call." style={{ padding: "4px 10px", borderRadius: 4, fontSize: 10, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", border: "1px solid rgba(255,255,255,0.08)", background: "transparent", color: "#888" }}>
+                        <button onClick={() => markOutreach('callAgreed')} title="Marca quando o criador aceita uma call." style={{ padding: "4px 10px", borderRadius: 4, fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", border: "1px solid var(--sl-border)", background: "transparent", color: "var(--sl-text-muted)" }}>
                           ○ Call agendada
                         </button>
                       )}
                       {out.callHeldAt ? (
-                        <button onClick={() => markOutreach('uncallHeld')} title={`Call realizada ${fmtRelative(out.callHeldAt)} · Clica para desmarcar`} style={{ padding: "4px 10px", borderRadius: 4, fontSize: 10, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", border: "1px solid rgba(168,85,247,0.45)", background: "rgba(168,85,247,0.14)", color: "#c084fc" }}>
+                        <button onClick={() => markOutreach('uncallHeld')} title={`Call realizada ${fmtRelative(out.callHeldAt)} · Clica para desmarcar`} style={{ padding: "4px 10px", borderRadius: 4, fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", border: "1px solid color-mix(in srgb, var(--sl-info) 45%, transparent)", background: "color-mix(in srgb, var(--sl-info) 14%, transparent)", color: "var(--sl-info)" }}>
                           ✓ Call realizada
                         </button>
                       ) : (
-                        <button onClick={() => markOutreach('callHeld')} title="Marca quando a call efectivamente aconteceu (não só agendada)." disabled={!out.callAgreedAt} style={{ padding: "4px 10px", borderRadius: 4, fontSize: 10, fontWeight: 600, cursor: out.callAgreedAt ? "pointer" : "default", fontFamily: "inherit", border: "1px solid rgba(255,255,255,0.08)", background: "transparent", color: out.callAgreedAt ? "#888" : "#444" }}>
+                        <button onClick={() => markOutreach('callHeld')} title="Marca quando a call efectivamente aconteceu (não só agendada)." disabled={!out.callAgreedAt} style={{ padding: "4px 10px", borderRadius: 4, fontSize: 12, fontWeight: 600, cursor: out.callAgreedAt ? "pointer" : "default", fontFamily: "inherit", border: "1px solid var(--sl-border)", background: "transparent", color: out.callAgreedAt ? "var(--sl-text-muted)" : "var(--sl-text-faint)" }}>
                           ○ Call realizada
                         </button>
                       )}
@@ -2586,12 +2586,12 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
                           isn't already cold/signed — otherwise there's nothing
                           to lose. */}
                       {out.dmSentAt && creator.pipelineStatus !== 'cold' && creator.pipelineStatus !== 'signed' && (
-                        <button onClick={markCold} title="Marca como frio e regista a razão de perda." style={{ padding: "4px 10px", borderRadius: 4, fontSize: 10, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", border: "1px solid rgba(239,68,68,0.25)", background: "transparent", color: "#ef4444" }}>
+                        <button onClick={markCold} title="Marca como frio e regista a razão de perda." style={{ padding: "4px 10px", borderRadius: 4, fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", border: "1px solid color-mix(in srgb, var(--sl-danger) 25%, transparent)", background: "transparent", color: "var(--sl-danger)" }}>
                           Marcar frio
                         </button>
                       )}
                       {creator.pipelineStatus === 'cold' && creator.lostReason && (
-                        <span style={{ padding: "4px 10px", borderRadius: 4, fontSize: 10, fontWeight: 600, border: "1px solid rgba(239,68,68,0.3)", background: "rgba(239,68,68,0.08)", color: "#ef4444" }} title={`Perdido por ${creator.lostReason}`}>
+                        <span style={{ padding: "4px 10px", borderRadius: 4, fontSize: 12, fontWeight: 600, border: "1px solid color-mix(in srgb, var(--sl-danger) 30%, transparent)", background: "color-mix(in srgb, var(--sl-danger) 8%, transparent)", color: "var(--sl-danger)" }} title={`Perdido por ${creator.lostReason}`}>
                           Frio · {({ price: 'preço', timing: 'timing', fit: 'fit', ghost: 'sem resposta', competitor: 'concorrente', other: 'outro' }[creator.lostReason]) || creator.lostReason}
                         </span>
                       )}
@@ -2614,29 +2614,29 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
                   {seq.email_day1?.body ? (
                     <MessageCard label="Day 1 — Email" type="email" content={`Subject: ${seq.email_day1.subject || ""}\n\n${seq.email_day1.body}`} accent />
                   ) : (
-                    <div style={{ padding: "18px 20px", background: "#0d0d0d", border: "1px dashed rgba(255,255,255,0.06)", borderRadius: 10, color: "#555", fontSize: 11, display: "flex", alignItems: "center", justifyContent: "center", textAlign: "center" }}>
+                    <div style={{ padding: "18px 20px", background: "var(--sl-bg)", border: "1px dashed color-mix(in srgb, var(--sl-text) 6%, transparent)", borderRadius: 10, color: "var(--sl-text-faint)", fontSize: 12, display: "flex", alignItems: "center", justifyContent: "center", textAlign: "center" }}>
                       Day 1 email ainda não gerado.<br />Regenera o DM para criar o par.
                     </div>
                   )}
                 </div>
 
                 {/* Unified rewrite panel — controls both cards above. */}
-                <div style={{ marginBottom: 24, padding: "14px 16px", background: "#141414", border: "1px solid rgba(255,255,255,0.04)", borderRadius: 10 }}>
+                <div style={{ marginBottom: 24, padding: "14px 16px", background: "var(--sl-surface)", border: "1px solid var(--sl-border)", borderRadius: 10 }}>
                   {!rewritingDm ? (
                     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
-                      <div style={{ fontSize: 11, color: "#888" }}>
+                      <div style={{ fontSize: 12, color: "var(--sl-text-muted)" }}>
                         Reescreve DM + Email Day 1 juntos. O feedback aplica-se aos dois — a estrutura do email (greeting, sign-off, etc.) fica intacta.
                       </div>
                       <button
                         onClick={() => { setRewritingDm(true); setRewriteInstruction(""); }}
-                        style={{ padding: "8px 16px", borderRadius: 6, border: "1px solid rgba(122,14,24,0.4)", background: "transparent", color: "#B11E2F", fontSize: 11, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap" }}
+                        style={{ padding: "8px 16px", borderRadius: 6, border: "1px solid color-mix(in srgb, var(--sl-primary) 40%, transparent)", background: "transparent", color: "var(--sl-accent-text)", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap" }}
                       >
                         Reescrever DM + Email
                       </button>
                     </div>
                   ) : (
                     <div>
-                      <div style={{ fontSize: 10, fontWeight: 700, color: "#888", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 8 }}>O que queres mudar? (aplica-se a ambos)</div>
+                      <div style={{ fontSize: 12, fontWeight: 700, color: "var(--sl-text-muted)", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 8 }}>O que queres mudar? (aplica-se a ambos)</div>
                       <textarea
                         autoFocus
                         placeholder="Ex: 'mais curto', 'referir o podcast', 'menos agressivo no Block 2'..."
@@ -2645,10 +2645,10 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
                         style={{ ...inputStyle, display: "block", minHeight: 60, fontSize: 12, marginBottom: 10 }}
                       />
                       <div style={{ display: "flex", gap: 6 }}>
-                        <button onClick={rewriteDm} disabled={rewriteLoading} style={{ padding: "8px 18px", borderRadius: 6, border: "none", background: "#7A0E18", color: "#fff", fontSize: 12, fontWeight: 600, cursor: rewriteLoading ? "wait" : "pointer", fontFamily: "inherit" }}>
+                        <button onClick={rewriteDm} disabled={rewriteLoading} style={{ padding: "8px 18px", borderRadius: 6, border: "none", background: "var(--sl-primary)", color: "var(--sl-primary-contrast)", fontSize: 12, fontWeight: 600, cursor: rewriteLoading ? "wait" : "pointer", fontFamily: "inherit" }}>
                           {rewriteLoading ? "A reescrever..." : (seq.email_day1?.body ? "Reescrever DM + Email" : "Reescrever DM")}
                         </button>
-                        <button onClick={() => { setRewritingDm(false); setRewriteInstruction(""); }} style={{ padding: "8px 14px", borderRadius: 6, border: "1px solid rgba(255,255,255,0.06)", background: "transparent", color: "#666", fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>
+                        <button onClick={() => { setRewritingDm(false); setRewriteInstruction(""); }} style={{ padding: "8px 14px", borderRadius: 6, border: "1px solid var(--sl-border)", background: "transparent", color: "var(--sl-text-faint)", fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>
                           Cancelar
                         </button>
                       </div>
@@ -2718,7 +2718,7 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
                     return [];
                   })();
                   return (
-                    <div style={{ padding: "16px 18px", borderRadius: 8, background: "#141414", border: "1px solid rgba(34,197,94,0.18)" }}>
+                    <div style={{ padding: "16px 18px", borderRadius: 8, background: "var(--sl-surface)", border: "1px solid color-mix(in srgb, var(--sl-success) 18%, transparent)" }}>
                       {/* Anchored chat thread — each message + its AI sub-card. */}
                       {messages.length > 0 && (
                         <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 14, maxHeight: 480, overflowY: "auto" }}>
@@ -2739,13 +2739,13 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
                           designed pattern. No more "Guardar" vs "Obter
                           Resposta" decision — one stroke does both. */}
                       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
-                        <span style={{ fontSize: 10, color: "#666" }}>
+                        <span style={{ fontSize: 12, color: "var(--sl-text-faint)" }}>
                           {messages.length === 0
                             ? "Cola aqui o que o criador disse · ⌘+Enter guarda e sugere resposta"
                             : "Nova resposta do criador · cola e ⌘+Enter para guardar + sugerir resposta"}
                         </span>
                         {replyText.trim() && (
-                          <span style={{ fontSize: 9, color: "#eab308", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase" }}>● Por guardar</span>
+                          <span style={{ fontSize: 12, color: "var(--sl-warning)", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase" }}>● Por guardar</span>
                         )}
                       </div>
                       <textarea
@@ -2774,8 +2774,8 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
                           disabled={replySaving || !replyText.trim()}
                           style={{
                             padding: "8px 20px", borderRadius: 6, border: "none",
-                            background: replyText.trim() ? "#7A0E18" : "#333",
-                            color: replyText.trim() ? "#fff" : "#666",
+                            background: replyText.trim() ? "var(--sl-primary)" : "var(--sl-border-strong)",
+                            color: replyText.trim() ? "var(--sl-text)" : "var(--sl-text-faint)",
                             fontSize: 12, fontWeight: 700,
                             cursor: replySaving ? "wait" : replyText.trim() ? "pointer" : "default",
                             fontFamily: "inherit",
@@ -2784,7 +2784,7 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
                           title="⌘+Enter: guarda a mensagem e gera a sugestão de resposta no mesmo gesto"
                         >
                           {replySaving ? "A guardar..." : "Guardar + Sugerir resposta"}
-                          <span style={{ fontSize: 9, fontFamily: "ui-monospace, monospace", opacity: 0.6 }}>⌘↵</span>
+                          <span style={{ fontSize: 12, fontFamily: "ui-monospace, monospace", opacity: 0.6 }}>⌘↵</span>
                         </button>
                         {/* Secondary action — save only, no AI call. For when
                             the operator wants the log but already knows what
@@ -2795,8 +2795,8 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
                           style={{
                             padding: "8px 16px", borderRadius: 6,
                             background: "transparent",
-                            border: `1px solid ${replyText.trim() ? "rgba(255,255,255,0.15)" : "rgba(255,255,255,0.06)"}`,
-                            color: replyText.trim() ? "#ccc" : "#555",
+                            border: `1px solid ${replyText.trim() ? "color-mix(in srgb, var(--sl-text) 15%, transparent)" : "color-mix(in srgb, var(--sl-text) 6%, transparent)"}`,
+                            color: replyText.trim() ? "var(--sl-text-muted)" : "var(--sl-text-faint)",
                             fontSize: 12, fontWeight: 600,
                             cursor: replySaving ? "wait" : replyText.trim() ? "pointer" : "default",
                             fontFamily: "inherit",
@@ -2806,7 +2806,7 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
                           Só Guardar
                         </button>
                         {messages.length > 0 && (
-                          <span style={{ marginLeft: "auto", fontSize: 10, color: "#666" }}>
+                          <span style={{ marginLeft: "auto", fontSize: 12, color: "var(--sl-text-faint)" }}>
                             {messages.length} {messages.length === 1 ? "mensagem" : "mensagens"} no histórico
                           </span>
                         )}
@@ -2836,11 +2836,11 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
                     title="Regenera CP2-CP4 com um novo pricing tier. Mantém o frame estratégico de CP1, apaga o resto."
                     style={{
                       padding: "8px 14px",
-                      background: "rgba(122,14,24,0.08)",
-                      color: "#B11E2F",
-                      border: "1px solid rgba(122,14,24,0.35)",
+                      background: "color-mix(in srgb, var(--sl-primary) 8%, transparent)",
+                      color: "var(--sl-accent-text)",
+                      border: "1px solid color-mix(in srgb, var(--sl-primary) 35%, transparent)",
                       borderRadius: 6,
-                      fontSize: 11,
+                      fontSize: 12,
                       fontWeight: 700,
                       letterSpacing: "0.06em",
                       cursor: "pointer",
@@ -2858,10 +2858,10 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
                   style={{
                     padding: "8px 14px",
                     background: "transparent",
-                    color: "#888",
-                    border: "1px solid rgba(234,179,8,0.30)",
+                    color: "var(--sl-text-muted)",
+                    border: "1px solid color-mix(in srgb, var(--sl-warning) 30%, transparent)",
                     borderRadius: 6,
-                    fontSize: 11,
+                    fontSize: 12,
                     fontWeight: 700,
                     letterSpacing: "0.06em",
                     cursor: "pointer",
@@ -2877,20 +2877,20 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
               revenue projection without scrolling. Blind Spot Audit +
               Objection Playbook were removed in this rev; system prompt
               also trimmed to drop sections N+O. */}
-          <div className="sl-tabs sl-hscroll" style={{ display: "flex", gap: 0, borderBottom: "1px solid rgba(255,255,255,0.06)", marginBottom: 24 }}>
+          <div className="sl-tabs sl-hscroll" style={{ display: "flex", gap: 0, borderBottom: "1px solid var(--sl-border)", marginBottom: 24 }}>
             {OFFER_TABS.map(t => (
               <button key={t.key} onClick={() => setOfferTab(t.key)} style={{
                 padding: "10px 18px",
                 border: "none",
                 background: "transparent",
-                color: offerTab === t.key ? "#f5f5f5" : "#444",
-                fontSize: 11,
+                color: offerTab === t.key ? "var(--sl-text)" : "var(--sl-text-faint)",
+                fontSize: 12,
                 fontWeight: 600,
                 cursor: "pointer",
                 fontFamily: "inherit",
                 textTransform: "uppercase",
                 letterSpacing: "0.06em",
-                borderBottom: offerTab === t.key ? "2px solid #7A0E18" : "2px solid transparent",
+                borderBottom: offerTab === t.key ? "2px solid var(--sl-primary)" : "2px solid transparent",
                 marginBottom: -1,
               }}>{t.label}</button>
             ))}
@@ -2994,10 +2994,10 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
               canonical offer generator. This empty state renders only when
               the wizard hasn't been started and no legacy offer exists. */}
           {!creator.offer && (
-            <div style={{ padding: "40px 24px", textAlign: "center", border: "1px dashed rgba(255,255,255,0.06)", borderRadius: 10 }}>
-              <div style={{ width: 44, height: 44, margin: "0 auto 16px", borderRadius: 10, background: "rgba(122,14,24,0.08)", border: "1px solid rgba(122,14,24,0.25)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, color: "#B11E2F", fontWeight: 700 }}>1</div>
-              <p style={{ fontSize: 14, color: "#bbb", margin: "0 0 6px" }}>Ainda não há oferta para {creator.name}.</p>
-              <p style={{ fontSize: 11, color: "#666", margin: 0, lineHeight: 1.55, maxWidth: 480, marginLeft: "auto", marginRight: "auto" }}>
+            <div style={{ padding: "40px 24px", textAlign: "center", border: "1px dashed color-mix(in srgb, var(--sl-text) 6%, transparent)", borderRadius: 10 }}>
+              <div style={{ width: 44, height: 44, margin: "0 auto 16px", borderRadius: 10, background: "color-mix(in srgb, var(--sl-primary) 8%, transparent)", border: "1px solid color-mix(in srgb, var(--sl-primary) 25%, transparent)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, color: "var(--sl-accent-text)", fontWeight: 700 }}>1</div>
+              <p style={{ fontSize: 14, color: "var(--sl-text-muted)", margin: "0 0 6px" }}>Ainda não há oferta para {creator.name}.</p>
+              <p style={{ fontSize: 12, color: "var(--sl-text-faint)", margin: 0, lineHeight: 1.55, maxWidth: 480, marginLeft: "auto", marginRight: "auto" }}>
                 Corre o wizard acima — Frame estratégico → Oferta principal → Módulos → Stack de valor.
                 Cada checkpoint é aprovado antes do próximo correr, para poderes rever as decisões estratégicas em linguagem de operador antes de virarem copy para a criadora.
               </p>
@@ -3012,13 +3012,13 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
                   way to regenerate; nuking the entire offer.offer object
                   would also wipe locked wizard checkpoints. */}
               <div style={{ display: "flex", justifyContent: "flex-end", alignItems: "center", marginBottom: 16, gap: 6 }}>
-                <button onClick={reparseOffer} title="Re-extract structured fields from creator.offer.raw — no new AI call. Useful for legacy offers when pitch placeholders show up. Wizard-generated offers don't need this." style={{ padding: "6px 14px", borderRadius: 6, border: "1px solid rgba(34,197,94,0.3)", background: "rgba(34,197,94,0.08)", color: "#22c55e", fontSize: 10, cursor: "pointer", fontFamily: "inherit" }}>↻ Re-parse</button>
+                <button onClick={reparseOffer} title="Re-extract structured fields from creator.offer.raw — no new AI call. Useful for legacy offers when pitch placeholders show up. Wizard-generated offers don't need this." style={{ padding: "6px 14px", borderRadius: 6, border: "1px solid color-mix(in srgb, var(--sl-success) 30%, transparent)", background: "color-mix(in srgb, var(--sl-success) 8%, transparent)", color: "var(--sl-success)", fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>↻ Re-parse</button>
               </div>
               {/* The structured offer summary — sourced from
                   client_facing_output (wizard) with legacy-parsed fallback
                   via readOfferState. Replaces the old markdown render. */}
               <OfferSummaryCard creator={creator} />
-              <div style={{ marginTop: 8, fontSize: 10, color: "#444" }}>Gerado: {new Date(creator.offer.generatedAt).toLocaleString("pt-PT")}</div>
+              <div style={{ marginTop: 8, fontSize: 12, color: "var(--sl-text-faint)" }}>Gerado: {new Date(creator.offer.generatedAt).toLocaleString("pt-PT")}</div>
             </div>
           )}
           </>)}{/* end offerTab === "offer" */}
@@ -3044,10 +3044,10 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
               hooks at component top). */}
           {offerTab === "revenue" && (<>
             {!creator.offer ? (
-              <div style={{ padding: "40px 20px", textAlign: "center", border: "1px dashed rgba(255,255,255,0.06)", borderRadius: 10 }}>
-                <div style={{ width: 40, height: 40, margin: "0 auto 16px", borderRadius: 10, background: "rgba(255,255,255,0.03)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, color: "#444" }}>€</div>
-                <p style={{ fontSize: 13, color: "#666", marginBottom: 6 }}>Generate the Grand Slam Offer first.</p>
-                <p style={{ fontSize: 11, color: "#444" }}>The Revenue Projector reads the price from the offer to project monthly recurring revenue across three scenarios.</p>
+              <div style={{ padding: "40px 20px", textAlign: "center", border: "1px dashed color-mix(in srgb, var(--sl-text) 6%, transparent)", borderRadius: 10 }}>
+                <div style={{ width: 40, height: 40, margin: "0 auto 16px", borderRadius: 10, background: "color-mix(in srgb, var(--sl-text) 3%, transparent)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, color: "var(--sl-text-faint)" }}>€</div>
+                <p style={{ fontSize: 13, color: "var(--sl-text-faint)", marginBottom: 6 }}>Generate the Grand Slam Offer first.</p>
+                <p style={{ fontSize: 12, color: "var(--sl-text-faint)" }}>The Revenue Projector reads the price from the offer to project monthly recurring revenue across three scenarios.</p>
               </div>
             ) : (() => {
               // ─── Audience: scraped first, override if creator.revenueAudience set
@@ -3087,9 +3087,9 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
               // ─── Shared revenue lib (same scenarios + formula as the pitch deck).
               // Carry scenarioKey so tier-aware caps can be looked up downstream.
               const scenarios = [
-                { key: 'conservador', ...REVENUE_SCENARIOS.conservador, label: "Conservative", color: "#888", border: "rgba(255,255,255,0.04)" },
-                { key: 'moderado',    ...REVENUE_SCENARIOS.moderado,    label: "Moderate", color: "#f5f5f5", border: "rgba(122,14,24,0.2)" },
-                { key: 'agressivo',   ...REVENUE_SCENARIOS.agressivo,   label: "Aggressive", color: "#7A0E18", border: "rgba(255,255,255,0.04)" },
+                { key: 'conservador', ...REVENUE_SCENARIOS.conservador, label: "Conservative", color: "var(--sl-text-muted)", border: "color-mix(in srgb, var(--sl-text) 4%, transparent)" },
+                { key: 'moderado',    ...REVENUE_SCENARIOS.moderado,    label: "Moderate", color: "var(--sl-text)", border: "color-mix(in srgb, var(--sl-primary) 20%, transparent)" },
+                { key: 'agressivo',   ...REVENUE_SCENARIOS.agressivo,   label: "Aggressive", color: "var(--sl-accent-text)", border: "color-mix(in srgb, var(--sl-text) 4%, transparent)" },
               ];
               // Tier bucket from CP2 pricing_tier × the operator's current price slider.
               // Without this, mid/high recurring offers project as if they were low-ticket.
@@ -3133,50 +3133,50 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
               const priceInputLabel = isOneTime ? "Launch Price" : isHybrid ? "Monthly Recurring" : "Monthly Price";
               const priceSliderMax  = isOneTime ? 5000 : 1500;
               return (
-                <div style={{ padding: 20, background: "#141414", border: "1px solid rgba(255,255,255,0.04)", borderRadius: 10 }}>
-                  <div style={{ textAlign: "center", padding: "28px 20px 24px", marginBottom: 20, background: "#0a0a0a", borderRadius: 8, border: "1px solid rgba(255,255,255,0.04)" }}>
-                    <div style={{ fontSize: 9, fontWeight: 600, color: "#555", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 4 }}>{heroLabel}</div>
-                    <div style={{ fontSize: 42, fontWeight: 200, color: "#7A0E18", letterSpacing: "-0.03em", lineHeight: 1.1 }}>{fmt(modRevenue)}</div>
-                    <div style={{ fontSize: 11, color: "#444", marginTop: 6 }}>{heroSubUnit} · {modClients} active clients · {creator.primaryPlatform} {primaryF.toLocaleString()} followers · {eng.toFixed(2)}% eng</div>
+                <div style={{ padding: 20, background: "var(--sl-surface)", border: "1px solid var(--sl-border)", borderRadius: 10 }}>
+                  <div style={{ textAlign: "center", padding: "28px 20px 24px", marginBottom: 20, background: "var(--sl-bg)", borderRadius: 8, border: "1px solid var(--sl-border)" }}>
+                    <div style={{ fontSize: 12, fontWeight: 600, color: "var(--sl-text-faint)", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 4 }}>{heroLabel}</div>
+                    <div style={{ fontSize: 42, fontWeight: 200, color: "var(--sl-accent-text)", letterSpacing: "-0.03em", lineHeight: 1.1 }}>{fmt(modRevenue)}</div>
+                    <div style={{ fontSize: 12, color: "var(--sl-text-faint)", marginTop: 6 }}>{heroSubUnit} · {modClients} active clients · {creator.primaryPlatform} {primaryF.toLocaleString()} followers · {eng.toFixed(2)}% eng</div>
                     {/* Tier chip explains WHY numbers are smaller for high-ticket
                         offers: the conversion cap drops from 5% (low) to 0.3% (premium). */}
                     {moderateCap != null && (
-                      <div style={{ display: "inline-flex", marginTop: 12, gap: 6, alignItems: "center", padding: "4px 10px", borderRadius: 999, background: "rgba(122,14,24,0.08)", border: "1px solid rgba(122,14,24,0.2)" }}>
-                        <span style={{ fontSize: 9, fontWeight: 700, color: "#7A0E18", letterSpacing: "0.1em", textTransform: "uppercase" }}>{tierBucket} ticket</span>
-                        <span style={{ fontSize: 9, color: "#888", letterSpacing: "0.04em" }}>· cap {(moderateCap * 100).toFixed(2)}% of followers</span>
-                        <span style={{ fontSize: 9, color: "#555" }}>· {pricingModel}</span>
+                      <div style={{ display: "inline-flex", marginTop: 12, gap: 6, alignItems: "center", padding: "4px 10px", borderRadius: 999, background: "color-mix(in srgb, var(--sl-primary) 8%, transparent)", border: "1px solid color-mix(in srgb, var(--sl-primary) 20%, transparent)" }}>
+                        <span style={{ fontSize: 12, fontWeight: 700, color: "var(--sl-accent-text)", letterSpacing: "0.1em", textTransform: "uppercase" }}>{tierBucket} ticket</span>
+                        <span style={{ fontSize: 12, color: "var(--sl-text-muted)", letterSpacing: "0.04em" }}>· cap {(moderateCap * 100).toFixed(2)}% of followers</span>
+                        <span style={{ fontSize: 12, color: "var(--sl-text-faint)" }}>· {pricingModel}</span>
                       </div>
                     )}
                   </div>
 
                   {/* Inputs: Price, Engagement, Commission */}
-                  <div style={{ padding: "16px 18px", marginBottom: 20, background: "#0a0a0a", borderRadius: 8, border: "1px solid rgba(255,255,255,0.04)" }}>
+                  <div style={{ padding: "16px 18px", marginBottom: 20, background: "var(--sl-bg)", borderRadius: 8, border: "1px solid var(--sl-border)" }}>
                     {/* Hybrid only: initial one-time fee paid up-front,
                         rendered ABOVE the recurring slider so the operator
                         sees the up-front payment first. */}
                     {isHybrid && (
                       <div style={{ marginBottom: 14 }}>
                         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
-                          <span style={{ fontSize: 10, fontWeight: 600, color: "#555", letterSpacing: "0.05em", textTransform: "uppercase" }}>Initial Fee (up-front)</span>
-                          <span style={{ fontSize: 14, fontWeight: 700, color: "#f5f5f5" }}>{fmt(initialFee)}</span>
+                          <span style={{ fontSize: 12, fontWeight: 600, color: "var(--sl-text-faint)", letterSpacing: "0.05em", textTransform: "uppercase" }}>Initial Fee (up-front)</span>
+                          <span style={{ fontSize: 14, fontWeight: 700, color: "var(--sl-text)" }}>{fmt(initialFee)}</span>
                         </div>
                         <input type="range" min={0} max={5000} step={10} value={initialFee}
                           onChange={e => setRevenueInitialFee(Number(e.target.value))}
-                          style={{ width: "100%", height: 4, appearance: "none", background: "#222", borderRadius: 2, outline: "none", cursor: "pointer", accentColor: "#7A0E18" }} />
+                          style={{ width: "100%", height: 4, appearance: "none", background: "var(--sl-surface-raised)", borderRadius: 2, outline: "none", cursor: "pointer", accentColor: "var(--sl-primary)" }} />
                       </div>
                     )}
 
                     {/* Price slider — label / range adapt to pricing model. */}
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
                       <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                        <span style={{ fontSize: 10, fontWeight: 600, color: "#555", letterSpacing: "0.05em", textTransform: "uppercase" }}>{priceInputLabel}</span>
-                        {price === defaultPrice && <span style={{ fontSize: 8, fontWeight: 600, color: "#7A0E18", letterSpacing: "0.06em", padding: "1px 5px", borderRadius: 2, border: "1px solid rgba(122,14,24,0.2)", textTransform: "uppercase" }}>{priceSource}</span>}
+                        <span style={{ fontSize: 12, fontWeight: 600, color: "var(--sl-text-faint)", letterSpacing: "0.05em", textTransform: "uppercase" }}>{priceInputLabel}</span>
+                        {price === defaultPrice && <span style={{ fontSize: 8, fontWeight: 600, color: "var(--sl-accent-text)", letterSpacing: "0.06em", padding: "1px 5px", borderRadius: 2, border: "1px solid color-mix(in srgb, var(--sl-primary) 20%, transparent)", textTransform: "uppercase" }}>{priceSource}</span>}
                       </div>
-                      <span style={{ fontSize: 14, fontWeight: 700, color: "#f5f5f5" }}>{fmt(price)}</span>
+                      <span style={{ fontSize: 14, fontWeight: 700, color: "var(--sl-text)" }}>{fmt(price)}</span>
                     </div>
                     <input type="range" min={5} max={priceSliderMax} step={1} value={price}
                       onChange={e => setRevenuePrice(Number(e.target.value))}
-                      style={{ width: "100%", height: 4, appearance: "none", background: "#222", borderRadius: 2, outline: "none", cursor: "pointer", accentColor: "#7A0E18" }} />
+                      style={{ width: "100%", height: 4, appearance: "none", background: "var(--sl-surface-raised)", borderRadius: 2, outline: "none", cursor: "pointer", accentColor: "var(--sl-primary)" }} />
 
                     {/* Hybrid: surface combined Year-1 take so the operator
                         sees BOTH revenue streams at a glance. */}
@@ -3186,9 +3186,9 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
                       const annualRecurring = modClients * price * 12;
                       const combined = annualUpFront + annualRecurring;
                       return (
-                        <div style={{ marginTop: 12, padding: "10px 12px", background: "rgba(122,14,24,0.04)", borderRadius: 6, border: "1px solid rgba(122,14,24,0.1)", fontSize: 11, color: "#888" }}>
-                          Year 1 combined: <strong style={{ color: "#f5f5f5" }}>{fmt(combined)}</strong>
-                          <span style={{ color: "#555" }}> · {fmt(annualUpFront)} up-front + {fmt(annualRecurring)} recurring</span>
+                        <div style={{ marginTop: 12, padding: "10px 12px", background: "color-mix(in srgb, var(--sl-primary) 4%, transparent)", borderRadius: 6, border: "1px solid color-mix(in srgb, var(--sl-primary) 10%, transparent)", fontSize: 12, color: "var(--sl-text-muted)" }}>
+                          Year 1 combined: <strong style={{ color: "var(--sl-text)" }}>{fmt(combined)}</strong>
+                          <span style={{ color: "var(--sl-text-faint)" }}> · {fmt(annualUpFront)} up-front + {fmt(annualRecurring)} recurring</span>
                         </div>
                       );
                     })()}
@@ -3196,37 +3196,37 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
                     {/* Engagement Rate */}
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 14, marginBottom: 6 }}>
                       <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                        <span style={{ fontSize: 10, fontWeight: 600, color: "#555", letterSpacing: "0.05em", textTransform: "uppercase" }}>Engagement Rate</span>
-                        {eng === defaultEng && <span style={{ fontSize: 8, fontWeight: 600, color: "#7A0E18", letterSpacing: "0.06em", padding: "1px 5px", borderRadius: 2, border: "1px solid rgba(122,14,24,0.2)", textTransform: "uppercase" }}>From Profile</span>}
+                        <span style={{ fontSize: 12, fontWeight: 600, color: "var(--sl-text-faint)", letterSpacing: "0.05em", textTransform: "uppercase" }}>Engagement Rate</span>
+                        {eng === defaultEng && <span style={{ fontSize: 8, fontWeight: 600, color: "var(--sl-accent-text)", letterSpacing: "0.06em", padding: "1px 5px", borderRadius: 2, border: "1px solid color-mix(in srgb, var(--sl-primary) 20%, transparent)", textTransform: "uppercase" }}>From Profile</span>}
                       </div>
                       <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                        <span style={{ fontSize: 14, fontWeight: 700, color: "#f5f5f5" }}>{eng.toFixed(2)}%</span>
-                        <span style={{ fontSize: 9, color: engMultiplier >= 1.5 ? "#22c55e" : engMultiplier >= 0.8 ? "#eab308" : "#ef4444", fontWeight: 600 }}>{engMultiplier.toFixed(2)}x</span>
+                        <span style={{ fontSize: 14, fontWeight: 700, color: "var(--sl-text)" }}>{eng.toFixed(2)}%</span>
+                        <span style={{ fontSize: 12, color: engMultiplier >= 1.5 ? "var(--sl-success)" : engMultiplier >= 0.8 ? "var(--sl-warning)" : "var(--sl-danger)", fontWeight: 600 }}>{engMultiplier.toFixed(2)}x</span>
                       </div>
                     </div>
                     <input type="range" min={0.1} max={15} step={0.1} value={eng}
                       onChange={e => setEngagementRate(Number(e.target.value))}
-                      style={{ width: "100%", height: 4, appearance: "none", background: "#222", borderRadius: 2, outline: "none", cursor: "pointer", accentColor: "#7A0E18" }} />
+                      style={{ width: "100%", height: 4, appearance: "none", background: "var(--sl-surface-raised)", borderRadius: 2, outline: "none", cursor: "pointer", accentColor: "var(--sl-primary)" }} />
 
                     {/* SL Commission */}
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 14, marginBottom: 6 }}>
                       <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                        <span style={{ fontSize: 10, fontWeight: 600, color: "#555", letterSpacing: "0.05em", textTransform: "uppercase" }}>SL Commission</span>
-                        {revenueCommission === 30 && <span style={{ fontSize: 8, fontWeight: 600, color: "#7A0E18", letterSpacing: "0.06em", padding: "1px 5px", borderRadius: 2, border: "1px solid rgba(122,14,24,0.2)", textTransform: "uppercase" }}>Default</span>}
+                        <span style={{ fontSize: 12, fontWeight: 600, color: "var(--sl-text-faint)", letterSpacing: "0.05em", textTransform: "uppercase" }}>SL Commission</span>
+                        {revenueCommission === 30 && <span style={{ fontSize: 8, fontWeight: 600, color: "var(--sl-accent-text)", letterSpacing: "0.06em", padding: "1px 5px", borderRadius: 2, border: "1px solid color-mix(in srgb, var(--sl-primary) 20%, transparent)", textTransform: "uppercase" }}>Default</span>}
                       </div>
-                      <span style={{ fontSize: 14, fontWeight: 700, color: "#f5f5f5" }}>{revenueCommission}%</span>
+                      <span style={{ fontSize: 14, fontWeight: 700, color: "var(--sl-text)" }}>{revenueCommission}%</span>
                     </div>
                     <input type="range" min={15} max={50} step={1} value={revenueCommission}
                       onChange={e => setRevenueCommission(Number(e.target.value))}
-                      style={{ width: "100%", height: 4, appearance: "none", background: "#222", borderRadius: 2, outline: "none", cursor: "pointer", accentColor: "#7A0E18" }} />
+                      style={{ width: "100%", height: 4, appearance: "none", background: "var(--sl-surface-raised)", borderRadius: 2, outline: "none", cursor: "pointer", accentColor: "var(--sl-primary)" }} />
 
                     {/* Projection-only toggles. Stored at creator level so
                         they survive offer regeneration. Launches/year only
                         makes sense for one-time / hybrid; hidden otherwise. */}
-                    <div style={{ marginTop: 16, paddingTop: 14, borderTop: "1px solid rgba(255,255,255,0.04)", display: "flex", gap: 16, alignItems: "center", flexWrap: "wrap" }}>
+                    <div style={{ marginTop: 16, paddingTop: 14, borderTop: "1px solid var(--sl-border)", display: "flex", gap: 16, alignItems: "center", flexWrap: "wrap" }}>
                       {(cfo.pricing_model === 'one_time' || cfo.pricing_model === 'hybrid') && (
                         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                          <span style={{ fontSize: 10, fontWeight: 600, color: "#555", letterSpacing: "0.05em", textTransform: "uppercase" }}>Launches / year</span>
+                          <span style={{ fontSize: 12, fontWeight: 600, color: "var(--sl-text-faint)", letterSpacing: "0.05em", textTransform: "uppercase" }}>Launches / year</span>
                           <input
                             type="number"
                             min="1"
@@ -3234,20 +3234,20 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
                             value={revenueLaunches ?? ''}
                             placeholder="auto"
                             onChange={e => setRevenueLaunches(e.target.value === '' ? null : Number(e.target.value))}
-                            style={{ width: 64, padding: "5px 8px", background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 4, color: "#f5f5f5", fontSize: 11, fontFamily: "inherit", textAlign: "right", outline: "none" }}
+                            style={{ width: 64, padding: "5px 8px", background: "color-mix(in srgb, var(--sl-text) 2%, transparent)", border: "1px solid var(--sl-border)", borderRadius: 4, color: "var(--sl-text)", fontSize: 12, fontFamily: "inherit", textAlign: "right", outline: "none" }}
                             title="How many launches/year for this one-time offer. Leave blank for the tier-based suggested default (low=6, mid=3, high=2, premium=1)."
                           />
                         </div>
                       )}
-                      <label style={{ display: "flex", gap: 8, alignItems: "center", cursor: "pointer", fontSize: 10, fontWeight: 600, color: revenuePaymentPlan ? "#22c55e" : "#555", letterSpacing: "0.05em", textTransform: "uppercase" }}>
+                      <label style={{ display: "flex", gap: 8, alignItems: "center", cursor: "pointer", fontSize: 12, fontWeight: 600, color: revenuePaymentPlan ? "var(--sl-success)" : "var(--sl-text-faint)", letterSpacing: "0.05em", textTransform: "uppercase" }}>
                         <input
                           type="checkbox"
                           checked={revenuePaymentPlan}
                           onChange={e => setRevenuePaymentPlan(e.target.checked)}
-                          style={{ accentColor: "#22c55e", cursor: "pointer" }}
+                          style={{ accentColor: "var(--sl-success)", cursor: "pointer" }}
                           title="Payment plan availability lifts conversion ~20-30% (source: learningrevolution). Multiplies projected buyers by 1.25× when checked."
                         />
-                        Payment plan available <span style={{ color: "#444", fontWeight: 400, letterSpacing: 0, textTransform: "none" }}>(+25% CVR)</span>
+                        Payment plan available <span style={{ color: "var(--sl-text-faint)", fontWeight: 400, letterSpacing: 0, textTransform: "none" }}>(+25% CVR)</span>
                       </label>
                       {/* Currency override. Defaults to auto-detect (creator
                           location/niche/lang). Operator picks AED for Dubai,
@@ -3255,7 +3255,7 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
                           pitch deck — tiers, value stack, actual price,
                           ecosystem table. */}
                       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                        <span style={{ fontSize: 10, fontWeight: 600, color: "#555", letterSpacing: "0.05em", textTransform: "uppercase" }}>Currency</span>
+                        <span style={{ fontSize: 12, fontWeight: 600, color: "var(--sl-text-faint)", letterSpacing: "0.05em", textTransform: "uppercase" }}>Currency</span>
                         <select
                           value={creator.currency || ''}
                           onChange={async (e) => {
@@ -3291,7 +3291,7 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
                               });
                             } catch {}
                           }}
-                          style={{ padding: "5px 8px", background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 4, color: "#f5f5f5", fontSize: 11, fontFamily: "inherit", outline: "none", cursor: "pointer" }}
+                          style={{ padding: "5px 8px", background: "color-mix(in srgb, var(--sl-text) 2%, transparent)", border: "1px solid var(--sl-border)", borderRadius: 4, color: "var(--sl-text)", fontSize: 12, fontFamily: "inherit", outline: "none", cursor: "pointer" }}
                           title={`Auto-detected: ${detectCurrency(creator)}. Changing this FX-converts revenuePrice + revenueInitialFee.`}
                         >
                           <option value="">Auto · {detectCurrency(creator)}</option>
@@ -3313,15 +3313,15 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
                       const ltv = s.churn > 0 ? Math.round(price / s.churn) : price * 12;
                       const pct = primaryF > 0 ? ((clients / primaryF) * 100).toFixed(2) : "0";
                       return (
-                        <div key={s.label} style={{ flex: 1, padding: 14, borderRadius: 8, background: "#0a0a0a", border: `1px solid ${s.border}` }}>
-                          <div style={{ fontSize: 9, fontWeight: 700, color: s.color, letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 10 }}>{s.label}</div>
-                          <div style={{ fontSize: 11, color: "#666", marginBottom: 3 }}>Active clients: <span style={{ color: "#f5f5f5", fontWeight: 600 }}>{clients.toLocaleString()}</span></div>
-                          <div style={{ fontSize: 11, color: "#666", marginBottom: 3 }}>% of followers: <span style={{ color: "#888" }}>{pct}%</span></div>
-                          <div style={{ paddingTop: 8, marginTop: 8, borderTop: "1px solid rgba(255,255,255,0.04)" }}>
-                            <div style={{ fontSize: 11, color: "#666", marginBottom: 3 }}>Monthly: <span style={{ color: "#f5f5f5", fontWeight: 600 }}>{fmt(monthly)}</span></div>
-                            <div style={{ fontSize: 11, color: "#666", marginBottom: 3 }}>Year 1: <span style={{ color: "#f5f5f5", fontWeight: 600 }}>{fmt(year1)}</span></div>
-                            <div style={{ fontSize: 11, color: "#666", marginBottom: 3 }}>LTV/client: <span style={{ color: "#888" }}>{fmt(ltv)}</span></div>
-                            <div style={{ fontSize: 11, color: "#666" }}>SL commission: <span style={{ color: "#7A0E18", fontWeight: 600 }}>{fmt(slComm)}</span></div>
+                        <div key={s.label} style={{ flex: 1, padding: 14, borderRadius: 8, background: "var(--sl-bg)", border: `1px solid ${s.border}` }}>
+                          <div style={{ fontSize: 12, fontWeight: 700, color: s.color, letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 10 }}>{s.label}</div>
+                          <div style={{ fontSize: 12, color: "var(--sl-text-faint)", marginBottom: 3 }}>Active clients: <span style={{ color: "var(--sl-text)", fontWeight: 600 }}>{clients.toLocaleString()}</span></div>
+                          <div style={{ fontSize: 12, color: "var(--sl-text-faint)", marginBottom: 3 }}>% of followers: <span style={{ color: "var(--sl-text-muted)" }}>{pct}%</span></div>
+                          <div style={{ paddingTop: 8, marginTop: 8, borderTop: "1px solid var(--sl-border)" }}>
+                            <div style={{ fontSize: 12, color: "var(--sl-text-faint)", marginBottom: 3 }}>Monthly: <span style={{ color: "var(--sl-text)", fontWeight: 600 }}>{fmt(monthly)}</span></div>
+                            <div style={{ fontSize: 12, color: "var(--sl-text-faint)", marginBottom: 3 }}>Year 1: <span style={{ color: "var(--sl-text)", fontWeight: 600 }}>{fmt(year1)}</span></div>
+                            <div style={{ fontSize: 12, color: "var(--sl-text-faint)", marginBottom: 3 }}>LTV/client: <span style={{ color: "var(--sl-text-muted)" }}>{fmt(ltv)}</span></div>
+                            <div style={{ fontSize: 12, color: "var(--sl-text-faint)" }}>SL commission: <span style={{ color: "var(--sl-accent-text)", fontWeight: 600 }}>{fmt(slComm)}</span></div>
                           </div>
                         </div>
                       );
@@ -3341,43 +3341,43 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
                     const finalClients = Math.min(step5, maxCap);
                     const capped = step5 > maxCap;
                     return (
-                      <div style={{ padding: "16px 18px", borderRadius: 8, background: "rgba(122,14,24,0.05)", border: "1px solid rgba(122,14,24,0.1)", fontSize: 11, color: "#888", lineHeight: 1.8 }}>
-                        <div style={{ fontSize: 10, fontWeight: 700, color: "#888", letterSpacing: "0.06em", textTransform: "uppercase", marginBottom: 10 }}>How we calculate (Moderate scenario)</div>
-                        <div style={{ marginBottom: 12, color: "#666", lineHeight: 1.7 }}>
+                      <div style={{ padding: "16px 18px", borderRadius: 8, background: "color-mix(in srgb, var(--sl-primary) 5%, transparent)", border: "1px solid color-mix(in srgb, var(--sl-primary) 10%, transparent)", fontSize: 12, color: "var(--sl-text-muted)", lineHeight: 1.8 }}>
+                        <div style={{ fontSize: 12, fontWeight: 700, color: "var(--sl-text-muted)", letterSpacing: "0.06em", textTransform: "uppercase", marginBottom: 10 }}>How we calculate (Moderate scenario)</div>
+                        <div style={{ marginBottom: 12, color: "var(--sl-text-faint)", lineHeight: 1.7 }}>
                           Your followers go through 5 filters. Only the ones who survive all 5 become paying clients.
                         </div>
                         <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 14 }}>
                           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                            <span style={{ width: 18, height: 18, borderRadius: 4, background: "rgba(122,14,24,0.15)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 9, fontWeight: 700, color: "#7A0E18", flexShrink: 0 }}>1</span>
-                            <span style={{ color: "#888" }}><strong style={{ color: "#ccc" }}>See it</strong> — {(vrAdj * 100).toFixed(1)}% of followers see the offer (15% base × {engMultiplier.toFixed(2)}x engagement)</span>
+                            <span style={{ width: 18, height: 18, borderRadius: 4, background: "color-mix(in srgb, var(--sl-primary) 15%, transparent)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700, color: "var(--sl-accent-text)", flexShrink: 0 }}>1</span>
+                            <span style={{ color: "var(--sl-text-muted)" }}><strong style={{ color: "var(--sl-text-muted)" }}>See it</strong> — {(vrAdj * 100).toFixed(1)}% of followers see the offer (15% base × {engMultiplier.toFixed(2)}x engagement)</span>
                           </div>
                           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                            <span style={{ width: 18, height: 18, borderRadius: 4, background: "rgba(122,14,24,0.15)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 9, fontWeight: 700, color: "#7A0E18", flexShrink: 0 }}>2</span>
-                            <span style={{ color: "#888" }}><strong style={{ color: "#ccc" }}>Click</strong> — {(mod.lr * 100)}% of those click the link to learn more</span>
+                            <span style={{ width: 18, height: 18, borderRadius: 4, background: "color-mix(in srgb, var(--sl-primary) 15%, transparent)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700, color: "var(--sl-accent-text)", flexShrink: 0 }}>2</span>
+                            <span style={{ color: "var(--sl-text-muted)" }}><strong style={{ color: "var(--sl-text-muted)" }}>Click</strong> — {(mod.lr * 100)}% of those click the link to learn more</span>
                           </div>
                           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                            <span style={{ width: 18, height: 18, borderRadius: 4, background: "rgba(122,14,24,0.15)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 9, fontWeight: 700, color: "#7A0E18", flexShrink: 0 }}>3</span>
-                            <span style={{ color: "#888" }}><strong style={{ color: "#ccc" }}>Buy</strong> — {(mod.cr * 100)}% of those actually pay</span>
+                            <span style={{ width: 18, height: 18, borderRadius: 4, background: "color-mix(in srgb, var(--sl-primary) 15%, transparent)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700, color: "var(--sl-accent-text)", flexShrink: 0 }}>3</span>
+                            <span style={{ color: "var(--sl-text-muted)" }}><strong style={{ color: "var(--sl-text-muted)" }}>Buy</strong> — {(mod.cr * 100)}% of those actually pay</span>
                           </div>
                           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                            <span style={{ width: 18, height: 18, borderRadius: 4, background: "rgba(122,14,24,0.15)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 9, fontWeight: 700, color: "#7A0E18", flexShrink: 0 }}>4</span>
-                            <span style={{ color: "#888" }}><strong style={{ color: "#ccc" }}>Stack</strong> — New batch every month for {mod.p} months, clients accumulate</span>
+                            <span style={{ width: 18, height: 18, borderRadius: 4, background: "color-mix(in srgb, var(--sl-primary) 15%, transparent)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700, color: "var(--sl-accent-text)", flexShrink: 0 }}>4</span>
+                            <span style={{ color: "var(--sl-text-muted)" }}><strong style={{ color: "var(--sl-text-muted)" }}>Stack</strong> — New batch every month for {mod.p} months, clients accumulate</span>
                           </div>
                           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                            <span style={{ width: 18, height: 18, borderRadius: 4, background: "rgba(122,14,24,0.15)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 9, fontWeight: 700, color: "#7A0E18", flexShrink: 0 }}>5</span>
-                            <span style={{ color: "#888" }}><strong style={{ color: "#ccc" }}>Stay</strong> — {((1 - mod.churn) * 100)}% of clients stay each month ({(mod.churn * 100)}% churn)</span>
+                            <span style={{ width: 18, height: 18, borderRadius: 4, background: "color-mix(in srgb, var(--sl-primary) 15%, transparent)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700, color: "var(--sl-accent-text)", flexShrink: 0 }}>5</span>
+                            <span style={{ color: "var(--sl-text-muted)" }}><strong style={{ color: "var(--sl-text-muted)" }}>Stay</strong> — {((1 - mod.churn) * 100)}% of clients stay each month ({(mod.churn * 100)}% churn)</span>
                           </div>
                         </div>
-                        <div style={{ padding: "12px 14px", borderRadius: 6, background: "rgba(0,0,0,0.3)", border: "1px solid rgba(255,255,255,0.04)", fontFamily: "monospace", fontSize: 11, color: "#ccc", lineHeight: 2 }}>
+                        <div style={{ padding: "12px 14px", borderRadius: 6, background: "rgba(0,0,0,0.3)", border: "1px solid var(--sl-border)", fontFamily: "monospace", fontSize: 12, color: "var(--sl-text-muted)", lineHeight: 2 }}>
                           <div>{primaryF.toLocaleString()} followers</div>
-                          <div>× {(vrAdj * 100).toFixed(1)}% see it = <span style={{ color: "#f5f5f5" }}>{step1.toLocaleString()}</span> people</div>
-                          <div>× {(mod.lr * 100)}% click = <span style={{ color: "#f5f5f5" }}>{step2.toLocaleString()}</span> people</div>
-                          <div>× {(mod.cr * 100)}% buy = <span style={{ color: "#f5f5f5" }}>{step3.toLocaleString()}</span> new clients/month</div>
-                          <div>× {mod.p} months stacked = <span style={{ color: "#f5f5f5" }}>{step4.toLocaleString()}</span> total</div>
-                          <div>× {((1 - mod.churn) * 100)}% stay = <span style={{ color: "#7A0E18", fontWeight: 700 }}>{step5.toLocaleString()} active clients</span></div>
-                          {capped && <div style={{ color: "#eab308", marginTop: 4 }}>Capped at {(mod.cap * 100)}% of followers = {maxCap.toLocaleString()} clients</div>}
+                          <div>× {(vrAdj * 100).toFixed(1)}% see it = <span style={{ color: "var(--sl-text)" }}>{step1.toLocaleString()}</span> people</div>
+                          <div>× {(mod.lr * 100)}% click = <span style={{ color: "var(--sl-text)" }}>{step2.toLocaleString()}</span> people</div>
+                          <div>× {(mod.cr * 100)}% buy = <span style={{ color: "var(--sl-text)" }}>{step3.toLocaleString()}</span> new clients/month</div>
+                          <div>× {mod.p} months stacked = <span style={{ color: "var(--sl-text)" }}>{step4.toLocaleString()}</span> total</div>
+                          <div>× {((1 - mod.churn) * 100)}% stay = <span style={{ color: "var(--sl-accent-text)", fontWeight: 700 }}>{step5.toLocaleString()} active clients</span></div>
+                          {capped && <div style={{ color: "var(--sl-warning)", marginTop: 4 }}>Capped at {(mod.cap * 100)}% of followers = {maxCap.toLocaleString()} clients</div>}
                         </div>
-                        <div style={{ marginTop: 10, fontSize: 10, color: "#555" }}>
+                        <div style={{ marginTop: 10, fontSize: 12, color: "var(--sl-text-faint)" }}>
                           Benchmark: 2% (avg Instagram creator). Tier cap ({tierBucket}): {(((TIER_CONVERSION_CAP[tierBucket]?.[mod.key]) ?? mod.cap) * 100).toFixed(2)}% of followers · Price: {fmt(defaultPrice)}/mês ({priceSource}).
                         </div>
                       </div>
@@ -3419,14 +3419,14 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
                     }));
                     const fmtBig = (n) => "€" + Math.round(n).toLocaleString();
                     return (
-                      <div style={{ marginTop: 20, padding: "18px 20px", background: "#141414", border: "1px solid rgba(34,197,94,0.18)", borderRadius: 10 }}>
+                      <div style={{ marginTop: 20, padding: "18px 20px", background: "var(--sl-surface)", border: "1px solid color-mix(in srgb, var(--sl-success) 18%, transparent)", borderRadius: 10 }}>
                         <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 4 }}>
-                          <div style={{ fontSize: 10, fontWeight: 700, color: "#22c55e", letterSpacing: "0.18em", textTransform: "uppercase" }}>Ecosystem Revenue</div>
-                          <div style={{ fontSize: 9, color: "#555", letterSpacing: "0.06em" }}>preview · v1 (no cannibalization)</div>
+                          <div style={{ fontSize: 12, fontWeight: 700, color: "var(--sl-success)", letterSpacing: "0.18em", textTransform: "uppercase" }}>Ecosystem Revenue</div>
+                          <div style={{ fontSize: 12, color: "var(--sl-text-faint)", letterSpacing: "0.06em" }}>preview · v1 (no cannibalization)</div>
                         </div>
-                        <p style={{ fontSize: 11, color: "#666", margin: "0 0 14px", lineHeight: 1.5 }}>
-                          Total annual revenue across the creator's existing products plus the new offer. Pulls existing buyers from a conservative estimate (% of audience by tier), and applies upgrade flows for {frame?.confirmed_role ? <code style={{ color: "#888" }}>{frame.confirmed_role}</code> : 'standalone'} role.
-                          {offerForCalc.pricing_model && <> Mode: <strong style={{ color: "#888" }}>{offerForCalc.pricing_model}</strong>.</>}
+                        <p style={{ fontSize: 12, color: "var(--sl-text-faint)", margin: "0 0 14px", lineHeight: 1.5 }}>
+                          Total annual revenue across the creator's existing products plus the new offer. Pulls existing buyers from a conservative estimate (% of audience by tier), and applies upgrade flows for {frame?.confirmed_role ? <code style={{ color: "var(--sl-text-muted)" }}>{frame.confirmed_role}</code> : 'standalone'} role.
+                          {offerForCalc.pricing_model && <> Mode: <strong style={{ color: "var(--sl-text-muted)" }}>{offerForCalc.pricing_model}</strong>.</>}
                         </p>
 
                         {/* 3 scenario cards: status quo / with new / delta */}
@@ -3434,15 +3434,15 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
                           {ecoByScenario.map((eco, i) => {
                             const s = scenarios[i];
                             return (
-                              <div key={s.key} style={{ padding: 14, borderRadius: 8, background: "#0a0a0a", border: `1px solid ${s.border}` }}>
-                                <div style={{ fontSize: 9, fontWeight: 700, color: s.color, letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 10 }}>{s.label}</div>
-                                <div style={{ fontSize: 10, color: "#666", marginBottom: 2 }}>Status quo (annual)</div>
-                                <div style={{ fontSize: 15, fontWeight: 700, color: "#888", marginBottom: 8 }}>{fmtBig(eco.headline.statusQuoAnnual)}</div>
-                                <div style={{ fontSize: 10, color: "#666", marginBottom: 2 }}>With new offer</div>
-                                <div style={{ fontSize: 18, fontWeight: 800, color: "#22c55e", marginBottom: 8 }}>{fmtBig(eco.headline.withNewOfferAnnual)}</div>
-                                <div style={{ paddingTop: 8, borderTop: "1px solid rgba(255,255,255,0.04)" }}>
-                                  <div style={{ fontSize: 10, color: "#666", marginBottom: 2 }}>Δ from new offer</div>
-                                  <div style={{ fontSize: 13, fontWeight: 700, color: eco.headline.deltaAnnual >= 0 ? "#22c55e" : "#ef4444" }}>
+                              <div key={s.key} style={{ padding: 14, borderRadius: 8, background: "var(--sl-bg)", border: `1px solid ${s.border}` }}>
+                                <div style={{ fontSize: 12, fontWeight: 700, color: s.color, letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 10 }}>{s.label}</div>
+                                <div style={{ fontSize: 12, color: "var(--sl-text-faint)", marginBottom: 2 }}>Status quo (annual)</div>
+                                <div style={{ fontSize: 15, fontWeight: 700, color: "var(--sl-text-muted)", marginBottom: 8 }}>{fmtBig(eco.headline.statusQuoAnnual)}</div>
+                                <div style={{ fontSize: 12, color: "var(--sl-text-faint)", marginBottom: 2 }}>With new offer</div>
+                                <div style={{ fontSize: 18, fontWeight: 800, color: "var(--sl-success)", marginBottom: 8 }}>{fmtBig(eco.headline.withNewOfferAnnual)}</div>
+                                <div style={{ paddingTop: 8, borderTop: "1px solid var(--sl-border)" }}>
+                                  <div style={{ fontSize: 12, color: "var(--sl-text-faint)", marginBottom: 2 }}>Δ from new offer</div>
+                                  <div style={{ fontSize: 13, fontWeight: 700, color: eco.headline.deltaAnnual >= 0 ? "var(--sl-success)" : "var(--sl-danger)" }}>
                                     {eco.headline.deltaAnnual >= 0 ? '+' : ''}{fmtBig(eco.headline.deltaAnnual)}
                                   </div>
                                 </div>
@@ -3456,28 +3456,28 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
                           const eco = ecoByScenario[1];
                           if (!eco) return null;
                           return (
-                            <div style={{ padding: "12px 14px", background: "#0a0a0a", borderRadius: 6, border: "1px solid rgba(255,255,255,0.04)" }}>
-                              <div style={{ fontSize: 9, fontWeight: 600, color: "#555", letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 10 }}>Breakdown (Moderate scenario)</div>
+                            <div style={{ padding: "12px 14px", background: "var(--sl-bg)", borderRadius: 6, border: "1px solid var(--sl-border)" }}>
+                              <div style={{ fontSize: 12, fontWeight: 600, color: "var(--sl-text-faint)", letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 10 }}>Breakdown (Moderate scenario)</div>
                               <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                                 {eco.existing.map((r, i) => (
-                                  <div key={i} className="sl-grid-4" style={{ display: "grid", gridTemplateColumns: "1.4fr 0.7fr 1fr 1fr", gap: 8, fontSize: 11, color: "#888", padding: "4px 0" }}>
-                                    <span style={{ color: "#ccc" }}>{r.name}</span>
-                                    <span style={{ color: "#666", fontSize: 10 }}>{r.tier}</span>
+                                  <div key={i} className="sl-grid-4" style={{ display: "grid", gridTemplateColumns: "1.4fr 0.7fr 1fr 1fr", gap: 8, fontSize: 12, color: "var(--sl-text-muted)", padding: "4px 0" }}>
+                                    <span style={{ color: "var(--sl-text-muted)" }}>{r.name}</span>
+                                    <span style={{ color: "var(--sl-text-faint)", fontSize: 12 }}>{r.tier}</span>
                                     <span>{r.buyers.toLocaleString()} buyers · {fmtBig(r.price)}{r.tier === 'recurring' ? '/mo' : ''}</span>
-                                    <span style={{ color: "#f5f5f5", textAlign: "right" }}>
+                                    <span style={{ color: "var(--sl-text)", textAlign: "right" }}>
                                       {fmtBig(r.statusQuoAnnual)} → <strong>{fmtBig(r.withNewOfferAnnual)}</strong>
-                                      {r.upgradeBuyers > 0 && <span style={{ color: "#22c55e", fontSize: 9, marginLeft: 6 }}>+{r.upgradeBuyers}</span>}
+                                      {r.upgradeBuyers > 0 && <span style={{ color: "var(--sl-success)", fontSize: 12, marginLeft: 6 }}>+{r.upgradeBuyers}</span>}
                                     </span>
                                   </div>
                                 ))}
-                                <div className="sl-grid-4" style={{ display: "grid", gridTemplateColumns: "1.4fr 0.7fr 1fr 1fr", gap: 8, fontSize: 11, padding: "8px 0 4px", borderTop: "1px solid rgba(34,197,94,0.15)", marginTop: 4 }}>
-                                  <span style={{ color: "#22c55e", fontWeight: 700 }}>+ NEW · {eco.newOffer.name}</span>
-                                  <span style={{ color: "#22c55e", fontSize: 10 }}>{eco.newOffer.tierBucket}</span>
-                                  <span style={{ color: "#22c55e" }}>{eco.newOffer.baseBuyers}{eco.newOffer.upgradeBuyers > 0 ? `+${eco.newOffer.upgradeBuyers}` : ''} buyers · {fmtBig(eco.newOffer.projection.priceNumeric || 0)}</span>
-                                  <span style={{ color: "#22c55e", textAlign: "right", fontWeight: 700 }}>{fmtBig(eco.newOffer.annualRevenue)}/yr</span>
+                                <div className="sl-grid-4" style={{ display: "grid", gridTemplateColumns: "1.4fr 0.7fr 1fr 1fr", gap: 8, fontSize: 12, padding: "8px 0 4px", borderTop: "1px solid color-mix(in srgb, var(--sl-success) 15%, transparent)", marginTop: 4 }}>
+                                  <span style={{ color: "var(--sl-success)", fontWeight: 700 }}>+ NEW · {eco.newOffer.name}</span>
+                                  <span style={{ color: "var(--sl-success)", fontSize: 12 }}>{eco.newOffer.tierBucket}</span>
+                                  <span style={{ color: "var(--sl-success)" }}>{eco.newOffer.baseBuyers}{eco.newOffer.upgradeBuyers > 0 ? `+${eco.newOffer.upgradeBuyers}` : ''} buyers · {fmtBig(eco.newOffer.projection.priceNumeric || 0)}</span>
+                                  <span style={{ color: "var(--sl-success)", textAlign: "right", fontWeight: 700 }}>{fmtBig(eco.newOffer.annualRevenue)}/yr</span>
                                 </div>
                               </div>
-                              <div style={{ marginTop: 10, fontSize: 10, color: "#444", lineHeight: 1.5 }}>
+                              <div style={{ marginTop: 10, fontSize: 12, color: "var(--sl-text-faint)", lineHeight: 1.5 }}>
                                 Buyer counts for existing products are conservative estimates from audience × tier %. Edit them in the audit when you have real numbers. Upgrade rate ({(eco.upgradeRate * 100).toFixed(0)}% moderate) applies only when role is <em>entry_point</em> or <em>premium_upsell</em>.
                               </div>
                             </div>
@@ -3541,28 +3541,28 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
           {undoToast && (
             <div style={{
               position: "fixed", bottom: 24, right: 24, zIndex: 1000,
-              padding: "12px 16px", background: "#141414",
-              border: "1px solid rgba(122,14,24,0.4)", borderRadius: 10,
+              padding: "12px 16px", background: "var(--sl-surface)",
+              border: "1px solid color-mix(in srgb, var(--sl-primary) 40%, transparent)", borderRadius: 10,
               boxShadow: "0 8px 24px rgba(0,0,0,0.5)",
               display: "flex", alignItems: "center", gap: 14,
               maxWidth: 360,
               animation: "sl-undo-slide 0.18s ease-out",
             }}>
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 11, color: "#f5f5f5", fontWeight: 600, marginBottom: 2 }}>Mensagem apagada</div>
+                <div style={{ fontSize: 12, color: "var(--sl-text)", fontWeight: 600, marginBottom: 2 }}>Mensagem apagada</div>
                 {undoToast.preview && (
-                  <div style={{ fontSize: 10, color: "#888", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                  <div style={{ fontSize: 12, color: "var(--sl-text-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                     &ldquo;{undoToast.preview}{undoToast.preview.length >= 60 ? '…' : ''}&rdquo;
                   </div>
                 )}
               </div>
               <button
                 onClick={() => undoDelete(undoToast.messageId)}
-                style={{ padding: "6px 12px", background: "rgba(122,14,24,0.2)", border: "1px solid rgba(122,14,24,0.5)", borderRadius: 5, color: "#f5b5bb", fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}
+                style={{ padding: "6px 12px", background: "color-mix(in srgb, var(--sl-primary) 20%, transparent)", border: "1px solid color-mix(in srgb, var(--sl-primary) 50%, transparent)", borderRadius: 5, color: "var(--sl-accent-text)", fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}
               >
                 Anular
               </button>
-              <span style={{ fontSize: 9, color: "#555", fontFamily: "ui-monospace, monospace" }}>⌘Z</span>
+              <span style={{ fontSize: 12, color: "var(--sl-text-faint)", fontFamily: "ui-monospace, monospace" }}>⌘Z</span>
             </div>
           )}
         </>)}
@@ -3571,10 +3571,10 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
         {tab === "launch" && (<>
           {!creator.offer ? (
             <div style={{ textAlign: "center", padding: "40px 20px" }}>
-              <div style={{ width: 40, height: 40, margin: "0 auto 16px", borderRadius: 10, background: "rgba(255,255,255,0.03)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, color: "#444" }}>&#128274;</div>
-              <p style={{ fontSize: 14, color: "#666", marginBottom: 8 }}>Launch bloqueado</p>
-              <p style={{ fontSize: 12, color: "#444", marginBottom: 20 }}>Cria primeiro a oferta para desbloquear o launch blueprint.</p>
-              <button onClick={() => setTab("oferta")} style={{ padding: "10px 24px", borderRadius: 8, border: "1px solid rgba(255,255,255,0.08)", background: "transparent", color: "#888", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>Ir para Oferta</button>
+              <div style={{ width: 40, height: 40, margin: "0 auto 16px", borderRadius: 10, background: "color-mix(in srgb, var(--sl-text) 3%, transparent)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, color: "var(--sl-text-faint)" }}>&var(--sl-info);</div>
+              <p style={{ fontSize: 14, color: "var(--sl-text-faint)", marginBottom: 8 }}>Launch bloqueado</p>
+              <p style={{ fontSize: 12, color: "var(--sl-text-faint)", marginBottom: 20 }}>Cria primeiro a oferta para desbloquear o launch blueprint.</p>
+              <button onClick={() => setTab("oferta")} style={{ padding: "10px 24px", borderRadius: 8, border: "1px solid var(--sl-border)", background: "transparent", color: "var(--sl-text-muted)", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>Ir para Oferta</button>
             </div>
           ) : (
             <div>
@@ -3585,30 +3585,30 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
                 const total = allAssets.length;
                 const approved = allAssets.filter(a => creator.launch?.[a.key]?.status === 'approved' || creator.launch?.[a.key]?.status === 'live').length;
                 return (
-                  <div style={{ marginBottom: 24, padding: "16px 20px", background: "#141414", border: "1px solid rgba(255,255,255,0.04)", borderRadius: 10 }}>
+                  <div style={{ marginBottom: 24, padding: "16px 20px", background: "var(--sl-surface)", border: "1px solid var(--sl-border)", borderRadius: 10 }}>
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-                      <span style={{ fontSize: 12, fontWeight: 600, color: "#f5f5f5" }}>Launch Progress</span>
-                      <span style={{ fontSize: 11, color: "#888" }}>{done}/{total} gerados &middot; {approved}/{total} aprovados</span>
+                      <span style={{ fontSize: 12, fontWeight: 600, color: "var(--sl-text)" }}>Launch Progress</span>
+                      <span style={{ fontSize: 12, color: "var(--sl-text-muted)" }}>{done}/{total} gerados &middot; {approved}/{total} aprovados</span>
                     </div>
-                    <div style={{ height: 4, background: "rgba(255,255,255,0.06)", borderRadius: 4, overflow: "hidden", display: "flex" }}>
-                      <div style={{ height: 4, background: "#22c55e", width: (approved / total * 100) + "%", transition: "width 0.3s" }} />
-                      <div style={{ height: 4, background: "#eab308", width: ((done - approved) / total * 100) + "%", transition: "width 0.3s" }} />
+                    <div style={{ height: 4, background: "color-mix(in srgb, var(--sl-text) 6%, transparent)", borderRadius: 4, overflow: "hidden", display: "flex" }}>
+                      <div style={{ height: 4, background: "var(--sl-success)", width: (approved / total * 100) + "%", transition: "width 0.3s" }} />
+                      <div style={{ height: 4, background: "var(--sl-warning)", width: ((done - approved) / total * 100) + "%", transition: "width 0.3s" }} />
                     </div>
                     <div style={{ display: "flex", gap: 16, marginTop: 8 }}>
-                      <span style={{ fontSize: 9, color: "#555", display: "flex", alignItems: "center", gap: 4 }}><span style={{ width: 6, height: 6, borderRadius: "50%", background: "#22c55e", display: "inline-block" }} /> Aprovado</span>
-                      <span style={{ fontSize: 9, color: "#555", display: "flex", alignItems: "center", gap: 4 }}><span style={{ width: 6, height: 6, borderRadius: "50%", background: "#eab308", display: "inline-block" }} /> Draft</span>
-                      <span style={{ fontSize: 9, color: "#555", display: "flex", alignItems: "center", gap: 4 }}><span style={{ width: 6, height: 6, borderRadius: 2, background: "rgba(255,255,255,0.1)", display: "inline-block" }} /> Pendente</span>
+                      <span style={{ fontSize: 12, color: "var(--sl-text-faint)", display: "flex", alignItems: "center", gap: 4 }}><span style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--sl-success)", display: "inline-block" }} /> Aprovado</span>
+                      <span style={{ fontSize: 12, color: "var(--sl-text-faint)", display: "flex", alignItems: "center", gap: 4 }}><span style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--sl-warning)", display: "inline-block" }} /> Draft</span>
+                      <span style={{ fontSize: 12, color: "var(--sl-text-faint)", display: "flex", alignItems: "center", gap: 4 }}><span style={{ width: 6, height: 6, borderRadius: 2, background: "color-mix(in srgb, var(--sl-text) 10%, transparent)", display: "inline-block" }} /> Pendente</span>
                     </div>
                   </div>
                 );
               })()}
 
-              <p style={{ fontSize: 13, color: "#888", marginBottom: 24 }}>Launch Blueprint para {creator.name}. Cada asset é gerado com base nos dados do creator, oferta, e knowledge base de marketing.</p>
-              {launchError && <div style={{ padding: "10px 14px", borderRadius: 6, background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.2)", color: "#ef4444", fontSize: 11, marginBottom: 16 }}>{launchError}</div>}
+              <p style={{ fontSize: 13, color: "var(--sl-text-muted)", marginBottom: 24 }}>Launch Blueprint para {creator.name}. Cada asset é gerado com base nos dados do creator, oferta, e knowledge base de marketing.</p>
+              {launchError && <div style={{ padding: "10px 14px", borderRadius: 6, background: "color-mix(in srgb, var(--sl-danger) 10%, transparent)", border: "1px solid color-mix(in srgb, var(--sl-danger) 20%, transparent)", color: "var(--sl-danger)", fontSize: 12, marginBottom: 16 }}>{launchError}</div>}
 
               {LAUNCH_PHASES.map(phase => (
                 <div key={phase.phase} style={{ marginBottom: 28 }}>
-                  <h3 style={{ fontSize: 11, fontWeight: 600, color: "#555", textTransform: "uppercase", letterSpacing: "0.08em", margin: "0 0 12px" }}>{phase.phase}</h3>
+                  <h3 style={{ fontSize: 12, fontWeight: 600, color: "var(--sl-text-faint)", textTransform: "uppercase", letterSpacing: "0.08em", margin: "0 0 12px" }}>{phase.phase}</h3>
                   <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                     {phase.assets.map(asset => {
                       const saved = creator.launch?.[asset.key];
@@ -3616,39 +3616,39 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
                       const isExpanded = launchExpanded === asset.key;
                       const isEditMode = launchEditing === asset.key;
                       const status = saved?.status || (saved ? 'draft' : null);
-                      const STATUS_COLORS = { draft: { bg: "rgba(234,179,8,0.1)", border: "rgba(234,179,8,0.25)", color: "#eab308", label: "Draft" }, reviewed: { bg: "rgba(59,130,246,0.1)", border: "rgba(59,130,246,0.25)", color: "#3b82f6", label: "Em Revisão" }, approved: { bg: "rgba(34,197,94,0.1)", border: "rgba(34,197,94,0.25)", color: "#22c55e", label: "Aprovado" }, live: { bg: "rgba(122,14,24,0.15)", border: "rgba(122,14,24,0.3)", color: "#7A0E18", label: "Live" } };
+                      const STATUS_COLORS = { draft: { bg: "color-mix(in srgb, var(--sl-warning) 10%, transparent)", border: "color-mix(in srgb, var(--sl-warning) 25%, transparent)", color: "var(--sl-warning)", label: "Draft" }, reviewed: { bg: "color-mix(in srgb, var(--sl-info) 10%, transparent)", border: "color-mix(in srgb, var(--sl-info) 25%, transparent)", color: "var(--sl-info)", label: "Em Revisão" }, approved: { bg: "color-mix(in srgb, var(--sl-success) 10%, transparent)", border: "color-mix(in srgb, var(--sl-success) 25%, transparent)", color: "var(--sl-success)", label: "Aprovado" }, live: { bg: "color-mix(in srgb, var(--sl-primary) 15%, transparent)", border: "color-mix(in srgb, var(--sl-primary) 30%, transparent)", color: "var(--sl-accent-text)", label: "Live" } };
                       const sc = STATUS_COLORS[status] || {};
                       return (
-                        <div key={asset.key} style={{ background: "#141414", border: `1px solid ${saved ? sc.border || "rgba(34,197,94,0.15)" : "rgba(255,255,255,0.04)"}`, borderRadius: 10, overflow: "hidden" }}>
+                        <div key={asset.key} style={{ background: "var(--sl-surface)", border: `1px solid ${saved ? sc.border || "color-mix(in srgb, var(--sl-success) 15%, transparent)" : "color-mix(in srgb, var(--sl-text) 4%, transparent)"}`, borderRadius: 10, overflow: "hidden" }}>
                           <div style={{ padding: "14px 18px", display: "flex", alignItems: "center", justifyContent: "space-between", cursor: saved ? "pointer" : "default" }}
                             onClick={() => saved && !isEditMode && setLaunchExpanded(isExpanded ? null : asset.key)}>
                             <div>
                               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                                <span style={{ fontSize: 13, fontWeight: 600, color: "#f5f5f5" }}>{asset.label}</span>
+                                <span style={{ fontSize: 13, fontWeight: 600, color: "var(--sl-text)" }}>{asset.label}</span>
                                 {status && <span style={{ fontSize: 8, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", padding: "2px 8px", borderRadius: 4, background: sc.bg, color: sc.color, border: `1px solid ${sc.border}` }}>{sc.label}</span>}
                               </div>
-                              <span style={{ fontSize: 11, color: "#555", marginTop: 2, display: "block" }}>{asset.desc}</span>
+                              <span style={{ fontSize: 12, color: "var(--sl-text-faint)", marginTop: 2, display: "block" }}>{asset.desc}</span>
                             </div>
                             <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-                              {isGenerating && <div style={{ width: 16, height: 16, border: "2px solid #222", borderTopColor: "#7A0E18", borderRadius: "50%", animation: "sl-spin 0.8s linear infinite" }} />}
+                              {isGenerating && <div style={{ width: 16, height: 16, border: "2px solid var(--sl-surface-raised)", borderTopColor: "var(--sl-primary)", borderRadius: "50%", animation: "sl-spin 0.8s linear infinite" }} />}
                               {!isGenerating && (
                                 <button onClick={e => { e.stopPropagation(); generateLaunchAsset(asset.key); }}
-                                  style={{ padding: "6px 14px", borderRadius: 6, border: "none", background: saved ? "transparent" : "#7A0E18", color: saved ? "#888" : "#fff", fontSize: 10, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", ...(saved ? { border: "1px solid rgba(255,255,255,0.06)" } : {}) }}>
+                                  style={{ padding: "6px 14px", borderRadius: 6, border: "none", background: saved ? "transparent" : "var(--sl-primary)", color: saved ? "var(--sl-text-muted)" : "var(--sl-text)", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", ...(saved ? { border: "1px solid var(--sl-border)" } : {}) }}>
                                   {saved ? "Regenerar" : "Gerar"}
                                 </button>
                               )}
-                              {saved && <span style={{ fontSize: 18, color: "#444", cursor: "pointer" }}>{isExpanded ? "−" : "+"}</span>}
+                              {saved && <span style={{ fontSize: 18, color: "var(--sl-text-faint)", cursor: "pointer" }}>{isExpanded ? "−" : "+"}</span>}
                             </div>
                           </div>
 
                           {/* Streaming preview while generating */}
                           {isGenerating && launchStreamText && isExpanded && (
-                            <div style={{ padding: "0 18px 18px", borderTop: "1px solid rgba(255,255,255,0.04)" }}>
-                              <div style={{ fontSize: 10, color: "#7A0E18", margin: "10px 0 12px", display: "flex", alignItems: "center", gap: 6 }}>
-                                <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#7A0E18", animation: "sl-pulse 1.5s ease-in-out infinite" }} />
+                            <div style={{ padding: "0 18px 18px", borderTop: "1px solid var(--sl-border)" }}>
+                              <div style={{ fontSize: 12, color: "var(--sl-accent-text)", margin: "10px 0 12px", display: "flex", alignItems: "center", gap: 6 }}>
+                                <span style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--sl-primary)", animation: "sl-pulse 1.5s ease-in-out infinite" }} />
                                 A gerar...
                               </div>
-                              <div style={{ padding: 16, background: "#0a0a0a", borderRadius: 8, fontSize: 13, color: "#ccc", lineHeight: 1.7, whiteSpace: "pre-wrap", maxHeight: 500, overflowY: "auto" }}>
+                              <div style={{ padding: 16, background: "var(--sl-bg)", borderRadius: 8, fontSize: 13, color: "var(--sl-text-muted)", lineHeight: 1.7, whiteSpace: "pre-wrap", maxHeight: 500, overflowY: "auto" }}>
                                 {renderMd(launchStreamText)}
                               </div>
                             </div>
@@ -3656,18 +3656,18 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
 
                           {/* Saved content — view or edit mode */}
                           {saved && isExpanded && !isGenerating && (
-                            <div style={{ padding: "0 18px 18px", borderTop: "1px solid rgba(255,255,255,0.04)" }}>
+                            <div style={{ padding: "0 18px 18px", borderTop: "1px solid var(--sl-border)" }}>
                               {/* Toolbar */}
                               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", margin: "10px 0 12px" }}>
                                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                                  <span style={{ fontSize: 10, color: "#444" }}>Gerado: {new Date(saved.generatedAt).toLocaleString("pt-PT")}</span>
+                                  <span style={{ fontSize: 12, color: "var(--sl-text-faint)" }}>Gerado: {new Date(saved.generatedAt).toLocaleString("pt-PT")}</span>
                                 </div>
                                 <div style={{ display: "flex", gap: 4 }}>
                                   {/* Copy button */}
-                                  <button onClick={() => navigator.clipboard.writeText(saved.content)} style={{ padding: "4px 10px", borderRadius: 4, border: "1px solid rgba(255,255,255,0.06)", background: "transparent", color: "#666", fontSize: 9, cursor: "pointer", fontFamily: "inherit" }}>Copiar</button>
+                                  <button onClick={() => navigator.clipboard.writeText(saved.content)} style={{ padding: "4px 10px", borderRadius: 4, border: "1px solid var(--sl-border)", background: "transparent", color: "var(--sl-text-faint)", fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>Copiar</button>
                                   {/* Edit toggle */}
                                   <button onClick={() => { if (isEditMode) { setLaunchEditing(null); } else { setLaunchEditing(asset.key); setLaunchEditContent(saved.content); }}}
-                                    style={{ padding: "4px 10px", borderRadius: 4, border: `1px solid ${isEditMode ? "rgba(122,14,24,0.3)" : "rgba(255,255,255,0.06)"}`, background: isEditMode ? "rgba(122,14,24,0.1)" : "transparent", color: isEditMode ? "#7A0E18" : "#666", fontSize: 9, cursor: "pointer", fontFamily: "inherit" }}>
+                                    style={{ padding: "4px 10px", borderRadius: 4, border: `1px solid ${isEditMode ? "color-mix(in srgb, var(--sl-primary) 30%, transparent)" : "color-mix(in srgb, var(--sl-text) 6%, transparent)"}`, background: isEditMode ? "color-mix(in srgb, var(--sl-primary) 10%, transparent)" : "transparent", color: isEditMode ? "var(--sl-accent-text)" : "var(--sl-text-faint)", fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>
                                     {isEditMode ? "Cancelar" : "Editar"}
                                   </button>
                                   {/* Status cycle */}
@@ -3676,7 +3676,7 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
                                     const isActive = status === s;
                                     return (
                                       <button key={s} onClick={() => patchCreator({ launch: { [asset.key]: { ...saved, status: s } } })}
-                                        style={{ padding: "4px 8px", borderRadius: 4, border: `1px solid ${isActive ? c.border : "rgba(255,255,255,0.04)"}`, background: isActive ? c.bg : "transparent", color: isActive ? c.color : "#444", fontSize: 8, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase", letterSpacing: "0.04em" }}>
+                                        style={{ padding: "4px 8px", borderRadius: 4, border: `1px solid ${isActive ? c.border : "color-mix(in srgb, var(--sl-text) 4%, transparent)"}`, background: isActive ? c.bg : "transparent", color: isActive ? c.color : "var(--sl-text-faint)", fontSize: 8, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase", letterSpacing: "0.04em" }}>
                                         {c.label}
                                       </button>
                                     );
@@ -3688,21 +3688,21 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
                               {isEditMode ? (
                                 <div>
                                   <textarea value={launchEditContent} onChange={e => setLaunchEditContent(e.target.value)}
-                                    style={{ width: "100%", minHeight: 400, padding: 16, background: "#0a0a0a", border: "1px solid rgba(122,14,24,0.2)", borderRadius: 8, fontSize: 13, color: "#ccc", lineHeight: 1.7, fontFamily: "inherit", outline: "none", resize: "vertical", boxSizing: "border-box" }} />
+                                    style={{ width: "100%", minHeight: 400, padding: 16, background: "var(--sl-bg)", border: "1px solid color-mix(in srgb, var(--sl-primary) 20%, transparent)", borderRadius: 8, fontSize: 13, color: "var(--sl-text-muted)", lineHeight: 1.7, fontFamily: "inherit", outline: "none", resize: "vertical", boxSizing: "border-box" }} />
                                   <div style={{ display: "flex", gap: 8, marginTop: 8, justifyContent: "flex-end" }}>
                                     <button onClick={() => { setLaunchEditContent(saved.content); }}
-                                      style={{ padding: "8px 16px", borderRadius: 6, border: "1px solid rgba(255,255,255,0.06)", background: "transparent", color: "#888", fontSize: 11, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>Reset</button>
+                                      style={{ padding: "8px 16px", borderRadius: 6, border: "1px solid var(--sl-border)", background: "transparent", color: "var(--sl-text-muted)", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>Reset</button>
                                     <button onClick={async () => { await patchCreator({ launch: { [asset.key]: { ...saved, content: launchEditContent, editedAt: new Date().toISOString() } } }); setLaunchEditing(null); }}
-                                      style={{ padding: "8px 20px", borderRadius: 6, border: "none", background: "#7A0E18", color: "#fff", fontSize: 11, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>Guardar</button>
+                                      style={{ padding: "8px 20px", borderRadius: 6, border: "none", background: "var(--sl-primary)", color: "var(--sl-primary-contrast)", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>Guardar</button>
                                   </div>
                                 </div>
                               ) : (
                                 /* View mode */
-                                <div style={{ padding: 16, background: "#0a0a0a", borderRadius: 8, fontSize: 13, color: "#ccc", lineHeight: 1.7, whiteSpace: "pre-wrap", maxHeight: 500, overflowY: "auto" }}>
+                                <div style={{ padding: 16, background: "var(--sl-bg)", borderRadius: 8, fontSize: 13, color: "var(--sl-text-muted)", lineHeight: 1.7, whiteSpace: "pre-wrap", maxHeight: 500, overflowY: "auto" }}>
                                   {renderMd(saved.content)}
                                 </div>
                               )}
-                              {saved.editedAt && !isEditMode && <div style={{ fontSize: 9, color: "#333", marginTop: 4 }}>Editado: {new Date(saved.editedAt).toLocaleString("pt-PT")}</div>}
+                              {saved.editedAt && !isEditMode && <div style={{ fontSize: 12, color: "var(--sl-border-strong)", marginTop: 4 }}>Editado: {new Date(saved.editedAt).toLocaleString("pt-PT")}</div>}
                             </div>
                           )}
                         </div>
@@ -3721,16 +3721,16 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
         {tab === "pitch" && (
           <div style={{ textAlign: "center", padding: "40px 20px" }}>
             {creator.offer ? (<>
-              <p style={{ fontSize: 14, color: "#888", marginBottom: 8 }}>Pitch page para {creator.name}.</p>
-              <p style={{ fontSize: 11, color: "#444", marginBottom: 24 }}>Editável inline e exportável para PPTX. Dados do creator e oferta carregados automaticamente.</p>
-              <a href={`/pitch?creatorId=${params?.id}`} style={{ display: "inline-block", padding: "12px 32px", borderRadius: 8, background: "#7A0E18", color: "#fff", fontSize: 14, fontWeight: 600, textDecoration: "none", fontFamily: "inherit" }}>
+              <p style={{ fontSize: 14, color: "var(--sl-text-muted)", marginBottom: 8 }}>Pitch page para {creator.name}.</p>
+              <p style={{ fontSize: 12, color: "var(--sl-text-faint)", marginBottom: 24 }}>Editável inline e exportável para PPTX. Dados do creator e oferta carregados automaticamente.</p>
+              <a href={`/pitch?creatorId=${params?.id}`} style={{ display: "inline-block", padding: "12px 32px", borderRadius: 8, background: "var(--sl-primary)", color: "var(--sl-primary-contrast)", fontSize: 14, fontWeight: 600, textDecoration: "none", fontFamily: "inherit" }}>
                 Abrir Pitch
               </a>
             </>) : (<>
-              <div style={{ width: 40, height: 40, margin: "0 auto 16px", borderRadius: 10, background: "rgba(255,255,255,0.03)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, color: "#444" }}>&#128274;</div>
-              <p style={{ fontSize: 14, color: "#666", marginBottom: 8 }}>Pitch bloqueado</p>
-              <p style={{ fontSize: 12, color: "#444", marginBottom: 20 }}>Cria primeiro a oferta no tab "Oferta" para desbloquear o pitch.</p>
-              <button onClick={() => setTab("oferta")} style={{ padding: "10px 24px", borderRadius: 8, border: "1px solid rgba(255,255,255,0.08)", background: "transparent", color: "#888", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>
+              <div style={{ width: 40, height: 40, margin: "0 auto 16px", borderRadius: 10, background: "color-mix(in srgb, var(--sl-text) 3%, transparent)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, color: "var(--sl-text-faint)" }}>&var(--sl-info);</div>
+              <p style={{ fontSize: 14, color: "var(--sl-text-faint)", marginBottom: 8 }}>Pitch bloqueado</p>
+              <p style={{ fontSize: 12, color: "var(--sl-text-faint)", marginBottom: 20 }}>Cria primeiro a oferta no tab "Oferta" para desbloquear o pitch.</p>
+              <button onClick={() => setTab("oferta")} style={{ padding: "10px 24px", borderRadius: 8, border: "1px solid var(--sl-border)", background: "transparent", color: "var(--sl-text-muted)", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>
                 Ir para Oferta
               </button>
             </>)}
@@ -3774,27 +3774,27 @@ class CreatorPageErrorBoundary extends React.Component {
       const msg = String(this.state.error?.message || this.state.error);
       const stackLine = String(this.state.error?.stack || '').split('\n').slice(0, 4).join('\n');
       return (
-        <div style={{ minHeight: "100vh", background: "#0a0a0a", color: "#f5f5f5", padding: "60px 24px", fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif" }}>
+        <div style={{ minHeight: "100vh", background: "var(--sl-bg)", color: "var(--sl-text)", padding: "60px 24px", fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif" }}>
           <div style={{ maxWidth: 640, margin: "0 auto" }}>
-            <div style={{ fontSize: 10, fontWeight: 700, color: "#ef4444", letterSpacing: "0.16em", textTransform: "uppercase", marginBottom: 12 }}>● Erro a renderizar o perfil</div>
+            <div style={{ fontSize: 12, fontWeight: 700, color: "var(--sl-danger)", letterSpacing: "0.16em", textTransform: "uppercase", marginBottom: 12 }}>● Erro a renderizar o perfil</div>
             <h1 style={{ fontSize: 22, fontWeight: 700, margin: "0 0 16px", letterSpacing: "-0.01em" }}>
               Algo crashou ao carregar este criador
             </h1>
-            <p style={{ fontSize: 13, color: "#aaa", lineHeight: 1.6, marginBottom: 18 }}>
+            <p style={{ fontSize: 13, color: "var(--sl-text-muted)", lineHeight: 1.6, marginBottom: 18 }}>
               Os dados do criador podem estar num estado intermédio (ex: cascade de Reset interrompido a meio). A informação NÃO foi apagada — só não consegue renderizar como está.
             </p>
-            <pre style={{ fontSize: 11, color: "#f5b3b8", background: "rgba(122,14,24,0.08)", border: "1px solid rgba(239,68,68,0.25)", borderRadius: 8, padding: 14, overflow: "auto", marginBottom: 18, fontFamily: "ui-monospace, monospace", lineHeight: 1.5 }}>{msg}{stackLine ? '\n\n' + stackLine : ''}</pre>
+            <pre style={{ fontSize: 12, color: "var(--sl-accent-text)", background: "color-mix(in srgb, var(--sl-primary) 8%, transparent)", border: "1px solid color-mix(in srgb, var(--sl-danger) 25%, transparent)", borderRadius: 8, padding: 14, overflow: "auto", marginBottom: 18, fontFamily: "ui-monospace, monospace", lineHeight: 1.5 }}>{msg}{stackLine ? '\n\n' + stackLine : ''}</pre>
             <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
               <button
                 onClick={() => { if (typeof window !== 'undefined') window.location.reload(); }}
-                style={{ padding: "10px 18px", borderRadius: 6, border: "1px solid rgba(122,14,24,0.35)", background: "rgba(122,14,24,0.08)", color: "#B11E2F", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}
+                style={{ padding: "10px 18px", borderRadius: 6, border: "1px solid color-mix(in srgb, var(--sl-primary) 35%, transparent)", background: "color-mix(in srgb, var(--sl-primary) 8%, transparent)", color: "var(--sl-accent-text)", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}
               >Recarregar página</button>
               <a
                 href="/creators"
-                style={{ padding: "10px 18px", borderRadius: 6, border: "1px solid rgba(255,255,255,0.08)", background: "transparent", color: "#888", fontSize: 12, fontWeight: 600, textDecoration: "none", fontFamily: "inherit", display: "inline-flex", alignItems: "center" }}
+                style={{ padding: "10px 18px", borderRadius: 6, border: "1px solid var(--sl-border)", background: "transparent", color: "var(--sl-text-muted)", fontSize: 12, fontWeight: 600, textDecoration: "none", fontFamily: "inherit", display: "inline-flex", alignItems: "center" }}
               >← Voltar ao CRM</a>
             </div>
-            <div style={{ marginTop: 28, fontSize: 11, color: "#555", lineHeight: 1.55 }}>
+            <div style={{ marginTop: 28, fontSize: 12, color: "var(--sl-text-faint)", lineHeight: 1.55 }}>
               Se o erro continuar, copia a mensagem acima e manda. A maioria das vezes é resolvido com um refresh; se não for, há um campo do creator que precisa de ser limpo manualmente no Redis.
             </div>
           </div>
@@ -3808,7 +3808,7 @@ class CreatorPageErrorBoundary extends React.Component {
 export default function CreatorProfilePage(props) {
   return (
     <CreatorPageErrorBoundary>
-      <Suspense fallback={<div style={{ minHeight: "100vh", background: "#0a0a0a", color: "#555", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif" }}>A carregar...</div>}>
+      <Suspense fallback={<div style={{ minHeight: "100vh", background: "var(--sl-bg)", color: "var(--sl-text-faint)", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif" }}>A carregar...</div>}>
         <CreatorProfilePageImpl {...props} />
       </Suspense>
     </CreatorPageErrorBoundary>
@@ -3828,13 +3828,13 @@ function EcosystemAuditPanel({ creator, setCreator, running, error, diag, onRun 
   const runAt = creator?.offer?.internal_metadata?.generation_timestamps?.ecosystem_audit || null;
 
   const TIER_COLORS = {
-    lead_magnet: { bg: 'rgba(120,120,120,0.08)', border: 'rgba(120,120,120,0.25)', color: '#aaa' },
-    low_ticket:  { bg: 'rgba(59,130,246,0.08)', border: 'rgba(59,130,246,0.25)', color: '#3b82f6' },
-    mid_ticket:  { bg: 'rgba(168,85,247,0.08)', border: 'rgba(168,85,247,0.25)', color: '#a855f7' },
-    high_ticket: { bg: 'rgba(177,30,47,0.10)', border: 'rgba(177,30,47,0.35)', color: '#B11E2F' },
-    recurring:   { bg: 'rgba(31,138,76,0.08)', border: 'rgba(31,138,76,0.25)', color: '#1F8A4C' },
-    service:     { bg: 'rgba(234,179,8,0.08)', border: 'rgba(234,179,8,0.25)', color: '#eab308' },
-    physical_product: { bg: 'rgba(245,245,245,0.04)', border: 'rgba(245,245,245,0.12)', color: '#ccc' },
+    lead_magnet: { bg: 'color-mix(in srgb, var(--sl-text) 8%, transparent)', border: 'color-mix(in srgb, var(--sl-text) 25%, transparent)', color: 'var(--sl-text-muted)' },
+    low_ticket:  { bg: 'color-mix(in srgb, var(--sl-info) 8%, transparent)', border: 'color-mix(in srgb, var(--sl-info) 25%, transparent)', color: 'var(--sl-info)' },
+    mid_ticket:  { bg: 'color-mix(in srgb, var(--sl-info) 8%, transparent)', border: 'color-mix(in srgb, var(--sl-info) 25%, transparent)', color: 'var(--sl-info)' },
+    high_ticket: { bg: 'color-mix(in srgb, var(--sl-primary) 10%, transparent)', border: 'color-mix(in srgb, var(--sl-primary) 35%, transparent)', color: 'var(--sl-accent-text)' },
+    recurring:   { bg: 'color-mix(in srgb, var(--sl-success) 8%, transparent)', border: 'color-mix(in srgb, var(--sl-success) 25%, transparent)', color: 'var(--sl-success)' },
+    service:     { bg: 'color-mix(in srgb, var(--sl-warning) 8%, transparent)', border: 'color-mix(in srgb, var(--sl-warning) 25%, transparent)', color: 'var(--sl-warning)' },
+    physical_product: { bg: 'color-mix(in srgb, var(--sl-text) 4%, transparent)', border: 'color-mix(in srgb, var(--sl-text) 12%, transparent)', color: 'var(--sl-text-muted)' },
   };
   const ROLE_LABELS = {
     entry_point:    'Porta de entrada · funil de aquecimento para o high-ticket existente',
@@ -3927,12 +3927,12 @@ function EcosystemAuditPanel({ creator, setCreator, running, error, diag, onRun 
   };
 
   return (
-    <div style={{ marginBottom: 28, padding: "18px 20px", background: "rgba(255,255,255,0.015)", border: "1px solid rgba(255,255,255,0.05)", borderRadius: 10 }}>
+    <div style={{ marginBottom: 28, padding: "18px 20px", background: "color-mix(in srgb, var(--sl-text) 2%, transparent)", border: "1px solid var(--sl-border)", borderRadius: 10 }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
         <div>
-          <div style={{ fontSize: 9, fontWeight: 700, color: "#7A0E18", letterSpacing: "0.16em", textTransform: "uppercase", marginBottom: 4 }}>● Phase 1 · Internal</div>
-          <h3 style={{ fontSize: 14, fontWeight: 600, margin: 0, color: "#f5f5f5" }}>Auditoria de ecossistema</h3>
-          <p style={{ fontSize: 11, color: "#555", margin: "4px 0 0" }}>
+          <div style={{ fontSize: 12, fontWeight: 700, color: "var(--sl-accent-text)", letterSpacing: "0.16em", textTransform: "uppercase", marginBottom: 4 }}>● Phase 1 · Internal</div>
+          <h3 style={{ fontSize: 14, fontWeight: 600, margin: 0, color: "var(--sl-text)" }}>Auditoria de ecossistema</h3>
+          <p style={{ fontSize: 12, color: "var(--sl-text-faint)", margin: "4px 0 0" }}>
             Mapeia produtos existentes + decide o papel estratégico da comunidade no funil. Só operadora — nunca mostrado à criadora.
           </p>
         </div>
@@ -3945,10 +3945,10 @@ function EcosystemAuditPanel({ creator, setCreator, running, error, diag, onRun 
               style={{
                 padding: "8px 14px",
                 borderRadius: 6,
-                border: "1px solid rgba(34,197,94,0.45)",
-                background: saving ? "rgba(255,255,255,0.02)" : "rgba(34,197,94,0.10)",
-                color: saving ? "#555" : "#22c55e",
-                fontSize: 11,
+                border: "1px solid color-mix(in srgb, var(--sl-success) 45%, transparent)",
+                background: saving ? "color-mix(in srgb, var(--sl-text) 2%, transparent)" : "color-mix(in srgb, var(--sl-success) 10%, transparent)",
+                color: saving ? "var(--sl-text-faint)" : "var(--sl-success)",
+                fontSize: 12,
                 fontWeight: 700,
                 cursor: saving ? "wait" : "pointer",
                 fontFamily: "inherit",
@@ -3964,10 +3964,10 @@ function EcosystemAuditPanel({ creator, setCreator, running, error, diag, onRun 
             style={{
               padding: "8px 16px",
               borderRadius: 6,
-              border: "1px solid rgba(122,14,24,0.4)",
-              background: running ? "rgba(255,255,255,0.02)" : "rgba(122,14,24,0.08)",
-              color: running ? "#555" : "#B11E2F",
-              fontSize: 11,
+              border: "1px solid color-mix(in srgb, var(--sl-primary) 40%, transparent)",
+              background: running ? "color-mix(in srgb, var(--sl-text) 2%, transparent)" : "color-mix(in srgb, var(--sl-primary) 8%, transparent)",
+              color: running ? "var(--sl-text-faint)" : "var(--sl-accent-text)",
+              fontSize: 12,
               fontWeight: 600,
               cursor: running ? "wait" : "pointer",
               fontFamily: "inherit",
@@ -3979,11 +3979,11 @@ function EcosystemAuditPanel({ creator, setCreator, running, error, diag, onRun 
         </div>
       </div>
       {saveErr && (
-        <div style={{ padding: "8px 12px", borderRadius: 6, background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.25)", color: "#ef4444", fontSize: 11, marginBottom: 12 }}>{saveErr}</div>
+        <div style={{ padding: "8px 12px", borderRadius: 6, background: "color-mix(in srgb, var(--sl-danger) 8%, transparent)", border: "1px solid color-mix(in srgb, var(--sl-danger) 25%, transparent)", color: "var(--sl-danger)", fontSize: 12, marginBottom: 12 }}>{saveErr}</div>
       )}
 
       {error && (
-        <div style={{ padding: "10px 14px", borderRadius: 6, background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.25)", color: "#ef4444", fontSize: 11, marginBottom: 12, whiteSpace: "pre-wrap" }}>{error}</div>
+        <div style={{ padding: "10px 14px", borderRadius: 6, background: "color-mix(in srgb, var(--sl-danger) 8%, transparent)", border: "1px solid color-mix(in srgb, var(--sl-danger) 25%, transparent)", color: "var(--sl-danger)", fontSize: 12, marginBottom: 12, whiteSpace: "pre-wrap" }}>{error}</div>
       )}
       {/* Diagnostics — live `diag` from the current session if present,
           otherwise the persisted version from the last audit. Helps the
@@ -3994,24 +3994,24 @@ function EcosystemAuditPanel({ creator, setCreator, running, error, diag, onRun 
 
 
       {!audit && !running && (
-        <div style={{ padding: "20px 16px", textAlign: "center", color: "#444", fontSize: 12, border: "1px dashed rgba(255,255,255,0.06)", borderRadius: 6 }}>
-          Ainda não há audit. Clica <strong style={{ color: "#888" }}>Correr audit</strong> para inspeccionar o ecossistema de produtos da criadora (~60-90s, usa web_search).
+        <div style={{ padding: "20px 16px", textAlign: "center", color: "var(--sl-text-faint)", fontSize: 12, border: "1px dashed color-mix(in srgb, var(--sl-text) 6%, transparent)", borderRadius: 6 }}>
+          Ainda não há audit. Clica <strong style={{ color: "var(--sl-text-muted)" }}>Correr audit</strong> para inspeccionar o ecossistema de produtos da criadora (~60-90s, usa web_search).
         </div>
       )}
 
       {audit && (
         <div>
           {/* Strategic role + completeness header */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: 14, marginBottom: 16, padding: "14px 16px", background: "#0a0a0a", borderRadius: 8, border: "1px solid rgba(255,255,255,0.04)" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: 14, marginBottom: 16, padding: "14px 16px", background: "var(--sl-bg)", borderRadius: 8, border: "1px solid var(--sl-border)" }}>
             <div>
-              <div style={{ fontSize: 9, fontWeight: 700, color: "#7A0E18", letterSpacing: "0.16em", textTransform: "uppercase", marginBottom: 6 }}>Strategic role</div>
-              <div style={{ fontSize: 14, fontWeight: 700, color: "#f5f5f5", marginBottom: 4 }}>{ROLE_LABELS[audit.strategic_role] || audit.strategic_role}</div>
-              <p style={{ fontSize: 12, color: "#888", margin: 0, lineHeight: 1.55 }}>{audit.strategic_role_reasoning}</p>
+              <div style={{ fontSize: 12, fontWeight: 700, color: "var(--sl-accent-text)", letterSpacing: "0.16em", textTransform: "uppercase", marginBottom: 6 }}>Strategic role</div>
+              <div style={{ fontSize: 14, fontWeight: 700, color: "var(--sl-text)", marginBottom: 4 }}>{ROLE_LABELS[audit.strategic_role] || audit.strategic_role}</div>
+              <p style={{ fontSize: 12, color: "var(--sl-text-muted)", margin: 0, lineHeight: 1.55 }}>{audit.strategic_role_reasoning}</p>
             </div>
             <div style={{ textAlign: "right" }}>
-              <div style={{ fontSize: 9, fontWeight: 700, color: "#555", letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 4 }}>Completeness</div>
-              <div style={{ fontSize: 28, fontWeight: 700, color: "#f5f5f5", lineHeight: 1, letterSpacing: "-0.02em" }}>{audit.ecosystem_map?.ecosystem_completeness_score ?? 0}</div>
-              <div style={{ fontSize: 9, color: "#444", marginTop: 2 }}>/ 100</div>
+              <div style={{ fontSize: 12, fontWeight: 700, color: "var(--sl-text-faint)", letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 4 }}>Completeness</div>
+              <div style={{ fontSize: 28, fontWeight: 700, color: "var(--sl-text)", lineHeight: 1, letterSpacing: "-0.02em" }}>{audit.ecosystem_map?.ecosystem_completeness_score ?? 0}</div>
+              <div style={{ fontSize: 12, color: "var(--sl-text-faint)", marginTop: 2 }}>/ 100</div>
             </div>
           </div>
 
@@ -4025,10 +4025,10 @@ function EcosystemAuditPanel({ creator, setCreator, running, error, diag, onRun 
               const on = !!audit.ecosystem_map?.[k];
               return (
                 <span key={k} style={{
-                  fontSize: 10, fontWeight: 600, padding: "4px 10px", borderRadius: 4,
-                  background: on ? "rgba(34,197,94,0.08)" : "rgba(255,255,255,0.02)",
-                  color: on ? "#22c55e" : "#444",
-                  border: `1px solid ${on ? "rgba(34,197,94,0.25)" : "rgba(255,255,255,0.04)"}`,
+                  fontSize: 12, fontWeight: 600, padding: "4px 10px", borderRadius: 4,
+                  background: on ? "color-mix(in srgb, var(--sl-success) 8%, transparent)" : "color-mix(in srgb, var(--sl-text) 2%, transparent)",
+                  color: on ? "var(--sl-success)" : "var(--sl-text-faint)",
+                  border: `1px solid ${on ? "color-mix(in srgb, var(--sl-success) 25%, transparent)" : "color-mix(in srgb, var(--sl-text) 4%, transparent)"}`,
                 }}>{on ? "✓" : "○"} {label}</span>
               );
             })}
@@ -4042,10 +4042,10 @@ function EcosystemAuditPanel({ creator, setCreator, running, error, diag, onRun 
               button at the top of the panel. */}
           {(() => {
             const inputStyle = {
-              background: "rgba(255,255,255,0.02)",
-              border: "1px solid rgba(255,255,255,0.06)",
+              background: "color-mix(in srgb, var(--sl-text) 2%, transparent)",
+              border: "1px solid var(--sl-border)",
               borderRadius: 4,
-              color: "#f5f5f5",
+              color: "var(--sl-text)",
               fontFamily: "inherit",
               fontSize: 12,
               padding: "5px 9px",
@@ -4054,25 +4054,25 @@ function EcosystemAuditPanel({ creator, setCreator, running, error, diag, onRun 
             return (
               <div style={{ marginBottom: 14 }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 8 }}>
-                  <div style={{ fontSize: 9, fontWeight: 700, color: "#666", letterSpacing: "0.14em", textTransform: "uppercase" }}>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: "var(--sl-text-faint)", letterSpacing: "0.14em", textTransform: "uppercase" }}>
                     Products found · {localProducts.length}
-                    {dirty && <span style={{ color: "#eab308", marginLeft: 8, fontWeight: 700 }}>● edited</span>}
+                    {dirty && <span style={{ color: "var(--sl-warning)", marginLeft: 8, fontWeight: 700 }}>● edited</span>}
                   </div>
                   <button
                     onClick={addProduct}
-                    style={{ padding: "4px 10px", borderRadius: 4, border: "1px solid rgba(122,14,24,0.4)", background: "rgba(122,14,24,0.06)", color: "#B11E2F", fontSize: 10, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}
+                    style={{ padding: "4px 10px", borderRadius: 4, border: "1px solid color-mix(in srgb, var(--sl-primary) 40%, transparent)", background: "color-mix(in srgb, var(--sl-primary) 6%, transparent)", color: "var(--sl-accent-text)", fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}
                   >
                     + Add product
                   </button>
                 </div>
                 {localProducts.length === 0 ? (
-                  <div style={{ fontSize: 11, color: "#444", padding: "12px 14px", background: "#0a0a0a", borderRadius: 6, border: "1px dashed rgba(255,255,255,0.04)" }}>No products. Click "+ Add product" to add one manually.</div>
+                  <div style={{ fontSize: 12, color: "var(--sl-text-faint)", padding: "12px 14px", background: "var(--sl-bg)", borderRadius: 6, border: "1px dashed color-mix(in srgb, var(--sl-text) 4%, transparent)" }}>No products. Click "+ Add product" to add one manually.</div>
                 ) : (
                   <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                     {localProducts.map((p, i) => {
                       const tc = TIER_COLORS[p.tier] || TIER_COLORS.physical_product;
                       return (
-                        <div key={i} style={{ padding: "10px 12px", background: "#0a0a0a", borderRadius: 6, border: `1px solid ${tc.border}` }}>
+                        <div key={i} style={{ padding: "10px 12px", background: "var(--sl-bg)", borderRadius: 6, border: `1px solid ${tc.border}` }}>
                           {/* Row 1: name (flex) · tier · price · currency · delete */}
                           <div className="sl-grid-4" style={{ display: "grid", gridTemplateColumns: "1fr 140px 80px 60px 28px", gap: 8, marginBottom: 6, alignItems: "center" }}>
                             <input
@@ -4085,10 +4085,10 @@ function EcosystemAuditPanel({ creator, setCreator, running, error, diag, onRun 
                             <select
                               value={p.tier || 'low_ticket'}
                               onChange={e => editProduct(i, 'tier', e.target.value)}
-                              style={{ ...inputStyle, color: tc.color, fontWeight: 700, fontSize: 10, letterSpacing: "0.06em", textTransform: "uppercase", cursor: "pointer", appearance: "none", WebkitAppearance: "none" }}
+                              style={{ ...inputStyle, color: tc.color, fontWeight: 700, fontSize: 12, letterSpacing: "0.06em", textTransform: "uppercase", cursor: "pointer", appearance: "none", WebkitAppearance: "none" }}
                             >
                               {TIER_OPTIONS.map(t => (
-                                <option key={t} value={t} style={{ background: "#0a0a0a", color: "#f5f5f5" }}>{t.replace('_', ' ')}</option>
+                                <option key={t} value={t} style={{ background: "var(--sl-bg)", color: "var(--sl-text)" }}>{t.replace('_', ' ')}</option>
                               ))}
                             </select>
                             <input
@@ -4102,16 +4102,16 @@ function EcosystemAuditPanel({ creator, setCreator, running, error, diag, onRun 
                               value={p.currency || 'EUR'}
                               onChange={e => editProduct(i, 'currency', e.target.value)}
                               title="Currency — stored alongside the price so the actual checkout amount is visible. No auto-conversion."
-                              style={{ ...inputStyle, fontSize: 10, fontWeight: 700, cursor: "pointer", appearance: "none", WebkitAppearance: "none", textAlign: "center" }}
+                              style={{ ...inputStyle, fontSize: 12, fontWeight: 700, cursor: "pointer", appearance: "none", WebkitAppearance: "none", textAlign: "center" }}
                             >
-                              <option value="EUR" style={{ background: "#0a0a0a" }}>€ EUR</option>
-                              <option value="USD" style={{ background: "#0a0a0a" }}>$ USD</option>
-                              <option value="GBP" style={{ background: "#0a0a0a" }}>£ GBP</option>
+                              <option value="EUR" style={{ background: "var(--sl-bg)" }}>€ EUR</option>
+                              <option value="USD" style={{ background: "var(--sl-bg)" }}>$ USD</option>
+                              <option value="GBP" style={{ background: "var(--sl-bg)" }}>£ GBP</option>
                             </select>
                             <button
                               onClick={() => deleteProduct(i)}
                               title="Delete this product"
-                              style={{ padding: "5px 0", borderRadius: 4, border: "1px solid rgba(239,68,68,0.25)", background: "transparent", color: "#ef4444", fontSize: 13, cursor: "pointer", fontFamily: "inherit" }}
+                              style={{ padding: "5px 0", borderRadius: 4, border: "1px solid color-mix(in srgb, var(--sl-danger) 25%, transparent)", background: "transparent", color: "var(--sl-danger)", fontSize: 13, cursor: "pointer", fontFamily: "inherit" }}
                             >
                               ✕
                             </button>
@@ -4123,14 +4123,14 @@ function EcosystemAuditPanel({ creator, setCreator, running, error, diag, onRun 
                               value={p.format || ''}
                               placeholder="format (course, ebook…)"
                               onChange={e => editProduct(i, 'format', e.target.value)}
-                              style={{ ...inputStyle, fontSize: 11 }}
+                              style={{ ...inputStyle, fontSize: 12 }}
                             />
                             <input
                               type="text"
                               value={p.url || ''}
                               placeholder="https://…"
                               onChange={e => editProduct(i, 'url', e.target.value)}
-                              style={{ ...inputStyle, fontSize: 11, color: "#7A0E18" }}
+                              style={{ ...inputStyle, fontSize: 12, color: "var(--sl-accent-text)" }}
                             />
                           </div>
                           {/* Row 3: transformation */}
@@ -4139,28 +4139,28 @@ function EcosystemAuditPanel({ creator, setCreator, running, error, diag, onRun 
                             placeholder="What transformation does it offer? (1 sentence)"
                             onChange={e => editProduct(i, 'transformation_offered', e.target.value)}
                             rows={2}
-                            style={{ ...inputStyle, width: "100%", boxSizing: "border-box", resize: "vertical", fontSize: 11, color: "#aaa", fontFamily: "inherit" }}
+                            style={{ ...inputStyle, width: "100%", boxSizing: "border-box", resize: "vertical", fontSize: 12, color: "var(--sl-text-muted)", fontFamily: "inherit" }}
                           />
                           {/* Row 4: revenue-projector overrides — buyer count + retire toggle */}
                           <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: 8, marginTop: 6, alignItems: "center" }}>
                             <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-                              <span style={{ fontSize: 9, fontWeight: 600, color: "#444", letterSpacing: "0.08em", textTransform: "uppercase", whiteSpace: "nowrap" }}>Current buyers</span>
+                              <span style={{ fontSize: 12, fontWeight: 600, color: "var(--sl-text-faint)", letterSpacing: "0.08em", textTransform: "uppercase", whiteSpace: "nowrap" }}>Current buyers</span>
                               <input
                                 type="number"
                                 min="0"
                                 value={p.estimated_buyers ?? ''}
                                 placeholder="auto-estimate"
                                 onChange={e => editProduct(i, 'estimated_buyers', e.target.value === '' ? null : Number(e.target.value))}
-                                style={{ ...inputStyle, width: 130, fontSize: 11, textAlign: "right" }}
+                                style={{ ...inputStyle, width: 130, fontSize: 12, textAlign: "right" }}
                                 title="Operator estimate of current paying customers. Leave blank for a conservative auto-estimate (audience × tier %)."
                               />
                             </div>
-                            <label style={{ display: "flex", gap: 6, alignItems: "center", cursor: "pointer", fontSize: 10, color: p.retire_on_launch ? "#ef4444" : "#666" }}>
+                            <label style={{ display: "flex", gap: 6, alignItems: "center", cursor: "pointer", fontSize: 12, color: p.retire_on_launch ? "var(--sl-danger)" : "var(--sl-text-faint)" }}>
                               <input
                                 type="checkbox"
                                 checked={!!p.retire_on_launch}
                                 onChange={e => editProduct(i, 'retire_on_launch', e.target.checked)}
-                                style={{ accentColor: "#ef4444", cursor: "pointer" }}
+                                style={{ accentColor: "var(--sl-danger)", cursor: "pointer" }}
                                 title="Mark this product as retired when the new offer launches. Its revenue drops to 0 in the ecosystem projection."
                               />
                               Retire on launch
@@ -4182,10 +4182,10 @@ function EcosystemAuditPanel({ creator, setCreator, running, error, diag, onRun 
               false-positive (Mariah Coz vs Mariah Brunner). */}
           {(() => {
             const inputStyle = {
-              background: "rgba(255,255,255,0.02)",
-              border: "1px solid rgba(255,255,255,0.06)",
+              background: "color-mix(in srgb, var(--sl-text) 2%, transparent)",
+              border: "1px solid var(--sl-border)",
               borderRadius: 4,
-              color: "#f5f5f5",
+              color: "var(--sl-text)",
               fontFamily: "inherit",
               fontSize: 12,
               padding: "5px 9px",
@@ -4194,25 +4194,25 @@ function EcosystemAuditPanel({ creator, setCreator, running, error, diag, onRun 
             return (
               <div style={{ marginBottom: 14 }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 8 }}>
-                  <div style={{ fontSize: 9, fontWeight: 700, color: "#eab308", letterSpacing: "0.14em", textTransform: "uppercase" }}>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: "var(--sl-warning)", letterSpacing: "0.14em", textTransform: "uppercase" }}>
                     Existing communities · {localCommunities.length}
-                    {localCommunities.length > 0 && <span style={{ marginLeft: 8, color: "#888", fontWeight: 500, letterSpacing: 0, textTransform: "none" }}>cannibalization risk feeder</span>}
+                    {localCommunities.length > 0 && <span style={{ marginLeft: 8, color: "var(--sl-text-muted)", fontWeight: 500, letterSpacing: 0, textTransform: "none" }}>cannibalization risk feeder</span>}
                   </div>
                   <button
                     onClick={addCommunity}
-                    style={{ padding: "4px 10px", borderRadius: 4, border: "1px solid rgba(234,179,8,0.4)", background: "rgba(234,179,8,0.06)", color: "#eab308", fontSize: 10, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}
+                    style={{ padding: "4px 10px", borderRadius: 4, border: "1px solid color-mix(in srgb, var(--sl-warning) 40%, transparent)", background: "color-mix(in srgb, var(--sl-warning) 6%, transparent)", color: "var(--sl-warning)", fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}
                   >
                     + Add community
                   </button>
                 </div>
                 {localCommunities.length === 0 ? (
-                  <div style={{ fontSize: 11, color: "#444", padding: "12px 14px", background: "#0a0a0a", borderRadius: 6, border: "1px dashed rgba(255,255,255,0.04)" }}>
+                  <div style={{ fontSize: 12, color: "var(--sl-text-faint)", padding: "12px 14px", background: "var(--sl-bg)", borderRadius: 6, border: "1px dashed color-mix(in srgb, var(--sl-text) 4%, transparent)" }}>
                     None detected. If the creator already runs a community (Skool / Whop / paid Discord / custom domain), click "+ Add community" — the wizard uses this to avoid pricing-tier overlap.
                   </div>
                 ) : (
                   <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                     {localCommunities.map((c, i) => (
-                      <div key={i} style={{ padding: "10px 12px", background: "rgba(234,179,8,0.04)", borderRadius: 6, border: "1px solid rgba(234,179,8,0.25)" }}>
+                      <div key={i} style={{ padding: "10px 12px", background: "color-mix(in srgb, var(--sl-warning) 4%, transparent)", borderRadius: 6, border: "1px solid color-mix(in srgb, var(--sl-warning) 25%, transparent)" }}>
                         <div className="sl-grid-4" style={{ display: "grid", gridTemplateColumns: "1fr 140px 80px 60px 28px", gap: 8, marginBottom: 6, alignItems: "center" }}>
                           <input
                             type="text"
@@ -4224,10 +4224,10 @@ function EcosystemAuditPanel({ creator, setCreator, running, error, diag, onRun 
                           <select
                             value={c.tier || 'recurring'}
                             onChange={e => editCommunity(i, 'tier', e.target.value)}
-                            style={{ ...inputStyle, color: "#eab308", fontWeight: 700, fontSize: 10, letterSpacing: "0.06em", textTransform: "uppercase", cursor: "pointer", appearance: "none", WebkitAppearance: "none" }}
+                            style={{ ...inputStyle, color: "var(--sl-warning)", fontWeight: 700, fontSize: 12, letterSpacing: "0.06em", textTransform: "uppercase", cursor: "pointer", appearance: "none", WebkitAppearance: "none" }}
                           >
                             {TIER_OPTIONS.map(t => (
-                              <option key={t} value={t} style={{ background: "#0a0a0a", color: "#f5f5f5" }}>{t.replace('_', ' ')}</option>
+                              <option key={t} value={t} style={{ background: "var(--sl-bg)", color: "var(--sl-text)" }}>{t.replace('_', ' ')}</option>
                             ))}
                           </select>
                           <input
@@ -4241,16 +4241,16 @@ function EcosystemAuditPanel({ creator, setCreator, running, error, diag, onRun 
                             value={c.currency || 'EUR'}
                             onChange={e => editCommunity(i, 'currency', e.target.value)}
                             title="Currency"
-                            style={{ ...inputStyle, fontSize: 10, fontWeight: 700, cursor: "pointer", appearance: "none", WebkitAppearance: "none", textAlign: "center" }}
+                            style={{ ...inputStyle, fontSize: 12, fontWeight: 700, cursor: "pointer", appearance: "none", WebkitAppearance: "none", textAlign: "center" }}
                           >
-                            <option value="EUR" style={{ background: "#0a0a0a" }}>€ EUR</option>
-                            <option value="USD" style={{ background: "#0a0a0a" }}>$ USD</option>
-                            <option value="GBP" style={{ background: "#0a0a0a" }}>£ GBP</option>
+                            <option value="EUR" style={{ background: "var(--sl-bg)" }}>€ EUR</option>
+                            <option value="USD" style={{ background: "var(--sl-bg)" }}>$ USD</option>
+                            <option value="GBP" style={{ background: "var(--sl-bg)" }}>£ GBP</option>
                           </select>
                           <button
                             onClick={() => deleteCommunity(i)}
                             title="Delete this community"
-                            style={{ padding: "5px 0", borderRadius: 4, border: "1px solid rgba(239,68,68,0.25)", background: "transparent", color: "#ef4444", fontSize: 13, cursor: "pointer", fontFamily: "inherit" }}
+                            style={{ padding: "5px 0", borderRadius: 4, border: "1px solid color-mix(in srgb, var(--sl-danger) 25%, transparent)", background: "transparent", color: "var(--sl-danger)", fontSize: 13, cursor: "pointer", fontFamily: "inherit" }}
                           >
                             ✕
                           </button>
@@ -4261,36 +4261,36 @@ function EcosystemAuditPanel({ creator, setCreator, running, error, diag, onRun 
                             value={c.format || ''}
                             placeholder="format (Skool, Whop…)"
                             onChange={e => editCommunity(i, 'format', e.target.value)}
-                            style={{ ...inputStyle, fontSize: 11 }}
+                            style={{ ...inputStyle, fontSize: 12 }}
                           />
                           <input
                             type="text"
                             value={c.url || ''}
                             placeholder="https://…"
                             onChange={e => editCommunity(i, 'url', e.target.value)}
-                            style={{ ...inputStyle, fontSize: 11, color: "#7A0E18" }}
+                            style={{ ...inputStyle, fontSize: 12, color: "var(--sl-accent-text)" }}
                           />
                         </div>
                         {/* Buyer count + retire toggle — same as products row */}
                         <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: 8, marginTop: 6, alignItems: "center" }}>
                           <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-                            <span style={{ fontSize: 9, fontWeight: 600, color: "#444", letterSpacing: "0.08em", textTransform: "uppercase", whiteSpace: "nowrap" }}>Current members</span>
+                            <span style={{ fontSize: 12, fontWeight: 600, color: "var(--sl-text-faint)", letterSpacing: "0.08em", textTransform: "uppercase", whiteSpace: "nowrap" }}>Current members</span>
                             <input
                               type="number"
                               min="0"
                               value={c.estimated_buyers ?? ''}
                               placeholder="auto-estimate"
                               onChange={e => editCommunity(i, 'estimated_buyers', e.target.value === '' ? null : Number(e.target.value))}
-                              style={{ ...inputStyle, width: 130, fontSize: 11, textAlign: "right" }}
+                              style={{ ...inputStyle, width: 130, fontSize: 12, textAlign: "right" }}
                               title="Operator estimate of current paying members. Leave blank for a conservative auto-estimate."
                             />
                           </div>
-                          <label style={{ display: "flex", gap: 6, alignItems: "center", cursor: "pointer", fontSize: 10, color: c.retire_on_launch ? "#ef4444" : "#666" }}>
+                          <label style={{ display: "flex", gap: 6, alignItems: "center", cursor: "pointer", fontSize: 12, color: c.retire_on_launch ? "var(--sl-danger)" : "var(--sl-text-faint)" }}>
                             <input
                               type="checkbox"
                               checked={!!c.retire_on_launch}
                               onChange={e => editCommunity(i, 'retire_on_launch', e.target.checked)}
-                              style={{ accentColor: "#ef4444", cursor: "pointer" }}
+                              style={{ accentColor: "var(--sl-danger)", cursor: "pointer" }}
                               title="Mark this community as retired when the new offer launches."
                             />
                             Retire on launch
@@ -4307,11 +4307,11 @@ function EcosystemAuditPanel({ creator, setCreator, running, error, diag, onRun 
           {/* Cannibalization */}
           {(audit.cannibalization_constraints || []).length > 0 && (
             <div style={{ marginBottom: 14 }}>
-              <div style={{ fontSize: 9, fontWeight: 700, color: "#eab308", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 8 }}>Cannibalization constraints · {audit.cannibalization_constraints.length}</div>
+              <div style={{ fontSize: 12, fontWeight: 700, color: "var(--sl-warning)", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 8 }}>Cannibalization constraints · {audit.cannibalization_constraints.length}</div>
               <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 4 }}>
                 {audit.cannibalization_constraints.map((c, i) => (
-                  <li key={i} style={{ fontSize: 12, color: "#ccc", lineHeight: 1.55, paddingLeft: 14, position: "relative" }}>
-                    <span style={{ position: "absolute", left: 0, color: "#eab308" }}>!</span>
+                  <li key={i} style={{ fontSize: 12, color: "var(--sl-text-muted)", lineHeight: 1.55, paddingLeft: 14, position: "relative" }}>
+                    <span style={{ position: "absolute", left: 0, color: "var(--sl-warning)" }}>!</span>
                     {c}
                   </li>
                 ))}
@@ -4322,11 +4322,11 @@ function EcosystemAuditPanel({ creator, setCreator, running, error, diag, onRun 
           {/* Synergies */}
           {(audit.synergy_opportunities || []).length > 0 && (
             <div>
-              <div style={{ fontSize: 9, fontWeight: 700, color: "#22c55e", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 8 }}>Synergy opportunities · {audit.synergy_opportunities.length}</div>
+              <div style={{ fontSize: 12, fontWeight: 700, color: "var(--sl-success)", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 8 }}>Synergy opportunities · {audit.synergy_opportunities.length}</div>
               <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 4 }}>
                 {audit.synergy_opportunities.map((s, i) => (
-                  <li key={i} style={{ fontSize: 12, color: "#ccc", lineHeight: 1.55, paddingLeft: 14, position: "relative" }}>
-                    <span style={{ position: "absolute", left: 0, color: "#22c55e" }}>+</span>
+                  <li key={i} style={{ fontSize: 12, color: "var(--sl-text-muted)", lineHeight: 1.55, paddingLeft: 14, position: "relative" }}>
+                    <span style={{ position: "absolute", left: 0, color: "var(--sl-success)" }}>+</span>
                     {s}
                   </li>
                 ))}
@@ -4335,7 +4335,7 @@ function EcosystemAuditPanel({ creator, setCreator, running, error, diag, onRun 
           )}
 
           {runAt && (
-            <div style={{ fontSize: 10, color: "#333", marginTop: 14, paddingTop: 10, borderTop: "1px solid rgba(255,255,255,0.04)" }}>
+            <div style={{ fontSize: 12, color: "var(--sl-border-strong)", marginTop: 14, paddingTop: 10, borderTop: "1px solid var(--sl-border)" }}>
               Last run: {new Date(runAt).toLocaleString("pt-PT")}
             </div>
           )}
@@ -4363,33 +4363,33 @@ function AuditDiagnostics({ diag, running }) {
   const hasError = !!diag.error;
 
   return (
-    <div style={{ marginBottom: 12, padding: "10px 12px", background: hasError ? "rgba(239,68,68,0.04)" : "rgba(255,255,255,0.02)", border: `1px solid ${hasError ? "rgba(239,68,68,0.15)" : "rgba(255,255,255,0.05)"}`, borderRadius: 6, fontFamily: "'JetBrains Mono', ui-monospace, monospace" }}>
+    <div style={{ marginBottom: 12, padding: "10px 12px", background: hasError ? "color-mix(in srgb, var(--sl-danger) 4%, transparent)" : "color-mix(in srgb, var(--sl-text) 2%, transparent)", border: `1px solid ${hasError ? "color-mix(in srgb, var(--sl-danger) 15%, transparent)" : "color-mix(in srgb, var(--sl-text) 5%, transparent)"}`, borderRadius: 6, fontFamily: "'JetBrains Mono', ui-monospace, monospace" }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
-        <div style={{ fontSize: 10, color: hasError ? "#ef4444" : "#666", flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis" }}>
+        <div style={{ fontSize: 12, color: hasError ? "var(--sl-danger)" : "var(--sl-text-faint)", flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis" }}>
           {hasError ? `✗ ${diag.error}` : summary}
-          {ran && <span style={{ color: "#444", marginLeft: 8 }}>· {ran}</span>}
+          {ran && <span style={{ color: "var(--sl-text-faint)", marginLeft: 8 }}>· {ran}</span>}
         </div>
         <button
           onClick={() => setOpen(o => !o)}
-          style={{ padding: "2px 8px", borderRadius: 4, background: "transparent", border: "1px solid rgba(255,255,255,0.08)", color: "#888", fontSize: 10, cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap" }}
+          style={{ padding: "2px 8px", borderRadius: 4, background: "transparent", border: "1px solid var(--sl-border)", color: "var(--sl-text-muted)", fontSize: 12, cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap" }}
         >
           {open ? "Esconder detalhe" : "Ver detalhe"}
         </button>
       </div>
 
       {open && (
-        <div style={{ marginTop: 10, paddingTop: 10, borderTop: "1px solid rgba(255,255,255,0.05)", display: "flex", flexDirection: "column", gap: 10 }}>
+        <div style={{ marginTop: 10, paddingTop: 10, borderTop: "1px solid var(--sl-border)", display: "flex", flexDirection: "column", gap: 10 }}>
           {/* Aggregator resolution — per-URL Apify expansion result */}
           {Array.isArray(diag.aggregator_resolution) && diag.aggregator_resolution.length > 0 && (
             <div>
-              <div style={{ fontSize: 9, fontWeight: 700, color: "#888", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 4 }}>Aggregator resolution (Apify)</div>
+              <div style={{ fontSize: 12, fontWeight: 700, color: "var(--sl-text-muted)", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 4 }}>Aggregator resolution (Apify)</div>
               {diag.aggregator_resolution.map((r, i) => (
-                <div key={i} style={{ fontSize: 10, color: "#666", lineHeight: 1.5 }}>
+                <div key={i} style={{ fontSize: 12, color: "var(--sl-text-faint)", lineHeight: 1.5 }}>
                   {r.url}
-                  <span style={{ color: r.resolved_count > 0 ? "#22c55e" : "#ef4444", marginLeft: 6 }}>
+                  <span style={{ color: r.resolved_count > 0 ? "var(--sl-success)" : "var(--sl-danger)", marginLeft: 6 }}>
                     → {r.resolved_count} links{r.kept_aggregator ? " (Apify returned 0, kept bare URL)" : ""}
                   </span>
-                  {r.error && <span style={{ color: "#ef4444", marginLeft: 6 }}>· {r.error}</span>}
+                  {r.error && <span style={{ color: "var(--sl-danger)", marginLeft: 6 }}>· {r.error}</span>}
                 </div>
               ))}
             </div>
@@ -4398,11 +4398,11 @@ function AuditDiagnostics({ diag, running }) {
           {/* Deterministic scrape — Stan/Linktree direct extraction */}
           {Array.isArray(diag.deterministic_scrape) && diag.deterministic_scrape.length > 0 && (
             <div>
-              <div style={{ fontSize: 9, fontWeight: 700, color: "#888", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 4 }}>Deterministic scrape (Stan / Linktree)</div>
+              <div style={{ fontSize: 12, fontWeight: 700, color: "var(--sl-text-muted)", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 4 }}>Deterministic scrape (Stan / Linktree)</div>
               {diag.deterministic_scrape.map((s, i) => (
-                <div key={i} style={{ fontSize: 10, color: "#666", lineHeight: 1.5 }}>
+                <div key={i} style={{ fontSize: 12, color: "var(--sl-text-faint)", lineHeight: 1.5 }}>
                   {s.source || 'unknown'}: {s.url || '—'}
-                  <span style={{ color: s.count > 0 ? "#22c55e" : "#ef4444", marginLeft: 6 }}>
+                  <span style={{ color: s.count > 0 ? "var(--sl-success)" : "var(--sl-danger)", marginLeft: 6 }}>
                     {s.count > 0 ? `→ ${s.count} products` : s.error ? `→ ${s.error}` : '→ no products'}
                   </span>
                 </div>
@@ -4413,17 +4413,17 @@ function AuditDiagnostics({ diag, running }) {
           {/* URL previews — server-side fetch per URL */}
           {Array.isArray(diag.url_previews) && diag.url_previews.length > 0 && (
             <div>
-              <div style={{ fontSize: 9, fontWeight: 700, color: "#888", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 4 }}>URL previews (server-fetched HTML)</div>
+              <div style={{ fontSize: 12, fontWeight: 700, color: "var(--sl-text-muted)", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 4 }}>URL previews (server-fetched HTML)</div>
               {diag.url_previews.map((p, i) => (
-                <div key={i} style={{ fontSize: 10, color: "#666", lineHeight: 1.5, marginBottom: 4 }}>
+                <div key={i} style={{ fontSize: 12, color: "var(--sl-text-faint)", lineHeight: 1.5, marginBottom: 4 }}>
                   <div style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.url}</div>
                   {p.error ? (
-                    <div style={{ color: "#ef4444", marginLeft: 8 }}>✗ {p.error}</div>
+                    <div style={{ color: "var(--sl-danger)", marginLeft: 8 }}>✗ {p.error}</div>
                   ) : (
-                    <div style={{ marginLeft: 8, color: "#888" }}>
-                      {p.title ? <span>"{p.title}"</span> : <span style={{ color: "#555" }}>no title</span>}
-                      {p.had_text ? <span style={{ color: "#22c55e", marginLeft: 8 }}>✓ text fetched</span> : <span style={{ color: "#ef4444", marginLeft: 8 }}>✗ empty page</span>}
-                      {p.priceHints?.length > 0 && <span style={{ color: "#22c55e", marginLeft: 8 }}>· prices: {p.priceHints.slice(0, 3).join(', ')}</span>}
+                    <div style={{ marginLeft: 8, color: "var(--sl-text-muted)" }}>
+                      {p.title ? <span>"{p.title}"</span> : <span style={{ color: "var(--sl-text-faint)" }}>no title</span>}
+                      {p.had_text ? <span style={{ color: "var(--sl-success)", marginLeft: 8 }}>✓ text fetched</span> : <span style={{ color: "var(--sl-danger)", marginLeft: 8 }}>✗ empty page</span>}
+                      {p.priceHints?.length > 0 && <span style={{ color: "var(--sl-success)", marginLeft: 8 }}>· prices: {p.priceHints.slice(0, 3).join(', ')}</span>}
                     </div>
                   )}
                 </div>
@@ -4434,8 +4434,8 @@ function AuditDiagnostics({ diag, running }) {
           {/* Raw output excerpt — only present on parse failures */}
           {diag.raw_excerpt && (
             <div>
-              <div style={{ fontSize: 9, fontWeight: 700, color: "#ef4444", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 4 }}>Raw model output (parse failed)</div>
-              <pre style={{ fontSize: 9, color: "#666", maxHeight: 200, overflow: "auto", whiteSpace: "pre-wrap", background: "rgba(0,0,0,0.3)", padding: 8, borderRadius: 4, margin: 0 }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: "var(--sl-danger)", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 4 }}>Raw model output (parse failed)</div>
+              <pre style={{ fontSize: 12, color: "var(--sl-text-faint)", maxHeight: 200, overflow: "auto", whiteSpace: "pre-wrap", background: "rgba(0,0,0,0.3)", padding: 8, borderRadius: 4, margin: 0 }}>
                 {diag.raw_excerpt}
               </pre>
             </div>
@@ -4483,21 +4483,21 @@ function ArchetypePanel({ creator, running, error, diag, onRun }) {
 
   // Confidence color: green ≥85, yellow 70-84, amber 50-69, red <50.
   const confColor = (n) => {
-    if (n == null) return '#444';
-    if (n >= 85) return '#22c55e';
-    if (n >= 70) return '#3b82f6';
-    if (n >= 50) return '#eab308';
-    return '#ef4444';
+    if (n == null) return 'var(--sl-text-faint)';
+    if (n >= 85) return 'var(--sl-success)';
+    if (n >= 70) return 'var(--sl-info)';
+    if (n >= 50) return 'var(--sl-warning)';
+    return 'var(--sl-danger)';
   };
   const ambiguous = c && typeof c.primary_confidence === 'number' && c.primary_confidence < 70;
 
   return (
-    <div style={{ marginBottom: 28, padding: "18px 20px", background: "rgba(255,255,255,0.015)", border: "1px solid rgba(255,255,255,0.05)", borderRadius: 10 }}>
+    <div style={{ marginBottom: 28, padding: "18px 20px", background: "color-mix(in srgb, var(--sl-text) 2%, transparent)", border: "1px solid var(--sl-border)", borderRadius: 10 }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
         <div>
-          <div style={{ fontSize: 9, fontWeight: 700, color: "#7A0E18", letterSpacing: "0.16em", textTransform: "uppercase", marginBottom: 4 }}>● Phase 2 · Internal</div>
-          <h3 style={{ fontSize: 14, fontWeight: 600, margin: 0, color: "#f5f5f5" }}>Archetype + Fame Tier</h3>
-          <p style={{ fontSize: 11, color: "#555", margin: "4px 0 0" }}>
+          <div style={{ fontSize: 12, fontWeight: 700, color: "var(--sl-accent-text)", letterSpacing: "0.16em", textTransform: "uppercase", marginBottom: 4 }}>● Phase 2 · Internal</div>
+          <h3 style={{ fontSize: 14, fontWeight: 600, margin: 0, color: "var(--sl-text)" }}>Archetype + Fame Tier</h3>
+          <p style={{ fontSize: 12, color: "var(--sl-text-faint)", margin: "4px 0 0" }}>
             Classifies the creator into 1 of 6 archetypes + assesses fame outside their direct audience. Operator-only.
           </p>
         </div>
@@ -4507,10 +4507,10 @@ function ArchetypePanel({ creator, running, error, diag, onRun }) {
           style={{
             padding: "8px 16px",
             borderRadius: 6,
-            border: "1px solid rgba(122,14,24,0.4)",
-            background: running ? "rgba(255,255,255,0.02)" : "rgba(122,14,24,0.08)",
-            color: running ? "#555" : "#B11E2F",
-            fontSize: 11,
+            border: "1px solid color-mix(in srgb, var(--sl-primary) 40%, transparent)",
+            background: running ? "color-mix(in srgb, var(--sl-text) 2%, transparent)" : "color-mix(in srgb, var(--sl-primary) 8%, transparent)",
+            color: running ? "var(--sl-text-faint)" : "var(--sl-accent-text)",
+            fontSize: 12,
             fontWeight: 600,
             cursor: running ? "wait" : "pointer",
             fontFamily: "inherit",
@@ -4522,17 +4522,17 @@ function ArchetypePanel({ creator, running, error, diag, onRun }) {
       </div>
 
       {error && (
-        <div style={{ padding: "10px 14px", borderRadius: 6, background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.25)", color: "#ef4444", fontSize: 11, marginBottom: 12, whiteSpace: "pre-wrap" }}>{error}</div>
+        <div style={{ padding: "10px 14px", borderRadius: 6, background: "color-mix(in srgb, var(--sl-danger) 8%, transparent)", border: "1px solid color-mix(in srgb, var(--sl-danger) 25%, transparent)", color: "var(--sl-danger)", fontSize: 12, marginBottom: 12, whiteSpace: "pre-wrap" }}>{error}</div>
       )}
       {diag && !running && (
-        <div style={{ fontSize: 10, color: "#444", marginBottom: 12, fontFamily: "'JetBrains Mono', ui-monospace, monospace" }}>
+        <div style={{ fontSize: 12, color: "var(--sl-text-faint)", marginBottom: 12, fontFamily: "'JetBrains Mono', ui-monospace, monospace" }}>
           {diag.captions_available} captions analysed · ecosystem audit {diag.ecosystem_audit_used ? 'used' : 'not yet run'} · {diag.retries} retries
         </div>
       )}
 
       {!c && !running && (
-        <div style={{ padding: "20px 16px", textAlign: "center", color: "#444", fontSize: 12, border: "1px dashed rgba(255,255,255,0.06)", borderRadius: 6 }}>
-          Ainda não há arquétipo. Clica <strong style={{ color: "#888" }}>Correr classificador</strong> (~30-60s, usa web_search para sinais de fama).
+        <div style={{ padding: "20px 16px", textAlign: "center", color: "var(--sl-text-faint)", fontSize: 12, border: "1px dashed color-mix(in srgb, var(--sl-text) 6%, transparent)", borderRadius: 6 }}>
+          Ainda não há arquétipo. Clica <strong style={{ color: "var(--sl-text-muted)" }}>Correr classificador</strong> (~30-60s, usa web_search para sinais de fama).
         </div>
       )}
 
@@ -4540,29 +4540,29 @@ function ArchetypePanel({ creator, running, error, diag, onRun }) {
         <div>
           {/* Ambiguity banner — surfaces when the model wasn't sure */}
           {ambiguous && (
-            <div style={{ padding: "10px 14px", borderRadius: 6, background: "rgba(234,179,8,0.06)", border: "1px solid rgba(234,179,8,0.25)", color: "#eab308", fontSize: 11, marginBottom: 12 }}>
+            <div style={{ padding: "10px 14px", borderRadius: 6, background: "color-mix(in srgb, var(--sl-warning) 6%, transparent)", border: "1px solid color-mix(in srgb, var(--sl-warning) 25%, transparent)", color: "var(--sl-warning)", fontSize: 12, marginBottom: 12 }}>
               ⚠ <strong>Ambiguous classification</strong> · primary confidence below 70%. Both options shown — operator decides at Checkpoint 1.
             </div>
           )}
 
           {/* Primary + Secondary archetype cards */}
           <div style={{ display: "grid", gridTemplateColumns: c.secondary_archetype ? "1fr 1fr" : "1fr", gap: 12, marginBottom: 16 }}>
-            <div style={{ padding: "14px 16px", background: "#0a0a0a", borderRadius: 8, border: `1px solid ${ambiguous ? 'rgba(234,179,8,0.25)' : 'rgba(122,14,24,0.35)'}` }}>
+            <div style={{ padding: "14px 16px", background: "var(--sl-bg)", borderRadius: 8, border: `1px solid ${ambiguous ? 'color-mix(in srgb, var(--sl-warning) 25%, transparent)' : 'color-mix(in srgb, var(--sl-primary) 35%, transparent)'}` }}>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
-                <div style={{ fontSize: 9, fontWeight: 700, color: ambiguous ? '#eab308' : '#7A0E18', letterSpacing: "0.16em", textTransform: "uppercase" }}>Primary</div>
+                <div style={{ fontSize: 12, fontWeight: 700, color: ambiguous ? 'var(--sl-warning)' : 'var(--sl-accent-text)', letterSpacing: "0.16em", textTransform: "uppercase" }}>Primary</div>
                 <div style={{ fontSize: 16, fontWeight: 700, color: confColor(c.primary_confidence) }}>{c.primary_confidence}%</div>
               </div>
-              <div style={{ fontSize: 15, fontWeight: 700, color: "#f5f5f5", marginBottom: 4 }}>{ARCHETYPE_LABELS[c.primary_archetype] || c.primary_archetype}</div>
-              <p style={{ fontSize: 11, color: "#888", margin: 0, lineHeight: 1.5 }}>{ARCHETYPE_DESC[c.primary_archetype]}</p>
+              <div style={{ fontSize: 15, fontWeight: 700, color: "var(--sl-text)", marginBottom: 4 }}>{ARCHETYPE_LABELS[c.primary_archetype] || c.primary_archetype}</div>
+              <p style={{ fontSize: 12, color: "var(--sl-text-muted)", margin: 0, lineHeight: 1.5 }}>{ARCHETYPE_DESC[c.primary_archetype]}</p>
             </div>
             {c.secondary_archetype && (
-              <div style={{ padding: "14px 16px", background: "#0a0a0a", borderRadius: 8, border: "1px solid rgba(255,255,255,0.06)" }}>
+              <div style={{ padding: "14px 16px", background: "var(--sl-bg)", borderRadius: 8, border: "1px solid var(--sl-border)" }}>
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
-                  <div style={{ fontSize: 9, fontWeight: 700, color: "#666", letterSpacing: "0.16em", textTransform: "uppercase" }}>Secondary</div>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: "var(--sl-text-faint)", letterSpacing: "0.16em", textTransform: "uppercase" }}>Secondary</div>
                   <div style={{ fontSize: 16, fontWeight: 700, color: confColor(c.secondary_confidence) }}>{c.secondary_confidence}%</div>
                 </div>
-                <div style={{ fontSize: 15, fontWeight: 600, color: "#ccc", marginBottom: 4 }}>{ARCHETYPE_LABELS[c.secondary_archetype] || c.secondary_archetype}</div>
-                <p style={{ fontSize: 11, color: "#666", margin: 0, lineHeight: 1.5 }}>{ARCHETYPE_DESC[c.secondary_archetype]}</p>
+                <div style={{ fontSize: 15, fontWeight: 600, color: "var(--sl-text-muted)", marginBottom: 4 }}>{ARCHETYPE_LABELS[c.secondary_archetype] || c.secondary_archetype}</div>
+                <p style={{ fontSize: 12, color: "var(--sl-text-faint)", margin: 0, lineHeight: 1.5 }}>{ARCHETYPE_DESC[c.secondary_archetype]}</p>
               </div>
             )}
           </div>
@@ -4570,11 +4570,11 @@ function ArchetypePanel({ creator, running, error, diag, onRun }) {
           {/* Classification evidence */}
           {(c.classification_evidence || []).length > 0 && (
             <div style={{ marginBottom: 16 }}>
-              <div style={{ fontSize: 9, fontWeight: 700, color: "#666", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 8 }}>Evidence · {c.classification_evidence.length}</div>
+              <div style={{ fontSize: 12, fontWeight: 700, color: "var(--sl-text-faint)", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 8 }}>Evidence · {c.classification_evidence.length}</div>
               <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 4 }}>
                 {c.classification_evidence.map((e, i) => (
-                  <li key={i} style={{ fontSize: 12, color: "#ccc", lineHeight: 1.55, paddingLeft: 14, position: "relative" }}>
-                    <span style={{ position: "absolute", left: 0, color: "#7A0E18" }}>›</span>{e}
+                  <li key={i} style={{ fontSize: 12, color: "var(--sl-text-muted)", lineHeight: 1.55, paddingLeft: 14, position: "relative" }}>
+                    <span style={{ position: "absolute", left: 0, color: "var(--sl-accent-text)" }}>›</span>{e}
                   </li>
                 ))}
               </ul>
@@ -4582,17 +4582,17 @@ function ArchetypePanel({ creator, running, error, diag, onRun }) {
           )}
 
           {/* Fame tier */}
-          <div style={{ padding: "12px 14px", background: "#0a0a0a", borderRadius: 8, border: "1px solid rgba(255,255,255,0.04)", marginBottom: runAt ? 14 : 0 }}>
+          <div style={{ padding: "12px 14px", background: "var(--sl-bg)", borderRadius: 8, border: "1px solid var(--sl-border)", marginBottom: runAt ? 14 : 0 }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
-              <div style={{ fontSize: 9, fontWeight: 700, color: "#3b82f6", letterSpacing: "0.16em", textTransform: "uppercase" }}>Fame Tier</div>
-              <span style={{ fontSize: 10, fontWeight: 700, padding: "3px 9px", borderRadius: 3, background: "rgba(59,130,246,0.08)", color: "#3b82f6", border: "1px solid rgba(59,130,246,0.25)", textTransform: "uppercase", letterSpacing: "0.08em" }}>{(c.fame_tier || '').replace('_', ' ')}</span>
+              <div style={{ fontSize: 12, fontWeight: 700, color: "var(--sl-info)", letterSpacing: "0.16em", textTransform: "uppercase" }}>Fame Tier</div>
+              <span style={{ fontSize: 12, fontWeight: 700, padding: "3px 9px", borderRadius: 3, background: "color-mix(in srgb, var(--sl-info) 8%, transparent)", color: "var(--sl-info)", border: "1px solid color-mix(in srgb, var(--sl-info) 25%, transparent)", textTransform: "uppercase", letterSpacing: "0.08em" }}>{(c.fame_tier || '').replace('_', ' ')}</span>
             </div>
-            <div style={{ fontSize: 12, color: "#ccc", marginBottom: 6 }}>{FAME_LABELS[c.fame_tier] || c.fame_tier}</div>
-            <p style={{ fontSize: 11, color: "#888", margin: 0, lineHeight: 1.55 }}>{c.fame_tier_evidence}</p>
+            <div style={{ fontSize: 12, color: "var(--sl-text-muted)", marginBottom: 6 }}>{FAME_LABELS[c.fame_tier] || c.fame_tier}</div>
+            <p style={{ fontSize: 12, color: "var(--sl-text-muted)", margin: 0, lineHeight: 1.55 }}>{c.fame_tier_evidence}</p>
           </div>
 
           {runAt && (
-            <div style={{ fontSize: 10, color: "#333", paddingTop: 10, borderTop: "1px solid rgba(255,255,255,0.04)" }}>
+            <div style={{ fontSize: 12, color: "var(--sl-border-strong)", paddingTop: 10, borderTop: "1px solid var(--sl-border)" }}>
               Last run: {new Date(runAt).toLocaleString("pt-PT")}
             </div>
           )}
@@ -4625,20 +4625,20 @@ function UniquenessPanel({ creator, running, error, diag, onRun }) {
     behind_the_scenes_access: 'BTS Access',
   };
   const CATEGORY_COLORS = {
-    story: '#a855f7',                  // purple
-    credential: '#3b82f6',             // blue
-    viral_moment: '#ef4444',           // red
-    vocabulary: '#14b8a6',             // teal
-    contrarian_angle: '#f97316',       // orange
-    proprietary_method: '#7A0E18',     // brand red
-    behind_the_scenes_access: '#eab308', // amber
+    story: 'var(--sl-info)',                  // purple
+    credential: 'var(--sl-info)',             // blue
+    viral_moment: 'var(--sl-danger)',           // red
+    vocabulary: 'var(--sl-info)',             // teal
+    contrarian_angle: 'var(--sl-warning)',       // orange
+    proprietary_method: 'var(--sl-primary)',     // brand red
+    behind_the_scenes_access: 'var(--sl-warning)', // amber
   };
 
   // Monetization tier visuals — high = green, medium = blue, low = grey.
   const MON_COLORS = {
-    high: '#22c55e',
-    medium: '#3b82f6',
-    low: '#666',
+    high: 'var(--sl-success)',
+    medium: 'var(--sl-info)',
+    low: 'var(--sl-text-faint)',
   };
   const MON_LABELS = {
     high: 'HIGH $',
@@ -4649,12 +4649,12 @@ function UniquenessPanel({ creator, running, error, diag, onRun }) {
   const usableCount = u ? (u.unique_elements || []).filter(e => e.usable_in_modules).length : 0;
 
   return (
-    <div style={{ marginBottom: 28, padding: "18px 20px", background: "rgba(255,255,255,0.015)", border: "1px solid rgba(255,255,255,0.05)", borderRadius: 10 }}>
+    <div style={{ marginBottom: 28, padding: "18px 20px", background: "color-mix(in srgb, var(--sl-text) 2%, transparent)", border: "1px solid var(--sl-border)", borderRadius: 10 }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
         <div>
-          <div style={{ fontSize: 9, fontWeight: 700, color: "#7A0E18", letterSpacing: "0.16em", textTransform: "uppercase", marginBottom: 4 }}>● Phase 3 · Internal</div>
-          <h3 style={{ fontSize: 14, fontWeight: 600, margin: 0, color: "#f5f5f5" }}>Uniqueness Extraction</h3>
-          <p style={{ fontSize: 11, color: "#555", margin: "4px 0 0" }}>
+          <div style={{ fontSize: 12, fontWeight: 700, color: "var(--sl-accent-text)", letterSpacing: "0.16em", textTransform: "uppercase", marginBottom: 4 }}>● Phase 3 · Internal</div>
+          <h3 style={{ fontSize: 14, fontWeight: 600, margin: 0, color: "var(--sl-text)" }}>Uniqueness Extraction</h3>
+          <p style={{ fontSize: 12, color: "var(--sl-text-faint)", margin: "4px 0 0" }}>
             5-8 elements that ONLY this creator can claim, each with concrete evidence. Phase 4 turns the strongest into sales copy.
           </p>
         </div>
@@ -4664,10 +4664,10 @@ function UniquenessPanel({ creator, running, error, diag, onRun }) {
           style={{
             padding: "8px 16px",
             borderRadius: 6,
-            border: "1px solid rgba(122,14,24,0.4)",
-            background: running ? "rgba(255,255,255,0.02)" : "rgba(122,14,24,0.08)",
-            color: running ? "#555" : "#B11E2F",
-            fontSize: 11,
+            border: "1px solid color-mix(in srgb, var(--sl-primary) 40%, transparent)",
+            background: running ? "color-mix(in srgb, var(--sl-text) 2%, transparent)" : "color-mix(in srgb, var(--sl-primary) 8%, transparent)",
+            color: running ? "var(--sl-text-faint)" : "var(--sl-accent-text)",
+            fontSize: 12,
             fontWeight: 600,
             cursor: running ? "wait" : "pointer",
             fontFamily: "inherit",
@@ -4679,48 +4679,48 @@ function UniquenessPanel({ creator, running, error, diag, onRun }) {
       </div>
 
       {error && (
-        <div style={{ padding: "10px 14px", borderRadius: 6, background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.25)", color: "#ef4444", fontSize: 11, marginBottom: 12, whiteSpace: "pre-wrap" }}>{error}</div>
+        <div style={{ padding: "10px 14px", borderRadius: 6, background: "color-mix(in srgb, var(--sl-danger) 8%, transparent)", border: "1px solid color-mix(in srgb, var(--sl-danger) 25%, transparent)", color: "var(--sl-danger)", fontSize: 12, marginBottom: 12, whiteSpace: "pre-wrap" }}>{error}</div>
       )}
       {diag && !running && (
-        <div style={{ fontSize: 10, color: "#444", marginBottom: 12, fontFamily: "'JetBrains Mono', ui-monospace, monospace" }}>
+        <div style={{ fontSize: 12, color: "var(--sl-text-faint)", marginBottom: 12, fontFamily: "'JetBrains Mono', ui-monospace, monospace" }}>
           {diag.elements_returned} elements · {diag.captions_analysed} captions · archetype {diag.archetype_used ? '✓' : '—'} · ecosystem {diag.ecosystem_audit_used ? '✓' : '—'} · {diag.retries} retries
         </div>
       )}
 
       {!u && !running && (
-        <div style={{ padding: "20px 16px", textAlign: "center", color: "#444", fontSize: 12, border: "1px dashed rgba(255,255,255,0.06)", borderRadius: 6 }}>
-          Ainda não há uniqueness. Clica <strong style={{ color: "#888" }}>Correr extractor</strong> (~15-30s, Sonnet, usa outputs das Fases 1+2).
+        <div style={{ padding: "20px 16px", textAlign: "center", color: "var(--sl-text-faint)", fontSize: 12, border: "1px dashed color-mix(in srgb, var(--sl-text) 6%, transparent)", borderRadius: 6 }}>
+          Ainda não há uniqueness. Clica <strong style={{ color: "var(--sl-text-muted)" }}>Correr extractor</strong> (~15-30s, Sonnet, usa outputs das Fases 1+2).
         </div>
       )}
 
       {u && (
         <div>
           {/* Summary row — usable_in_modules count drives Phase 4 module generation */}
-          <div style={{ fontSize: 10, color: "#666", marginBottom: 10, fontFamily: "'JetBrains Mono', ui-monospace, monospace", letterSpacing: "0.04em" }}>
-            {(u.unique_elements || []).length} elements · <span style={{ color: usableCount >= 3 ? '#22c55e' : '#eab308' }}>{usableCount} module-usable</span>
+          <div style={{ fontSize: 12, color: "var(--sl-text-faint)", marginBottom: 10, fontFamily: "'JetBrains Mono', ui-monospace, monospace", letterSpacing: "0.04em" }}>
+            {(u.unique_elements || []).length} elements · <span style={{ color: usableCount >= 3 ? 'var(--sl-success)' : 'var(--sl-warning)' }}>{usableCount} module-usable</span>
           </div>
 
           {/* Element cards — one per unique element */}
           <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 16 }}>
             {(u.unique_elements || []).map((el, i) => {
-              const catColor = CATEGORY_COLORS[el.category] || '#666';
-              const monColor = MON_COLORS[el.monetization_potential] || '#666';
+              const catColor = CATEGORY_COLORS[el.category] || 'var(--sl-text-faint)';
+              const monColor = MON_COLORS[el.monetization_potential] || 'var(--sl-text-faint)';
               return (
                 <div
                   key={i}
                   style={{
                     padding: "13px 15px",
-                    background: "#0a0a0a",
+                    background: "var(--sl-bg)",
                     borderRadius: 8,
-                    border: `1px solid ${el.usable_in_modules ? 'rgba(34,197,94,0.18)' : 'rgba(255,255,255,0.05)'}`,
+                    border: `1px solid ${el.usable_in_modules ? 'color-mix(in srgb, var(--sl-success) 18%, transparent)' : 'color-mix(in srgb, var(--sl-text) 5%, transparent)'}`,
                   }}
                 >
                   {/* Header row — number + category badge + monetization badge + module flag */}
                   <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8, flexWrap: "wrap" }}>
-                    <span style={{ fontSize: 10, fontWeight: 700, color: "#444", fontFamily: "'JetBrains Mono', ui-monospace, monospace", minWidth: 18 }}>#{i + 1}</span>
+                    <span style={{ fontSize: 12, fontWeight: 700, color: "var(--sl-text-faint)", fontFamily: "'JetBrains Mono', ui-monospace, monospace", minWidth: 18 }}>#{i + 1}</span>
                     <span
                       style={{
-                        fontSize: 9,
+                        fontSize: 12,
                         fontWeight: 700,
                         padding: "3px 8px",
                         borderRadius: 3,
@@ -4735,7 +4735,7 @@ function UniquenessPanel({ creator, running, error, diag, onRun }) {
                     </span>
                     <span
                       style={{
-                        fontSize: 9,
+                        fontSize: 12,
                         fontWeight: 700,
                         padding: "3px 8px",
                         borderRadius: 3,
@@ -4750,13 +4750,13 @@ function UniquenessPanel({ creator, running, error, diag, onRun }) {
                     {el.usable_in_modules && (
                       <span
                         style={{
-                          fontSize: 9,
+                          fontSize: 12,
                           fontWeight: 700,
                           padding: "3px 8px",
                           borderRadius: 3,
-                          background: "rgba(34,197,94,0.08)",
-                          color: "#22c55e",
-                          border: "1px solid rgba(34,197,94,0.3)",
+                          background: "color-mix(in srgb, var(--sl-success) 8%, transparent)",
+                          color: "var(--sl-success)",
+                          border: "1px solid color-mix(in srgb, var(--sl-success) 30%, transparent)",
                           letterSpacing: "0.06em",
                           marginLeft: "auto",
                         }}
@@ -4767,20 +4767,20 @@ function UniquenessPanel({ creator, running, error, diag, onRun }) {
                   </div>
 
                   {/* The element itself */}
-                  <div style={{ fontSize: 13, color: "#f5f5f5", lineHeight: 1.5, marginBottom: 8, fontWeight: 500 }}>{el.element}</div>
+                  <div style={{ fontSize: 13, color: "var(--sl-text)", lineHeight: 1.5, marginBottom: 8, fontWeight: 500 }}>{el.element}</div>
 
                   {/* Evidence quote — italicised, indented, with corner mark */}
                   <div
                     style={{
-                      fontSize: 11,
-                      color: "#888",
+                      fontSize: 12,
+                      color: "var(--sl-text-muted)",
                       lineHeight: 1.5,
                       fontStyle: "italic",
                       paddingLeft: 10,
-                      borderLeft: "2px solid rgba(255,255,255,0.08)",
+                      borderLeft: "2px solid var(--sl-border)",
                     }}
                   >
-                    <span style={{ fontSize: 9, fontWeight: 700, color: "#555", letterSpacing: "0.1em", textTransform: "uppercase", fontStyle: "normal", marginRight: 6 }}>Evidence:</span>
+                    <span style={{ fontSize: 12, fontWeight: 700, color: "var(--sl-text-faint)", letterSpacing: "0.1em", textTransform: "uppercase", fontStyle: "normal", marginRight: 6 }}>Evidence:</span>
                     {el.evidence_source}
                   </div>
                 </div>
@@ -4790,14 +4790,14 @@ function UniquenessPanel({ creator, running, error, diag, onRun }) {
 
           {/* Creator voice summary — drives tone for every piece of generated copy in Phase 4 */}
           {u.creator_voice_summary && (
-            <div style={{ padding: "13px 15px", background: "rgba(122,14,24,0.04)", borderRadius: 8, border: "1px solid rgba(122,14,24,0.18)", marginBottom: runAt ? 14 : 0 }}>
-              <div style={{ fontSize: 9, fontWeight: 700, color: "#7A0E18", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 6 }}>Creator Voice</div>
-              <p style={{ fontSize: 12, color: "#ddd", margin: 0, lineHeight: 1.55, fontStyle: "italic" }}>{u.creator_voice_summary}</p>
+            <div style={{ padding: "13px 15px", background: "color-mix(in srgb, var(--sl-primary) 4%, transparent)", borderRadius: 8, border: "1px solid color-mix(in srgb, var(--sl-primary) 18%, transparent)", marginBottom: runAt ? 14 : 0 }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: "var(--sl-accent-text)", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 6 }}>Creator Voice</div>
+              <p style={{ fontSize: 12, color: "var(--sl-text)", margin: 0, lineHeight: 1.55, fontStyle: "italic" }}>{u.creator_voice_summary}</p>
             </div>
           )}
 
           {runAt && (
-            <div style={{ fontSize: 10, color: "#333", paddingTop: 10, borderTop: "1px solid rgba(255,255,255,0.04)" }}>
+            <div style={{ fontSize: 12, color: "var(--sl-border-strong)", paddingTop: 10, borderTop: "1px solid var(--sl-border)" }}>
               Last run: {new Date(runAt).toLocaleString("pt-PT")}
             </div>
           )}
@@ -4834,25 +4834,25 @@ function WizardStepper({ creator }) {
   const allReady = haveAudit && haveArchetype && haveUniqueness;
 
   return (
-    <div style={{ marginBottom: 28, padding: "18px 20px", background: "rgba(255,255,255,0.015)", border: "1px solid rgba(255,255,255,0.05)", borderRadius: 10 }}>
+    <div style={{ marginBottom: 28, padding: "18px 20px", background: "color-mix(in srgb, var(--sl-text) 2%, transparent)", border: "1px solid var(--sl-border)", borderRadius: 10 }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
         <div>
-          <div style={{ fontSize: 9, fontWeight: 700, color: "#7A0E18", letterSpacing: "0.16em", textTransform: "uppercase", marginBottom: 4 }}>● Phase 4 · Wizard</div>
-          <h3 style={{ fontSize: 14, fontWeight: 600, margin: 0, color: "#f5f5f5" }}>Geração de oferta · 5 Checkpoints</h3>
-          <p style={{ fontSize: 11, color: "#555", margin: "4px 0 0" }}>
+          <div style={{ fontSize: 12, fontWeight: 700, color: "var(--sl-accent-text)", letterSpacing: "0.16em", textTransform: "uppercase", marginBottom: 4 }}>● Phase 4 · Wizard</div>
+          <h3 style={{ fontSize: 14, fontWeight: 600, margin: 0, color: "var(--sl-text)" }}>Geração de oferta · 5 Checkpoints</h3>
+          <p style={{ fontSize: 12, color: "var(--sl-text-faint)", margin: "4px 0 0" }}>
             Junta os sinais internos das Fases 1+2+3 na oferta que a criadora vê. Cada checkpoint é aprovado antes de avançar.
           </p>
         </div>
         {/* Pre-flight readiness chips */}
-        <div style={{ display: "flex", gap: 6, fontSize: 9, fontWeight: 700, letterSpacing: "0.08em" }}>
-          <span style={{ padding: "3px 8px", borderRadius: 3, background: haveAudit ? "rgba(34,197,94,0.08)" : "rgba(239,68,68,0.06)", color: haveAudit ? "#22c55e" : "#666", border: `1px solid ${haveAudit ? 'rgba(34,197,94,0.3)' : 'rgba(255,255,255,0.06)'}` }}>P1 {haveAudit ? '✓' : '—'}</span>
-          <span style={{ padding: "3px 8px", borderRadius: 3, background: haveArchetype ? "rgba(34,197,94,0.08)" : "rgba(239,68,68,0.06)", color: haveArchetype ? "#22c55e" : "#666", border: `1px solid ${haveArchetype ? 'rgba(34,197,94,0.3)' : 'rgba(255,255,255,0.06)'}` }}>P2 {haveArchetype ? '✓' : '—'}</span>
-          <span style={{ padding: "3px 8px", borderRadius: 3, background: haveUniqueness ? "rgba(34,197,94,0.08)" : "rgba(239,68,68,0.06)", color: haveUniqueness ? "#22c55e" : "#666", border: `1px solid ${haveUniqueness ? 'rgba(34,197,94,0.3)' : 'rgba(255,255,255,0.06)'}` }}>P3 {haveUniqueness ? '✓' : '—'}</span>
+        <div style={{ display: "flex", gap: 6, fontSize: 12, fontWeight: 700, letterSpacing: "0.08em" }}>
+          <span style={{ padding: "3px 8px", borderRadius: 3, background: haveAudit ? "color-mix(in srgb, var(--sl-success) 8%, transparent)" : "color-mix(in srgb, var(--sl-danger) 6%, transparent)", color: haveAudit ? "var(--sl-success)" : "var(--sl-text-faint)", border: `1px solid ${haveAudit ? 'color-mix(in srgb, var(--sl-success) 30%, transparent)' : 'color-mix(in srgb, var(--sl-text) 6%, transparent)'}` }}>P1 {haveAudit ? '✓' : '—'}</span>
+          <span style={{ padding: "3px 8px", borderRadius: 3, background: haveArchetype ? "color-mix(in srgb, var(--sl-success) 8%, transparent)" : "color-mix(in srgb, var(--sl-danger) 6%, transparent)", color: haveArchetype ? "var(--sl-success)" : "var(--sl-text-faint)", border: `1px solid ${haveArchetype ? 'color-mix(in srgb, var(--sl-success) 30%, transparent)' : 'color-mix(in srgb, var(--sl-text) 6%, transparent)'}` }}>P2 {haveArchetype ? '✓' : '—'}</span>
+          <span style={{ padding: "3px 8px", borderRadius: 3, background: haveUniqueness ? "color-mix(in srgb, var(--sl-success) 8%, transparent)" : "color-mix(in srgb, var(--sl-danger) 6%, transparent)", color: haveUniqueness ? "var(--sl-success)" : "var(--sl-text-faint)", border: `1px solid ${haveUniqueness ? 'color-mix(in srgb, var(--sl-success) 30%, transparent)' : 'color-mix(in srgb, var(--sl-text) 6%, transparent)'}` }}>P3 {haveUniqueness ? '✓' : '—'}</span>
         </div>
       </div>
 
       {!allReady && (
-        <div style={{ padding: "8px 12px", borderRadius: 6, background: "rgba(234,179,8,0.05)", border: "1px solid rgba(234,179,8,0.18)", color: "#eab308", fontSize: 10.5, marginBottom: 14 }}>
+        <div style={{ padding: "8px 12px", borderRadius: 6, background: "color-mix(in srgb, var(--sl-warning) 5%, transparent)", border: "1px solid color-mix(in srgb, var(--sl-warning) 18%, transparent)", color: "var(--sl-warning)", fontSize: 12.5, marginBottom: 14 }}>
           ⚠ Corre as Fases 1 + 2 + 3 primeiro para output de qualidade máxima. O CP1 corre na mesma mas com base mais fraca.
         </div>
       )}
@@ -4862,10 +4862,10 @@ function WizardStepper({ creator }) {
         {CHECKPOINTS.map((cp, idx) => {
           const locked = isLocked(cp.id);
           const current = isCurrent(cp.id);
-          const dotBg = locked ? "rgba(34,197,94,0.12)" : current ? "rgba(122,14,24,0.18)" : "rgba(255,255,255,0.025)";
-          const dotBorder = locked ? "rgba(34,197,94,0.5)" : current ? "rgba(122,14,24,0.6)" : "rgba(255,255,255,0.08)";
-          const dotColor = locked ? "#22c55e" : current ? "#B11E2F" : "#444";
-          const labelColor = locked ? "#888" : current ? "#f5f5f5" : "#444";
+          const dotBg = locked ? "color-mix(in srgb, var(--sl-success) 12%, transparent)" : current ? "color-mix(in srgb, var(--sl-primary) 18%, transparent)" : "color-mix(in srgb, var(--sl-text) 2%, transparent)";
+          const dotBorder = locked ? "color-mix(in srgb, var(--sl-success) 50%, transparent)" : current ? "color-mix(in srgb, var(--sl-primary) 60%, transparent)" : "color-mix(in srgb, var(--sl-text) 8%, transparent)";
+          const dotColor = locked ? "var(--sl-success)" : current ? "var(--sl-accent-text)" : "var(--sl-text-faint)";
+          const labelColor = locked ? "var(--sl-text-muted)" : current ? "var(--sl-text)" : "var(--sl-text-faint)";
           return (
             <div key={cp.id} style={{ display: "flex", alignItems: "center", flex: idx === CHECKPOINTS.length - 1 ? "0 0 auto" : 1 }}>
               <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6, minWidth: 80 }}>
@@ -4887,14 +4887,14 @@ function WizardStepper({ creator }) {
                 >
                   {locked ? "✓" : cp.id}
                 </div>
-                <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: labelColor }}>{cp.short}</div>
+                <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: labelColor }}>{cp.short}</div>
               </div>
               {idx !== CHECKPOINTS.length - 1 && (
                 <div
                   style={{
                     flex: 1,
                     height: 1,
-                    background: locked ? "rgba(34,197,94,0.25)" : "rgba(255,255,255,0.06)",
+                    background: locked ? "color-mix(in srgb, var(--sl-success) 25%, transparent)" : "color-mix(in srgb, var(--sl-text) 6%, transparent)",
                     margin: "0 4px",
                     marginTop: -22, // align with the circle midline
                   }}
@@ -4980,7 +4980,7 @@ function OfferJudgmentPanel({ creator, setCreator }) {
     && judgment.offer_evaluations.every(e => e.verdict === 'KILL');
   const survivors = judgment?.offer_evaluations?.filter(e => e.verdict === 'SURVIVES') || [];
 
-  const postureColor = judgment?.audience_classification?.posture === 'ACTIVE' ? '#22c55e' : '#eab308';
+  const postureColor = judgment?.audience_classification?.posture === 'ACTIVE' ? 'var(--sl-success)' : 'var(--sl-warning)';
   // PT labels for the six score keys. The data keys stay in English (schema
   // contract), but operator UI shows the readable PT version.
   const SCORE_LABELS_PT = {
@@ -4996,17 +4996,17 @@ function OfferJudgmentPanel({ creator, setCreator }) {
   return (
     <div style={{
       marginTop: 18, paddingTop: 18,
-      borderTop: "1px solid rgba(255,255,255,0.06)",
+      borderTop: "1px solid var(--sl-border)",
     }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12, flexWrap: "wrap", gap: 8 }}>
         <div>
-          <div style={{ fontSize: 9, fontWeight: 700, color: "#666", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 4 }}>
-            Fase 5 · Kill Test {judgment ? <span style={{ color: allKilled ? "#ef4444" : "#22c55e", marginLeft: 6 }}>· {survivors.length}/{judgment.offer_evaluations.length} sobrevivem</span> : null}
+          <div style={{ fontSize: 12, fontWeight: 700, color: "var(--sl-text-faint)", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 4 }}>
+            Fase 5 · Kill Test {judgment ? <span style={{ color: allKilled ? "var(--sl-danger)" : "var(--sl-success)", marginLeft: 6 }}>· {survivors.length}/{judgment.offer_evaluations.length} sobrevivem</span> : null}
           </div>
-          <div style={{ fontSize: 13, fontWeight: 600, color: "#f5f5f5" }}>
+          <div style={{ fontSize: 13, fontWeight: 600, color: "var(--sl-text)" }}>
             Julgamento adversarial
           </div>
-          <div style={{ fontSize: 11, color: "#888", marginTop: 2, lineHeight: 1.5 }}>
+          <div style={{ fontSize: 12, color: "var(--sl-text-muted)", marginTop: 2, lineHeight: 1.5 }}>
             Scoring cético de cada jogada. Função: matar ofertas más antes do CP2-CP4 perder tempo a construir.
           </div>
         </div>
@@ -5016,10 +5016,10 @@ function OfferJudgmentPanel({ creator, setCreator }) {
           style={{
             padding: "8px 14px",
             borderRadius: 6,
-            border: "1px solid rgba(239,68,68,0.4)",
-            background: running ? "rgba(255,255,255,0.02)" : "rgba(239,68,68,0.06)",
-            color: running ? "#555" : "#ef4444",
-            fontSize: 11,
+            border: "1px solid color-mix(in srgb, var(--sl-danger) 40%, transparent)",
+            background: running ? "color-mix(in srgb, var(--sl-text) 2%, transparent)" : "color-mix(in srgb, var(--sl-danger) 6%, transparent)",
+            color: running ? "var(--sl-text-faint)" : "var(--sl-danger)",
+            fontSize: 12,
             fontWeight: 600,
             cursor: running ? "wait" : "pointer",
             fontFamily: "inherit",
@@ -5031,47 +5031,47 @@ function OfferJudgmentPanel({ creator, setCreator }) {
       </div>
 
       {error && (
-        <div style={{ padding: "10px 14px", borderRadius: 6, background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.25)", color: "#ef4444", fontSize: 11, marginBottom: 12, whiteSpace: "pre-wrap" }}>{error}</div>
+        <div style={{ padding: "10px 14px", borderRadius: 6, background: "color-mix(in srgb, var(--sl-danger) 8%, transparent)", border: "1px solid color-mix(in srgb, var(--sl-danger) 25%, transparent)", color: "var(--sl-danger)", fontSize: 12, marginBottom: 12, whiteSpace: "pre-wrap" }}>{error}</div>
       )}
 
       {!judgment && !running && (
-        <div style={{ padding: "14px 16px", textAlign: "center", color: "#444", fontSize: 11.5, border: "1px dashed rgba(255,255,255,0.06)", borderRadius: 6 }}>
-          Sem julgamento ainda. Clica <strong style={{ color: "#888" }}>Correr kill test</strong> (~30-50s, Sonnet).
+        <div style={{ padding: "14px 16px", textAlign: "center", color: "var(--sl-text-faint)", fontSize: 12.5, border: "1px dashed color-mix(in srgb, var(--sl-text) 6%, transparent)", borderRadius: 6 }}>
+          Sem julgamento ainda. Clica <strong style={{ color: "var(--sl-text-muted)" }}>Correr kill test</strong> (~30-50s, Sonnet).
         </div>
       )}
 
       {judgment && (
         <div>
           {/* Audience classification — posture badge + trusted-for */}
-          <div style={{ padding: "14px 16px", background: "#0a0a0a", borderRadius: 8, border: "1px solid rgba(255,255,255,0.05)", marginBottom: 12 }}>
+          <div style={{ padding: "14px 16px", background: "var(--sl-bg)", borderRadius: 8, border: "1px solid var(--sl-border)", marginBottom: 12 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8, flexWrap: "wrap" }}>
               <span style={{
-                fontSize: 10, fontWeight: 700, letterSpacing: "0.12em",
+                fontSize: 12, fontWeight: 700, letterSpacing: "0.12em",
                 padding: "3px 9px", borderRadius: 4,
                 background: `${postureColor}14`, color: postureColor, border: `1px solid ${postureColor}50`,
               }}>
                 {POSTURE_LABEL_PT[judgment.audience_classification.posture] || judgment.audience_classification.posture}
               </span>
-              <span style={{ fontSize: 11, color: "#888", lineHeight: 1.5 }}>{judgment.audience_classification.posture_rationale}</span>
+              <span style={{ fontSize: 12, color: "var(--sl-text-muted)", lineHeight: 1.5 }}>{judgment.audience_classification.posture_rationale}</span>
             </div>
-            <div style={{ fontSize: 9, fontWeight: 700, color: "#666", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 4 }}>Confiam no criador para</div>
-            <div style={{ fontSize: 12.5, color: "#f5f5f5", lineHeight: 1.55, fontStyle: "italic" }}>"{judgment.audience_classification.what_audience_trusts_creator_FOR}"</div>
+            <div style={{ fontSize: 12, fontWeight: 700, color: "var(--sl-text-faint)", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 4 }}>Confiam no criador para</div>
+            <div style={{ fontSize: 12.5, color: "var(--sl-text)", lineHeight: 1.55, fontStyle: "italic" }}>"{judgment.audience_classification.what_audience_trusts_creator_FOR}"</div>
           </div>
 
           {/* Per-offer scoring + kill test */}
           {judgment.offer_evaluations.map((ev, i) => {
             const killed = ev.verdict === 'KILL';
-            const accent = killed ? '#ef4444' : '#22c55e';
+            const accent = killed ? 'var(--sl-danger)' : 'var(--sl-success)';
             return (
               <div key={i} style={{
                 padding: "14px 16px", marginBottom: 10,
-                background: killed ? "rgba(239,68,68,0.03)" : "rgba(34,197,94,0.03)",
+                background: killed ? "color-mix(in srgb, var(--sl-danger) 3%, transparent)" : "color-mix(in srgb, var(--sl-success) 3%, transparent)",
                 borderRadius: 8, border: `1px solid ${accent}33`,
               }}>
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, marginBottom: 10, flexWrap: "wrap" }}>
-                  <div style={{ fontSize: 13, fontWeight: 700, color: "#f5f5f5", lineHeight: 1.4 }}>{ev.offer_name}</div>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: "var(--sl-text)", lineHeight: 1.4 }}>{ev.offer_name}</div>
                   <span style={{
-                    fontSize: 10, fontWeight: 700, letterSpacing: "0.14em",
+                    fontSize: 12, fontWeight: 700, letterSpacing: "0.14em",
                     padding: "3px 10px", borderRadius: 4,
                     background: `${accent}14`, color: accent, border: `1px solid ${accent}55`,
                   }}>
@@ -5082,27 +5082,27 @@ function OfferJudgmentPanel({ creator, setCreator }) {
                 {/* Six-score table */}
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 6, marginBottom: 12, fontFamily: "'JetBrains Mono', ui-monospace, monospace" }}>
                   {Object.entries(ev.scores).map(([k, v]) => {
-                    const scoreColor = v.score >= 4 ? '#22c55e' : v.score === 3 ? '#888' : '#ef4444';
+                    const scoreColor = v.score >= 4 ? 'var(--sl-success)' : v.score === 3 ? 'var(--sl-text-muted)' : 'var(--sl-danger)';
                     return (
-                      <div key={k} title={v.justification} style={{ padding: "6px 9px", background: "#0a0a0a", borderRadius: 4, border: "1px solid rgba(255,255,255,0.04)" }}>
+                      <div key={k} title={v.justification} style={{ padding: "6px 9px", background: "var(--sl-bg)", borderRadius: 4, border: "1px solid var(--sl-border)" }}>
                         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
-                          <span style={{ fontSize: 9, color: "#666", letterSpacing: "0.06em" }}>{SCORE_LABELS_PT[k] || k}</span>
+                          <span style={{ fontSize: 12, color: "var(--sl-text-faint)", letterSpacing: "0.06em" }}>{SCORE_LABELS_PT[k] || k}</span>
                           <span style={{ fontSize: 12, fontWeight: 700, color: scoreColor }}>{v.score}</span>
                         </div>
-                        <div style={{ fontSize: 9.5, color: "#777", lineHeight: 1.45, marginTop: 4, fontFamily: "inherit" }}>{v.justification}</div>
+                        <div style={{ fontSize: 12.5, color: "var(--sl-text-faint)", lineHeight: 1.45, marginTop: 4, fontFamily: "inherit" }}>{v.justification}</div>
                       </div>
                     );
                   })}
                 </div>
 
                 {/* Kill test block */}
-                <div style={{ padding: "10px 12px", background: "#0a0a0a", borderRadius: 6, border: "1px solid rgba(255,255,255,0.04)" }}>
-                  <div style={{ fontSize: 9, fontWeight: 700, color: accent, letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 4 }}>Objecção mais forte</div>
-                  <div style={{ fontSize: 11.5, color: "#ddd", lineHeight: 1.55, marginBottom: ev.kill_test.survives ? 8 : 0 }}>{ev.kill_test.strongest_failure_reason}</div>
+                <div style={{ padding: "10px 12px", background: "var(--sl-bg)", borderRadius: 6, border: "1px solid var(--sl-border)" }}>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: accent, letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 4 }}>Objecção mais forte</div>
+                  <div style={{ fontSize: 12.5, color: "var(--sl-text)", lineHeight: 1.55, marginBottom: ev.kill_test.survives ? 8 : 0 }}>{ev.kill_test.strongest_failure_reason}</div>
                   {ev.kill_test.survives && ev.kill_test.survival_reason && (
                     <>
-                      <div style={{ fontSize: 9, fontWeight: 700, color: "#22c55e", letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 4, marginTop: 4 }}>Porque sobrevive na mesma</div>
-                      <div style={{ fontSize: 11.5, color: "#bbb", lineHeight: 1.55 }}>{ev.kill_test.survival_reason}</div>
+                      <div style={{ fontSize: 12, fontWeight: 700, color: "var(--sl-success)", letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 4, marginTop: 4 }}>Porque sobrevive na mesma</div>
+                      <div style={{ fontSize: 12.5, color: "var(--sl-text-muted)", lineHeight: 1.55 }}>{ev.kill_test.survival_reason}</div>
                     </>
                   )}
                 </div>
@@ -5112,39 +5112,39 @@ function OfferJudgmentPanel({ creator, setCreator }) {
 
           {/* Ranking + launch-first pick */}
           {judgment.ranking && (
-            <div style={{ padding: "14px 16px", background: "#0a0a0a", borderRadius: 8, border: "1px solid rgba(255,255,255,0.05)", marginBottom: 10 }}>
-              <div style={{ fontSize: 9, fontWeight: 700, color: "#666", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 8 }}>
+            <div style={{ padding: "14px 16px", background: "var(--sl-bg)", borderRadius: 8, border: "1px solid var(--sl-border)", marginBottom: 10 }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: "var(--sl-text-faint)", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 8 }}>
                 Recomendação
               </div>
-              <div style={{ fontSize: 10.5, color: "#888", lineHeight: 1.55, marginBottom: 10, fontStyle: "italic" }}>
+              <div style={{ fontSize: 12.5, color: "var(--sl-text-muted)", lineHeight: 1.55, marginBottom: 10, fontStyle: "italic" }}>
                 Pesos: {judgment.ranking.weighting_explanation}
               </div>
 
               {allKilled ? (
-                <div style={{ padding: "12px 14px", background: "rgba(239,68,68,0.08)", borderRadius: 6, border: "1px solid rgba(239,68,68,0.3)", color: "#ef4444", fontSize: 12, fontWeight: 600, lineHeight: 1.5 }}>
+                <div style={{ padding: "12px 14px", background: "color-mix(in srgb, var(--sl-danger) 8%, transparent)", borderRadius: 6, border: "1px solid color-mix(in srgb, var(--sl-danger) 30%, transparent)", color: "var(--sl-danger)", fontSize: 12, fontWeight: 600, lineHeight: 1.5 }}>
                   ⚠ Todas as ofertas falharam o kill test. A tese precisa de revisão antes de continuar para CP2.
                   Considera re-fazer o Strategic Frame com instrução explícita ou questionar os inputs (audience_posture, trust_for).
                 </div>
               ) : judgment.ranking.launch_first ? (
                 <>
-                  <div style={{ fontSize: 9, fontWeight: 700, color: "#22c55e", letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 6 }}>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: "var(--sl-success)", letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 6 }}>
                     ▶ Lançar primeiro
                   </div>
-                  <div style={{ fontSize: 13, fontWeight: 700, color: "#f5f5f5", marginBottom: 6 }}>{judgment.ranking.launch_first.offer_name}</div>
-                  <div style={{ fontSize: 11.5, color: "#bbb", lineHeight: 1.55 }}>{judgment.ranking.launch_first.why_it_beats_others}</div>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: "var(--sl-text)", marginBottom: 6 }}>{judgment.ranking.launch_first.offer_name}</div>
+                  <div style={{ fontSize: 12.5, color: "var(--sl-text-muted)", lineHeight: 1.55 }}>{judgment.ranking.launch_first.why_it_beats_others}</div>
                 </>
               ) : null}
 
               {Array.isArray(judgment.ranking.required_validation_tests) && judgment.ranking.required_validation_tests.length > 0 && (
-                <div style={{ marginTop: 14, paddingTop: 12, borderTop: "1px solid rgba(255,255,255,0.04)" }}>
-                  <div style={{ fontSize: 9, fontWeight: 700, color: "#eab308", letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 8 }}>
+                <div style={{ marginTop: 14, paddingTop: 12, borderTop: "1px solid var(--sl-border)" }}>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: "var(--sl-warning)", letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 8 }}>
                     Validação obrigatória antes de construir
                   </div>
                   {judgment.ranking.required_validation_tests.map((t, i) => (
-                    <div key={i} style={{ padding: "8px 10px", background: "rgba(234,179,8,0.04)", borderRadius: 5, marginBottom: 6, fontSize: 11, color: "#ccc", lineHeight: 1.5 }}>
-                      <div style={{ fontWeight: 700, color: "#eab308", marginBottom: 3 }}>{t.offer_name}</div>
+                    <div key={i} style={{ padding: "8px 10px", background: "color-mix(in srgb, var(--sl-warning) 4%, transparent)", borderRadius: 5, marginBottom: 6, fontSize: 12, color: "var(--sl-text-muted)", lineHeight: 1.5 }}>
+                      <div style={{ fontWeight: 700, color: "var(--sl-warning)", marginBottom: 3 }}>{t.offer_name}</div>
                       <div>{t.test}</div>
-                      <div style={{ fontSize: 10, color: "#888", marginTop: 3 }}><strong>GO/NO-GO:</strong> {t.threshold}</div>
+                      <div style={{ fontSize: 12, color: "var(--sl-text-muted)", marginTop: 3 }}><strong>GO/NO-GO:</strong> {t.threshold}</div>
                     </div>
                   ))}
                 </div>
@@ -5153,7 +5153,7 @@ function OfferJudgmentPanel({ creator, setCreator }) {
           )}
 
           {runAt && (
-            <div style={{ fontSize: 10, color: "#333", marginTop: 10 }}>
+            <div style={{ fontSize: 12, color: "var(--sl-border-strong)", marginTop: 10 }}>
               Último julgamento: {new Date(runAt).toLocaleString("pt-PT")}
             </div>
           )}
@@ -5194,12 +5194,12 @@ function firstMissingPrereq(progress, cpNum) {
 function PrereqGate({ blockedBy, cpNum }) {
   const isImmediatePrev = blockedBy === cpNum - 1;
   return (
-    <div style={{ padding: "18px 16px", textAlign: "center", border: "1px dashed rgba(255,255,255,0.08)", borderRadius: 8, background: "rgba(255,255,255,0.01)" }}>
+    <div style={{ padding: "18px 16px", textAlign: "center", border: "1px dashed color-mix(in srgb, var(--sl-text) 8%, transparent)", borderRadius: 8, background: "color-mix(in srgb, var(--sl-text) 1%, transparent)" }}>
       <div style={{ fontSize: 22, marginBottom: 8, opacity: 0.5 }}>🔒</div>
-      <div style={{ fontSize: 12.5, fontWeight: 600, color: "#888", marginBottom: 4 }}>
+      <div style={{ fontSize: 12.5, fontWeight: 600, color: "var(--sl-text-muted)", marginBottom: 4 }}>
         Aprova primeiro o CP{blockedBy} · {CP_PT_NAMES[blockedBy]}
       </div>
-      <p style={{ fontSize: 11, color: "#555", margin: 0, lineHeight: 1.5, maxWidth: 360, marginLeft: "auto", marginRight: "auto" }}>
+      <p style={{ fontSize: 12, color: "var(--sl-text-faint)", margin: 0, lineHeight: 1.5, maxWidth: 360, marginLeft: "auto", marginRight: "auto" }}>
         {isImmediatePrev
           ? `Gera e aprova o «${CP_PT_NAMES[blockedBy]}» acima. Este checkpoint usa-o como base.`
           : `Os checkpoints são sequenciais. Falta aprovar o CP${blockedBy} («${CP_PT_NAMES[blockedBy]}») antes de chegares aqui.`}
@@ -5234,10 +5234,10 @@ function StrategicFramePanel({ creator, setCreator, running, setRunning, error, 
     standalone: 'Standalone',
   };
   const ROLE_COLORS = {
-    entry_point: '#22c55e',
-    continuity: '#3b82f6',
-    premium_upsell: '#a855f7',
-    standalone: '#eab308',
+    entry_point: 'var(--sl-success)',
+    continuity: 'var(--sl-info)',
+    premium_upsell: 'var(--sl-info)',
+    standalone: 'var(--sl-warning)',
   };
 
   const generate = async (instruction = null) => {
@@ -5379,14 +5379,14 @@ function StrategicFramePanel({ creator, setCreator, running, setRunning, error, 
   };
 
   return (
-    <div style={{ marginBottom: 28, padding: "18px 20px", background: "rgba(255,255,255,0.015)", border: `1px solid ${cp1Locked ? 'rgba(34,197,94,0.18)' : 'rgba(255,255,255,0.05)'}`, borderRadius: 10 }}>
+    <div style={{ marginBottom: 28, padding: "18px 20px", background: "color-mix(in srgb, var(--sl-text) 2%, transparent)", border: `1px solid ${cp1Locked ? 'color-mix(in srgb, var(--sl-success) 18%, transparent)' : 'color-mix(in srgb, var(--sl-text) 5%, transparent)'}`, borderRadius: 10 }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14, flexWrap: "wrap", gap: 12 }}>
         <div>
-          <div style={{ fontSize: 9, fontWeight: 700, color: cp1Locked ? "#22c55e" : "#7A0E18", letterSpacing: "0.16em", textTransform: "uppercase", marginBottom: 4 }}>
+          <div style={{ fontSize: 12, fontWeight: 700, color: cp1Locked ? "var(--sl-success)" : "var(--sl-accent-text)", letterSpacing: "0.16em", textTransform: "uppercase", marginBottom: 4 }}>
             ● Checkpoint 1 de 5 · {cp1Locked ? 'Aprovado ✓' : 'Em curso'}
           </div>
-          <h3 style={{ fontSize: 14, fontWeight: 600, margin: 0, color: "#f5f5f5" }}>Frame estratégico</h3>
-          <p style={{ fontSize: 11, color: "#555", margin: "4px 0 0" }}>
+          <h3 style={{ fontSize: 14, fontWeight: 600, margin: 0, color: "var(--sl-text)" }}>Frame estratégico</h3>
+          <p style={{ fontSize: 12, color: "var(--sl-text-faint)", margin: "4px 0 0" }}>
             Compromisso estratégico da operadora — linguagem interna, nunca mostrado à criadora. CP2-5 usam isto como contexto.
           </p>
         </div>
@@ -5398,10 +5398,10 @@ function StrategicFramePanel({ creator, setCreator, running, setRunning, error, 
               style={{
                 padding: "8px 16px",
                 borderRadius: 6,
-                border: "1px solid rgba(122,14,24,0.4)",
-                background: running ? "rgba(255,255,255,0.02)" : "rgba(122,14,24,0.08)",
-                color: running ? "#555" : "#B11E2F",
-                fontSize: 11,
+                border: "1px solid color-mix(in srgb, var(--sl-primary) 40%, transparent)",
+                background: running ? "color-mix(in srgb, var(--sl-text) 2%, transparent)" : "color-mix(in srgb, var(--sl-primary) 8%, transparent)",
+                color: running ? "var(--sl-text-faint)" : "var(--sl-accent-text)",
+                fontSize: 12,
                 fontWeight: 600,
                 cursor: running ? "wait" : "pointer",
                 fontFamily: "inherit",
@@ -5418,10 +5418,10 @@ function StrategicFramePanel({ creator, setCreator, running, setRunning, error, 
               style={{
                 padding: "8px 16px",
                 borderRadius: 6,
-                border: "1px solid rgba(34,197,94,0.45)",
-                background: "rgba(34,197,94,0.08)",
-                color: "#22c55e",
-                fontSize: 11,
+                border: "1px solid color-mix(in srgb, var(--sl-success) 45%, transparent)",
+                background: "color-mix(in srgb, var(--sl-success) 8%, transparent)",
+                color: "var(--sl-success)",
+                fontSize: 12,
                 fontWeight: 600,
                 cursor: lockBusy ? "wait" : "pointer",
                 fontFamily: "inherit",
@@ -5438,10 +5438,10 @@ function StrategicFramePanel({ creator, setCreator, running, setRunning, error, 
               style={{
                 padding: "8px 16px",
                 borderRadius: 6,
-                border: "1px solid rgba(234,179,8,0.4)",
-                background: "rgba(234,179,8,0.06)",
-                color: "#eab308",
-                fontSize: 11,
+                border: "1px solid color-mix(in srgb, var(--sl-warning) 40%, transparent)",
+                background: "color-mix(in srgb, var(--sl-warning) 6%, transparent)",
+                color: "var(--sl-warning)",
+                fontSize: 12,
                 fontWeight: 600,
                 cursor: lockBusy ? "wait" : "pointer",
                 fontFamily: "inherit",
@@ -5455,10 +5455,10 @@ function StrategicFramePanel({ creator, setCreator, running, setRunning, error, 
       </div>
 
       {error && (
-        <div style={{ padding: "10px 14px", borderRadius: 6, background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.25)", color: "#ef4444", fontSize: 11, marginBottom: 12, whiteSpace: "pre-wrap" }}>{error}</div>
+        <div style={{ padding: "10px 14px", borderRadius: 6, background: "color-mix(in srgb, var(--sl-danger) 8%, transparent)", border: "1px solid color-mix(in srgb, var(--sl-danger) 25%, transparent)", color: "var(--sl-danger)", fontSize: 12, marginBottom: 12, whiteSpace: "pre-wrap" }}>{error}</div>
       )}
       {diag && !running && (
-        <div style={{ fontSize: 10, color: "#444", marginBottom: 12, fontFamily: "'JetBrains Mono', ui-monospace, monospace" }}>
+        <div style={{ fontSize: 12, color: "var(--sl-text-faint)", marginBottom: 12, fontFamily: "'JetBrains Mono', ui-monospace, monospace" }}>
           input do papel: {diag.audit_role_input || '—'} · arquétipo {diag.archetype_used ? '✓' : '—'} · elementos únicos: {diag.uniqueness_elements_input} · {diag.retries} retries
         </div>
       )}
@@ -5472,8 +5472,8 @@ function StrategicFramePanel({ creator, setCreator, running, setRunning, error, 
       )}
 
       {!frame && !running && (
-        <div style={{ padding: "20px 16px", textAlign: "center", color: "#444", fontSize: 12, border: "1px dashed rgba(255,255,255,0.06)", borderRadius: 6 }}>
-          Ainda não há frame. Clica <strong style={{ color: "#888" }}>Gerar</strong> (~10-20s, usa Fases 1+2+3 como contexto).
+        <div style={{ padding: "20px 16px", textAlign: "center", color: "var(--sl-text-faint)", fontSize: 12, border: "1px dashed color-mix(in srgb, var(--sl-text) 6%, transparent)", borderRadius: 6 }}>
+          Ainda não há frame. Clica <strong style={{ color: "var(--sl-text-muted)" }}>Gerar</strong> (~10-20s, usa Fases 1+2+3 como contexto).
         </div>
       )}
 
@@ -5481,34 +5481,34 @@ function StrategicFramePanel({ creator, setCreator, running, setRunning, error, 
         <div>
           {/* Top row: confirmed role badge + dominant transformation */}
           <div style={{ display: "grid", gridTemplateColumns: "auto 1fr", gap: 14, alignItems: "start", marginBottom: 16 }}>
-            <div style={{ padding: "14px 16px", background: "#0a0a0a", borderRadius: 8, border: `1px solid ${ROLE_COLORS[frame.confirmed_role] || '#444'}40`, minWidth: 130 }}>
-              <div style={{ fontSize: 9, fontWeight: 700, color: "#666", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 6 }}>Papel</div>
-              <div style={{ fontSize: 13, fontWeight: 700, color: ROLE_COLORS[frame.confirmed_role] || '#ccc' }}>{ROLE_LABELS[frame.confirmed_role] || frame.confirmed_role}</div>
+            <div style={{ padding: "14px 16px", background: "var(--sl-bg)", borderRadius: 8, border: `1px solid ${ROLE_COLORS[frame.confirmed_role] || 'var(--sl-text-faint)'}40`, minWidth: 130 }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: "var(--sl-text-faint)", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 6 }}>Papel</div>
+              <div style={{ fontSize: 13, fontWeight: 700, color: ROLE_COLORS[frame.confirmed_role] || 'var(--sl-text-muted)' }}>{ROLE_LABELS[frame.confirmed_role] || frame.confirmed_role}</div>
             </div>
-            <div style={{ padding: "14px 16px", background: "#0a0a0a", borderRadius: 8, border: "1px solid rgba(255,255,255,0.05)" }}>
-              <div style={{ fontSize: 9, fontWeight: 700, color: "#666", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 6 }}>Transformação dominante</div>
-              <div style={{ fontSize: 13, color: "#f5f5f5", lineHeight: 1.55, fontWeight: 500 }}>{frame.dominant_transformation}</div>
+            <div style={{ padding: "14px 16px", background: "var(--sl-bg)", borderRadius: 8, border: "1px solid var(--sl-border)" }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: "var(--sl-text-faint)", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 6 }}>Transformação dominante</div>
+              <div style={{ fontSize: 13, color: "var(--sl-text)", lineHeight: 1.55, fontWeight: 500 }}>{frame.dominant_transformation}</div>
             </div>
           </div>
 
           {/* Audience segment */}
-          <div style={{ padding: "13px 15px", background: "#0a0a0a", borderRadius: 8, border: "1px solid rgba(255,255,255,0.05)", marginBottom: 12 }}>
-            <div style={{ fontSize: 9, fontWeight: 700, color: "#666", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 6 }}>Segmento de audiência</div>
-            <div style={{ fontSize: 12, color: "#ddd", lineHeight: 1.55, marginBottom: 6 }}>{frame.audience_segment?.description}</div>
-            <div style={{ fontSize: 10.5, color: "#888", fontStyle: "italic", lineHeight: 1.5 }}>
-              <span style={{ fontStyle: "normal", color: "#555", fontWeight: 700, marginRight: 6, letterSpacing: "0.06em" }}>ÂNCORA:</span>
+          <div style={{ padding: "13px 15px", background: "var(--sl-bg)", borderRadius: 8, border: "1px solid var(--sl-border)", marginBottom: 12 }}>
+            <div style={{ fontSize: 12, fontWeight: 700, color: "var(--sl-text-faint)", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 6 }}>Segmento de audiência</div>
+            <div style={{ fontSize: 12, color: "var(--sl-text)", lineHeight: 1.55, marginBottom: 6 }}>{frame.audience_segment?.description}</div>
+            <div style={{ fontSize: 12.5, color: "var(--sl-text-muted)", fontStyle: "italic", lineHeight: 1.5 }}>
+              <span style={{ fontStyle: "normal", color: "var(--sl-text-faint)", fontWeight: 700, marginRight: 6, letterSpacing: "0.06em" }}>ÂNCORA:</span>
               {frame.audience_segment?.demographics_anchor}
             </div>
           </div>
 
           {/* Negative qualifiers */}
           {(frame.negative_qualifiers || []).length > 0 && (
-            <div style={{ padding: "13px 15px", background: "rgba(239,68,68,0.03)", borderRadius: 8, border: "1px solid rgba(239,68,68,0.18)", marginBottom: 12 }}>
-              <div style={{ fontSize: 9, fontWeight: 700, color: "#ef4444", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 8 }}>Não é para ({(frame.negative_qualifiers || []).length})</div>
+            <div style={{ padding: "13px 15px", background: "color-mix(in srgb, var(--sl-danger) 3%, transparent)", borderRadius: 8, border: "1px solid color-mix(in srgb, var(--sl-danger) 18%, transparent)", marginBottom: 12 }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: "var(--sl-danger)", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 8 }}>Não é para ({(frame.negative_qualifiers || []).length})</div>
               <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 4 }}>
                 {frame.negative_qualifiers.map((q, i) => (
-                  <li key={i} style={{ fontSize: 12, color: "#ccc", lineHeight: 1.5, paddingLeft: 14, position: "relative" }}>
-                    <span style={{ position: "absolute", left: 0, color: "#ef4444" }}>✕</span>{q}
+                  <li key={i} style={{ fontSize: 12, color: "var(--sl-text-muted)", lineHeight: 1.5, paddingLeft: 14, position: "relative" }}>
+                    <span style={{ position: "absolute", left: 0, color: "var(--sl-danger)" }}>✕</span>{q}
                   </li>
                 ))}
               </ul>
@@ -5516,19 +5516,19 @@ function StrategicFramePanel({ creator, setCreator, running, setRunning, error, 
           )}
 
           {/* Positioning tension */}
-          <div style={{ padding: "13px 15px", background: "rgba(122,14,24,0.04)", borderRadius: 8, border: "1px solid rgba(122,14,24,0.18)", marginBottom: 12 }}>
-            <div style={{ fontSize: 9, fontWeight: 700, color: "#7A0E18", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 6 }}>Tensão de posicionamento</div>
-            <div style={{ fontSize: 12.5, color: "#f5f5f5", lineHeight: 1.55, fontStyle: "italic" }}>{frame.positioning_tension}</div>
+          <div style={{ padding: "13px 15px", background: "color-mix(in srgb, var(--sl-primary) 4%, transparent)", borderRadius: 8, border: "1px solid color-mix(in srgb, var(--sl-primary) 18%, transparent)", marginBottom: 12 }}>
+            <div style={{ fontSize: 12, fontWeight: 700, color: "var(--sl-accent-text)", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 6 }}>Tensão de posicionamento</div>
+            <div style={{ fontSize: 12.5, color: "var(--sl-text)", lineHeight: 1.55, fontStyle: "italic" }}>{frame.positioning_tension}</div>
           </div>
 
           {/* Rationale — collapsed under a subtle header so it doesn't dominate */}
           {(frame.rationale || []).length > 0 && (
             <div style={{ marginBottom: runAt ? 14 : 0 }}>
-              <div style={{ fontSize: 9, fontWeight: 700, color: "#666", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 8 }}>Racional ({(frame.rationale || []).length})</div>
+              <div style={{ fontSize: 12, fontWeight: 700, color: "var(--sl-text-faint)", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 8 }}>Racional ({(frame.rationale || []).length})</div>
               <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 4 }}>
                 {frame.rationale.map((r, i) => (
-                  <li key={i} style={{ fontSize: 11.5, color: "#aaa", lineHeight: 1.55, paddingLeft: 14, position: "relative" }}>
-                    <span style={{ position: "absolute", left: 0, color: "#666" }}>›</span>{r}
+                  <li key={i} style={{ fontSize: 12.5, color: "var(--sl-text-muted)", lineHeight: 1.55, paddingLeft: 14, position: "relative" }}>
+                    <span style={{ position: "absolute", left: 0, color: "var(--sl-text-faint)" }}>›</span>{r}
                   </li>
                 ))}
               </ul>
@@ -5541,7 +5541,7 @@ function StrategicFramePanel({ creator, setCreator, running, setRunning, error, 
           <OfferJudgmentPanel creator={creator} setCreator={setCreator} />
 
           {runAt && (
-            <div style={{ fontSize: 10, color: "#333", paddingTop: 10, borderTop: "1px solid rgba(255,255,255,0.04)" }}>
+            <div style={{ fontSize: 12, color: "var(--sl-border-strong)", paddingTop: 10, borderTop: "1px solid var(--sl-border)" }}>
               Última geração: {new Date(runAt).toLocaleString("pt-PT")}
               {cp1Locked && progress.locked[1] && (
                 <> · Aprovado: {new Date(progress.locked[1]).toLocaleString("pt-PT")}</>
@@ -5656,19 +5656,19 @@ function ServiceOfferPanel({ creator, setCreator }) {
   };
 
   const H = ({ children }) => (
-    <div style={{ fontSize: 9, fontWeight: 700, color: "#666", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 8 }}>{children}</div>
+    <div style={{ fontSize: 12, fontWeight: 700, color: "var(--sl-text-faint)", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 8 }}>{children}</div>
   );
-  const card = { padding: "14px 16px", background: "#0a0a0a", borderRadius: 8, border: "1px solid rgba(255,255,255,0.05)", marginBottom: 12 };
+  const card = { padding: "14px 16px", background: "var(--sl-bg)", borderRadius: 8, border: "1px solid var(--sl-border)", marginBottom: 12 };
 
   return (
     <div style={{ marginBottom: 16 }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12, flexWrap: "wrap", gap: 8 }}>
         <div>
-          <div style={{ fontSize: 9, fontWeight: 700, color: "#3b82f6", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 4 }}>
-            Oferta de serviço {svc ? <span style={{ color: "#22c55e", marginLeft: 6 }}>· gerada</span> : null}
+          <div style={{ fontSize: 12, fontWeight: 700, color: "var(--sl-info)", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 4 }}>
+            Oferta de serviço {svc ? <span style={{ color: "var(--sl-success)", marginLeft: 6 }}>· gerada</span> : null}
           </div>
-          <div style={{ fontSize: 13, fontWeight: 600, color: "#f5f5f5" }}>Construtor de serviço feito-por-ti</div>
-          <div style={{ fontSize: 11, color: "#888", marginTop: 2, lineHeight: 1.5 }}>
+          <div style={{ fontSize: 13, fontWeight: 600, color: "var(--sl-text)" }}>Construtor de serviço feito-por-ti</div>
+          <div style={{ fontSize: 12, color: "var(--sl-text-muted)", marginTop: 2, lineHeight: 1.5 }}>
             Entregável a preço fixo com processo repetível — o formato certo para esta tese (não é comunidade).
           </div>
         </div>
@@ -5677,10 +5677,10 @@ function ServiceOfferPanel({ creator, setCreator }) {
           disabled={running}
           style={{
             padding: "8px 14px", borderRadius: 6,
-            border: "1px solid rgba(59,130,246,0.45)",
-            background: running ? "rgba(255,255,255,0.02)" : "rgba(59,130,246,0.08)",
-            color: running ? "#555" : "#3b82f6",
-            fontSize: 11, fontWeight: 700, cursor: running ? "wait" : "pointer",
+            border: "1px solid color-mix(in srgb, var(--sl-info) 45%, transparent)",
+            background: running ? "color-mix(in srgb, var(--sl-text) 2%, transparent)" : "color-mix(in srgb, var(--sl-info) 8%, transparent)",
+            color: running ? "var(--sl-text-faint)" : "var(--sl-info)",
+            fontSize: 12, fontWeight: 700, cursor: running ? "wait" : "pointer",
             fontFamily: "inherit", whiteSpace: "nowrap",
           }}
         >
@@ -5689,24 +5689,24 @@ function ServiceOfferPanel({ creator, setCreator }) {
       </div>
 
       {error && (
-        <div style={{ padding: "10px 14px", borderRadius: 6, background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.25)", color: "#ef4444", fontSize: 11, marginBottom: 12, whiteSpace: "pre-wrap" }}>{error}</div>
+        <div style={{ padding: "10px 14px", borderRadius: 6, background: "color-mix(in srgb, var(--sl-danger) 8%, transparent)", border: "1px solid color-mix(in srgb, var(--sl-danger) 25%, transparent)", color: "var(--sl-danger)", fontSize: 12, marginBottom: 12, whiteSpace: "pre-wrap" }}>{error}</div>
       )}
 
       {!svc && !running && (
-        <div style={{ padding: "16px", textAlign: "center", color: "#444", fontSize: 11.5, border: "1px dashed rgba(255,255,255,0.06)", borderRadius: 6 }}>
-          Sem oferta de serviço ainda. Clica <strong style={{ color: "#888" }}>Gerar</strong> (~20-40s, Sonnet). Usa o frame do CP1.
+        <div style={{ padding: "16px", textAlign: "center", color: "var(--sl-text-faint)", fontSize: 12.5, border: "1px dashed color-mix(in srgb, var(--sl-text) 6%, transparent)", borderRadius: 6 }}>
+          Sem oferta de serviço ainda. Clica <strong style={{ color: "var(--sl-text-muted)" }}>Gerar</strong> (~20-40s, Sonnet). Usa o frame do CP1.
         </div>
       )}
 
       {svc && (
         <div>
           {/* Name + promise */}
-          <div style={{ ...card, border: "1px solid rgba(59,130,246,0.25)" }}>
+          <div style={{ ...card, border: "1px solid color-mix(in srgb, var(--sl-info) 25%, transparent)" }}>
             <H>Nome do serviço</H>
-            <div style={{ fontSize: 16, fontWeight: 700, color: "#f5f5f5", marginBottom: 6 }}>{svc.service_name}</div>
-            {svc.central_promise && <div style={{ fontSize: 12.5, color: "#ddd", lineHeight: 1.55, fontStyle: "italic" }}>"{svc.central_promise}"</div>}
+            <div style={{ fontSize: 16, fontWeight: 700, color: "var(--sl-text)", marginBottom: 6 }}>{svc.service_name}</div>
+            {svc.central_promise && <div style={{ fontSize: 12.5, color: "var(--sl-text)", lineHeight: 1.55, fontStyle: "italic" }}>"{svc.central_promise}"</div>}
             {Array.isArray(svc.name_candidates) && svc.name_candidates.length > 0 && (
-              <div style={{ marginTop: 8, fontSize: 10.5, color: "#777" }}>
+              <div style={{ marginTop: 8, fontSize: 12.5, color: "var(--sl-text-faint)" }}>
                 Alternativas: {svc.name_candidates.join(' · ')}
               </div>
             )}
@@ -5715,10 +5715,10 @@ function ServiceOfferPanel({ creator, setCreator }) {
           {/* Core deliverable + turnaround/format */}
           <div style={card}>
             <H>O que o cliente recebe</H>
-            <div style={{ fontSize: 12.5, color: "#f5f5f5", lineHeight: 1.6, marginBottom: 8 }}>{svc.core_deliverable}</div>
-            <div style={{ display: "flex", gap: 14, flexWrap: "wrap", fontSize: 11, color: "#888" }}>
-              {svc.turnaround && <span><strong style={{ color: "#ddd" }}>Prazo:</strong> {svc.turnaround}</span>}
-              {svc.delivery_format && <span><strong style={{ color: "#ddd" }}>Formato:</strong> {svc.delivery_format === 'async' ? 'assíncrono' : svc.delivery_format === 'live' ? 'ao vivo' : 'híbrido'}</span>}
+            <div style={{ fontSize: 12.5, color: "var(--sl-text)", lineHeight: 1.6, marginBottom: 8 }}>{svc.core_deliverable}</div>
+            <div style={{ display: "flex", gap: 14, flexWrap: "wrap", fontSize: 12, color: "var(--sl-text-muted)" }}>
+              {svc.turnaround && <span><strong style={{ color: "var(--sl-text)" }}>Prazo:</strong> {svc.turnaround}</span>}
+              {svc.delivery_format && <span><strong style={{ color: "var(--sl-text)" }}>Formato:</strong> {svc.delivery_format === 'async' ? 'assíncrono' : svc.delivery_format === 'live' ? 'ao vivo' : 'híbrido'}</span>}
             </div>
           </div>
 
@@ -5729,10 +5729,10 @@ function ServiceOfferPanel({ creator, setCreator }) {
               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                 {svc.process_steps.map((s, i) => (
                   <div key={i} style={{ display: "flex", gap: 10 }}>
-                    <div style={{ flexShrink: 0, width: 20, height: 20, borderRadius: "50%", background: "rgba(59,130,246,0.12)", color: "#3b82f6", fontSize: 10, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center" }}>{i + 1}</div>
+                    <div style={{ flexShrink: 0, width: 20, height: 20, borderRadius: "50%", background: "color-mix(in srgb, var(--sl-info) 12%, transparent)", color: "var(--sl-info)", fontSize: 12, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center" }}>{i + 1}</div>
                     <div>
-                      <div style={{ fontSize: 12, fontWeight: 600, color: "#f5f5f5", lineHeight: 1.4 }}>{s.name}</div>
-                      <div style={{ fontSize: 11, color: "#999", lineHeight: 1.5, marginTop: 2 }}>{s.detail}</div>
+                      <div style={{ fontSize: 12, fontWeight: 600, color: "var(--sl-text)", lineHeight: 1.4 }}>{s.name}</div>
+                      <div style={{ fontSize: 12, color: "var(--sl-text-muted)", lineHeight: 1.5, marginTop: 2 }}>{s.detail}</div>
                     </div>
                   </div>
                 ))}
@@ -5744,20 +5744,20 @@ function ServiceOfferPanel({ creator, setCreator }) {
           {Array.isArray(svc.packages) && svc.packages.length > 0 && (
             <div style={{ display: "grid", gridTemplateColumns: `repeat(auto-fit, minmax(200px, 1fr))`, gap: 10, marginBottom: 12 }}>
               {svc.packages.map((p, i) => (
-                <div key={i} style={{ padding: "14px 16px", background: "#0a0a0a", borderRadius: 8, border: "1px solid rgba(34,197,94,0.25)" }}>
+                <div key={i} style={{ padding: "14px 16px", background: "var(--sl-bg)", borderRadius: 8, border: "1px solid color-mix(in srgb, var(--sl-success) 25%, transparent)" }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 8, marginBottom: 8 }}>
-                    <div style={{ fontSize: 13, fontWeight: 700, color: "#f5f5f5" }}>{p.name}</div>
-                    <div style={{ fontSize: 15, fontWeight: 700, color: "#22c55e", fontFamily: "'JetBrains Mono', ui-monospace, monospace", whiteSpace: "nowrap" }}>{priceLabel(p.price)}</div>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: "var(--sl-text)" }}>{p.name}</div>
+                    <div style={{ fontSize: 15, fontWeight: 700, color: "var(--sl-success)", fontFamily: "'JetBrains Mono', ui-monospace, monospace", whiteSpace: "nowrap" }}>{priceLabel(p.price)}</div>
                   </div>
-                  {p.best_for && <div style={{ fontSize: 10.5, color: "#888", fontStyle: "italic", marginBottom: 8, lineHeight: 1.4 }}>{p.best_for}</div>}
+                  {p.best_for && <div style={{ fontSize: 12.5, color: "var(--sl-text-muted)", fontStyle: "italic", marginBottom: 8, lineHeight: 1.4 }}>{p.best_for}</div>}
                   <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 4 }}>
                     {(p.whats_included || []).map((w, j) => (
-                      <li key={j} style={{ fontSize: 11, color: "#ccc", lineHeight: 1.45, paddingLeft: 14, position: "relative" }}>
-                        <span style={{ position: "absolute", left: 0, color: "#22c55e" }}>✓</span>{w}
+                      <li key={j} style={{ fontSize: 12, color: "var(--sl-text-muted)", lineHeight: 1.45, paddingLeft: 14, position: "relative" }}>
+                        <span style={{ position: "absolute", left: 0, color: "var(--sl-success)" }}>✓</span>{w}
                       </li>
                     ))}
                   </ul>
-                  {p.turnaround && <div style={{ marginTop: 8, fontSize: 10, color: "#666" }}>Prazo: {p.turnaround}</div>}
+                  {p.turnaround && <div style={{ marginTop: 8, fontSize: 12, color: "var(--sl-text-faint)" }}>Prazo: {p.turnaround}</div>}
                 </div>
               ))}
             </div>
@@ -5766,18 +5766,18 @@ function ServiceOfferPanel({ creator, setCreator }) {
           {/* Audience fit */}
           <div className="sl-grid-2" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 12 }}>
             {Array.isArray(svc.who_its_for) && (
-              <div style={{ padding: "12px 14px", background: "rgba(34,197,94,0.03)", borderRadius: 8, border: "1px solid rgba(34,197,94,0.18)" }}>
-                <div style={{ fontSize: 9, fontWeight: 700, color: "#22c55e", letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 6 }}>Para quem</div>
+              <div style={{ padding: "12px 14px", background: "color-mix(in srgb, var(--sl-success) 3%, transparent)", borderRadius: 8, border: "1px solid color-mix(in srgb, var(--sl-success) 18%, transparent)" }}>
+                <div style={{ fontSize: 12, fontWeight: 700, color: "var(--sl-success)", letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 6 }}>Para quem</div>
                 <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 4 }}>
-                  {svc.who_its_for.map((w, i) => <li key={i} style={{ fontSize: 11, color: "#ccc", lineHeight: 1.45, paddingLeft: 12, position: "relative" }}><span style={{ position: "absolute", left: 0, color: "#22c55e" }}>·</span>{w}</li>)}
+                  {svc.who_its_for.map((w, i) => <li key={i} style={{ fontSize: 12, color: "var(--sl-text-muted)", lineHeight: 1.45, paddingLeft: 12, position: "relative" }}><span style={{ position: "absolute", left: 0, color: "var(--sl-success)" }}>·</span>{w}</li>)}
                 </ul>
               </div>
             )}
             {Array.isArray(svc.who_its_not_for) && (
-              <div style={{ padding: "12px 14px", background: "rgba(239,68,68,0.03)", borderRadius: 8, border: "1px solid rgba(239,68,68,0.18)" }}>
-                <div style={{ fontSize: 9, fontWeight: 700, color: "#ef4444", letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 6 }}>Não é para</div>
+              <div style={{ padding: "12px 14px", background: "color-mix(in srgb, var(--sl-danger) 3%, transparent)", borderRadius: 8, border: "1px solid color-mix(in srgb, var(--sl-danger) 18%, transparent)" }}>
+                <div style={{ fontSize: 12, fontWeight: 700, color: "var(--sl-danger)", letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 6 }}>Não é para</div>
                 <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 4 }}>
-                  {svc.who_its_not_for.map((w, i) => <li key={i} style={{ fontSize: 11, color: "#ccc", lineHeight: 1.45, paddingLeft: 12, position: "relative" }}><span style={{ position: "absolute", left: 0, color: "#ef4444" }}>✕</span>{w}</li>)}
+                  {svc.who_its_not_for.map((w, i) => <li key={i} style={{ fontSize: 12, color: "var(--sl-text-muted)", lineHeight: 1.45, paddingLeft: 12, position: "relative" }}><span style={{ position: "absolute", left: 0, color: "var(--sl-danger)" }}>✕</span>{w}</li>)}
                 </ul>
               </div>
             )}
@@ -5785,9 +5785,9 @@ function ServiceOfferPanel({ creator, setCreator }) {
 
           {/* Positioning */}
           {svc.positioning && (
-            <div style={{ ...card, background: "rgba(122,14,24,0.04)", border: "1px solid rgba(122,14,24,0.18)" }}>
-              <div style={{ fontSize: 9, fontWeight: 700, color: "#7A0E18", letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 6 }}>Posicionamento (a cunha)</div>
-              <div style={{ fontSize: 12, color: "#f5f5f5", lineHeight: 1.55 }}>{svc.positioning}</div>
+            <div style={{ ...card, background: "color-mix(in srgb, var(--sl-primary) 4%, transparent)", border: "1px solid color-mix(in srgb, var(--sl-primary) 18%, transparent)" }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: "var(--sl-accent-text)", letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 6 }}>Posicionamento (a cunha)</div>
+              <div style={{ fontSize: 12, color: "var(--sl-text)", lineHeight: 1.55 }}>{svc.positioning}</div>
             </div>
           )}
 
@@ -5799,10 +5799,10 @@ function ServiceOfferPanel({ creator, setCreator }) {
               disabled={copyStatus !== 'idle'}
               style={{
                 padding: "9px 16px", borderRadius: 6,
-                border: "1px solid rgba(59,130,246,0.45)",
-                background: copyStatus === 'copied' ? "rgba(34,197,94,0.12)" : "rgba(59,130,246,0.08)",
-                color: copyStatus === 'copied' ? "#22c55e" : copyStatus === 'failed' ? "#ef4444" : "#3b82f6",
-                fontSize: 11, fontWeight: 700, cursor: copyStatus === 'idle' ? "pointer" : "default", fontFamily: "inherit",
+                border: "1px solid color-mix(in srgb, var(--sl-info) 45%, transparent)",
+                background: copyStatus === 'copied' ? "color-mix(in srgb, var(--sl-success) 12%, transparent)" : "color-mix(in srgb, var(--sl-info) 8%, transparent)",
+                color: copyStatus === 'copied' ? "var(--sl-success)" : copyStatus === 'failed' ? "var(--sl-danger)" : "var(--sl-info)",
+                fontSize: 12, fontWeight: 700, cursor: copyStatus === 'idle' ? "pointer" : "default", fontFamily: "inherit",
               }}
             >
               {copyStatus === 'copied' ? '✓ Copiado!' : copyStatus === 'failed' ? '✕ Copia manualmente' : '📋 Copiar oferta (markdown)'}
@@ -5820,7 +5820,7 @@ function ServiceOfferPanel({ creator, setCreator }) {
           )}
 
           {runAt && (
-            <div style={{ fontSize: 10, color: "#333", marginTop: 10 }}>
+            <div style={{ fontSize: 12, color: "var(--sl-border-strong)", marginTop: 10 }}>
               Última geração: {new Date(runAt).toLocaleString("pt-PT")}
             </div>
           )}
@@ -5911,20 +5911,20 @@ function ServiceSalesCopyPanel({ creator, setCreator }) {
     copyText(L.join('\n'), setAllCopied);
   };
 
-  const H = ({ children, color = "#666" }) => (
-    <div style={{ fontSize: 9, fontWeight: 700, color, letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 8 }}>{children}</div>
+  const H = ({ children, color = "var(--sl-text-faint)" }) => (
+    <div style={{ fontSize: 12, fontWeight: 700, color, letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 8 }}>{children}</div>
   );
-  const card = { padding: "14px 16px", background: "#0a0a0a", borderRadius: 8, border: "1px solid rgba(255,255,255,0.05)", marginBottom: 12 };
+  const card = { padding: "14px 16px", background: "var(--sl-bg)", borderRadius: 8, border: "1px solid var(--sl-border)", marginBottom: 12 };
 
   return (
-    <div style={{ marginTop: 6, paddingTop: 14, borderTop: "1px solid rgba(255,255,255,0.06)" }}>
+    <div style={{ marginTop: 6, paddingTop: 14, borderTop: "1px solid var(--sl-border)" }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12, flexWrap: "wrap", gap: 8 }}>
         <div>
-          <div style={{ fontSize: 9, fontWeight: 700, color: "#a855f7", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 4 }}>
-            Copy de vendas {copy ? <span style={{ color: "#22c55e", marginLeft: 6 }}>· gerada</span> : null}
+          <div style={{ fontSize: 12, fontWeight: 700, color: "var(--sl-info)", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 4 }}>
+            Copy de vendas {copy ? <span style={{ color: "var(--sl-success)", marginLeft: 6 }}>· gerada</span> : null}
           </div>
-          <div style={{ fontSize: 13, fontWeight: 600, color: "#f5f5f5" }}>Vender a oferta de serviço</div>
-          <div style={{ fontSize: 11, color: "#888", marginTop: 2, lineHeight: 1.5 }}>
+          <div style={{ fontSize: 13, fontWeight: 600, color: "var(--sl-text)" }}>Vender a oferta de serviço</div>
+          <div style={{ fontSize: 12, color: "var(--sl-text-muted)", marginTop: 2, lineHeight: 1.5 }}>
             Objecções, FAQ, garantia e uma DM pronta a enviar — na voz da criadora.
           </div>
         </div>
@@ -5933,10 +5933,10 @@ function ServiceSalesCopyPanel({ creator, setCreator }) {
           disabled={running}
           style={{
             padding: "8px 14px", borderRadius: 6,
-            border: "1px solid rgba(168,85,247,0.45)",
-            background: running ? "rgba(255,255,255,0.02)" : "rgba(168,85,247,0.08)",
-            color: running ? "#555" : "#a855f7",
-            fontSize: 11, fontWeight: 700, cursor: running ? "wait" : "pointer",
+            border: "1px solid color-mix(in srgb, var(--sl-info) 45%, transparent)",
+            background: running ? "color-mix(in srgb, var(--sl-text) 2%, transparent)" : "color-mix(in srgb, var(--sl-info) 8%, transparent)",
+            color: running ? "var(--sl-text-faint)" : "var(--sl-info)",
+            fontSize: 12, fontWeight: 700, cursor: running ? "wait" : "pointer",
             fontFamily: "inherit", whiteSpace: "nowrap",
           }}
         >
@@ -5945,12 +5945,12 @@ function ServiceSalesCopyPanel({ creator, setCreator }) {
       </div>
 
       {error && (
-        <div style={{ padding: "10px 14px", borderRadius: 6, background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.25)", color: "#ef4444", fontSize: 11, marginBottom: 12, whiteSpace: "pre-wrap" }}>{error}</div>
+        <div style={{ padding: "10px 14px", borderRadius: 6, background: "color-mix(in srgb, var(--sl-danger) 8%, transparent)", border: "1px solid color-mix(in srgb, var(--sl-danger) 25%, transparent)", color: "var(--sl-danger)", fontSize: 12, marginBottom: 12, whiteSpace: "pre-wrap" }}>{error}</div>
       )}
 
       {!copy && !running && (
-        <div style={{ padding: "16px", textAlign: "center", color: "#444", fontSize: 11.5, border: "1px dashed rgba(255,255,255,0.06)", borderRadius: 6 }}>
-          Sem copy ainda. Clica <strong style={{ color: "#888" }}>Gerar</strong> (~20-40s). Usa a oferta de serviço acima.
+        <div style={{ padding: "16px", textAlign: "center", color: "var(--sl-text-faint)", fontSize: 12.5, border: "1px dashed color-mix(in srgb, var(--sl-text) 6%, transparent)", borderRadius: 6 }}>
+          Sem copy ainda. Clica <strong style={{ color: "var(--sl-text-muted)" }}>Gerar</strong> (~20-40s). Usa a oferta de serviço acima.
         </div>
       )}
 
@@ -5958,11 +5958,11 @@ function ServiceSalesCopyPanel({ creator, setCreator }) {
         <div>
           {/* Hero */}
           {copy.hero && (
-            <div style={{ ...card, border: "1px solid rgba(168,85,247,0.25)" }}>
-              <H color="#a855f7">Hero</H>
-              <div style={{ fontSize: 16, fontWeight: 700, color: "#f5f5f5", lineHeight: 1.35, marginBottom: 6 }}>{copy.hero.headline}</div>
-              {copy.hero.sub && <div style={{ fontSize: 12.5, color: "#bbb", lineHeight: 1.55, marginBottom: 8 }}>{copy.hero.sub}</div>}
-              {copy.hero.cta && <div style={{ display: "inline-block", padding: "6px 14px", background: "rgba(168,85,247,0.12)", color: "#a855f7", borderRadius: 6, fontSize: 11, fontWeight: 700 }}>{copy.hero.cta}</div>}
+            <div style={{ ...card, border: "1px solid color-mix(in srgb, var(--sl-info) 25%, transparent)" }}>
+              <H color="var(--sl-info)">Hero</H>
+              <div style={{ fontSize: 16, fontWeight: 700, color: "var(--sl-text)", lineHeight: 1.35, marginBottom: 6 }}>{copy.hero.headline}</div>
+              {copy.hero.sub && <div style={{ fontSize: 12.5, color: "var(--sl-text-muted)", lineHeight: 1.55, marginBottom: 8 }}>{copy.hero.sub}</div>}
+              {copy.hero.cta && <div style={{ display: "inline-block", padding: "6px 14px", background: "color-mix(in srgb, var(--sl-info) 12%, transparent)", color: "var(--sl-info)", borderRadius: 6, fontSize: 12, fontWeight: 700 }}>{copy.hero.cta}</div>}
             </div>
           )}
 
@@ -5970,7 +5970,7 @@ function ServiceSalesCopyPanel({ creator, setCreator }) {
           {copy.differentiator && (
             <div style={card}>
               <H>Diferenciação</H>
-              <div style={{ fontSize: 12, color: "#ddd", lineHeight: 1.6 }}>{copy.differentiator}</div>
+              <div style={{ fontSize: 12, color: "var(--sl-text)", lineHeight: 1.6 }}>{copy.differentiator}</div>
             </div>
           )}
 
@@ -5981,8 +5981,8 @@ function ServiceSalesCopyPanel({ creator, setCreator }) {
               <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                 {copy.objections.map((o, i) => (
                   <div key={i}>
-                    <div style={{ fontSize: 12, fontWeight: 600, color: "#ef8a94", lineHeight: 1.45, marginBottom: 3 }}>"{o.objection}"</div>
-                    <div style={{ fontSize: 11.5, color: "#bbb", lineHeight: 1.55 }}>{o.rebuttal}</div>
+                    <div style={{ fontSize: 12, fontWeight: 600, color: "var(--sl-danger)", lineHeight: 1.45, marginBottom: 3 }}>"{o.objection}"</div>
+                    <div style={{ fontSize: 12.5, color: "var(--sl-text-muted)", lineHeight: 1.55 }}>{o.rebuttal}</div>
                   </div>
                 ))}
               </div>
@@ -5996,8 +5996,8 @@ function ServiceSalesCopyPanel({ creator, setCreator }) {
               <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                 {copy.faq.map((f, i) => (
                   <div key={i}>
-                    <div style={{ fontSize: 12, fontWeight: 600, color: "#f5f5f5", lineHeight: 1.45, marginBottom: 3 }}>{f.q}</div>
-                    <div style={{ fontSize: 11.5, color: "#999", lineHeight: 1.55 }}>{f.a}</div>
+                    <div style={{ fontSize: 12, fontWeight: 600, color: "var(--sl-text)", lineHeight: 1.45, marginBottom: 3 }}>{f.q}</div>
+                    <div style={{ fontSize: 12.5, color: "var(--sl-text-muted)", lineHeight: 1.55 }}>{f.a}</div>
                   </div>
                 ))}
               </div>
@@ -6007,33 +6007,33 @@ function ServiceSalesCopyPanel({ creator, setCreator }) {
           {/* Guarantee + social proof angle */}
           <div className="sl-grid-2" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 12 }}>
             {copy.guarantee && (
-              <div style={{ padding: "12px 14px", background: "rgba(34,197,94,0.03)", borderRadius: 8, border: "1px solid rgba(34,197,94,0.18)" }}>
-                <div style={{ fontSize: 9, fontWeight: 700, color: "#22c55e", letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 6 }}>Garantia</div>
-                <div style={{ fontSize: 11.5, color: "#ccc", lineHeight: 1.55 }}>{copy.guarantee}</div>
+              <div style={{ padding: "12px 14px", background: "color-mix(in srgb, var(--sl-success) 3%, transparent)", borderRadius: 8, border: "1px solid color-mix(in srgb, var(--sl-success) 18%, transparent)" }}>
+                <div style={{ fontSize: 12, fontWeight: 700, color: "var(--sl-success)", letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 6 }}>Garantia</div>
+                <div style={{ fontSize: 12.5, color: "var(--sl-text-muted)", lineHeight: 1.55 }}>{copy.guarantee}</div>
               </div>
             )}
             {copy.social_proof_angle && (
-              <div style={{ padding: "12px 14px", background: "#0a0a0a", borderRadius: 8, border: "1px solid rgba(255,255,255,0.05)" }}>
-                <div style={{ fontSize: 9, fontWeight: 700, color: "#666", letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 6 }}>Ângulo de prova social</div>
-                <div style={{ fontSize: 11, color: "#999", lineHeight: 1.55 }}>{copy.social_proof_angle}</div>
+              <div style={{ padding: "12px 14px", background: "var(--sl-bg)", borderRadius: 8, border: "1px solid var(--sl-border)" }}>
+                <div style={{ fontSize: 12, fontWeight: 700, color: "var(--sl-text-faint)", letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 6 }}>Ângulo de prova social</div>
+                <div style={{ fontSize: 12, color: "var(--sl-text-muted)", lineHeight: 1.55 }}>{copy.social_proof_angle}</div>
               </div>
             )}
           </div>
 
           {/* Outreach DM — the operator's main tool */}
           {copy.outreach_dm && (
-            <div style={{ ...card, border: "1px solid rgba(59,130,246,0.25)" }}>
+            <div style={{ ...card, border: "1px solid color-mix(in srgb, var(--sl-info) 25%, transparent)" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8, gap: 8 }}>
-                <div style={{ fontSize: 9, fontWeight: 700, color: "#3b82f6", letterSpacing: "0.12em", textTransform: "uppercase" }}>DM de venda (pronta a enviar)</div>
+                <div style={{ fontSize: 12, fontWeight: 700, color: "var(--sl-info)", letterSpacing: "0.12em", textTransform: "uppercase" }}>DM de venda (pronta a enviar)</div>
                 <button
                   type="button"
                   onClick={() => copyText(copy.outreach_dm, setDmCopied)}
-                  style={{ padding: "5px 12px", borderRadius: 5, border: "1px solid rgba(59,130,246,0.4)", background: dmCopied ? "rgba(34,197,94,0.12)" : "rgba(59,130,246,0.08)", color: dmCopied ? "#22c55e" : "#3b82f6", fontSize: 10, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}
+                  style={{ padding: "5px 12px", borderRadius: 5, border: "1px solid color-mix(in srgb, var(--sl-info) 40%, transparent)", background: dmCopied ? "color-mix(in srgb, var(--sl-success) 12%, transparent)" : "color-mix(in srgb, var(--sl-info) 8%, transparent)", color: dmCopied ? "var(--sl-success)" : "var(--sl-info)", fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}
                 >
                   {dmCopied ? '✓ Copiada' : '📋 Copiar DM'}
                 </button>
               </div>
-              <div style={{ fontSize: 12, color: "#ddd", lineHeight: 1.6, whiteSpace: "pre-wrap" }}>{copy.outreach_dm}</div>
+              <div style={{ fontSize: 12, color: "var(--sl-text)", lineHeight: 1.6, whiteSpace: "pre-wrap" }}>{copy.outreach_dm}</div>
             </div>
           )}
 
@@ -6042,7 +6042,7 @@ function ServiceSalesCopyPanel({ creator, setCreator }) {
             <button
               type="button"
               onClick={copyAll}
-              style={{ padding: "9px 16px", borderRadius: 6, border: "1px solid rgba(168,85,247,0.45)", background: allCopied ? "rgba(34,197,94,0.12)" : "rgba(168,85,247,0.08)", color: allCopied ? "#22c55e" : "#a855f7", fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}
+              style={{ padding: "9px 16px", borderRadius: 6, border: "1px solid color-mix(in srgb, var(--sl-info) 45%, transparent)", background: allCopied ? "color-mix(in srgb, var(--sl-success) 12%, transparent)" : "color-mix(in srgb, var(--sl-info) 8%, transparent)", color: allCopied ? "var(--sl-success)" : "var(--sl-info)", fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}
             >
               {allCopied ? '✓ Copiado!' : '📋 Copiar copy toda (markdown)'}
             </button>
@@ -6059,7 +6059,7 @@ function ServiceSalesCopyPanel({ creator, setCreator }) {
           )}
 
           {runAt && (
-            <div style={{ fontSize: 10, color: "#333", marginTop: 10 }}>
+            <div style={{ fontSize: 12, color: "var(--sl-border-strong)", marginTop: 10 }}>
               Última geração: {new Date(runAt).toLocaleString("pt-PT")}
             </div>
           )}
@@ -6206,31 +6206,31 @@ function ThesisOnlyGate({ frame, creator, setCreator, onForceOverride }) {
     return fmt(lo ?? hi) + '/mês';
   };
 
-  const verdictColor = review?.verdict === 'strong' ? '#22c55e'
-    : review?.verdict === 'moderate' ? '#eab308'
-    : review?.verdict === 'weak' ? '#ef4444' : '#666';
+  const verdictColor = review?.verdict === 'strong' ? 'var(--sl-success)'
+    : review?.verdict === 'moderate' ? 'var(--sl-warning)'
+    : review?.verdict === 'weak' ? 'var(--sl-danger)' : 'var(--sl-text-faint)';
 
   return (
     <div style={{
       padding: "20px 22px",
-      background: "rgba(234,179,8,0.04)",
-      border: "1px solid rgba(234,179,8,0.25)",
+      background: "color-mix(in srgb, var(--sl-warning) 4%, transparent)",
+      border: "1px solid color-mix(in srgb, var(--sl-warning) 25%, transparent)",
       borderRadius: 10,
       marginBottom: 16,
     }}>
       <div style={{ marginBottom: 14 }}>
-        <div style={{ fontSize: 9, fontWeight: 700, color: "#eab308", letterSpacing: "0.16em", textTransform: "uppercase", marginBottom: 6 }}>
+        <div style={{ fontSize: 12, fontWeight: 700, color: "var(--sl-warning)", letterSpacing: "0.16em", textTransform: "uppercase", marginBottom: 6 }}>
           ⚠ Esta tese não é uma comunidade
         </div>
-        <div style={{ fontSize: 16, fontWeight: 700, color: "#f5f5f5", letterSpacing: "-0.005em", marginBottom: 8 }}>
+        <div style={{ fontSize: 16, fontWeight: 700, color: "var(--sl-text)", letterSpacing: "-0.005em", marginBottom: 8 }}>
           {label}
         </div>
-        <div style={{ fontSize: 12, color: "#aaa", lineHeight: 1.6 }}>
+        <div style={{ fontSize: 12, color: "var(--sl-text-muted)", lineHeight: 1.6 }}>
           {description}
         </div>
         {frame.archetype_rationale && (
-          <div style={{ marginTop: 10, padding: "10px 14px", background: "#0a0a0a", borderRadius: 6, border: "1px solid rgba(255,255,255,0.04)", fontSize: 12, color: "#ccc", lineHeight: 1.55 }}>
-            <span style={{ fontSize: 9, fontWeight: 700, color: "#666", letterSpacing: "0.12em", textTransform: "uppercase", marginRight: 8 }}>Por quê:</span>
+          <div style={{ marginTop: 10, padding: "10px 14px", background: "var(--sl-bg)", borderRadius: 6, border: "1px solid var(--sl-border)", fontSize: 12, color: "var(--sl-text-muted)", lineHeight: 1.55 }}>
+            <span style={{ fontSize: 12, fontWeight: 700, color: "var(--sl-text-faint)", letterSpacing: "0.12em", textTransform: "uppercase", marginRight: 8 }}>Por quê:</span>
             {frame.archetype_rationale}
           </div>
         )}
@@ -6238,15 +6238,15 @@ function ThesisOnlyGate({ frame, creator, setCreator, onForceOverride }) {
 
       {archetype === 'productized_service' ? (
         // Real builder for done-for-you services — no longer a dead-end.
-        <div style={{ marginBottom: 12, paddingTop: 4, borderTop: "1px solid rgba(255,255,255,0.06)" }}>
+        <div style={{ marginBottom: 12, paddingTop: 4, borderTop: "1px solid var(--sl-border)" }}>
           <ServiceOfferPanel creator={creator} setCreator={setCreator} />
           <ServiceSalesCopyPanel creator={creator} setCreator={setCreator} />
-          <div style={{ fontSize: 10.5, color: "#666", lineHeight: 1.55, marginTop: 12, marginBottom: 4 }}>
+          <div style={{ fontSize: 12.5, color: "var(--sl-text-faint)", lineHeight: 1.55, marginTop: 12, marginBottom: 4 }}>
             A tese abaixo (jogada, constrangimento, capture gap) é o contexto que alimenta os construtores acima.
           </div>
         </div>
       ) : (
-        <div style={{ padding: "12px 14px", background: "#0a0a0a", borderRadius: 6, border: "1px solid rgba(255,255,255,0.04)", marginBottom: 12, fontSize: 12, color: "#ddd", lineHeight: 1.6 }}>
+        <div style={{ padding: "12px 14px", background: "var(--sl-bg)", borderRadius: 6, border: "1px solid var(--sl-border)", marginBottom: 12, fontSize: 12, color: "var(--sl-text)", lineHeight: 1.6 }}>
           O wizard CP2 está desenhado para construir comunidades.
           Para este formato, o wizard dedicado ainda não existe — mas a tese
           abaixo já contém o suficiente para executar manualmente.
@@ -6255,30 +6255,30 @@ function ThesisOnlyGate({ frame, creator, setCreator, onForceOverride }) {
 
       {/* Primary play — the actionable "what to actually build" */}
       {primary && (
-        <div style={{ padding: "14px 16px", background: "#0a0a0a", borderRadius: 8, border: "1px solid rgba(34,197,94,0.20)", marginBottom: 12 }}>
-          <div style={{ fontSize: 9, fontWeight: 700, color: "#22c55e", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 8 }}>
+        <div style={{ padding: "14px 16px", background: "var(--sl-bg)", borderRadius: 8, border: "1px solid color-mix(in srgb, var(--sl-success) 20%, transparent)", marginBottom: 12 }}>
+          <div style={{ fontSize: 12, fontWeight: 700, color: "var(--sl-success)", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 8 }}>
             ► Jogada #1 · executa primeiro
           </div>
-          <div style={{ fontSize: 14, fontWeight: 600, color: "#f5f5f5", marginBottom: 8, lineHeight: 1.4 }}>
+          <div style={{ fontSize: 14, fontWeight: 600, color: "var(--sl-text)", marginBottom: 8, lineHeight: 1.4 }}>
             {primary.name}
           </div>
           {primary.why_now && (
-            <div style={{ fontSize: 12, color: "#bbb", lineHeight: 1.6, marginBottom: 10 }}>{primary.why_now}</div>
+            <div style={{ fontSize: 12, color: "var(--sl-text-muted)", lineHeight: 1.6, marginBottom: 10 }}>{primary.why_now}</div>
           )}
-          <div style={{ display: "flex", gap: 14, flexWrap: "wrap", fontSize: 11, color: "#888" }}>
+          <div style={{ display: "flex", gap: 14, flexWrap: "wrap", fontSize: 12, color: "var(--sl-text-muted)" }}>
             {primary.time_to_first_revenue && (
-              <span><strong style={{ color: "#ddd" }}>Tempo até facturar:</strong> {primary.time_to_first_revenue}</span>
+              <span><strong style={{ color: "var(--sl-text)" }}>Tempo até facturar:</strong> {primary.time_to_first_revenue}</span>
             )}
             {fmtRange(primary.realistic_monthly_low, primary.realistic_monthly_high) && (
-              <span><strong style={{ color: "#22c55e" }}>Intervalo:</strong> {fmtRange(primary.realistic_monthly_low, primary.realistic_monthly_high)}</span>
+              <span><strong style={{ color: "var(--sl-success)" }}>Intervalo:</strong> {fmtRange(primary.realistic_monthly_low, primary.realistic_monthly_high)}</span>
             )}
             {primary.templatization_potential && (
-              <span><strong style={{ color: "#ddd" }}>Templatização:</strong> {primary.templatization_potential}</span>
+              <span><strong style={{ color: "var(--sl-text)" }}>Templatização:</strong> {primary.templatization_potential}</span>
             )}
           </div>
           {primary.leverages && (
-            <div style={{ marginTop: 10, paddingTop: 10, borderTop: "1px solid rgba(255,255,255,0.04)", fontSize: 11, color: "#888", lineHeight: 1.5 }}>
-              <strong style={{ color: "#aaa" }}>Alavanca:</strong> {primary.leverages}
+            <div style={{ marginTop: 10, paddingTop: 10, borderTop: "1px solid var(--sl-border)", fontSize: 12, color: "var(--sl-text-muted)", lineHeight: 1.5 }}>
+              <strong style={{ color: "var(--sl-text-muted)" }}>Alavanca:</strong> {primary.leverages}
             </div>
           )}
         </div>
@@ -6287,15 +6287,15 @@ function ThesisOnlyGate({ frame, creator, setCreator, onForceOverride }) {
       {/* Reflex trap — what NOT to build (crucial here since they might
           otherwise hit "Force community build" out of habit) */}
       {frame.reflex_trap && (
-        <div style={{ padding: "12px 14px", background: "#0a0a0a", borderRadius: 8, border: "1px solid rgba(239,68,68,0.20)", marginBottom: 12 }}>
-          <div style={{ fontSize: 9, fontWeight: 700, color: "#ef4444", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 6 }}>
+        <div style={{ padding: "12px 14px", background: "var(--sl-bg)", borderRadius: 8, border: "1px solid color-mix(in srgb, var(--sl-danger) 20%, transparent)", marginBottom: 12 }}>
+          <div style={{ fontSize: 12, fontWeight: 700, color: "var(--sl-danger)", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 6 }}>
             ✕ Não construir isto
           </div>
           {frame.reflex_trap.default_move && (
-            <div style={{ fontSize: 12, color: "#ddd", marginBottom: 6, lineHeight: 1.5 }}>{frame.reflex_trap.default_move}</div>
+            <div style={{ fontSize: 12, color: "var(--sl-text)", marginBottom: 6, lineHeight: 1.5 }}>{frame.reflex_trap.default_move}</div>
           )}
           {frame.reflex_trap.why_wrong && (
-            <div style={{ fontSize: 11, color: "#888", lineHeight: 1.55 }}>{frame.reflex_trap.why_wrong}</div>
+            <div style={{ fontSize: 12, color: "var(--sl-text-muted)", lineHeight: 1.55 }}>{frame.reflex_trap.why_wrong}</div>
           )}
         </div>
       )}
@@ -6303,20 +6303,20 @@ function ThesisOnlyGate({ frame, creator, setCreator, onForceOverride }) {
       {/* Two secondary context blocks: binding constraint + capture gap */}
       <div className="sl-grid-2" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 12 }}>
         {frame.binding_constraint && (
-          <div style={{ padding: "10px 12px", background: "#0a0a0a", borderRadius: 6, border: "1px solid rgba(255,255,255,0.04)" }}>
-            <div style={{ fontSize: 9, fontWeight: 700, color: "#666", letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 4 }}>Constrangimento</div>
-            <div style={{ fontSize: 11, color: "#ddd", lineHeight: 1.5, marginBottom: 4, fontWeight: 600 }}>{frame.binding_constraint.name}</div>
+          <div style={{ padding: "10px 12px", background: "var(--sl-bg)", borderRadius: 6, border: "1px solid var(--sl-border)" }}>
+            <div style={{ fontSize: 12, fontWeight: 700, color: "var(--sl-text-faint)", letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 4 }}>Constrangimento</div>
+            <div style={{ fontSize: 12, color: "var(--sl-text)", lineHeight: 1.5, marginBottom: 4, fontWeight: 600 }}>{frame.binding_constraint.name}</div>
             {frame.binding_constraint.implication && (
-              <div style={{ fontSize: 10.5, color: "#888", lineHeight: 1.5 }}>{frame.binding_constraint.implication}</div>
+              <div style={{ fontSize: 12.5, color: "var(--sl-text-muted)", lineHeight: 1.5 }}>{frame.binding_constraint.implication}</div>
             )}
           </div>
         )}
         {frame.capture_gap && (
-          <div style={{ padding: "10px 12px", background: "#0a0a0a", borderRadius: 6, border: "1px solid rgba(255,255,255,0.04)" }}>
-            <div style={{ fontSize: 9, fontWeight: 700, color: "#666", letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 4 }}>Lacuna de captura (fechar 1º)</div>
-            <div style={{ fontSize: 11, color: "#ddd", lineHeight: 1.5, marginBottom: 4, fontWeight: 600 }}>{frame.capture_gap.gap}</div>
+          <div style={{ padding: "10px 12px", background: "var(--sl-bg)", borderRadius: 6, border: "1px solid var(--sl-border)" }}>
+            <div style={{ fontSize: 12, fontWeight: 700, color: "var(--sl-text-faint)", letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 4 }}>Lacuna de captura (fechar 1º)</div>
+            <div style={{ fontSize: 12, color: "var(--sl-text)", lineHeight: 1.5, marginBottom: 4, fontWeight: 600 }}>{frame.capture_gap.gap}</div>
             {frame.capture_gap.first_action && (
-              <div style={{ fontSize: 10.5, color: "#888", lineHeight: 1.5 }}>{frame.capture_gap.first_action}</div>
+              <div style={{ fontSize: 12.5, color: "var(--sl-text-muted)", lineHeight: 1.5 }}>{frame.capture_gap.first_action}</div>
             )}
           </div>
         )}
@@ -6324,10 +6324,10 @@ function ThesisOnlyGate({ frame, creator, setCreator, onForceOverride }) {
 
       {/* Adversarial review verdict — quick sanity flag */}
       {review?.verdict && (
-        <div style={{ padding: "10px 14px", background: "#0a0a0a", borderRadius: 6, border: `1px solid ${verdictColor}33`, marginBottom: 12, fontSize: 11, color: "#aaa", lineHeight: 1.5 }}>
-          <span style={{ fontSize: 9, fontWeight: 700, color: verdictColor, letterSpacing: "0.12em", textTransform: "uppercase", marginRight: 8 }}>● Crítica · veredicto {review.verdict === 'strong' ? 'forte' : review.verdict === 'moderate' ? 'moderado' : review.verdict === 'weak' ? 'fraco' : review.verdict}</span>
+        <div style={{ padding: "10px 14px", background: "var(--sl-bg)", borderRadius: 6, border: `1px solid ${verdictColor}33`, marginBottom: 12, fontSize: 12, color: "var(--sl-text-muted)", lineHeight: 1.5 }}>
+          <span style={{ fontSize: 12, fontWeight: 700, color: verdictColor, letterSpacing: "0.12em", textTransform: "uppercase", marginRight: 8 }}>● Crítica · veredicto {review.verdict === 'strong' ? 'forte' : review.verdict === 'moderate' ? 'moderado' : review.verdict === 'weak' ? 'fraco' : review.verdict}</span>
           {Array.isArray(review.must_fix_before_proceeding) && review.must_fix_before_proceeding.length > 0 && (
-            <div style={{ marginTop: 6, color: "#bbb" }}>
+            <div style={{ marginTop: 6, color: "var(--sl-text-muted)" }}>
               Resolver antes: {review.must_fix_before_proceeding.join(' · ')}
             </div>
           )}
@@ -6344,9 +6344,9 @@ function ThesisOnlyGate({ frame, creator, setCreator, onForceOverride }) {
           disabled={copyStatus !== 'idle'}
           style={{
             padding: "10px 18px", borderRadius: 6,
-            border: "1px solid rgba(59,130,246,0.45)",
-            background: copyStatus === 'copied' ? "rgba(34,197,94,0.12)" : "rgba(59,130,246,0.08)",
-            color: copyStatus === 'copied' ? "#22c55e" : copyStatus === 'failed' ? "#ef4444" : "#3b82f6",
+            border: "1px solid color-mix(in srgb, var(--sl-info) 45%, transparent)",
+            background: copyStatus === 'copied' ? "color-mix(in srgb, var(--sl-success) 12%, transparent)" : "color-mix(in srgb, var(--sl-info) 8%, transparent)",
+            color: copyStatus === 'copied' ? "var(--sl-success)" : copyStatus === 'failed' ? "var(--sl-danger)" : "var(--sl-info)",
             fontSize: 12, fontWeight: 700,
             cursor: copyStatus === 'idle' ? "pointer" : "default", fontFamily: "inherit",
             transition: "all 120ms ease",
@@ -6361,9 +6361,9 @@ function ThesisOnlyGate({ frame, creator, setCreator, onForceOverride }) {
           disabled={lockStatus === 'locking' || lockStatus === 'locked'}
           style={{
             padding: "10px 18px", borderRadius: 6,
-            border: "1px solid rgba(34,197,94,0.45)",
-            background: lockStatus === 'locked' ? "rgba(34,197,94,0.18)" : "rgba(34,197,94,0.08)",
-            color: "#22c55e",
+            border: "1px solid color-mix(in srgb, var(--sl-success) 45%, transparent)",
+            background: lockStatus === 'locked' ? "color-mix(in srgb, var(--sl-success) 18%, transparent)" : "color-mix(in srgb, var(--sl-success) 8%, transparent)",
+            color: "var(--sl-success)",
             fontSize: 12, fontWeight: 700,
             cursor: lockStatus === 'idle' || lockStatus === 'failed' ? "pointer" : "default",
             fontFamily: "inherit",
@@ -6391,9 +6391,9 @@ function ThesisOnlyGate({ frame, creator, setCreator, onForceOverride }) {
           }}
           style={{
             padding: "10px 16px", borderRadius: 6,
-            border: "1px solid rgba(122,14,24,0.35)",
+            border: "1px solid color-mix(in srgb, var(--sl-primary) 35%, transparent)",
             background: "transparent",
-            color: "#B11E2F",
+            color: "var(--sl-accent-text)",
             fontSize: 12, fontWeight: 600,
             cursor: "pointer", fontFamily: "inherit",
           }}
@@ -6403,12 +6403,12 @@ function ThesisOnlyGate({ frame, creator, setCreator, onForceOverride }) {
       </div>
 
       {lockErr && lockStatus === 'failed' && (
-        <div style={{ marginTop: 10, fontSize: 11, color: "#ef4444", padding: "8px 12px", background: "rgba(239,68,68,0.06)", borderRadius: 5, border: "1px solid rgba(239,68,68,0.2)" }}>
+        <div style={{ marginTop: 10, fontSize: 12, color: "var(--sl-danger)", padding: "8px 12px", background: "color-mix(in srgb, var(--sl-danger) 6%, transparent)", borderRadius: 5, border: "1px solid color-mix(in srgb, var(--sl-danger) 20%, transparent)" }}>
           {lockErr}
         </div>
       )}
       {lockStatus === 'locked' && (
-        <div style={{ marginTop: 10, fontSize: 11, color: "#22c55e", padding: "8px 12px", background: "rgba(34,197,94,0.06)", borderRadius: 5, border: "1px solid rgba(34,197,94,0.2)", lineHeight: 1.5 }}>
+        <div style={{ marginTop: 10, fontSize: 12, color: "var(--sl-success)", padding: "8px 12px", background: "color-mix(in srgb, var(--sl-success) 6%, transparent)", borderRadius: 5, border: "1px solid color-mix(in srgb, var(--sl-success) 20%, transparent)", lineHeight: 1.5 }}>
           CP1 está locked. A tese ficou preservada como referência. Para este criador a fase de oferta acabou — vai ao separador <strong>LAUNCH</strong> para escrever DMs e arrancar.
         </div>
       )}
@@ -6628,14 +6628,14 @@ function CoreOfferPanel({ creator, setCreator, running, setRunning, error, setEr
   };
 
   return (
-    <div style={{ marginBottom: 28, padding: "18px 20px", background: "rgba(255,255,255,0.015)", border: `1px solid ${cp2Locked ? 'rgba(34,197,94,0.18)' : 'rgba(255,255,255,0.05)'}`, borderRadius: 10 }}>
+    <div style={{ marginBottom: 28, padding: "18px 20px", background: "color-mix(in srgb, var(--sl-text) 2%, transparent)", border: `1px solid ${cp2Locked ? 'color-mix(in srgb, var(--sl-success) 18%, transparent)' : 'color-mix(in srgb, var(--sl-text) 5%, transparent)'}`, borderRadius: 10 }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14, flexWrap: "wrap", gap: 12 }}>
         <div>
-          <div style={{ fontSize: 9, fontWeight: 700, color: cp2Locked ? "#22c55e" : "#7A0E18", letterSpacing: "0.16em", textTransform: "uppercase", marginBottom: 4 }}>
+          <div style={{ fontSize: 12, fontWeight: 700, color: cp2Locked ? "var(--sl-success)" : "var(--sl-accent-text)", letterSpacing: "0.16em", textTransform: "uppercase", marginBottom: 4 }}>
             ● Checkpoint 2 de 5 · {cp2Locked ? 'Aprovado ✓' : 'Em curso'}
           </div>
-          <h3 style={{ fontSize: 14, fontWeight: 600, margin: 0, color: "#f5f5f5" }}>Oferta principal</h3>
-          <p style={{ fontSize: 11, color: "#555", margin: "4px 0 0" }}>
+          <h3 style={{ fontSize: 14, fontWeight: 600, margin: 0, color: "var(--sl-text)" }}>Oferta principal</h3>
+          <p style={{ fontSize: 12, color: "var(--sl-text-faint)", margin: "4px 0 0" }}>
             A espinha da oferta — Big Idea, transformação, pricing, nome da comunidade, ritmo semanal. Primeiro checkpoint visível para a criadora, voz importa.
           </p>
         </div>
@@ -6647,10 +6647,10 @@ function CoreOfferPanel({ creator, setCreator, running, setRunning, error, setEr
               style={{
                 padding: "8px 16px",
                 borderRadius: 6,
-                border: "1px solid rgba(34,197,94,0.45)",
-                background: "rgba(34,197,94,0.08)",
-                color: "#22c55e",
-                fontSize: 11,
+                border: "1px solid color-mix(in srgb, var(--sl-success) 45%, transparent)",
+                background: "color-mix(in srgb, var(--sl-success) 8%, transparent)",
+                color: "var(--sl-success)",
+                fontSize: 12,
                 fontWeight: 600,
                 cursor: lockBusy ? "wait" : "pointer",
                 fontFamily: "inherit",
@@ -6667,10 +6667,10 @@ function CoreOfferPanel({ creator, setCreator, running, setRunning, error, setEr
               style={{
                 padding: "8px 16px",
                 borderRadius: 6,
-                border: "1px solid rgba(234,179,8,0.4)",
-                background: "rgba(234,179,8,0.06)",
-                color: "#eab308",
-                fontSize: 11,
+                border: "1px solid color-mix(in srgb, var(--sl-warning) 40%, transparent)",
+                background: "color-mix(in srgb, var(--sl-warning) 6%, transparent)",
+                color: "var(--sl-warning)",
+                fontSize: 12,
                 fontWeight: 600,
                 cursor: lockBusy ? "wait" : "pointer",
                 fontFamily: "inherit",
@@ -6684,7 +6684,7 @@ function CoreOfferPanel({ creator, setCreator, running, setRunning, error, setEr
       </div>
 
       {error && (
-        <div style={{ padding: "10px 14px", borderRadius: 6, background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.25)", color: "#ef4444", fontSize: 11, marginBottom: 12, whiteSpace: "pre-wrap" }}>{error}</div>
+        <div style={{ padding: "10px 14px", borderRadius: 6, background: "color-mix(in srgb, var(--sl-danger) 8%, transparent)", border: "1px solid color-mix(in srgb, var(--sl-danger) 25%, transparent)", color: "var(--sl-danger)", fontSize: 12, marginBottom: 12, whiteSpace: "pre-wrap" }}>{error}</div>
       )}
 
       {/* Prereq gate — CP1 not locked yet. Suppresses the whole generate flow. */}
@@ -6706,9 +6706,9 @@ function CoreOfferPanel({ creator, setCreator, running, setRunning, error, setEr
 
       {/* Tier picker — only when editable AND not gated by archetype/prereq */}
       {!cp2Locked && !showThesisGate && !blockedBy && (
-        <div style={{ marginBottom: 16, padding: "12px 14px", background: "rgba(255,255,255,0.02)", borderRadius: 8, border: "1px solid rgba(255,255,255,0.05)" }}>
-          <div style={{ fontSize: 9, fontWeight: 700, color: "#666", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 8 }}>
-            Tier de pricing {pendingTier === suggestedTier ? <span style={{ color: "#888", fontWeight: 500, letterSpacing: 0, textTransform: "none" }}>· sugerido pelo frame + arquétipo</span> : null}
+        <div style={{ marginBottom: 16, padding: "12px 14px", background: "color-mix(in srgb, var(--sl-text) 2%, transparent)", borderRadius: 8, border: "1px solid var(--sl-border)" }}>
+          <div style={{ fontSize: 12, fontWeight: 700, color: "var(--sl-text-faint)", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 8 }}>
+            Tier de pricing {pendingTier === suggestedTier ? <span style={{ color: "var(--sl-text-muted)", fontWeight: 500, letterSpacing: 0, textTransform: "none" }}>· sugerido pelo frame + arquétipo</span> : null}
           </div>
           <div style={{ display: "flex", gap: 8 }}>
             {(['low', 'mid', 'high']).map(t => {
@@ -6722,10 +6722,10 @@ function CoreOfferPanel({ creator, setCreator, running, setRunning, error, setEr
                     flex: 1,
                     padding: "10px 12px",
                     borderRadius: 6,
-                    border: `1px solid ${active ? 'rgba(122,14,24,0.5)' : 'rgba(255,255,255,0.08)'}`,
-                    background: active ? "rgba(122,14,24,0.12)" : "rgba(255,255,255,0.02)",
-                    color: active ? "#B11E2F" : "#888",
-                    fontSize: 11,
+                    border: `1px solid ${active ? 'color-mix(in srgb, var(--sl-primary) 50%, transparent)' : 'color-mix(in srgb, var(--sl-text) 8%, transparent)'}`,
+                    background: active ? "color-mix(in srgb, var(--sl-primary) 12%, transparent)" : "color-mix(in srgb, var(--sl-text) 2%, transparent)",
+                    color: active ? "var(--sl-accent-text)" : "var(--sl-text-muted)",
+                    fontSize: 12,
                     fontWeight: 700,
                     cursor: running ? "wait" : "pointer",
                     fontFamily: "inherit",
@@ -6743,8 +6743,8 @@ function CoreOfferPanel({ creator, setCreator, running, setRunning, error, setEr
               when the creator already has a monthly community (force
               one-time) or vice versa. */}
           <div style={{ marginTop: 12 }}>
-            <div style={{ fontSize: 9, fontWeight: 700, color: "#666", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 6 }}>
-              Modelo de pricing {pendingModel === 'auto' ? <span style={{ color: "#888", fontWeight: 500, letterSpacing: 0, textTransform: "none" }}>· escolhido a partir do papel</span> : <span style={{ color: "#B11E2F", fontWeight: 700, letterSpacing: 0, textTransform: "none" }}>· forçado pela operadora</span>}
+            <div style={{ fontSize: 12, fontWeight: 700, color: "var(--sl-text-faint)", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 6 }}>
+              Modelo de pricing {pendingModel === 'auto' ? <span style={{ color: "var(--sl-text-muted)", fontWeight: 500, letterSpacing: 0, textTransform: "none" }}>· escolhido a partir do papel</span> : <span style={{ color: "var(--sl-accent-text)", fontWeight: 700, letterSpacing: 0, textTransform: "none" }}>· forçado pela operadora</span>}
             </div>
             <select
               value={pendingModel}
@@ -6754,10 +6754,10 @@ function CoreOfferPanel({ creator, setCreator, running, setRunning, error, setEr
                 width: "100%",
                 padding: "8px 10px",
                 borderRadius: 6,
-                border: `1px solid ${pendingModel !== 'auto' ? 'rgba(122,14,24,0.5)' : 'rgba(255,255,255,0.08)'}`,
-                background: pendingModel !== 'auto' ? "rgba(122,14,24,0.06)" : "rgba(255,255,255,0.02)",
-                color: pendingModel !== 'auto' ? "#B11E2F" : "#bbb",
-                fontSize: 11,
+                border: `1px solid ${pendingModel !== 'auto' ? 'color-mix(in srgb, var(--sl-primary) 50%, transparent)' : 'color-mix(in srgb, var(--sl-text) 8%, transparent)'}`,
+                background: pendingModel !== 'auto' ? "color-mix(in srgb, var(--sl-primary) 6%, transparent)" : "color-mix(in srgb, var(--sl-text) 2%, transparent)",
+                color: pendingModel !== 'auto' ? "var(--sl-accent-text)" : "var(--sl-text-muted)",
+                fontSize: 12,
                 fontWeight: 600,
                 cursor: running ? "wait" : "pointer",
                 fontFamily: "inherit",
@@ -6766,7 +6766,7 @@ function CoreOfferPanel({ creator, setCreator, running, setRunning, error, setEr
               }}
             >
               {Object.entries(MODEL_LABELS).map(([key, label]) => (
-                <option key={key} value={key} style={{ background: "#0a0a0a", color: "#f5f5f5" }}>{label}</option>
+                <option key={key} value={key} style={{ background: "var(--sl-bg)", color: "var(--sl-text)" }}>{label}</option>
               ))}
             </select>
           </div>
@@ -6778,10 +6778,10 @@ function CoreOfferPanel({ creator, setCreator, running, setRunning, error, setEr
               width: "100%",
               padding: "10px 14px",
               borderRadius: 6,
-              border: "1px solid rgba(122,14,24,0.4)",
-              background: running ? "rgba(255,255,255,0.02)" : "rgba(122,14,24,0.08)",
-              color: running ? "#555" : "#B11E2F",
-              fontSize: 11,
+              border: "1px solid color-mix(in srgb, var(--sl-primary) 40%, transparent)",
+              background: running ? "color-mix(in srgb, var(--sl-text) 2%, transparent)" : "color-mix(in srgb, var(--sl-primary) 8%, transparent)",
+              color: running ? "var(--sl-text-faint)" : "var(--sl-accent-text)",
+              fontSize: 12,
               fontWeight: 600,
               cursor: running ? "wait" : "pointer",
               fontFamily: "inherit",
@@ -6793,14 +6793,14 @@ function CoreOfferPanel({ creator, setCreator, running, setRunning, error, setEr
       )}
 
       {diag && !running && (
-        <div style={{ fontSize: 10, color: "#444", marginBottom: 12, fontFamily: "'JetBrains Mono', ui-monospace, monospace" }}>
+        <div style={{ fontSize: 12, color: "var(--sl-text-faint)", marginBottom: 12, fontFamily: "'JetBrains Mono', ui-monospace, monospace" }}>
           tier: {diag.pricing_tier_input} · frame role: {diag.frame_role || '—'} · uniqueness elements: {diag.uniqueness_elements_input} · {diag.retries} retries
         </div>
       )}
 
       {!hasOutput && !running && !showThesisGate && !blockedBy && (
-        <div style={{ padding: "20px 16px", textAlign: "center", color: "#444", fontSize: 12, border: "1px dashed rgba(255,255,255,0.06)", borderRadius: 6 }}>
-          Ainda não há oferta. Escolhe um tier acima e clica <strong style={{ color: "#888" }}>Gerar</strong> (~15-25s, Sonnet).
+        <div style={{ padding: "20px 16px", textAlign: "center", color: "var(--sl-text-faint)", fontSize: 12, border: "1px dashed color-mix(in srgb, var(--sl-text) 6%, transparent)", borderRadius: 6 }}>
+          Ainda não há oferta. Escolhe um tier acima e clica <strong style={{ color: "var(--sl-text-muted)" }}>Gerar</strong> (~15-25s, Sonnet).
         </div>
       )}
 
@@ -6815,56 +6815,56 @@ function CoreOfferPanel({ creator, setCreator, running, setRunning, error, setEr
       {hasOutput && (
         <div>
           {/* Community name + alternates */}
-          <div style={{ padding: "14px 16px", background: "#0a0a0a", borderRadius: 8, border: "1px solid rgba(122,14,24,0.25)", marginBottom: 12 }}>
+          <div style={{ padding: "14px 16px", background: "var(--sl-bg)", borderRadius: 8, border: "1px solid color-mix(in srgb, var(--sl-primary) 25%, transparent)", marginBottom: 12 }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6, flexWrap: "wrap", gap: 8 }}>
-              <div style={{ fontSize: 9, fontWeight: 700, color: "#7A0E18", letterSpacing: "0.14em", textTransform: "uppercase" }}>Community Name</div>
-              <div style={{ fontSize: 10, fontWeight: 700, color: "#3b82f6", letterSpacing: "0.06em", padding: "2px 8px", background: "rgba(59,130,246,0.08)", borderRadius: 3, border: "1px solid rgba(59,130,246,0.25)" }}>{client.platform}</div>
+              <div style={{ fontSize: 12, fontWeight: 700, color: "var(--sl-accent-text)", letterSpacing: "0.14em", textTransform: "uppercase" }}>Community Name</div>
+              <div style={{ fontSize: 12, fontWeight: 700, color: "var(--sl-info)", letterSpacing: "0.06em", padding: "2px 8px", background: "color-mix(in srgb, var(--sl-info) 8%, transparent)", borderRadius: 3, border: "1px solid color-mix(in srgb, var(--sl-info) 25%, transparent)" }}>{client.platform}</div>
             </div>
-            <div style={{ fontSize: 17, fontWeight: 700, color: "#f5f5f5", marginBottom: 6, fontFamily: "'Instrument Serif', Georgia, serif", letterSpacing: "-0.01em" }}>{client.community_name}</div>
+            <div style={{ fontSize: 17, fontWeight: 700, color: "var(--sl-text)", marginBottom: 6, fontFamily: "'Instrument Serif', Georgia, serif", letterSpacing: "-0.01em" }}>{client.community_name}</div>
             {Array.isArray(client.name_candidates) && client.name_candidates.length > 0 && (
-              <div style={{ fontSize: 10.5, color: "#666", fontStyle: "italic" }}>
-                <span style={{ fontStyle: "normal", color: "#555", fontWeight: 700, marginRight: 6, letterSpacing: "0.06em", textTransform: "uppercase", fontSize: 9 }}>Alts:</span>
+              <div style={{ fontSize: 12.5, color: "var(--sl-text-faint)", fontStyle: "italic" }}>
+                <span style={{ fontStyle: "normal", color: "var(--sl-text-faint)", fontWeight: 700, marginRight: 6, letterSpacing: "0.06em", textTransform: "uppercase", fontSize: 12 }}>Alts:</span>
                 {client.name_candidates.join(' · ')}
               </div>
             )}
           </div>
 
           {/* Central promise (Big Idea) */}
-          <div style={{ padding: "14px 16px", background: "rgba(122,14,24,0.04)", borderRadius: 8, border: "1px solid rgba(122,14,24,0.18)", marginBottom: 12 }}>
-            <div style={{ fontSize: 9, fontWeight: 700, color: "#7A0E18", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 6 }}>Central Promise · Big Idea</div>
-            <div style={{ fontSize: 14, color: "#f5f5f5", lineHeight: 1.55, fontWeight: 500 }}>{client.central_promise}</div>
+          <div style={{ padding: "14px 16px", background: "color-mix(in srgb, var(--sl-primary) 4%, transparent)", borderRadius: 8, border: "1px solid color-mix(in srgb, var(--sl-primary) 18%, transparent)", marginBottom: 12 }}>
+            <div style={{ fontSize: 12, fontWeight: 700, color: "var(--sl-accent-text)", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 6 }}>Central Promise · Big Idea</div>
+            <div style={{ fontSize: 14, color: "var(--sl-text)", lineHeight: 1.55, fontWeight: 500 }}>{client.central_promise}</div>
           </div>
 
           {/* Transformation */}
           {client.transformation && (
-            <div style={{ padding: "14px 16px", background: "#0a0a0a", borderRadius: 8, border: "1px solid rgba(255,255,255,0.05)", marginBottom: 12 }}>
-              <div style={{ fontSize: 9, fontWeight: 700, color: "#666", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 8 }}>Transformation</div>
+            <div style={{ padding: "14px 16px", background: "var(--sl-bg)", borderRadius: 8, border: "1px solid var(--sl-border)", marginBottom: 12 }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: "var(--sl-text-faint)", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 8 }}>Transformation</div>
               <div className="sl-grid-3" style={{ display: "grid", gridTemplateColumns: "1fr auto 1fr", gap: 12, alignItems: "center" }}>
                 <div>
-                  <div style={{ fontSize: 9, fontWeight: 700, color: "#ef4444", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 4 }}>From</div>
-                  <div style={{ fontSize: 12, color: "#ccc", lineHeight: 1.5 }}>{client.transformation.from}</div>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: "var(--sl-danger)", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 4 }}>From</div>
+                  <div style={{ fontSize: 12, color: "var(--sl-text-muted)", lineHeight: 1.5 }}>{client.transformation.from}</div>
                 </div>
-                <div style={{ fontSize: 16, color: "#666", fontWeight: 700 }}>→</div>
+                <div style={{ fontSize: 16, color: "var(--sl-text-faint)", fontWeight: 700 }}>→</div>
                 <div>
-                  <div style={{ fontSize: 9, fontWeight: 700, color: "#22c55e", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 4 }}>To</div>
-                  <div style={{ fontSize: 12, color: "#ccc", lineHeight: 1.5 }}>{client.transformation.to}</div>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: "var(--sl-success)", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 4 }}>To</div>
+                  <div style={{ fontSize: 12, color: "var(--sl-text-muted)", lineHeight: 1.5 }}>{client.transformation.to}</div>
                 </div>
               </div>
-              <div style={{ marginTop: 10, paddingTop: 10, borderTop: "1px solid rgba(255,255,255,0.04)", fontSize: 11, color: "#888" }}>
-                <span style={{ color: "#555", fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", fontSize: 9, marginRight: 6 }}>Timeframe:</span>
+              <div style={{ marginTop: 10, paddingTop: 10, borderTop: "1px solid var(--sl-border)", fontSize: 12, color: "var(--sl-text-muted)" }}>
+                <span style={{ color: "var(--sl-text-faint)", fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", fontSize: 12, marginRight: 6 }}>Timeframe:</span>
                 {client.transformation.timeframe}
               </div>
             </div>
           )}
 
           {/* Pricing */}
-          <div style={{ padding: "14px 16px", background: "#0a0a0a", borderRadius: 8, border: "1px solid rgba(255,255,255,0.05)", marginBottom: 12 }}>
-            <div style={{ fontSize: 9, fontWeight: 700, color: "#666", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 8 }}>Pricing</div>
+          <div style={{ padding: "14px 16px", background: "var(--sl-bg)", borderRadius: 8, border: "1px solid var(--sl-border)", marginBottom: 12 }}>
+            <div style={{ fontSize: 12, fontWeight: 700, color: "var(--sl-text-faint)", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 8 }}>Pricing</div>
             <div style={{ display: "flex", alignItems: "baseline", gap: 12, flexWrap: "wrap" }}>
-              <div style={{ fontSize: 22, fontWeight: 700, color: "#f5f5f5", fontFamily: "'Instrument Serif', Georgia, serif", letterSpacing: "-0.02em" }}>{client.target_price}</div>
-              <div style={{ fontSize: 10, color: "#666", letterSpacing: "0.06em" }}>
-                <span style={{ padding: "2px 8px", borderRadius: 3, background: "rgba(34,197,94,0.08)", color: "#22c55e", border: "1px solid rgba(34,197,94,0.25)", fontWeight: 700, marginRight: 6, textTransform: "uppercase" }}>{client.pricing_tier}</span>
-                <span style={{ padding: "2px 8px", borderRadius: 3, background: "rgba(59,130,246,0.08)", color: "#3b82f6", border: "1px solid rgba(59,130,246,0.25)", fontWeight: 700, textTransform: "uppercase" }}>{(client.pricing_model || '').replace('_', ' ')}</span>
+              <div style={{ fontSize: 22, fontWeight: 700, color: "var(--sl-text)", fontFamily: "'Instrument Serif', Georgia, serif", letterSpacing: "-0.02em" }}>{client.target_price}</div>
+              <div style={{ fontSize: 12, color: "var(--sl-text-faint)", letterSpacing: "0.06em" }}>
+                <span style={{ padding: "2px 8px", borderRadius: 3, background: "color-mix(in srgb, var(--sl-success) 8%, transparent)", color: "var(--sl-success)", border: "1px solid color-mix(in srgb, var(--sl-success) 25%, transparent)", fontWeight: 700, marginRight: 6, textTransform: "uppercase" }}>{client.pricing_tier}</span>
+                <span style={{ padding: "2px 8px", borderRadius: 3, background: "color-mix(in srgb, var(--sl-info) 8%, transparent)", color: "var(--sl-info)", border: "1px solid color-mix(in srgb, var(--sl-info) 25%, transparent)", fontWeight: 700, textTransform: "uppercase" }}>{(client.pricing_model || '').replace('_', ' ')}</span>
               </div>
             </div>
           </div>
@@ -6872,22 +6872,22 @@ function CoreOfferPanel({ creator, setCreator, running, setRunning, error, setEr
           {/* Audience fit — two columns */}
           {client.audience_fit && (
             <div className="sl-grid-2" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 12 }}>
-              <div style={{ padding: "13px 15px", background: "rgba(34,197,94,0.04)", borderRadius: 8, border: "1px solid rgba(34,197,94,0.18)" }}>
-                <div style={{ fontSize: 9, fontWeight: 700, color: "#22c55e", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 8 }}>For ({(client.audience_fit.for || []).length})</div>
+              <div style={{ padding: "13px 15px", background: "color-mix(in srgb, var(--sl-success) 4%, transparent)", borderRadius: 8, border: "1px solid color-mix(in srgb, var(--sl-success) 18%, transparent)" }}>
+                <div style={{ fontSize: 12, fontWeight: 700, color: "var(--sl-success)", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 8 }}>For ({(client.audience_fit.for || []).length})</div>
                 <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 4 }}>
                   {(client.audience_fit.for || []).map((s, i) => (
-                    <li key={i} style={{ fontSize: 11.5, color: "#ccc", lineHeight: 1.5, paddingLeft: 14, position: "relative" }}>
-                      <span style={{ position: "absolute", left: 0, color: "#22c55e" }}>✓</span>{s}
+                    <li key={i} style={{ fontSize: 12.5, color: "var(--sl-text-muted)", lineHeight: 1.5, paddingLeft: 14, position: "relative" }}>
+                      <span style={{ position: "absolute", left: 0, color: "var(--sl-success)" }}>✓</span>{s}
                     </li>
                   ))}
                 </ul>
               </div>
-              <div style={{ padding: "13px 15px", background: "rgba(239,68,68,0.03)", borderRadius: 8, border: "1px solid rgba(239,68,68,0.18)" }}>
-                <div style={{ fontSize: 9, fontWeight: 700, color: "#ef4444", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 8 }}>Not For ({(client.audience_fit.not_for || []).length})</div>
+              <div style={{ padding: "13px 15px", background: "color-mix(in srgb, var(--sl-danger) 3%, transparent)", borderRadius: 8, border: "1px solid color-mix(in srgb, var(--sl-danger) 18%, transparent)" }}>
+                <div style={{ fontSize: 12, fontWeight: 700, color: "var(--sl-danger)", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 8 }}>Not For ({(client.audience_fit.not_for || []).length})</div>
                 <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 4 }}>
                   {(client.audience_fit.not_for || []).map((s, i) => (
-                    <li key={i} style={{ fontSize: 11.5, color: "#ccc", lineHeight: 1.5, paddingLeft: 14, position: "relative" }}>
-                      <span style={{ position: "absolute", left: 0, color: "#ef4444" }}>✕</span>{s}
+                    <li key={i} style={{ fontSize: 12.5, color: "var(--sl-text-muted)", lineHeight: 1.5, paddingLeft: 14, position: "relative" }}>
+                      <span style={{ position: "absolute", left: 0, color: "var(--sl-danger)" }}>✕</span>{s}
                     </li>
                   ))}
                 </ul>
@@ -6896,16 +6896,16 @@ function CoreOfferPanel({ creator, setCreator, running, setRunning, error, setEr
           )}
 
           {/* Core mechanic + weekly rhythm */}
-          <div style={{ padding: "14px 16px", background: "#0a0a0a", borderRadius: 8, border: "1px solid rgba(255,255,255,0.05)", marginBottom: runAt ? 14 : 0 }}>
-            <div style={{ fontSize: 9, fontWeight: 700, color: "#666", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 8 }}>Core Mechanic</div>
-            <div style={{ fontSize: 12.5, color: "#ddd", lineHeight: 1.55, marginBottom: 12 }}>{client.core_mechanic}</div>
+          <div style={{ padding: "14px 16px", background: "var(--sl-bg)", borderRadius: 8, border: "1px solid var(--sl-border)", marginBottom: runAt ? 14 : 0 }}>
+            <div style={{ fontSize: 12, fontWeight: 700, color: "var(--sl-text-faint)", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 8 }}>Core Mechanic</div>
+            <div style={{ fontSize: 12.5, color: "var(--sl-text)", lineHeight: 1.55, marginBottom: 12 }}>{client.core_mechanic}</div>
             {Array.isArray(client.weekly_rhythm) && client.weekly_rhythm.length > 0 && (
               <>
-                <div style={{ fontSize: 9, fontWeight: 700, color: "#666", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 6 }}>Weekly Rhythm</div>
+                <div style={{ fontSize: 12, fontWeight: 700, color: "var(--sl-text-faint)", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 6 }}>Weekly Rhythm</div>
                 <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 3 }}>
                   {client.weekly_rhythm.map((s, i) => (
-                    <li key={i} style={{ fontSize: 11.5, color: "#ccc", lineHeight: 1.5, paddingLeft: 14, position: "relative", fontFamily: "'JetBrains Mono', ui-monospace, monospace" }}>
-                      <span style={{ position: "absolute", left: 0, color: "#7A0E18" }}>›</span>{s}
+                    <li key={i} style={{ fontSize: 12.5, color: "var(--sl-text-muted)", lineHeight: 1.5, paddingLeft: 14, position: "relative", fontFamily: "'JetBrains Mono', ui-monospace, monospace" }}>
+                      <span style={{ position: "absolute", left: 0, color: "var(--sl-accent-text)" }}>›</span>{s}
                     </li>
                   ))}
                 </ul>
@@ -6930,63 +6930,63 @@ function CoreOfferPanel({ creator, setCreator, running, setRunning, error, setEr
             client.format_justification ||
             client.ladder_coherence
           ) && (
-            <div style={{ padding: "14px 16px", background: "rgba(122,14,24,0.04)", borderRadius: 8, border: "1px solid rgba(122,14,24,0.18)", marginBottom: runAt ? 14 : 0 }}>
+            <div style={{ padding: "14px 16px", background: "color-mix(in srgb, var(--sl-primary) 4%, transparent)", borderRadius: 8, border: "1px solid color-mix(in srgb, var(--sl-primary) 18%, transparent)", marginBottom: runAt ? 14 : 0 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
-                <span style={{ fontSize: 9, fontWeight: 700, color: "#B11E2F", letterSpacing: "0.14em", textTransform: "uppercase" }}>High-tier structural checks</span>
-                <span style={{ fontSize: 9, color: "#7A0E18", padding: "1px 6px", borderRadius: 2, border: "1px solid rgba(122,14,24,0.3)", letterSpacing: "0.06em", textTransform: "uppercase" }}>operator-only</span>
+                <span style={{ fontSize: 12, fontWeight: 700, color: "var(--sl-accent-text)", letterSpacing: "0.14em", textTransform: "uppercase" }}>High-tier structural checks</span>
+                <span style={{ fontSize: 12, color: "var(--sl-accent-text)", padding: "1px 6px", borderRadius: 2, border: "1px solid color-mix(in srgb, var(--sl-primary) 30%, transparent)", letterSpacing: "0.06em", textTransform: "uppercase" }}>operator-only</span>
               </div>
 
               {client.quantified_transformation && (
                 <div style={{ marginBottom: 12 }}>
-                  <div style={{ fontSize: 9, fontWeight: 700, color: "#666", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 4 }}>Quantified outcome</div>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: "#f5f5f5", lineHeight: 1.5 }}>{client.quantified_transformation}</div>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: "var(--sl-text-faint)", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 4 }}>Quantified outcome</div>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: "var(--sl-text)", lineHeight: 1.5 }}>{client.quantified_transformation}</div>
                 </div>
               )}
 
               {(client.mechanism_name || client.mechanism_logic) && (
                 <div style={{ marginBottom: 12, padding: "10px 12px", background: "rgba(0,0,0,0.3)", borderRadius: 6 }}>
-                  <div style={{ fontSize: 9, fontWeight: 700, color: "#666", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 4 }}>Proprietary mechanism</div>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: "var(--sl-text-faint)", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 4 }}>Proprietary mechanism</div>
                   {client.mechanism_name && (
-                    <div style={{ fontSize: 14, fontWeight: 700, color: "#f5f5f5", fontFamily: "'Instrument Serif', Georgia, serif", letterSpacing: "-0.01em", marginBottom: 4 }}>{client.mechanism_name}</div>
+                    <div style={{ fontSize: 14, fontWeight: 700, color: "var(--sl-text)", fontFamily: "'Instrument Serif', Georgia, serif", letterSpacing: "-0.01em", marginBottom: 4 }}>{client.mechanism_name}</div>
                   )}
                   {client.mechanism_logic && (
-                    <div style={{ fontSize: 11.5, color: "#bbb", lineHeight: 1.55, fontStyle: "italic" }}>{client.mechanism_logic}</div>
+                    <div style={{ fontSize: 12.5, color: "var(--sl-text-muted)", lineHeight: 1.55, fontStyle: "italic" }}>{client.mechanism_logic}</div>
                   )}
                 </div>
               )}
 
               {client.cannibalisation_check && (
                 <div style={{ marginBottom: 12 }}>
-                  <div style={{ fontSize: 9, fontWeight: 700, color: "#666", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 4 }}>Cannibalisation check</div>
-                  <div style={{ fontSize: 11.5, color: "#ddd", lineHeight: 1.55 }}>{client.cannibalisation_check}</div>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: "var(--sl-text-faint)", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 4 }}>Cannibalisation check</div>
+                  <div style={{ fontSize: 12.5, color: "var(--sl-text)", lineHeight: 1.55 }}>{client.cannibalisation_check}</div>
                 </div>
               )}
 
               {client.qualification_filter && (
                 <div style={{ marginBottom: 12 }}>
-                  <div style={{ fontSize: 9, fontWeight: 700, color: "#666", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 4 }}>Qualification filter</div>
-                  <div style={{ fontSize: 11.5, color: "#ddd", lineHeight: 1.55 }}>{client.qualification_filter}</div>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: "var(--sl-text-faint)", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 4 }}>Qualification filter</div>
+                  <div style={{ fontSize: 12.5, color: "var(--sl-text)", lineHeight: 1.55 }}>{client.qualification_filter}</div>
                 </div>
               )}
 
               {client.format_justification && (
                 <div style={{ marginBottom: 12 }}>
-                  <div style={{ fontSize: 9, fontWeight: 700, color: "#666", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 4 }}>Format ↔ price justification</div>
-                  <div style={{ fontSize: 11.5, color: "#ddd", lineHeight: 1.55 }}>{client.format_justification}</div>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: "var(--sl-text-faint)", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 4 }}>Format ↔ price justification</div>
+                  <div style={{ fontSize: 12.5, color: "var(--sl-text)", lineHeight: 1.55 }}>{client.format_justification}</div>
                 </div>
               )}
 
               {client.ladder_coherence && (
                 <div>
-                  <div style={{ fontSize: 9, fontWeight: 700, color: "#666", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 4 }}>Ladder coherence</div>
-                  <div style={{ fontSize: 11.5, color: "#ddd", lineHeight: 1.55 }}>{client.ladder_coherence}</div>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: "var(--sl-text-faint)", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 4 }}>Ladder coherence</div>
+                  <div style={{ fontSize: 12.5, color: "var(--sl-text)", lineHeight: 1.55 }}>{client.ladder_coherence}</div>
                 </div>
               )}
             </div>
           )}
 
           {runAt && (
-            <div style={{ fontSize: 10, color: "#333", paddingTop: 10, borderTop: "1px solid rgba(255,255,255,0.04)" }}>
+            <div style={{ fontSize: 12, color: "var(--sl-border-strong)", paddingTop: 10, borderTop: "1px solid var(--sl-border)" }}>
               Last run: {new Date(runAt).toLocaleString("pt-PT")}
               {cp2Locked && progress.locked[2] && (
                 <> · Locked: {new Date(progress.locked[2]).toLocaleString("pt-PT")}</>
@@ -7039,11 +7039,11 @@ function ModulesPanel({ creator, setCreator, running, setRunning, error, setErro
     community_ritual: 'Ritual',
   };
   const FORMAT_COLORS = {
-    live_call: '#ef4444',
-    recorded_module: '#3b82f6',
-    doc: '#a855f7',
-    template: '#14b8a6',
-    community_ritual: '#eab308',
+    live_call: 'var(--sl-danger)',
+    recorded_module: 'var(--sl-info)',
+    doc: 'var(--sl-info)',
+    template: 'var(--sl-info)',
+    community_ritual: 'var(--sl-warning)',
   };
 
   const generate = async (instruction = null) => {
@@ -7176,14 +7176,14 @@ function ModulesPanel({ creator, setCreator, running, setRunning, error, setErro
   };
 
   return (
-    <div style={{ marginBottom: 28, padding: "18px 20px", background: "rgba(255,255,255,0.015)", border: `1px solid ${cp3Locked ? 'rgba(34,197,94,0.18)' : 'rgba(255,255,255,0.05)'}`, borderRadius: 10 }}>
+    <div style={{ marginBottom: 28, padding: "18px 20px", background: "color-mix(in srgb, var(--sl-text) 2%, transparent)", border: `1px solid ${cp3Locked ? 'color-mix(in srgb, var(--sl-success) 18%, transparent)' : 'color-mix(in srgb, var(--sl-text) 5%, transparent)'}`, borderRadius: 10 }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14, flexWrap: "wrap", gap: 12 }}>
         <div>
-          <div style={{ fontSize: 9, fontWeight: 700, color: cp3Locked ? "#22c55e" : "#7A0E18", letterSpacing: "0.16em", textTransform: "uppercase", marginBottom: 4 }}>
+          <div style={{ fontSize: 12, fontWeight: 700, color: cp3Locked ? "var(--sl-success)" : "var(--sl-accent-text)", letterSpacing: "0.16em", textTransform: "uppercase", marginBottom: 4 }}>
             ● Checkpoint 3 de 5 · {cp3Locked ? 'Aprovado ✓' : 'Em curso'}
           </div>
-          <h3 style={{ fontSize: 14, fontWeight: 600, margin: 0, color: "#f5f5f5" }}>Módulos</h3>
-          <p style={{ fontSize: 11, color: "#555", margin: "4px 0 0" }}>
+          <h3 style={{ fontSize: 14, fontWeight: 600, margin: 0, color: "var(--sl-text)" }}>Módulos</h3>
+          <p style={{ fontSize: 12, color: "var(--sl-text-faint)", margin: "4px 0 0" }}>
             4-8 módulos de currículo. Cada um tem de citar ≥1 elemento único da Fase 3 — a cadeia de defensabilidade que prova que a oferta não é genérica.
           </p>
         </div>
@@ -7195,10 +7195,10 @@ function ModulesPanel({ creator, setCreator, running, setRunning, error, setErro
               style={{
                 padding: "8px 16px",
                 borderRadius: 6,
-                border: "1px solid rgba(122,14,24,0.4)",
-                background: running ? "rgba(255,255,255,0.02)" : "rgba(122,14,24,0.08)",
-                color: running ? "#555" : "#B11E2F",
-                fontSize: 11,
+                border: "1px solid color-mix(in srgb, var(--sl-primary) 40%, transparent)",
+                background: running ? "color-mix(in srgb, var(--sl-text) 2%, transparent)" : "color-mix(in srgb, var(--sl-primary) 8%, transparent)",
+                color: running ? "var(--sl-text-faint)" : "var(--sl-accent-text)",
+                fontSize: 12,
                 fontWeight: 600,
                 cursor: running ? "wait" : "pointer",
                 fontFamily: "inherit",
@@ -7216,10 +7216,10 @@ function ModulesPanel({ creator, setCreator, running, setRunning, error, setErro
                 style={{
                   padding: "8px 16px",
                   borderRadius: 6,
-                  border: "1px solid rgba(122,14,24,0.4)",
-                  background: running ? "rgba(255,255,255,0.02)" : "rgba(122,14,24,0.08)",
-                  color: running ? "#555" : "#B11E2F",
-                  fontSize: 11,
+                  border: "1px solid color-mix(in srgb, var(--sl-primary) 40%, transparent)",
+                  background: running ? "color-mix(in srgb, var(--sl-text) 2%, transparent)" : "color-mix(in srgb, var(--sl-primary) 8%, transparent)",
+                  color: running ? "var(--sl-text-faint)" : "var(--sl-accent-text)",
+                  fontSize: 12,
                   fontWeight: 600,
                   cursor: running ? "wait" : "pointer",
                   fontFamily: "inherit",
@@ -7234,10 +7234,10 @@ function ModulesPanel({ creator, setCreator, running, setRunning, error, setErro
                 style={{
                   padding: "8px 16px",
                   borderRadius: 6,
-                  border: "1px solid rgba(34,197,94,0.45)",
-                  background: "rgba(34,197,94,0.08)",
-                  color: "#22c55e",
-                  fontSize: 11,
+                  border: "1px solid color-mix(in srgb, var(--sl-success) 45%, transparent)",
+                  background: "color-mix(in srgb, var(--sl-success) 8%, transparent)",
+                  color: "var(--sl-success)",
+                  fontSize: 12,
                   fontWeight: 600,
                   cursor: lockBusy ? "wait" : "pointer",
                   fontFamily: "inherit",
@@ -7255,10 +7255,10 @@ function ModulesPanel({ creator, setCreator, running, setRunning, error, setErro
               style={{
                 padding: "8px 16px",
                 borderRadius: 6,
-                border: "1px solid rgba(234,179,8,0.4)",
-                background: "rgba(234,179,8,0.06)",
-                color: "#eab308",
-                fontSize: 11,
+                border: "1px solid color-mix(in srgb, var(--sl-warning) 40%, transparent)",
+                background: "color-mix(in srgb, var(--sl-warning) 6%, transparent)",
+                color: "var(--sl-warning)",
+                fontSize: 12,
                 fontWeight: 600,
                 cursor: lockBusy ? "wait" : "pointer",
                 fontFamily: "inherit",
@@ -7272,13 +7272,13 @@ function ModulesPanel({ creator, setCreator, running, setRunning, error, setErro
       </div>
 
       {error && (
-        <div style={{ padding: "10px 14px", borderRadius: 6, background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.25)", color: "#ef4444", fontSize: 11, marginBottom: 12, whiteSpace: "pre-wrap" }}>{error}</div>
+        <div style={{ padding: "10px 14px", borderRadius: 6, background: "color-mix(in srgb, var(--sl-danger) 8%, transparent)", border: "1px solid color-mix(in srgb, var(--sl-danger) 25%, transparent)", color: "var(--sl-danger)", fontSize: 12, marginBottom: 12, whiteSpace: "pre-wrap" }}>{error}</div>
       )}
       {diag && !running && (
-        <div style={{ fontSize: 10, color: "#444", marginBottom: 12, fontFamily: "'JetBrains Mono', ui-monospace, monospace" }}>
+        <div style={{ fontSize: 12, color: "var(--sl-text-faint)", marginBottom: 12, fontFamily: "'JetBrains Mono', ui-monospace, monospace" }}>
           {diag.modules_returned} modules · {diag.usable_elements_input} elements available · {diag.retries} retries
           {Array.isArray(diag.warnings) && diag.warnings.length > 0 && (
-            <div style={{ marginTop: 6, color: "#eab308" }}>⚠ {diag.warnings.join(' · ')}</div>
+            <div style={{ marginTop: 6, color: "var(--sl-warning)" }}>⚠ {diag.warnings.join(' · ')}</div>
           )}
         </div>
       )}
@@ -7296,15 +7296,15 @@ function ModulesPanel({ creator, setCreator, running, setRunning, error, setErro
       )}
 
       {!hasOutput && !running && !blockedBy && (
-        <div style={{ padding: "20px 16px", textAlign: "center", color: "#444", fontSize: 12, border: "1px dashed rgba(255,255,255,0.06)", borderRadius: 6 }}>
-          Ainda não há módulos. Clica <strong style={{ color: "#888" }}>Gerar</strong> (~20-40s, só Sonnet).
+        <div style={{ padding: "20px 16px", textAlign: "center", color: "var(--sl-text-faint)", fontSize: 12, border: "1px dashed color-mix(in srgb, var(--sl-text) 6%, transparent)", borderRadius: 6 }}>
+          Ainda não há módulos. Clica <strong style={{ color: "var(--sl-text-muted)" }}>Gerar</strong> (~20-40s, só Sonnet).
         </div>
       )}
 
       {hasOutput && (
         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
           {modules.map((m, ix) => {
-            const fmtColor = FORMAT_COLORS[m.format] || '#666';
+            const fmtColor = FORMAT_COLORS[m.format] || 'var(--sl-text-faint)';
             const linkedEls = (m.linked_unique_elements || []).map(i => uniqueElements[i]).filter(Boolean);
             const rState = regenState[ix] || {};
             return (
@@ -7312,18 +7312,18 @@ function ModulesPanel({ creator, setCreator, running, setRunning, error, setErro
                 key={ix}
                 style={{
                   padding: "14px 16px",
-                  background: "#0a0a0a",
+                  background: "var(--sl-bg)",
                   borderRadius: 8,
-                  border: `1px solid ${rState.busy ? 'rgba(122,14,24,0.5)' : 'rgba(255,255,255,0.05)'}`,
+                  border: `1px solid ${rState.busy ? 'color-mix(in srgb, var(--sl-primary) 50%, transparent)' : 'color-mix(in srgb, var(--sl-text) 5%, transparent)'}`,
                   opacity: rState.busy ? 0.6 : 1,
                   transition: 'opacity 0.2s',
                 }}
               >
                 <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8, flexWrap: "wrap" }}>
-                  <span style={{ fontSize: 10, fontWeight: 700, color: "#444", fontFamily: "'JetBrains Mono', ui-monospace, monospace", minWidth: 22 }}>#{ix + 1}</span>
+                  <span style={{ fontSize: 12, fontWeight: 700, color: "var(--sl-text-faint)", fontFamily: "'JetBrains Mono', ui-monospace, monospace", minWidth: 22 }}>#{ix + 1}</span>
                   <span
                     style={{
-                      fontSize: 9,
+                      fontSize: 12,
                       fontWeight: 700,
                       padding: "3px 8px",
                       borderRadius: 3,
@@ -7336,7 +7336,7 @@ function ModulesPanel({ creator, setCreator, running, setRunning, error, setErro
                   >
                     {FORMAT_LABELS[m.format] || m.format}
                   </span>
-                  <span style={{ fontSize: 10, color: "#666", letterSpacing: "0.02em", fontFamily: "'JetBrains Mono', ui-monospace, monospace" }}>
+                  <span style={{ fontSize: 12, color: "var(--sl-text-faint)", letterSpacing: "0.02em", fontFamily: "'JetBrains Mono', ui-monospace, monospace" }}>
                     {m.delivery_cadence}
                   </span>
                   {!cp3Locked && (
@@ -7347,10 +7347,10 @@ function ModulesPanel({ creator, setCreator, running, setRunning, error, setErro
                         marginLeft: "auto",
                         padding: "3px 10px",
                         borderRadius: 4,
-                        border: "1px solid rgba(255,255,255,0.08)",
-                        background: rState.showInput ? "rgba(122,14,24,0.1)" : "transparent",
-                        color: rState.busy ? "#555" : "#888",
-                        fontSize: 10,
+                        border: "1px solid var(--sl-border)",
+                        background: rState.showInput ? "color-mix(in srgb, var(--sl-primary) 10%, transparent)" : "transparent",
+                        color: rState.busy ? "var(--sl-text-faint)" : "var(--sl-text-muted)",
+                        fontSize: 12,
                         fontWeight: 600,
                         cursor: rState.busy ? "wait" : "pointer",
                         fontFamily: "inherit",
@@ -7373,11 +7373,11 @@ function ModulesPanel({ creator, setCreator, running, setRunning, error, setErro
                       style={{
                         flex: 1,
                         padding: "6px 10px",
-                        background: "rgba(255,255,255,0.02)",
-                        border: "1px solid rgba(255,255,255,0.08)",
+                        background: "color-mix(in srgb, var(--sl-text) 2%, transparent)",
+                        border: "1px solid var(--sl-border)",
                         borderRadius: 4,
-                        color: "#ddd",
-                        fontSize: 11,
+                        color: "var(--sl-text)",
+                        fontSize: 12,
                         fontFamily: "inherit",
                       }}
                     />
@@ -7387,10 +7387,10 @@ function ModulesPanel({ creator, setCreator, running, setRunning, error, setErro
                       style={{
                         padding: "6px 14px",
                         borderRadius: 4,
-                        border: "1px solid rgba(122,14,24,0.45)",
-                        background: rState.busy ? "rgba(255,255,255,0.02)" : "rgba(122,14,24,0.08)",
-                        color: rState.busy ? "#555" : "#B11E2F",
-                        fontSize: 10,
+                        border: "1px solid color-mix(in srgb, var(--sl-primary) 45%, transparent)",
+                        background: rState.busy ? "color-mix(in srgb, var(--sl-text) 2%, transparent)" : "color-mix(in srgb, var(--sl-primary) 8%, transparent)",
+                        color: rState.busy ? "var(--sl-text-faint)" : "var(--sl-accent-text)",
+                        fontSize: 12,
                         fontWeight: 700,
                         cursor: rState.busy ? "wait" : "pointer",
                         fontFamily: "inherit",
@@ -7401,17 +7401,17 @@ function ModulesPanel({ creator, setCreator, running, setRunning, error, setErro
                   </div>
                 )}
 
-                <div style={{ fontSize: 14, fontWeight: 600, color: "#f5f5f5", marginBottom: 6, lineHeight: 1.4 }}>{m.name}</div>
-                <div style={{ fontSize: 12, color: "#bbb", lineHeight: 1.55, marginBottom: 10 }}>{m.description}</div>
-                <div style={{ padding: "8px 12px", background: "rgba(34,197,94,0.04)", borderRadius: 6, border: "1px solid rgba(34,197,94,0.18)", marginBottom: 10 }}>
-                  <div style={{ fontSize: 9, fontWeight: 700, color: "#22c55e", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 4 }}>Delivers</div>
-                  <div style={{ fontSize: 11.5, color: "#ddd", lineHeight: 1.5 }}>{m.transformation_delivered}</div>
+                <div style={{ fontSize: 14, fontWeight: 600, color: "var(--sl-text)", marginBottom: 6, lineHeight: 1.4 }}>{m.name}</div>
+                <div style={{ fontSize: 12, color: "var(--sl-text-muted)", lineHeight: 1.55, marginBottom: 10 }}>{m.description}</div>
+                <div style={{ padding: "8px 12px", background: "color-mix(in srgb, var(--sl-success) 4%, transparent)", borderRadius: 6, border: "1px solid color-mix(in srgb, var(--sl-success) 18%, transparent)", marginBottom: 10 }}>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: "var(--sl-success)", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 4 }}>Delivers</div>
+                  <div style={{ fontSize: 12.5, color: "var(--sl-text)", lineHeight: 1.5 }}>{m.transformation_delivered}</div>
                 </div>
 
                 {/* Linked uniqueness elements — the defensibility chain */}
                 {linkedEls.length > 0 && (
                   <div>
-                    <div style={{ fontSize: 9, fontWeight: 700, color: "#666", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 6 }}>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: "var(--sl-text-faint)", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 6 }}>
                       Grounded in {linkedEls.length} uniqueness element{linkedEls.length === 1 ? '' : 's'}
                     </div>
                     <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 3 }}>
@@ -7419,8 +7419,8 @@ function ModulesPanel({ creator, setCreator, running, setRunning, error, setErro
                         const el = uniqueElements[eix];
                         if (!el) return null;
                         return (
-                          <li key={j} style={{ fontSize: 10.5, color: "#888", lineHeight: 1.5, paddingLeft: 18, position: "relative" }}>
-                            <span style={{ position: "absolute", left: 0, color: "#444", fontFamily: "'JetBrains Mono', ui-monospace, monospace", fontWeight: 700 }}>[{eix}]</span>
+                          <li key={j} style={{ fontSize: 12.5, color: "var(--sl-text-muted)", lineHeight: 1.5, paddingLeft: 18, position: "relative" }}>
+                            <span style={{ position: "absolute", left: 0, color: "var(--sl-text-faint)", fontFamily: "'JetBrains Mono', ui-monospace, monospace", fontWeight: 700 }}>[{eix}]</span>
                             {el.element}
                           </li>
                         );
@@ -7440,18 +7440,18 @@ function ModulesPanel({ creator, setCreator, running, setRunning, error, setErro
       {hasOutput && (weeklyFormats.length > 0 || library.length > 0) && (
         <div className="sl-grid-2" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginTop: 14 }}>
           {weeklyFormats.length > 0 && (
-            <div style={{ padding: "14px 16px", background: "#0a0a0a", borderRadius: 8, border: "1px solid rgba(255,255,255,0.05)" }}>
-              <div style={{ fontSize: 9, fontWeight: 700, color: "#666", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 10 }}>Weekly Cadence · {weeklyFormats.length}</div>
+            <div style={{ padding: "14px 16px", background: "var(--sl-bg)", borderRadius: 8, border: "1px solid var(--sl-border)" }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: "var(--sl-text-faint)", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 10 }}>Weekly Cadence · {weeklyFormats.length}</div>
               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                 {weeklyFormats.map((w, i) => (
                   <div key={i} style={{ display: "grid", gridTemplateColumns: "44px 1fr", gap: 10, alignItems: "start" }}>
-                    <div style={{ fontSize: 10, fontWeight: 700, color: "#B11E2F", fontFamily: "'JetBrains Mono', ui-monospace, monospace", letterSpacing: "0.06em", paddingTop: 2 }}>{w.day}</div>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: "var(--sl-accent-text)", fontFamily: "'JetBrains Mono', ui-monospace, monospace", letterSpacing: "0.06em", paddingTop: 2 }}>{w.day}</div>
                     <div>
-                      <div style={{ fontSize: 12, color: "#f5f5f5", fontWeight: 600, marginBottom: 2 }}>
+                      <div style={{ fontSize: 12, color: "var(--sl-text)", fontWeight: 600, marginBottom: 2 }}>
                         {w.name}
-                        <span style={{ color: "#666", fontWeight: 500, marginLeft: 6, fontSize: 10, letterSpacing: "0.04em" }}>· {w.type}</span>
+                        <span style={{ color: "var(--sl-text-faint)", fontWeight: 500, marginLeft: 6, fontSize: 12, letterSpacing: "0.04em" }}>· {w.type}</span>
                       </div>
-                      <div style={{ fontSize: 10.5, color: "#888", lineHeight: 1.5 }}>{w.desc}</div>
+                      <div style={{ fontSize: 12.5, color: "var(--sl-text-muted)", lineHeight: 1.5 }}>{w.desc}</div>
                     </div>
                   </div>
                 ))}
@@ -7459,16 +7459,16 @@ function ModulesPanel({ creator, setCreator, running, setRunning, error, setErro
             </div>
           )}
           {library.length > 0 && (
-            <div style={{ padding: "14px 16px", background: "#0a0a0a", borderRadius: 8, border: "1px solid rgba(255,255,255,0.05)" }}>
-              <div style={{ fontSize: 9, fontWeight: 700, color: "#666", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 10 }}>Library · {library.length}</div>
+            <div style={{ padding: "14px 16px", background: "var(--sl-bg)", borderRadius: 8, border: "1px solid var(--sl-border)" }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: "var(--sl-text-faint)", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 10 }}>Library · {library.length}</div>
               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                 {library.map((l, i) => (
                   <div key={i}>
-                    <div style={{ fontSize: 12, color: "#f5f5f5", fontWeight: 600, marginBottom: 2 }}>
+                    <div style={{ fontSize: 12, color: "var(--sl-text)", fontWeight: 600, marginBottom: 2 }}>
                       {l.name}
-                      <span style={{ color: "#3b82f6", fontWeight: 500, marginLeft: 6, fontSize: 10, letterSpacing: "0.04em" }}>· {l.format}</span>
+                      <span style={{ color: "var(--sl-info)", fontWeight: 500, marginLeft: 6, fontSize: 12, letterSpacing: "0.04em" }}>· {l.format}</span>
                     </div>
-                    <div style={{ fontSize: 10.5, color: "#888", lineHeight: 1.5 }}>{l.desc}</div>
+                    <div style={{ fontSize: 12.5, color: "var(--sl-text-muted)", lineHeight: 1.5 }}>{l.desc}</div>
                   </div>
                 ))}
               </div>
@@ -7478,7 +7478,7 @@ function ModulesPanel({ creator, setCreator, running, setRunning, error, setErro
       )}
 
       {runAt && hasOutput && (
-        <div style={{ fontSize: 10, color: "#333", paddingTop: 12, marginTop: 12, borderTop: "1px solid rgba(255,255,255,0.04)" }}>
+        <div style={{ fontSize: 12, color: "var(--sl-border-strong)", paddingTop: 12, marginTop: 12, borderTop: "1px solid var(--sl-border)" }}>
           Last batch run: {new Date(runAt).toLocaleString("pt-PT")}
           {cp3Locked && progress.locked[3] && (
             <> · Locked: {new Date(progress.locked[3]).toLocaleString("pt-PT")}</>
@@ -7608,14 +7608,14 @@ function ValueStackPanel({ creator, setCreator, running, setRunning, error, setE
   };
 
   return (
-    <div style={{ marginBottom: 28, padding: "18px 20px", background: "rgba(255,255,255,0.015)", border: `1px solid ${cp4Locked ? 'rgba(34,197,94,0.18)' : 'rgba(255,255,255,0.05)'}`, borderRadius: 10 }}>
+    <div style={{ marginBottom: 28, padding: "18px 20px", background: "color-mix(in srgb, var(--sl-text) 2%, transparent)", border: `1px solid ${cp4Locked ? 'color-mix(in srgb, var(--sl-success) 18%, transparent)' : 'color-mix(in srgb, var(--sl-text) 5%, transparent)'}`, borderRadius: 10 }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14, flexWrap: "wrap", gap: 12 }}>
         <div>
-          <div style={{ fontSize: 9, fontWeight: 700, color: cp4Locked ? "#22c55e" : "#7A0E18", letterSpacing: "0.16em", textTransform: "uppercase", marginBottom: 4 }}>
+          <div style={{ fontSize: 12, fontWeight: 700, color: cp4Locked ? "var(--sl-success)" : "var(--sl-accent-text)", letterSpacing: "0.16em", textTransform: "uppercase", marginBottom: 4 }}>
             ● Checkpoint 4 de 5 · {cp4Locked ? 'Aprovado ✓' : 'Em curso'}
           </div>
-          <h3 style={{ fontSize: 14, fontWeight: 600, margin: 0, color: "#f5f5f5" }}>Stack de valor + Pricing</h3>
-          <p style={{ fontSize: 11, color: "#555", margin: "4px 0 0" }}>
+          <h3 style={{ fontSize: 14, fontWeight: 600, margin: 0, color: "var(--sl-text)" }}>Stack de valor + Pricing</h3>
+          <p style={{ fontSize: 12, color: "var(--sl-text-faint)", margin: "4px 0 0" }}>
             Passo Hormozi: mecanismo + stack com valores em €/$ + tiers de pricing + bónus mês a mês. Total deve ser 5-10× o preço real.
           </p>
         </div>
@@ -7627,10 +7627,10 @@ function ValueStackPanel({ creator, setCreator, running, setRunning, error, setE
               style={{
                 padding: "8px 16px",
                 borderRadius: 6,
-                border: "1px solid rgba(122,14,24,0.4)",
-                background: running ? "rgba(255,255,255,0.02)" : "rgba(122,14,24,0.08)",
-                color: running ? "#555" : "#B11E2F",
-                fontSize: 11,
+                border: "1px solid color-mix(in srgb, var(--sl-primary) 40%, transparent)",
+                background: running ? "color-mix(in srgb, var(--sl-text) 2%, transparent)" : "color-mix(in srgb, var(--sl-primary) 8%, transparent)",
+                color: running ? "var(--sl-text-faint)" : "var(--sl-accent-text)",
+                fontSize: 12,
                 fontWeight: 600,
                 cursor: running ? "wait" : "pointer",
                 fontFamily: "inherit",
@@ -7647,10 +7647,10 @@ function ValueStackPanel({ creator, setCreator, running, setRunning, error, setE
               style={{
                 padding: "8px 16px",
                 borderRadius: 6,
-                border: "1px solid rgba(34,197,94,0.45)",
-                background: "rgba(34,197,94,0.08)",
-                color: "#22c55e",
-                fontSize: 11,
+                border: "1px solid color-mix(in srgb, var(--sl-success) 45%, transparent)",
+                background: "color-mix(in srgb, var(--sl-success) 8%, transparent)",
+                color: "var(--sl-success)",
+                fontSize: 12,
                 fontWeight: 600,
                 cursor: lockBusy ? "wait" : "pointer",
                 fontFamily: "inherit",
@@ -7670,10 +7670,10 @@ function ValueStackPanel({ creator, setCreator, running, setRunning, error, setE
               style={{
                 padding: "8px 16px",
                 borderRadius: 6,
-                border: "1px solid rgba(234,179,8,0.4)",
-                background: "rgba(234,179,8,0.06)",
-                color: "#eab308",
-                fontSize: 11,
+                border: "1px solid color-mix(in srgb, var(--sl-warning) 40%, transparent)",
+                background: "color-mix(in srgb, var(--sl-warning) 6%, transparent)",
+                color: "var(--sl-warning)",
+                fontSize: 12,
                 fontWeight: 600,
                 cursor: lockBusy ? "wait" : "pointer",
                 fontFamily: "inherit",
@@ -7687,13 +7687,13 @@ function ValueStackPanel({ creator, setCreator, running, setRunning, error, setE
       </div>
 
       {error && (
-        <div style={{ padding: "10px 14px", borderRadius: 6, background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.25)", color: "#ef4444", fontSize: 11, marginBottom: 12, whiteSpace: "pre-wrap" }}>{error}</div>
+        <div style={{ padding: "10px 14px", borderRadius: 6, background: "color-mix(in srgb, var(--sl-danger) 8%, transparent)", border: "1px solid color-mix(in srgb, var(--sl-danger) 25%, transparent)", color: "var(--sl-danger)", fontSize: 12, marginBottom: 12, whiteSpace: "pre-wrap" }}>{error}</div>
       )}
       {diag && !running && (
-        <div style={{ fontSize: 10, color: "#444", marginBottom: 12, fontFamily: "'JetBrains Mono', ui-monospace, monospace" }}>
+        <div style={{ fontSize: 12, color: "var(--sl-text-faint)", marginBottom: 12, fontFamily: "'JetBrains Mono', ui-monospace, monospace" }}>
           modules input: {diag.modules_input} · target_price input: {diag.target_price_input} · {diag.retries} retries
           {Array.isArray(diag.warnings) && diag.warnings.length > 0 && (
-            <div style={{ marginTop: 6, color: "#eab308" }}>⚠ {diag.warnings.join(' · ')}</div>
+            <div style={{ marginTop: 6, color: "var(--sl-warning)" }}>⚠ {diag.warnings.join(' · ')}</div>
           )}
         </div>
       )}
@@ -7711,8 +7711,8 @@ function ValueStackPanel({ creator, setCreator, running, setRunning, error, setE
       )}
 
       {!hasOutput && !running && !blockedBy && (
-        <div style={{ padding: "20px 16px", textAlign: "center", color: "#444", fontSize: 12, border: "1px dashed rgba(255,255,255,0.06)", borderRadius: 6 }}>
-          Ainda não há stack de valor. Clica <strong style={{ color: "#888" }}>Gerar</strong> (~30-50s, só Sonnet). É o maior output de todos os checkpoints.
+        <div style={{ padding: "20px 16px", textAlign: "center", color: "var(--sl-text-faint)", fontSize: 12, border: "1px dashed color-mix(in srgb, var(--sl-text) 6%, transparent)", borderRadius: 6 }}>
+          Ainda não há stack de valor. Clica <strong style={{ color: "var(--sl-text-muted)" }}>Gerar</strong> (~30-50s, só Sonnet). É o maior output de todos os checkpoints.
         </div>
       )}
 
@@ -7720,19 +7720,19 @@ function ValueStackPanel({ creator, setCreator, running, setRunning, error, setE
         <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
           {/* ── Mechanism */}
           {mechanism && (
-            <div style={{ padding: "16px 18px", background: "rgba(122,14,24,0.04)", borderRadius: 8, border: "1px solid rgba(122,14,24,0.25)" }}>
+            <div style={{ padding: "16px 18px", background: "color-mix(in srgb, var(--sl-primary) 4%, transparent)", borderRadius: 8, border: "1px solid color-mix(in srgb, var(--sl-primary) 25%, transparent)" }}>
               <div style={{ display: "flex", alignItems: "baseline", gap: 12, marginBottom: 8, flexWrap: "wrap" }}>
-                <div style={{ fontSize: 9, fontWeight: 700, color: "#7A0E18", letterSpacing: "0.14em", textTransform: "uppercase" }}>Mechanism</div>
-                <div style={{ fontSize: 22, fontWeight: 700, color: "#f5f5f5", fontFamily: "'Instrument Serif', Georgia, serif", letterSpacing: "0.06em" }}>{mechanism.name}</div>
+                <div style={{ fontSize: 12, fontWeight: 700, color: "var(--sl-accent-text)", letterSpacing: "0.14em", textTransform: "uppercase" }}>Mechanism</div>
+                <div style={{ fontSize: 22, fontWeight: 700, color: "var(--sl-text)", fontFamily: "'Instrument Serif', Georgia, serif", letterSpacing: "0.06em" }}>{mechanism.name}</div>
               </div>
-              <p style={{ fontSize: 12, color: "#ccc", lineHeight: 1.55, margin: "0 0 12px", fontStyle: "italic" }}>{mechanism.description}</p>
+              <p style={{ fontSize: 12, color: "var(--sl-text-muted)", lineHeight: 1.55, margin: "0 0 12px", fontStyle: "italic" }}>{mechanism.description}</p>
               <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                 {(mechanism.letters || []).map((l, i) => (
                   <div key={i} style={{ display: "grid", gridTemplateColumns: "32px 1fr", gap: 12, alignItems: "baseline" }}>
-                    <div style={{ fontSize: 20, fontWeight: 700, color: "#B11E2F", fontFamily: "'JetBrains Mono', ui-monospace, monospace", textAlign: "center" }}>{l.letter}</div>
+                    <div style={{ fontSize: 20, fontWeight: 700, color: "var(--sl-accent-text)", fontFamily: "'JetBrains Mono', ui-monospace, monospace", textAlign: "center" }}>{l.letter}</div>
                     <div>
-                      <div style={{ fontSize: 13, fontWeight: 600, color: "#f5f5f5", marginBottom: 2 }}>{l.word}</div>
-                      <div style={{ fontSize: 11, color: "#999", lineHeight: 1.5 }}>{l.explanation}</div>
+                      <div style={{ fontSize: 13, fontWeight: 600, color: "var(--sl-text)", marginBottom: 2 }}>{l.word}</div>
+                      <div style={{ fontSize: 12, color: "var(--sl-text-muted)", lineHeight: 1.5 }}>{l.explanation}</div>
                     </div>
                   </div>
                 ))}
@@ -7742,37 +7742,37 @@ function ValueStackPanel({ creator, setCreator, running, setRunning, error, setE
 
           {/* ── Value Stack */}
           {stack && (
-            <div style={{ padding: "16px 18px", background: "#0a0a0a", borderRadius: 8, border: "1px solid rgba(255,255,255,0.05)" }}>
+            <div style={{ padding: "16px 18px", background: "var(--sl-bg)", borderRadius: 8, border: "1px solid var(--sl-border)" }}>
               <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 12, flexWrap: "wrap", gap: 8 }}>
-                <div style={{ fontSize: 9, fontWeight: 700, color: "#666", letterSpacing: "0.14em", textTransform: "uppercase" }}>Value Stack · {(stack.items || []).length} items</div>
+                <div style={{ fontSize: 12, fontWeight: 700, color: "var(--sl-text-faint)", letterSpacing: "0.14em", textTransform: "uppercase" }}>Value Stack · {(stack.items || []).length} items</div>
                 <div style={{ display: "flex", alignItems: "baseline", gap: 14 }}>
                   <div>
-                    <span style={{ fontSize: 9, color: "#666", letterSpacing: "0.1em", textTransform: "uppercase", marginRight: 6 }}>Total value:</span>
-                    <span style={{ fontSize: 16, fontWeight: 700, color: "#22c55e", fontFamily: "'Instrument Serif', Georgia, serif" }}>{stack.total}</span>
+                    <span style={{ fontSize: 12, color: "var(--sl-text-faint)", letterSpacing: "0.1em", textTransform: "uppercase", marginRight: 6 }}>Total value:</span>
+                    <span style={{ fontSize: 16, fontWeight: 700, color: "var(--sl-success)", fontFamily: "'Instrument Serif', Georgia, serif" }}>{stack.total}</span>
                   </div>
                   <div>
-                    <span style={{ fontSize: 9, color: "#666", letterSpacing: "0.1em", textTransform: "uppercase", marginRight: 6 }}>Today:</span>
-                    <span style={{ fontSize: 16, fontWeight: 700, color: "#B11E2F", fontFamily: "'Instrument Serif', Georgia, serif" }}>{stack.actualPrice}</span>
+                    <span style={{ fontSize: 12, color: "var(--sl-text-faint)", letterSpacing: "0.1em", textTransform: "uppercase", marginRight: 6 }}>Today:</span>
+                    <span style={{ fontSize: 16, fontWeight: 700, color: "var(--sl-accent-text)", fontFamily: "'Instrument Serif', Georgia, serif" }}>{stack.actualPrice}</span>
                   </div>
                 </div>
               </div>
 
               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                 {(stack.items || []).map((it, i) => (
-                  <div key={i} style={{ display: "grid", gridTemplateColumns: "24px 1fr auto", gap: 10, padding: "10px 12px", background: "rgba(255,255,255,0.02)", borderRadius: 6, alignItems: "start" }}>
-                    <div style={{ fontSize: 10, fontWeight: 700, color: "#444", fontFamily: "'JetBrains Mono', ui-monospace, monospace", paddingTop: 2 }}>#{i + 1}</div>
+                  <div key={i} style={{ display: "grid", gridTemplateColumns: "24px 1fr auto", gap: 10, padding: "10px 12px", background: "color-mix(in srgb, var(--sl-text) 2%, transparent)", borderRadius: 6, alignItems: "start" }}>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: "var(--sl-text-faint)", fontFamily: "'JetBrains Mono', ui-monospace, monospace", paddingTop: 2 }}>#{i + 1}</div>
                     <div>
-                      <div style={{ fontSize: 12, color: "#f5f5f5", fontWeight: 600, marginBottom: 4 }}>{it.solution}</div>
-                      <div style={{ fontSize: 10.5, color: "#777", lineHeight: 1.5, marginBottom: 4 }}>
-                        <span style={{ color: "#555", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", marginRight: 6, fontSize: 9 }}>Pain:</span>
+                      <div style={{ fontSize: 12, color: "var(--sl-text)", fontWeight: 600, marginBottom: 4 }}>{it.solution}</div>
+                      <div style={{ fontSize: 12.5, color: "var(--sl-text-faint)", lineHeight: 1.5, marginBottom: 4 }}>
+                        <span style={{ color: "var(--sl-text-faint)", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", marginRight: 6, fontSize: 12 }}>Pain:</span>
                         {it.problem}
                       </div>
-                      <div style={{ fontSize: 10.5, color: "#999", lineHeight: 1.5, fontFamily: "'JetBrains Mono', ui-monospace, monospace" }}>
-                        <span style={{ color: "#555", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", marginRight: 6, fontSize: 9, fontFamily: "inherit" }}>How:</span>
+                      <div style={{ fontSize: 12.5, color: "var(--sl-text-muted)", lineHeight: 1.5, fontFamily: "'JetBrains Mono', ui-monospace, monospace" }}>
+                        <span style={{ color: "var(--sl-text-faint)", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", marginRight: 6, fontSize: 12, fontFamily: "inherit" }}>How:</span>
                         {it.delivery}
                       </div>
                     </div>
-                    <div style={{ fontSize: 14, fontWeight: 700, color: "#22c55e", fontFamily: "'Instrument Serif', Georgia, serif", whiteSpace: "nowrap" }}>{it.dollarValue}</div>
+                    <div style={{ fontSize: 14, fontWeight: 700, color: "var(--sl-success)", fontFamily: "'Instrument Serif', Georgia, serif", whiteSpace: "nowrap" }}>{it.dollarValue}</div>
                   </div>
                 ))}
               </div>
@@ -7781,14 +7781,14 @@ function ValueStackPanel({ creator, setCreator, running, setRunning, error, setE
 
           {/* ── Pricing Tiers */}
           {tiers.length > 0 && (
-            <div style={{ padding: "16px 18px", background: "#0a0a0a", borderRadius: 8, border: "1px solid rgba(255,255,255,0.05)" }}>
-              <div style={{ fontSize: 9, fontWeight: 700, color: "#666", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 12 }}>Pricing · {tiers.length} {tiers.length === 1 ? 'tier' : 'tiers'}</div>
+            <div style={{ padding: "16px 18px", background: "var(--sl-bg)", borderRadius: 8, border: "1px solid var(--sl-border)" }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: "var(--sl-text-faint)", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 12 }}>Pricing · {tiers.length} {tiers.length === 1 ? 'tier' : 'tiers'}</div>
               <div className="sl-grid" className="sl-grid" style={{ display: "grid", gridTemplateColumns: `repeat(${Math.min(tiers.length, 3)}, 1fr)`, gap: 10 }}>
                 {tiers.map((t, i) => (
-                  <div key={i} style={{ padding: "14px 14px", background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 6 }}>
-                    <div style={{ fontSize: 10, fontWeight: 700, color: "#B11E2F", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 6 }}>{t.name}</div>
-                    <div style={{ fontSize: 22, fontWeight: 700, color: "#f5f5f5", fontFamily: "'Instrument Serif', Georgia, serif", marginBottom: 8 }}>{t.price}</div>
-                    <div style={{ fontSize: 11, color: "#999", lineHeight: 1.5 }}>{t.note}</div>
+                  <div key={i} style={{ padding: "14px 14px", background: "color-mix(in srgb, var(--sl-text) 2%, transparent)", border: "1px solid var(--sl-border)", borderRadius: 6 }}>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: "var(--sl-accent-text)", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 6 }}>{t.name}</div>
+                    <div style={{ fontSize: 22, fontWeight: 700, color: "var(--sl-text)", fontFamily: "'Instrument Serif', Georgia, serif", marginBottom: 8 }}>{t.price}</div>
+                    <div style={{ fontSize: 12, color: "var(--sl-text-muted)", lineHeight: 1.5 }}>{t.note}</div>
                   </div>
                 ))}
               </div>
@@ -7797,12 +7797,12 @@ function ValueStackPanel({ creator, setCreator, running, setRunning, error, setE
 
           {/* ── Unlocked Bonuses */}
           {bonuses.length > 0 && (
-            <div style={{ padding: "16px 18px", background: "rgba(234,179,8,0.04)", borderRadius: 8, border: "1px solid rgba(234,179,8,0.2)" }}>
-              <div style={{ fontSize: 9, fontWeight: 700, color: "#eab308", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 10 }}>Unlocked Bonuses · {bonuses.length} drops</div>
+            <div style={{ padding: "16px 18px", background: "color-mix(in srgb, var(--sl-warning) 4%, transparent)", borderRadius: 8, border: "1px solid color-mix(in srgb, var(--sl-warning) 20%, transparent)" }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: "var(--sl-warning)", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 10 }}>Unlocked Bonuses · {bonuses.length} drops</div>
               <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 4 }}>
                 {bonuses.map((b, i) => (
-                  <li key={i} style={{ fontSize: 11.5, color: "#ddd", lineHeight: 1.5, paddingLeft: 18, position: "relative" }}>
-                    <span style={{ position: "absolute", left: 0, color: "#eab308" }}>★</span>{b}
+                  <li key={i} style={{ fontSize: 12.5, color: "var(--sl-text)", lineHeight: 1.5, paddingLeft: 18, position: "relative" }}>
+                    <span style={{ position: "absolute", left: 0, color: "var(--sl-warning)" }}>★</span>{b}
                   </li>
                 ))}
               </ul>
@@ -7812,7 +7812,7 @@ function ValueStackPanel({ creator, setCreator, running, setRunning, error, setE
       )}
 
       {runAt && hasOutput && (
-        <div style={{ fontSize: 10, color: "#333", paddingTop: 12, marginTop: 12, borderTop: "1px solid rgba(255,255,255,0.04)" }}>
+        <div style={{ fontSize: 12, color: "var(--sl-border-strong)", paddingTop: 12, marginTop: 12, borderTop: "1px solid var(--sl-border)" }}>
           Last run: {new Date(runAt).toLocaleString("pt-PT")}
           {cp4Locked && progress.locked[4] && (
             <> · Locked: {new Date(progress.locked[4]).toLocaleString("pt-PT")}</>
@@ -7948,14 +7948,14 @@ function SalesCopyPanel({ creator, setCreator, running, setRunning, error, setEr
   };
 
   return (
-    <div style={{ marginBottom: 28, padding: "18px 20px", background: "rgba(255,255,255,0.015)", border: `1px solid ${cp5Locked ? 'rgba(34,197,94,0.18)' : 'rgba(255,255,255,0.05)'}`, borderRadius: 10 }}>
+    <div style={{ marginBottom: 28, padding: "18px 20px", background: "color-mix(in srgb, var(--sl-text) 2%, transparent)", border: `1px solid ${cp5Locked ? 'color-mix(in srgb, var(--sl-success) 18%, transparent)' : 'color-mix(in srgb, var(--sl-text) 5%, transparent)'}`, borderRadius: 10 }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14, flexWrap: "wrap", gap: 12 }}>
         <div>
-          <div style={{ fontSize: 9, fontWeight: 700, color: cp5Locked ? "#22c55e" : "#7A0E18", letterSpacing: "0.16em", textTransform: "uppercase", marginBottom: 4 }}>
+          <div style={{ fontSize: 12, fontWeight: 700, color: cp5Locked ? "var(--sl-success)" : "var(--sl-accent-text)", letterSpacing: "0.16em", textTransform: "uppercase", marginBottom: 4 }}>
             ● Checkpoint 5 de 5 · {cp5Locked ? 'Aprovado ✓ · Oferta completa' : 'Em curso'}
           </div>
-          <h3 style={{ fontSize: 14, fontWeight: 600, margin: 0, color: "#f5f5f5" }}>Sales Copy · Montagem final</h3>
-          <p style={{ fontSize: 11, color: "#555", margin: "4px 0 0" }}>
+          <h3 style={{ fontSize: 14, fontWeight: 600, margin: 0, color: "var(--sl-text)" }}>Sales Copy · Montagem final</h3>
+          <p style={{ fontSize: 12, color: "var(--sl-text-faint)", margin: "4px 0 0" }}>
             Diferenciador, hero, objecções, FAQ, social proof. Depois disto aprovado, o pitch deck + PDF de launch plan renderizam a partir do client_facing_output.
           </p>
         </div>
@@ -7967,10 +7967,10 @@ function SalesCopyPanel({ creator, setCreator, running, setRunning, error, setEr
               style={{
                 padding: "8px 16px",
                 borderRadius: 6,
-                border: "1px solid rgba(122,14,24,0.4)",
-                background: running ? "rgba(255,255,255,0.02)" : "rgba(122,14,24,0.08)",
-                color: running ? "#555" : "#B11E2F",
-                fontSize: 11,
+                border: "1px solid color-mix(in srgb, var(--sl-primary) 40%, transparent)",
+                background: running ? "color-mix(in srgb, var(--sl-text) 2%, transparent)" : "color-mix(in srgb, var(--sl-primary) 8%, transparent)",
+                color: running ? "var(--sl-text-faint)" : "var(--sl-accent-text)",
+                fontSize: 12,
                 fontWeight: 600,
                 cursor: running ? "wait" : "pointer",
                 fontFamily: "inherit",
@@ -7987,10 +7987,10 @@ function SalesCopyPanel({ creator, setCreator, running, setRunning, error, setEr
               style={{
                 padding: "8px 16px",
                 borderRadius: 6,
-                border: "1px solid rgba(34,197,94,0.45)",
-                background: "rgba(34,197,94,0.08)",
-                color: "#22c55e",
-                fontSize: 11,
+                border: "1px solid color-mix(in srgb, var(--sl-success) 45%, transparent)",
+                background: "color-mix(in srgb, var(--sl-success) 8%, transparent)",
+                color: "var(--sl-success)",
+                fontSize: 12,
                 fontWeight: 600,
                 cursor: lockBusy ? "wait" : "pointer",
                 fontFamily: "inherit",
@@ -8007,10 +8007,10 @@ function SalesCopyPanel({ creator, setCreator, running, setRunning, error, setEr
               style={{
                 padding: "8px 16px",
                 borderRadius: 6,
-                border: "1px solid rgba(234,179,8,0.4)",
-                background: "rgba(234,179,8,0.06)",
-                color: "#eab308",
-                fontSize: 11,
+                border: "1px solid color-mix(in srgb, var(--sl-warning) 40%, transparent)",
+                background: "color-mix(in srgb, var(--sl-warning) 6%, transparent)",
+                color: "var(--sl-warning)",
+                fontSize: 12,
                 fontWeight: 600,
                 cursor: lockBusy ? "wait" : "pointer",
                 fontFamily: "inherit",
@@ -8024,13 +8024,13 @@ function SalesCopyPanel({ creator, setCreator, running, setRunning, error, setEr
       </div>
 
       {error && (
-        <div style={{ padding: "10px 14px", borderRadius: 6, background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.25)", color: "#ef4444", fontSize: 11, marginBottom: 12, whiteSpace: "pre-wrap" }}>{error}</div>
+        <div style={{ padding: "10px 14px", borderRadius: 6, background: "color-mix(in srgb, var(--sl-danger) 8%, transparent)", border: "1px solid color-mix(in srgb, var(--sl-danger) 25%, transparent)", color: "var(--sl-danger)", fontSize: 12, marginBottom: 12, whiteSpace: "pre-wrap" }}>{error}</div>
       )}
       {diag && !running && (
-        <div style={{ fontSize: 10, color: "#444", marginBottom: 12, fontFamily: "'JetBrains Mono', ui-monospace, monospace" }}>
+        <div style={{ fontSize: 12, color: "var(--sl-text-faint)", marginBottom: 12, fontFamily: "'JetBrains Mono', ui-monospace, monospace" }}>
           fame tier: {diag.fame_tier || '—'} · objections: {diag.objections_returned} · faq: {diag.faq_returned} · {diag.retries} retries
           {Array.isArray(diag.warnings) && diag.warnings.length > 0 && (
-            <div style={{ marginTop: 6, color: "#eab308" }}>⚠ {diag.warnings.join(' · ')}</div>
+            <div style={{ marginTop: 6, color: "var(--sl-warning)" }}>⚠ {diag.warnings.join(' · ')}</div>
           )}
         </div>
       )}
@@ -8048,8 +8048,8 @@ function SalesCopyPanel({ creator, setCreator, running, setRunning, error, setEr
       )}
 
       {!hasOutput && !running && !blockedBy && (
-        <div style={{ padding: "20px 16px", textAlign: "center", color: "#444", fontSize: 12, border: "1px dashed rgba(255,255,255,0.06)", borderRadius: 6 }}>
-          Ainda não há sales copy. Clica <strong style={{ color: "#888" }}>Gerar</strong> (~30-60s, só Sonnet, lê todos os checkpoints anteriores).
+        <div style={{ padding: "20px 16px", textAlign: "center", color: "var(--sl-text-faint)", fontSize: 12, border: "1px dashed color-mix(in srgb, var(--sl-text) 6%, transparent)", borderRadius: 6 }}>
+          Ainda não há sales copy. Clica <strong style={{ color: "var(--sl-text-muted)" }}>Gerar</strong> (~30-60s, só Sonnet, lê todos os checkpoints anteriores).
         </div>
       )}
 
@@ -8057,19 +8057,19 @@ function SalesCopyPanel({ creator, setCreator, running, setRunning, error, setEr
         <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
           {/* ── Hero card */}
           {hero && (
-            <div style={{ padding: "18px 20px", background: "#0a0a0a", borderRadius: 8, border: "1px solid rgba(122,14,24,0.25)" }}>
-              <div style={{ fontSize: 9, fontWeight: 700, color: "#7A0E18", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 8 }}>Hero</div>
-              <h2 style={{ fontSize: 24, fontWeight: 700, margin: "0 0 10px", color: "#f5f5f5", fontFamily: "'Instrument Serif', Georgia, serif", letterSpacing: "-0.02em", lineHeight: 1.2 }}>{hero.headline}</h2>
-              <p style={{ fontSize: 13, color: "#bbb", margin: "0 0 14px", lineHeight: 1.55 }}>{hero.sub}</p>
+            <div style={{ padding: "18px 20px", background: "var(--sl-bg)", borderRadius: 8, border: "1px solid color-mix(in srgb, var(--sl-primary) 25%, transparent)" }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: "var(--sl-accent-text)", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 8 }}>Hero</div>
+              <h2 style={{ fontSize: 24, fontWeight: 700, margin: "0 0 10px", color: "var(--sl-text)", fontFamily: "'Instrument Serif', Georgia, serif", letterSpacing: "-0.02em", lineHeight: 1.2 }}>{hero.headline}</h2>
+              <p style={{ fontSize: 13, color: "var(--sl-text-muted)", margin: "0 0 14px", lineHeight: 1.55 }}>{hero.sub}</p>
               <button
                 disabled
                 style={{
                   padding: "9px 22px",
                   borderRadius: 6,
-                  border: "1px solid rgba(122,14,24,0.45)",
-                  background: "rgba(122,14,24,0.18)",
-                  color: "#B11E2F",
-                  fontSize: 11,
+                  border: "1px solid color-mix(in srgb, var(--sl-primary) 45%, transparent)",
+                  background: "color-mix(in srgb, var(--sl-primary) 18%, transparent)",
+                  color: "var(--sl-accent-text)",
+                  fontSize: 12,
                   fontWeight: 700,
                   cursor: "default",
                   fontFamily: "inherit",
@@ -8083,41 +8083,41 @@ function SalesCopyPanel({ creator, setCreator, running, setRunning, error, setEr
 
           {/* ── Strategic context line */}
           {ctx && (
-            <div style={{ padding: "10px 14px", background: "rgba(255,255,255,0.02)", borderRadius: 6, border: "1px solid rgba(255,255,255,0.04)" }}>
-              <div style={{ fontSize: 9, fontWeight: 700, color: "#666", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 4 }}>Strategic Context</div>
-              <p style={{ fontSize: 12, color: "#ccc", margin: 0, fontStyle: "italic", lineHeight: 1.55 }}>{ctx}</p>
+            <div style={{ padding: "10px 14px", background: "color-mix(in srgb, var(--sl-text) 2%, transparent)", borderRadius: 6, border: "1px solid var(--sl-border)" }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: "var(--sl-text-faint)", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 4 }}>Strategic Context</div>
+              <p style={{ fontSize: 12, color: "var(--sl-text-muted)", margin: 0, fontStyle: "italic", lineHeight: 1.55 }}>{ctx}</p>
             </div>
           )}
 
           {/* ── Differentiator section */}
           {diff && (
-            <div style={{ padding: "16px 18px", background: "rgba(122,14,24,0.04)", borderRadius: 8, border: "1px solid rgba(122,14,24,0.22)" }}>
-              <div style={{ fontSize: 9, fontWeight: 700, color: "#7A0E18", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 10 }}>Differentiator · Why This Isn't Another X</div>
-              <p style={{ fontSize: 13, color: "#ddd", margin: 0, lineHeight: 1.7, whiteSpace: "pre-line" }}>{diff}</p>
+            <div style={{ padding: "16px 18px", background: "color-mix(in srgb, var(--sl-primary) 4%, transparent)", borderRadius: 8, border: "1px solid color-mix(in srgb, var(--sl-primary) 22%, transparent)" }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: "var(--sl-accent-text)", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 10 }}>Differentiator · Why This Isn't Another X</div>
+              <p style={{ fontSize: 13, color: "var(--sl-text)", margin: 0, lineHeight: 1.7, whiteSpace: "pre-line" }}>{diff}</p>
             </div>
           )}
 
           {/* ── Social proof line (only if present) */}
           {social && (
-            <div style={{ padding: "12px 14px", background: "rgba(59,130,246,0.05)", borderRadius: 6, border: "1px solid rgba(59,130,246,0.2)" }}>
-              <div style={{ fontSize: 9, fontWeight: 700, color: "#3b82f6", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 4 }}>Social Proof</div>
-              <p style={{ fontSize: 12, color: "#ccc", margin: 0, lineHeight: 1.55 }}>{social}</p>
+            <div style={{ padding: "12px 14px", background: "color-mix(in srgb, var(--sl-info) 5%, transparent)", borderRadius: 6, border: "1px solid color-mix(in srgb, var(--sl-info) 20%, transparent)" }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: "var(--sl-info)", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 4 }}>Social Proof</div>
+              <p style={{ fontSize: 12, color: "var(--sl-text-muted)", margin: 0, lineHeight: 1.55 }}>{social}</p>
             </div>
           )}
 
           {/* ── Objections */}
           {objections.length > 0 && (
-            <div style={{ padding: "16px 18px", background: "#0a0a0a", borderRadius: 8, border: "1px solid rgba(255,255,255,0.05)" }}>
-              <div style={{ fontSize: 9, fontWeight: 700, color: "#666", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 12 }}>Objections · {objections.length}</div>
+            <div style={{ padding: "16px 18px", background: "var(--sl-bg)", borderRadius: 8, border: "1px solid var(--sl-border)" }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: "var(--sl-text-faint)", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 12 }}>Objections · {objections.length}</div>
               <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                 {objections.map((o, i) => (
-                  <div key={i} style={{ padding: "10px 12px", background: "rgba(255,255,255,0.02)", borderRadius: 6, border: "1px solid rgba(255,255,255,0.04)" }}>
-                    <div style={{ fontSize: 12, color: "#ef4444", marginBottom: 6, lineHeight: 1.5, fontWeight: 600 }}>
-                      <span style={{ color: "#666", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", marginRight: 8, fontSize: 9 }}>Objection:</span>
+                  <div key={i} style={{ padding: "10px 12px", background: "color-mix(in srgb, var(--sl-text) 2%, transparent)", borderRadius: 6, border: "1px solid var(--sl-border)" }}>
+                    <div style={{ fontSize: 12, color: "var(--sl-danger)", marginBottom: 6, lineHeight: 1.5, fontWeight: 600 }}>
+                      <span style={{ color: "var(--sl-text-faint)", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", marginRight: 8, fontSize: 12 }}>Objection:</span>
                       {o.objection}
                     </div>
-                    <div style={{ fontSize: 12, color: "#ccc", lineHeight: 1.55 }}>
-                      <span style={{ color: "#22c55e", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", marginRight: 8, fontSize: 9 }}>Rebuttal:</span>
+                    <div style={{ fontSize: 12, color: "var(--sl-text-muted)", lineHeight: 1.55 }}>
+                      <span style={{ color: "var(--sl-success)", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", marginRight: 8, fontSize: 12 }}>Rebuttal:</span>
                       {o.rebuttal}
                     </div>
                   </div>
@@ -8128,13 +8128,13 @@ function SalesCopyPanel({ creator, setCreator, running, setRunning, error, setEr
 
           {/* ── FAQ */}
           {faq.length > 0 && (
-            <div style={{ padding: "16px 18px", background: "#0a0a0a", borderRadius: 8, border: "1px solid rgba(255,255,255,0.05)" }}>
-              <div style={{ fontSize: 9, fontWeight: 700, color: "#666", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 12 }}>FAQ · {faq.length}</div>
+            <div style={{ padding: "16px 18px", background: "var(--sl-bg)", borderRadius: 8, border: "1px solid var(--sl-border)" }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: "var(--sl-text-faint)", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 12 }}>FAQ · {faq.length}</div>
               <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                 {faq.map((f, i) => (
-                  <div key={i} style={{ paddingBottom: 10, borderBottom: i === faq.length - 1 ? "none" : "1px solid rgba(255,255,255,0.04)" }}>
-                    <div style={{ fontSize: 12.5, color: "#f5f5f5", fontWeight: 600, marginBottom: 5, lineHeight: 1.45 }}>{f.q}</div>
-                    <div style={{ fontSize: 11.5, color: "#999", lineHeight: 1.6 }}>{f.a}</div>
+                  <div key={i} style={{ paddingBottom: 10, borderBottom: i === faq.length - 1 ? "none" : "1px solid var(--sl-border)" }}>
+                    <div style={{ fontSize: 12.5, color: "var(--sl-text)", fontWeight: 600, marginBottom: 5, lineHeight: 1.45 }}>{f.q}</div>
+                    <div style={{ fontSize: 12.5, color: "var(--sl-text-muted)", lineHeight: 1.6 }}>{f.a}</div>
                   </div>
                 ))}
               </div>
@@ -8144,7 +8144,7 @@ function SalesCopyPanel({ creator, setCreator, running, setRunning, error, setEr
       )}
 
       {runAt && hasOutput && (
-        <div style={{ fontSize: 10, color: "#333", paddingTop: 12, marginTop: 12, borderTop: "1px solid rgba(255,255,255,0.04)" }}>
+        <div style={{ fontSize: 12, color: "var(--sl-border-strong)", paddingTop: 12, marginTop: 12, borderTop: "1px solid var(--sl-border)" }}>
           Last run: {new Date(runAt).toLocaleString("pt-PT")}
           {cp5Locked && progress.locked[5] && (
             <> · Locked: {new Date(progress.locked[5]).toLocaleString("pt-PT")}</>
@@ -8188,8 +8188,8 @@ function OfferSummaryCard({ creator }) {
 
   if (!hasAnyContent) {
     return (
-      <div style={{ padding: 20, background: "#141414", border: "1px dashed rgba(255,255,255,0.06)", borderRadius: 10, textAlign: "center" }}>
-        <p style={{ fontSize: 12, color: "#666", margin: 0 }}>
+      <div style={{ padding: 20, background: "var(--sl-surface)", border: "1px dashed color-mix(in srgb, var(--sl-text) 6%, transparent)", borderRadius: 10, textAlign: "center" }}>
+        <p style={{ fontSize: 12, color: "var(--sl-text-faint)", margin: 0 }}>
           No structured offer data yet. Run the wizard checkpoints above to populate this view.
         </p>
       </div>
@@ -8214,22 +8214,22 @@ function OfferSummaryCard({ creator }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
       {/* Header — community name + platform + price */}
-      <div style={{ padding: "16px 18px", background: "#141414", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 10, display: "grid", gridTemplateColumns: "1fr auto", gap: 16, alignItems: "center" }}>
+      <div style={{ padding: "16px 18px", background: "var(--sl-surface)", border: "1px solid var(--sl-border)", borderRadius: 10, display: "grid", gridTemplateColumns: "1fr auto", gap: 16, alignItems: "center" }}>
         <div>
-          <div style={{ fontSize: 9, fontWeight: 700, color: "#7A0E18", letterSpacing: "0.16em", textTransform: "uppercase", marginBottom: 4 }}>Community</div>
-          <div style={{ fontSize: 22, fontWeight: 700, color: "#f5f5f5", fontFamily: "'Instrument Serif', Georgia, serif", letterSpacing: "-0.01em", marginBottom: 4 }}>
-            {c.community_name || <span style={{ color: "#444", fontStyle: "italic" }}>(no name yet)</span>}
+          <div style={{ fontSize: 12, fontWeight: 700, color: "var(--sl-accent-text)", letterSpacing: "0.16em", textTransform: "uppercase", marginBottom: 4 }}>Community</div>
+          <div style={{ fontSize: 22, fontWeight: 700, color: "var(--sl-text)", fontFamily: "'Instrument Serif', Georgia, serif", letterSpacing: "-0.01em", marginBottom: 4 }}>
+            {c.community_name || <span style={{ color: "var(--sl-text-faint)", fontStyle: "italic" }}>(no name yet)</span>}
           </div>
           {c.platform && (
-            <span style={{ fontSize: 10, fontWeight: 700, color: "#3b82f6", padding: "2px 8px", borderRadius: 3, background: "rgba(59,130,246,0.08)", border: "1px solid rgba(59,130,246,0.25)", letterSpacing: "0.06em" }}>{c.platform}</span>
+            <span style={{ fontSize: 12, fontWeight: 700, color: "var(--sl-info)", padding: "2px 8px", borderRadius: 3, background: "color-mix(in srgb, var(--sl-info) 8%, transparent)", border: "1px solid color-mix(in srgb, var(--sl-info) 25%, transparent)", letterSpacing: "0.06em" }}>{c.platform}</span>
           )}
         </div>
         {c.target_price && (
           <div style={{ textAlign: "right" }}>
-            <div style={{ fontSize: 9, fontWeight: 700, color: "#666", letterSpacing: "0.16em", textTransform: "uppercase", marginBottom: 4 }}>Price</div>
-            <div style={{ fontSize: 22, fontWeight: 700, color: "#B11E2F", fontFamily: "'Instrument Serif', Georgia, serif", letterSpacing: "-0.01em" }}>{c.target_price}</div>
+            <div style={{ fontSize: 12, fontWeight: 700, color: "var(--sl-text-faint)", letterSpacing: "0.16em", textTransform: "uppercase", marginBottom: 4 }}>Price</div>
+            <div style={{ fontSize: 22, fontWeight: 700, color: "var(--sl-accent-text)", fontFamily: "'Instrument Serif', Georgia, serif", letterSpacing: "-0.01em" }}>{c.target_price}</div>
             {(c.pricing_tier || c.pricing_model) && (
-              <div style={{ fontSize: 10, color: "#666", marginTop: 3, letterSpacing: "0.04em" }}>
+              <div style={{ fontSize: 12, color: "var(--sl-text-faint)", marginTop: 3, letterSpacing: "0.04em" }}>
                 {c.pricing_tier ? c.pricing_tier.toUpperCase() : ''}
                 {c.pricing_tier && c.pricing_model ? ' · ' : ''}
                 {c.pricing_model ? c.pricing_model.replace('_', ' ').toUpperCase() : ''}
@@ -8241,30 +8241,30 @@ function OfferSummaryCard({ creator }) {
 
       {/* Big Idea */}
       {c.central_promise && (
-        <div style={{ padding: "13px 16px", background: "rgba(122,14,24,0.04)", border: "1px solid rgba(122,14,24,0.18)", borderRadius: 10 }}>
-          <div style={{ fontSize: 9, fontWeight: 700, color: "#7A0E18", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 6 }}>Big Idea</div>
-          <p style={{ fontSize: 13, color: "#ddd", lineHeight: 1.55, margin: 0, fontWeight: 500 }}>{c.central_promise}</p>
+        <div style={{ padding: "13px 16px", background: "color-mix(in srgb, var(--sl-primary) 4%, transparent)", border: "1px solid color-mix(in srgb, var(--sl-primary) 18%, transparent)", borderRadius: 10 }}>
+          <div style={{ fontSize: 12, fontWeight: 700, color: "var(--sl-accent-text)", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 6 }}>Big Idea</div>
+          <p style={{ fontSize: 13, color: "var(--sl-text)", lineHeight: 1.55, margin: 0, fontWeight: 500 }}>{c.central_promise}</p>
         </div>
       )}
 
       {/* Transformation */}
       {c.transformation && (c.transformation.from || c.transformation.to) && (
-        <div style={{ padding: "13px 16px", background: "#141414", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 10 }}>
-          <div style={{ fontSize: 9, fontWeight: 700, color: "#666", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 8 }}>Transformation</div>
+        <div style={{ padding: "13px 16px", background: "var(--sl-surface)", border: "1px solid var(--sl-border)", borderRadius: 10 }}>
+          <div style={{ fontSize: 12, fontWeight: 700, color: "var(--sl-text-faint)", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 8 }}>Transformation</div>
           <div className="sl-grid-3" style={{ display: "grid", gridTemplateColumns: "1fr auto 1fr", gap: 12, alignItems: "center" }}>
             <div>
-              <div style={{ fontSize: 9, fontWeight: 700, color: "#ef4444", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 3 }}>From</div>
-              <div style={{ fontSize: 11.5, color: "#ccc", lineHeight: 1.45 }}>{c.transformation.from || '—'}</div>
+              <div style={{ fontSize: 12, fontWeight: 700, color: "var(--sl-danger)", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 3 }}>From</div>
+              <div style={{ fontSize: 12.5, color: "var(--sl-text-muted)", lineHeight: 1.45 }}>{c.transformation.from || '—'}</div>
             </div>
-            <div style={{ fontSize: 16, color: "#666", fontWeight: 700 }}>→</div>
+            <div style={{ fontSize: 16, color: "var(--sl-text-faint)", fontWeight: 700 }}>→</div>
             <div>
-              <div style={{ fontSize: 9, fontWeight: 700, color: "#22c55e", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 3 }}>To</div>
-              <div style={{ fontSize: 11.5, color: "#ccc", lineHeight: 1.45 }}>{c.transformation.to || '—'}</div>
+              <div style={{ fontSize: 12, fontWeight: 700, color: "var(--sl-success)", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 3 }}>To</div>
+              <div style={{ fontSize: 12.5, color: "var(--sl-text-muted)", lineHeight: 1.45 }}>{c.transformation.to || '—'}</div>
             </div>
           </div>
           {c.transformation.timeframe && (
-            <div style={{ marginTop: 10, paddingTop: 10, borderTop: "1px solid rgba(255,255,255,0.04)", fontSize: 11, color: "#888" }}>
-              <span style={{ color: "#555", fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", fontSize: 9, marginRight: 6 }}>Timeframe:</span>
+            <div style={{ marginTop: 10, paddingTop: 10, borderTop: "1px solid var(--sl-border)", fontSize: 12, color: "var(--sl-text-muted)" }}>
+              <span style={{ color: "var(--sl-text-faint)", fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", fontSize: 12, marginRight: 6 }}>Timeframe:</span>
               {c.transformation.timeframe}
             </div>
           )}
@@ -8273,13 +8273,13 @@ function OfferSummaryCard({ creator }) {
 
       {/* Mechanism */}
       {c.mechanism && c.mechanism.name && (
-        <div style={{ padding: "13px 16px", background: "#141414", border: "1px solid rgba(122,14,24,0.18)", borderRadius: 10 }}>
+        <div style={{ padding: "13px 16px", background: "var(--sl-surface)", border: "1px solid color-mix(in srgb, var(--sl-primary) 18%, transparent)", borderRadius: 10 }}>
           <div style={{ display: "flex", alignItems: "baseline", gap: 10, marginBottom: 6, flexWrap: "wrap" }}>
-            <div style={{ fontSize: 9, fontWeight: 700, color: "#7A0E18", letterSpacing: "0.14em", textTransform: "uppercase" }}>Mechanism</div>
-            <div style={{ fontSize: 17, fontWeight: 700, color: "#f5f5f5", fontFamily: "'Instrument Serif', Georgia, serif", letterSpacing: "0.04em" }}>{c.mechanism.name}</div>
+            <div style={{ fontSize: 12, fontWeight: 700, color: "var(--sl-accent-text)", letterSpacing: "0.14em", textTransform: "uppercase" }}>Mechanism</div>
+            <div style={{ fontSize: 17, fontWeight: 700, color: "var(--sl-text)", fontFamily: "'Instrument Serif', Georgia, serif", letterSpacing: "0.04em" }}>{c.mechanism.name}</div>
           </div>
           {c.mechanism.description && (
-            <p style={{ fontSize: 11.5, color: "#aaa", margin: 0, lineHeight: 1.5, fontStyle: "italic" }}>{c.mechanism.description}</p>
+            <p style={{ fontSize: 12.5, color: "var(--sl-text-muted)", margin: 0, lineHeight: 1.5, fontStyle: "italic" }}>{c.mechanism.description}</p>
           )}
         </div>
       )}
@@ -8288,29 +8288,29 @@ function OfferSummaryCard({ creator }) {
       {(Array.isArray(c.modules) && c.modules.length > 0) ||
         (Array.isArray(c.weekly_formats) && c.weekly_formats.length > 0) ||
         (Array.isArray(c.library) && c.library.length > 0) ? (
-        <div style={{ padding: "12px 16px", background: "#141414", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 10, display: "flex", gap: 24, flexWrap: "wrap" }}>
+        <div style={{ padding: "12px 16px", background: "var(--sl-surface)", border: "1px solid var(--sl-border)", borderRadius: 10, display: "flex", gap: 24, flexWrap: "wrap" }}>
           {Array.isArray(c.modules) && c.modules.length > 0 && (
             <div>
-              <div style={{ fontSize: 9, fontWeight: 700, color: "#666", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 2 }}>Modules</div>
-              <div style={{ fontSize: 16, fontWeight: 700, color: "#f5f5f5" }}>{c.modules.length}</div>
+              <div style={{ fontSize: 12, fontWeight: 700, color: "var(--sl-text-faint)", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 2 }}>Modules</div>
+              <div style={{ fontSize: 16, fontWeight: 700, color: "var(--sl-text)" }}>{c.modules.length}</div>
             </div>
           )}
           {Array.isArray(c.weekly_formats) && c.weekly_formats.length > 0 && (
             <div>
-              <div style={{ fontSize: 9, fontWeight: 700, color: "#666", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 2 }}>Weekly Formats</div>
-              <div style={{ fontSize: 16, fontWeight: 700, color: "#f5f5f5" }}>{c.weekly_formats.length}</div>
+              <div style={{ fontSize: 12, fontWeight: 700, color: "var(--sl-text-faint)", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 2 }}>Weekly Formats</div>
+              <div style={{ fontSize: 16, fontWeight: 700, color: "var(--sl-text)" }}>{c.weekly_formats.length}</div>
             </div>
           )}
           {Array.isArray(c.library) && c.library.length > 0 && (
             <div>
-              <div style={{ fontSize: 9, fontWeight: 700, color: "#666", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 2 }}>Library</div>
-              <div style={{ fontSize: 16, fontWeight: 700, color: "#f5f5f5" }}>{c.library.length}</div>
+              <div style={{ fontSize: 12, fontWeight: 700, color: "var(--sl-text-faint)", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 2 }}>Library</div>
+              <div style={{ fontSize: 16, fontWeight: 700, color: "var(--sl-text)" }}>{c.library.length}</div>
             </div>
           )}
           {Array.isArray(c.unlocked_bonuses) && c.unlocked_bonuses.length > 0 && (
             <div>
-              <div style={{ fontSize: 9, fontWeight: 700, color: "#666", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 2 }}>Bonuses</div>
-              <div style={{ fontSize: 16, fontWeight: 700, color: "#f5f5f5" }}>{c.unlocked_bonuses.length}</div>
+              <div style={{ fontSize: 12, fontWeight: 700, color: "var(--sl-text-faint)", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 2 }}>Bonuses</div>
+              <div style={{ fontSize: 16, fontWeight: 700, color: "var(--sl-text)" }}>{c.unlocked_bonuses.length}</div>
             </div>
           )}
         </div>
@@ -8318,22 +8318,22 @@ function OfferSummaryCard({ creator }) {
 
       {/* Value stack snapshot */}
       {c.value_stack && c.value_stack.total && (
-        <div style={{ padding: "13px 16px", background: "#141414", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 10, display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
+        <div style={{ padding: "13px 16px", background: "var(--sl-surface)", border: "1px solid var(--sl-border)", borderRadius: 10, display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
           <div>
-            <div style={{ fontSize: 9, fontWeight: 700, color: "#666", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 4 }}>Value Stack</div>
-            <div style={{ fontSize: 11.5, color: "#888" }}>
-              {(c.value_stack.items || []).length} items {multipleLine && <span style={{ color: multipleLine >= 5 ? "#22c55e" : "#eab308", fontWeight: 700, marginLeft: 6 }}>· {multipleLine}× value</span>}
+            <div style={{ fontSize: 12, fontWeight: 700, color: "var(--sl-text-faint)", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 4 }}>Value Stack</div>
+            <div style={{ fontSize: 12.5, color: "var(--sl-text-muted)" }}>
+              {(c.value_stack.items || []).length} items {multipleLine && <span style={{ color: multipleLine >= 5 ? "var(--sl-success)" : "var(--sl-warning)", fontWeight: 700, marginLeft: 6 }}>· {multipleLine}× value</span>}
             </div>
           </div>
           <div style={{ display: "flex", alignItems: "baseline", gap: 14 }}>
             <div>
-              <div style={{ fontSize: 9, color: "#666", letterSpacing: "0.1em", textTransform: "uppercase", marginRight: 6 }}>Total value</div>
-              <div style={{ fontSize: 17, fontWeight: 700, color: "#22c55e", fontFamily: "'Instrument Serif', Georgia, serif" }}>{c.value_stack.total}</div>
+              <div style={{ fontSize: 12, color: "var(--sl-text-faint)", letterSpacing: "0.1em", textTransform: "uppercase", marginRight: 6 }}>Total value</div>
+              <div style={{ fontSize: 17, fontWeight: 700, color: "var(--sl-success)", fontFamily: "'Instrument Serif', Georgia, serif" }}>{c.value_stack.total}</div>
             </div>
-            <div style={{ color: "#444", fontSize: 14 }}>vs</div>
+            <div style={{ color: "var(--sl-text-faint)", fontSize: 14 }}>vs</div>
             <div>
-              <div style={{ fontSize: 9, color: "#666", letterSpacing: "0.1em", textTransform: "uppercase", marginRight: 6 }}>Today</div>
-              <div style={{ fontSize: 17, fontWeight: 700, color: "#B11E2F", fontFamily: "'Instrument Serif', Georgia, serif" }}>{c.value_stack.actualPrice}</div>
+              <div style={{ fontSize: 12, color: "var(--sl-text-faint)", letterSpacing: "0.1em", textTransform: "uppercase", marginRight: 6 }}>Today</div>
+              <div style={{ fontSize: 17, fontWeight: 700, color: "var(--sl-accent-text)", fontFamily: "'Instrument Serif', Georgia, serif" }}>{c.value_stack.actualPrice}</div>
             </div>
           </div>
         </div>
@@ -8344,20 +8344,20 @@ function OfferSummaryCard({ creator }) {
       {Array.isArray(c.pricing_tiers) && c.pricing_tiers.length > 0 && (() => {
         const displayCurrency = detectCurrency(creator);
         return (
-          <div style={{ padding: "13px 16px", background: "#141414", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 10 }}>
-            <div style={{ fontSize: 9, fontWeight: 700, color: "#666", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 10 }}>Pricing Tiers · {c.pricing_tiers.length}</div>
+          <div style={{ padding: "13px 16px", background: "var(--sl-surface)", border: "1px solid var(--sl-border)", borderRadius: 10 }}>
+            <div style={{ fontSize: 12, fontWeight: 700, color: "var(--sl-text-faint)", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 10 }}>Pricing Tiers · {c.pricing_tiers.length}</div>
             <div className="sl-grid" style={{ display: "grid", gridTemplateColumns: `repeat(${Math.min(c.pricing_tiers.length, 3)}, 1fr)`, gap: 8 }}>
               {c.pricing_tiers.map((t, i) => {
                 const converted = convertPriceString(t.price || '', displayCurrency);
                 const sourceDiffers = converted !== (t.price || '');
                 return (
-                  <div key={i} style={{ padding: "11px 12px", background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.05)", borderRadius: 6 }}>
-                    <div style={{ fontSize: 9, fontWeight: 700, color: "#B11E2F", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 4 }}>{t.name}</div>
-                    <div style={{ fontSize: 15, fontWeight: 700, color: "#f5f5f5", fontFamily: "'Instrument Serif', Georgia, serif", marginBottom: sourceDiffers ? 2 : 4 }}>{converted || t.price}</div>
+                  <div key={i} style={{ padding: "11px 12px", background: "color-mix(in srgb, var(--sl-text) 2%, transparent)", border: "1px solid var(--sl-border)", borderRadius: 6 }}>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: "var(--sl-accent-text)", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 4 }}>{t.name}</div>
+                    <div style={{ fontSize: 15, fontWeight: 700, color: "var(--sl-text)", fontFamily: "'Instrument Serif', Georgia, serif", marginBottom: sourceDiffers ? 2 : 4 }}>{converted || t.price}</div>
                     {sourceDiffers && (
-                      <div style={{ fontSize: 9.5, color: "#555", marginBottom: 4, fontFamily: "ui-monospace, monospace" }}>{t.price}</div>
+                      <div style={{ fontSize: 12.5, color: "var(--sl-text-faint)", marginBottom: 4, fontFamily: "ui-monospace, monospace" }}>{t.price}</div>
                     )}
-                    <div style={{ fontSize: 10.5, color: "#888", lineHeight: 1.45 }}>{t.note}</div>
+                    <div style={{ fontSize: 12.5, color: "var(--sl-text-muted)", lineHeight: 1.45 }}>{t.note}</div>
                   </div>
                 );
               })}
@@ -8393,9 +8393,9 @@ function ResumoPanel({ creator, patchCreator }) {
   // Empty state — neither wizard nor legacy markdown has populated content yet.
   if (!c.community_name && !c.central_promise && (!c.modules || c.modules.length === 0) && !c.value_stack) {
     return (
-      <div style={{ padding: 60, textAlign: "center", color: "#666", background: "#141414", border: "1px dashed rgba(255,255,255,0.06)", borderRadius: 10 }}>
-        <p style={{ fontSize: 14, color: "#888", marginBottom: 8 }}>A oferta ainda não foi gerada.</p>
-        <p style={{ fontSize: 12, color: "#555", marginBottom: 0 }}>Vai ao tab <strong style={{ color: "#888" }}>Grand Slam Offer</strong> e corre o wizard (CP1 → CP5).</p>
+      <div style={{ padding: 60, textAlign: "center", color: "var(--sl-text-faint)", background: "var(--sl-surface)", border: "1px dashed color-mix(in srgb, var(--sl-text) 6%, transparent)", borderRadius: 10 }}>
+        <p style={{ fontSize: 14, color: "var(--sl-text-muted)", marginBottom: 8 }}>A oferta ainda não foi gerada.</p>
+        <p style={{ fontSize: 12, color: "var(--sl-text-faint)", marginBottom: 0 }}>Vai ao tab <strong style={{ color: "var(--sl-text-muted)" }}>Grand Slam Offer</strong> e corre o wizard (CP1 → CP5).</p>
       </div>
     );
   }
@@ -8517,7 +8517,7 @@ function ResumoPanel({ creator, patchCreator }) {
         style={{
           outline: "none",
           cursor: "text",
-          ...(isEmpty ? { color: "#555", fontStyle: "italic" } : {}),
+          ...(isEmpty ? { color: "var(--sl-text-faint)", fontStyle: "italic" } : {}),
           ...style,
         }}
       >
@@ -8528,12 +8528,12 @@ function ResumoPanel({ creator, patchCreator }) {
 
   // Eyebrow chip used as a section label.
   const Eyebrow = ({ children }) => (
-    <div style={{ fontSize: 10, fontWeight: 700, color: "#7A0E18", letterSpacing: "0.16em", textTransform: "uppercase", marginBottom: 10 }}>{children}</div>
+    <div style={{ fontSize: 12, fontWeight: 700, color: "var(--sl-accent-text)", letterSpacing: "0.16em", textTransform: "uppercase", marginBottom: 10 }}>{children}</div>
   );
 
   // Section card wrapper — consistent padding + border around each block.
   const Section = ({ children, style }) => (
-    <section style={{ padding: "20px 24px", background: "#0f0f0f", border: "1px solid rgba(255,255,255,0.05)", borderRadius: 12, ...style }}>
+    <section style={{ padding: "20px 24px", background: "var(--sl-surface)", border: "1px solid var(--sl-border)", borderRadius: 12, ...style }}>
       {children}
     </section>
   );
@@ -8543,7 +8543,7 @@ function ResumoPanel({ creator, patchCreator }) {
     <button
       onClick={onClick}
       title="Remover"
-      style={{ flexShrink: 0, background: "transparent", border: "none", color: "#444", cursor: "pointer", fontSize: 14, padding: "0 4px", marginLeft: 6 }}
+      style={{ flexShrink: 0, background: "transparent", border: "none", color: "var(--sl-text-faint)", cursor: "pointer", fontSize: 14, padding: "0 4px", marginLeft: 6 }}
     >✕</button>
   );
 
@@ -8553,11 +8553,11 @@ function ResumoPanel({ creator, patchCreator }) {
       onClick={onClick}
       style={{
         background: "transparent",
-        border: `1px dashed ${muted ? "rgba(255,255,255,0.1)" : "rgba(122,14,24,0.3)"}`,
-        color: muted ? "#888" : "#7A0E18",
+        border: `1px dashed ${muted ? "color-mix(in srgb, var(--sl-text) 10%, transparent)" : "color-mix(in srgb, var(--sl-primary) 30%, transparent)"}`,
+        color: muted ? "var(--sl-text-muted)" : "var(--sl-accent-text)",
         padding: "6px 12px",
         borderRadius: 6,
-        fontSize: 11,
+        fontSize: 12,
         fontWeight: 600,
         cursor: "pointer",
         fontFamily: "inherit",
@@ -8571,14 +8571,14 @@ function ResumoPanel({ creator, patchCreator }) {
       {/* ── 1. Header — community + central promise ── */}
       <Section>
         <Eyebrow>Comunidade</Eyebrow>
-        <div style={{ fontSize: 36, fontWeight: 700, color: "#f5f5f5", fontFamily: "'Instrument Serif', Georgia, serif", letterSpacing: "-0.01em", lineHeight: 1.1, marginBottom: 12 }}>
+        <div style={{ fontSize: 36, fontWeight: 700, color: "var(--sl-text)", fontFamily: "'Instrument Serif', Georgia, serif", letterSpacing: "-0.01em", lineHeight: 1.1, marginBottom: 12 }}>
           <Inline
             value={cfo.community_name}
             onChange={saveField('community_name')}
             placeholder="Nome da comunidade…"
           />
         </div>
-        <div style={{ fontSize: 18, color: "#D9D9D9", lineHeight: 1.5 }}>
+        <div style={{ fontSize: 18, color: "var(--sl-text-muted)", lineHeight: 1.5 }}>
           <Inline
             value={cfo.central_promise}
             onChange={saveField('central_promise')}
@@ -8588,17 +8588,17 @@ function ResumoPanel({ creator, patchCreator }) {
         </div>
         <div style={{ display: "flex", gap: 6, marginTop: 14, flexWrap: "wrap" }}>
           {cfo.platform && (
-            <span style={{ fontSize: 10, fontWeight: 700, color: "#3b82f6", padding: "3px 10px", borderRadius: 4, background: "rgba(59,130,246,0.08)", border: "1px solid rgba(59,130,246,0.25)", letterSpacing: "0.06em", textTransform: "uppercase" }}>
+            <span style={{ fontSize: 12, fontWeight: 700, color: "var(--sl-info)", padding: "3px 10px", borderRadius: 4, background: "color-mix(in srgb, var(--sl-info) 8%, transparent)", border: "1px solid color-mix(in srgb, var(--sl-info) 25%, transparent)", letterSpacing: "0.06em", textTransform: "uppercase" }}>
               <Inline value={cfo.platform} onChange={saveField('platform')} placeholder="Plataforma" />
             </span>
           )}
           {cfo.target_price && (
-            <span style={{ fontSize: 10, fontWeight: 700, color: "#22c55e", padding: "3px 10px", borderRadius: 4, background: "rgba(34,197,94,0.08)", border: "1px solid rgba(34,197,94,0.25)", letterSpacing: "0.06em" }}>
+            <span style={{ fontSize: 12, fontWeight: 700, color: "var(--sl-success)", padding: "3px 10px", borderRadius: 4, background: "color-mix(in srgb, var(--sl-success) 8%, transparent)", border: "1px solid color-mix(in srgb, var(--sl-success) 25%, transparent)", letterSpacing: "0.06em" }}>
               <Inline value={cfo.target_price} onChange={saveField('target_price')} placeholder="Preço" />
             </span>
           )}
           {cfo.pricing_tier && (
-            <span style={{ fontSize: 10, fontWeight: 700, color: "#888", padding: "3px 10px", borderRadius: 4, background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)", letterSpacing: "0.06em", textTransform: "uppercase" }}>
+            <span style={{ fontSize: 12, fontWeight: 700, color: "var(--sl-text-muted)", padding: "3px 10px", borderRadius: 4, background: "color-mix(in srgb, var(--sl-text) 3%, transparent)", border: "1px solid var(--sl-border)", letterSpacing: "0.06em", textTransform: "uppercase" }}>
               <Inline value={cfo.pricing_tier} onChange={saveField('pricing_tier')} placeholder="Tier" />
             </span>
           )}
@@ -8610,8 +8610,8 @@ function ResumoPanel({ creator, patchCreator }) {
         <Eyebrow>Transformação</Eyebrow>
         <div style={{ display: "grid", gridTemplateColumns: "1fr auto 1fr", gap: 16, alignItems: "start" }}>
           <div>
-            <div style={{ fontSize: 9, fontWeight: 700, color: "#ef4444", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 6 }}>De</div>
-            <div style={{ fontSize: 15, color: "#D9D9D9", lineHeight: 1.5 }}>
+            <div style={{ fontSize: 12, fontWeight: 700, color: "var(--sl-danger)", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 6 }}>De</div>
+            <div style={{ fontSize: 15, color: "var(--sl-text-muted)", lineHeight: 1.5 }}>
               <Inline
                 value={cfo.transformation?.from}
                 onChange={saveNested('transformation', 'from')}
@@ -8620,10 +8620,10 @@ function ResumoPanel({ creator, patchCreator }) {
               />
             </div>
           </div>
-          <div style={{ alignSelf: "center", color: "#444", fontSize: 24 }}>→</div>
+          <div style={{ alignSelf: "center", color: "var(--sl-text-faint)", fontSize: 24 }}>→</div>
           <div>
-            <div style={{ fontSize: 9, fontWeight: 700, color: "#22c55e", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 6 }}>Para</div>
-            <div style={{ fontSize: 15, color: "#D9D9D9", lineHeight: 1.5 }}>
+            <div style={{ fontSize: 12, fontWeight: 700, color: "var(--sl-success)", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 6 }}>Para</div>
+            <div style={{ fontSize: 15, color: "var(--sl-text-muted)", lineHeight: 1.5 }}>
               <Inline
                 value={cfo.transformation?.to}
                 onChange={saveNested('transformation', 'to')}
@@ -8633,12 +8633,12 @@ function ResumoPanel({ creator, patchCreator }) {
             </div>
           </div>
         </div>
-        <div style={{ marginTop: 14, fontSize: 12, color: "#888" }}>
+        <div style={{ marginTop: 14, fontSize: 12, color: "var(--sl-text-muted)" }}>
           Tempo: <Inline
             value={cfo.transformation?.timeframe}
             onChange={saveNested('transformation', 'timeframe')}
             placeholder="ex: 90 dias"
-            style={{ color: "#f5f5f5", fontWeight: 600 }}
+            style={{ color: "var(--sl-text)", fontWeight: 600 }}
           />
         </div>
       </Section>
@@ -8648,11 +8648,11 @@ function ResumoPanel({ creator, patchCreator }) {
         <Eyebrow>Audiência</Eyebrow>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 18 }}>
           <div>
-            <div style={{ fontSize: 9, fontWeight: 700, color: "#7A0E18", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 10 }}>Para quem é</div>
+            <div style={{ fontSize: 12, fontWeight: 700, color: "var(--sl-accent-text)", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 10 }}>Para quem é</div>
             <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 8 }}>
               {(cfo.audience_fit?.for || []).map((s, i) => (
-                <li key={i} style={{ display: "flex", gap: 10, fontSize: 13, color: "#D9D9D9", lineHeight: 1.45, alignItems: "baseline" }}>
-                  <span style={{ color: "#7A0E18", flexShrink: 0, fontWeight: 700 }}>→</span>
+                <li key={i} style={{ display: "flex", gap: 10, fontSize: 13, color: "var(--sl-text-muted)", lineHeight: 1.45, alignItems: "baseline" }}>
+                  <span style={{ color: "var(--sl-accent-text)", flexShrink: 0, fontWeight: 700 }}>→</span>
                   <span style={{ flex: 1 }}>
                     <Inline value={s} onChange={saveAudienceFitArray('for', i)} placeholder="Quem se encaixa…" multiline />
                   </span>
@@ -8663,11 +8663,11 @@ function ResumoPanel({ creator, patchCreator }) {
             </ul>
           </div>
           <div>
-            <div style={{ fontSize: 9, fontWeight: 700, color: "#888", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 10 }}>Não é para</div>
+            <div style={{ fontSize: 12, fontWeight: 700, color: "var(--sl-text-muted)", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 10 }}>Não é para</div>
             <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 8 }}>
               {(cfo.audience_fit?.not_for || []).map((s, i) => (
-                <li key={i} style={{ display: "flex", gap: 10, fontSize: 13, color: "#9E9E9E", lineHeight: 1.45, alignItems: "baseline" }}>
-                  <span style={{ color: "#666", flexShrink: 0 }}>✕</span>
+                <li key={i} style={{ display: "flex", gap: 10, fontSize: 13, color: "var(--sl-text-muted)", lineHeight: 1.45, alignItems: "baseline" }}>
+                  <span style={{ color: "var(--sl-text-faint)", flexShrink: 0 }}>✕</span>
                   <span style={{ flex: 1 }}>
                     <Inline value={s} onChange={saveAudienceFitArray('not_for', i)} placeholder="Quem não se encaixa…" multiline />
                   </span>
@@ -8683,7 +8683,7 @@ function ResumoPanel({ creator, patchCreator }) {
       {/* ── 4. Core mechanic + weekly rhythm ── */}
       <Section>
         <Eyebrow>O Mecanismo Central</Eyebrow>
-        <div style={{ fontSize: 15, color: "#D9D9D9", lineHeight: 1.55, marginBottom: 18 }}>
+        <div style={{ fontSize: 15, color: "var(--sl-text-muted)", lineHeight: 1.55, marginBottom: 18 }}>
           <Inline
             value={cfo.core_mechanic}
             onChange={saveField('core_mechanic')}
@@ -8691,11 +8691,11 @@ function ResumoPanel({ creator, patchCreator }) {
             multiline
           />
         </div>
-        <div style={{ fontSize: 9, fontWeight: 700, color: "#7A0E18", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 10 }}>Ritmo semanal</div>
+        <div style={{ fontSize: 12, fontWeight: 700, color: "var(--sl-accent-text)", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 10 }}>Ritmo semanal</div>
         <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 8 }}>
           {(cfo.weekly_rhythm || []).map((r, i) => (
-            <li key={i} style={{ display: "flex", gap: 10, fontSize: 13, color: "#D9D9D9", lineHeight: 1.45, alignItems: "baseline" }}>
-              <span style={{ color: "#7A0E18", flexShrink: 0, fontWeight: 700 }}>·</span>
+            <li key={i} style={{ display: "flex", gap: 10, fontSize: 13, color: "var(--sl-text-muted)", lineHeight: 1.45, alignItems: "baseline" }}>
+              <span style={{ color: "var(--sl-accent-text)", flexShrink: 0, fontWeight: 700 }}>·</span>
               <span style={{ flex: 1 }}>
                 <Inline value={r} onChange={saveArrayString('weekly_rhythm', i)} placeholder="Dia · Atividade" />
               </span>
@@ -8710,7 +8710,7 @@ function ResumoPanel({ creator, patchCreator }) {
       {cfo.mechanism && (
         <Section>
           <Eyebrow>O Método</Eyebrow>
-          <div style={{ fontSize: 28, fontWeight: 700, color: "#f5f5f5", fontFamily: "'Instrument Serif', Georgia, serif", marginBottom: 18, letterSpacing: "-0.01em" }}>
+          <div style={{ fontSize: 28, fontWeight: 700, color: "var(--sl-text)", fontFamily: "'Instrument Serif', Georgia, serif", marginBottom: 18, letterSpacing: "-0.01em" }}>
             <Inline
               value={cfo.mechanism.name}
               onChange={(v) => { const m = cfo.mechanism || {}; patchCfo({ mechanism: { ...m, name: v } }); }}
@@ -8720,13 +8720,13 @@ function ResumoPanel({ creator, patchCreator }) {
           {Array.isArray(cfo.mechanism.letters) && cfo.mechanism.letters.length > 0 && (
             <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
               {cfo.mechanism.letters.map((l, i) => (
-                <div key={i} style={{ padding: "12px 14px", background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.04)", borderRadius: 8, display: "grid", gridTemplateColumns: "60px 1fr", gap: 14, alignItems: "start" }}>
-                  <div style={{ fontSize: 32, fontWeight: 800, color: "#7A0E18", fontFamily: "'Instrument Serif', Georgia, serif", lineHeight: 1 }}>{l.letter || (cfo.mechanism.name || '')[i] || '?'}</div>
+                <div key={i} style={{ padding: "12px 14px", background: "color-mix(in srgb, var(--sl-text) 2%, transparent)", border: "1px solid var(--sl-border)", borderRadius: 8, display: "grid", gridTemplateColumns: "60px 1fr", gap: 14, alignItems: "start" }}>
+                  <div style={{ fontSize: 32, fontWeight: 800, color: "var(--sl-accent-text)", fontFamily: "'Instrument Serif', Georgia, serif", lineHeight: 1 }}>{l.letter || (cfo.mechanism.name || '')[i] || '?'}</div>
                   <div>
-                    <div style={{ fontSize: 15, fontWeight: 700, color: "#f5f5f5", marginBottom: 4 }}>
+                    <div style={{ fontSize: 15, fontWeight: 700, color: "var(--sl-text)", marginBottom: 4 }}>
                       <Inline value={l.word} onChange={saveMechanismLetter(i, 'word')} placeholder="Palavra…" />
                     </div>
-                    <div style={{ fontSize: 13, color: "#D9D9D9", lineHeight: 1.45 }}>
+                    <div style={{ fontSize: 13, color: "var(--sl-text-muted)", lineHeight: 1.45 }}>
                       <Inline value={l.explanation} onChange={saveMechanismLetter(i, 'explanation')} placeholder="Explicação curta…" multiline />
                     </div>
                   </div>
@@ -8743,28 +8743,28 @@ function ResumoPanel({ creator, patchCreator }) {
           <Eyebrow>Módulos · {cfo.modules.length}</Eyebrow>
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
             {cfo.modules.map((m, i) => (
-              <div key={i} style={{ padding: "14px 16px", background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.04)", borderRadius: 8 }}>
+              <div key={i} style={{ padding: "14px 16px", background: "color-mix(in srgb, var(--sl-text) 2%, transparent)", border: "1px solid var(--sl-border)", borderRadius: 8 }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 12, marginBottom: 8 }}>
-                  <div style={{ fontSize: 16, fontWeight: 700, color: "#f5f5f5", flex: 1 }}>
+                  <div style={{ fontSize: 16, fontWeight: 700, color: "var(--sl-text)", flex: 1 }}>
                     <Inline value={m.name} onChange={saveArrayItem('modules', i, 'name')} placeholder="Nome do módulo…" />
                   </div>
                   <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
-                    <span style={{ fontSize: 9, fontWeight: 700, color: "#888", padding: "2px 8px", borderRadius: 3, background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)", letterSpacing: "0.06em" }}>
+                    <span style={{ fontSize: 12, fontWeight: 700, color: "var(--sl-text-muted)", padding: "2px 8px", borderRadius: 3, background: "color-mix(in srgb, var(--sl-text) 3%, transparent)", border: "1px solid var(--sl-border)", letterSpacing: "0.06em" }}>
                       <Inline value={m.format} onChange={saveArrayItem('modules', i, 'format')} placeholder="formato" />
                     </span>
                   </div>
                 </div>
-                <div style={{ fontSize: 13, color: "#D9D9D9", lineHeight: 1.5, marginBottom: 6 }}>
+                <div style={{ fontSize: 13, color: "var(--sl-text-muted)", lineHeight: 1.5, marginBottom: 6 }}>
                   <Inline value={m.description} onChange={saveArrayItem('modules', i, 'description')} placeholder="O que é este módulo?" multiline />
                 </div>
                 {m.transformation_delivered !== undefined && (
-                  <div style={{ fontSize: 12, color: "#22c55e", lineHeight: 1.4, marginBottom: 4 }}>
+                  <div style={{ fontSize: 12, color: "var(--sl-success)", lineHeight: 1.4, marginBottom: 4 }}>
                     → <Inline value={m.transformation_delivered} onChange={saveArrayItem('modules', i, 'transformation_delivered')} placeholder="O outcome específico que entrega…" />
                   </div>
                 )}
                 {m.delivery_cadence !== undefined && (
-                  <div style={{ fontSize: 11, color: "#666", letterSpacing: "0.04em" }}>
-                    Cadência: <Inline value={m.delivery_cadence} onChange={saveArrayItem('modules', i, 'delivery_cadence')} placeholder="ex: Quartas 18:00, semanal" style={{ color: "#aaa" }} />
+                  <div style={{ fontSize: 12, color: "var(--sl-text-faint)", letterSpacing: "0.04em" }}>
+                    Cadência: <Inline value={m.delivery_cadence} onChange={saveArrayItem('modules', i, 'delivery_cadence')} placeholder="ex: Quartas 18:00, semanal" style={{ color: "var(--sl-text-muted)" }} />
                   </div>
                 )}
               </div>
@@ -8780,25 +8780,25 @@ function ResumoPanel({ creator, patchCreator }) {
           <table style={{ width: "100%", borderCollapse: "collapse" }}>
             <thead>
               <tr>
-                <th style={{ textAlign: "left", fontSize: 9, fontWeight: 700, color: "#7A0E18", letterSpacing: "0.14em", textTransform: "uppercase", padding: "0 8px 8px", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>Problema</th>
-                <th style={{ textAlign: "left", fontSize: 9, fontWeight: 700, color: "#7A0E18", letterSpacing: "0.14em", textTransform: "uppercase", padding: "0 8px 8px", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>Solução</th>
-                <th style={{ textAlign: "left", fontSize: 9, fontWeight: 700, color: "#7A0E18", letterSpacing: "0.14em", textTransform: "uppercase", padding: "0 8px 8px", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>Entrega</th>
-                <th style={{ textAlign: "right", fontSize: 9, fontWeight: 700, color: "#7A0E18", letterSpacing: "0.14em", textTransform: "uppercase", padding: "0 8px 8px", borderBottom: "1px solid rgba(255,255,255,0.06)", fontFamily: "'JetBrains Mono', ui-monospace, monospace" }}>Valor</th>
+                <th style={{ textAlign: "left", fontSize: 12, fontWeight: 700, color: "var(--sl-accent-text)", letterSpacing: "0.14em", textTransform: "uppercase", padding: "0 8px 8px", borderBottom: "1px solid var(--sl-border)" }}>Problema</th>
+                <th style={{ textAlign: "left", fontSize: 12, fontWeight: 700, color: "var(--sl-accent-text)", letterSpacing: "0.14em", textTransform: "uppercase", padding: "0 8px 8px", borderBottom: "1px solid var(--sl-border)" }}>Solução</th>
+                <th style={{ textAlign: "left", fontSize: 12, fontWeight: 700, color: "var(--sl-accent-text)", letterSpacing: "0.14em", textTransform: "uppercase", padding: "0 8px 8px", borderBottom: "1px solid var(--sl-border)" }}>Entrega</th>
+                <th style={{ textAlign: "right", fontSize: 12, fontWeight: 700, color: "var(--sl-accent-text)", letterSpacing: "0.14em", textTransform: "uppercase", padding: "0 8px 8px", borderBottom: "1px solid var(--sl-border)", fontFamily: "'JetBrains Mono', ui-monospace, monospace" }}>Valor</th>
               </tr>
             </thead>
             <tbody>
               {cfo.value_stack.items.map((it, i) => (
                 <tr key={i}>
-                  <td style={{ padding: "10px 8px", fontSize: 13, color: "#D9D9D9", lineHeight: 1.45, borderBottom: "1px solid rgba(255,255,255,0.04)", verticalAlign: "top" }}>
+                  <td style={{ padding: "10px 8px", fontSize: 13, color: "var(--sl-text-muted)", lineHeight: 1.45, borderBottom: "1px solid var(--sl-border)", verticalAlign: "top" }}>
                     <Inline value={it.problem} onChange={saveValueStackItem(i, 'problem')} placeholder="Problema…" multiline />
                   </td>
-                  <td style={{ padding: "10px 8px", fontSize: 13, color: "#D9D9D9", lineHeight: 1.45, borderBottom: "1px solid rgba(255,255,255,0.04)", verticalAlign: "top" }}>
+                  <td style={{ padding: "10px 8px", fontSize: 13, color: "var(--sl-text-muted)", lineHeight: 1.45, borderBottom: "1px solid var(--sl-border)", verticalAlign: "top" }}>
                     <Inline value={it.solution} onChange={saveValueStackItem(i, 'solution')} placeholder="Solução…" multiline />
                   </td>
-                  <td style={{ padding: "10px 8px", fontSize: 13, color: "#aaa", lineHeight: 1.45, borderBottom: "1px solid rgba(255,255,255,0.04)", verticalAlign: "top" }}>
+                  <td style={{ padding: "10px 8px", fontSize: 13, color: "var(--sl-text-muted)", lineHeight: 1.45, borderBottom: "1px solid var(--sl-border)", verticalAlign: "top" }}>
                     <Inline value={it.delivery} onChange={saveValueStackItem(i, 'delivery')} placeholder="Como é entregue…" multiline />
                   </td>
-                  <td style={{ padding: "10px 8px", fontSize: 13, fontWeight: 700, color: "#22c55e", textAlign: "right", borderBottom: "1px solid rgba(255,255,255,0.04)", fontFamily: "'JetBrains Mono', ui-monospace, monospace", verticalAlign: "top" }}>
+                  <td style={{ padding: "10px 8px", fontSize: 13, fontWeight: 700, color: "var(--sl-success)", textAlign: "right", borderBottom: "1px solid var(--sl-border)", fontFamily: "'JetBrains Mono', ui-monospace, monospace", verticalAlign: "top" }}>
                     <Inline value={it.dollarValue} onChange={saveValueStackItem(i, 'dollarValue')} placeholder="€X" />
                   </td>
                 </tr>
@@ -8806,15 +8806,15 @@ function ResumoPanel({ creator, patchCreator }) {
             </tbody>
           </table>
           <div style={{ marginTop: 16, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-            <div style={{ padding: "14px 16px", background: "rgba(34,197,94,0.06)", border: "1px solid rgba(34,197,94,0.25)", borderRadius: 8 }}>
-              <div style={{ fontSize: 9, fontWeight: 700, color: "#22c55e", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 4 }}>Valor total empilhado</div>
-              <div style={{ fontSize: 22, fontWeight: 700, color: "#22c55e", fontFamily: "'Instrument Serif', Georgia, serif" }}>
+            <div style={{ padding: "14px 16px", background: "color-mix(in srgb, var(--sl-success) 6%, transparent)", border: "1px solid color-mix(in srgb, var(--sl-success) 25%, transparent)", borderRadius: 8 }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: "var(--sl-success)", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 4 }}>Valor total empilhado</div>
+              <div style={{ fontSize: 22, fontWeight: 700, color: "var(--sl-success)", fontFamily: "'Instrument Serif', Georgia, serif" }}>
                 <Inline value={cfo.value_stack.total} onChange={saveValueStackField('total')} placeholder="€X total" />
               </div>
             </div>
-            <div style={{ padding: "14px 16px", background: "rgba(122,14,24,0.06)", border: "1px solid rgba(122,14,24,0.3)", borderRadius: 8 }}>
-              <div style={{ fontSize: 9, fontWeight: 700, color: "#7A0E18", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 4 }}>Preço real</div>
-              <div style={{ fontSize: 22, fontWeight: 700, color: "#f5f5f5", fontFamily: "'Instrument Serif', Georgia, serif" }}>
+            <div style={{ padding: "14px 16px", background: "color-mix(in srgb, var(--sl-primary) 6%, transparent)", border: "1px solid color-mix(in srgb, var(--sl-primary) 30%, transparent)", borderRadius: 8 }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: "var(--sl-accent-text)", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 4 }}>Preço real</div>
+              <div style={{ fontSize: 22, fontWeight: 700, color: "var(--sl-text)", fontFamily: "'Instrument Serif', Georgia, serif" }}>
                 <Inline value={cfo.value_stack.actualPrice} onChange={saveValueStackField('actualPrice')} placeholder="€X/mês" />
               </div>
             </div>
@@ -8840,17 +8840,17 @@ function ResumoPanel({ creator, patchCreator }) {
                 // changed the string (i.e. display ≠ source currency).
                 const sourceDiffers = converted !== (t.price || '');
                 return (
-                  <div key={i} style={{ padding: "14px 16px", background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.05)", borderRadius: 8 }}>
-                    <div style={{ fontSize: 9, fontWeight: 700, color: "#7A0E18", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 6 }}>
+                  <div key={i} style={{ padding: "14px 16px", background: "color-mix(in srgb, var(--sl-text) 2%, transparent)", border: "1px solid var(--sl-border)", borderRadius: 8 }}>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: "var(--sl-accent-text)", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 6 }}>
                       <Inline value={t.name} onChange={saveArrayItem('pricing_tiers', i, 'name')} placeholder="Nome do tier" />
                     </div>
                     {/* BIG — converted display currency, non-editable, matches what the pitch deck renders. */}
-                    <div style={{ fontSize: 22, fontWeight: 700, color: "#f5f5f5", fontFamily: "'Instrument Serif', Georgia, serif", marginBottom: sourceDiffers ? 2 : 6 }}>
+                    <div style={{ fontSize: 22, fontWeight: 700, color: "var(--sl-text)", fontFamily: "'Instrument Serif', Georgia, serif", marginBottom: sourceDiffers ? 2 : 6 }}>
                       {converted || t.price}
                     </div>
                     {/* small — editable source string. CP4 wrote this in its picked currency; FX applies on render. */}
                     {sourceDiffers && (
-                      <div style={{ fontSize: 10, color: "#666", marginBottom: 6, fontFamily: "ui-monospace, monospace" }}>
+                      <div style={{ fontSize: 12, color: "var(--sl-text-faint)", marginBottom: 6, fontFamily: "ui-monospace, monospace" }}>
                         <Inline value={t.price} onChange={saveArrayItem('pricing_tiers', i, 'price')} placeholder="$X" />
                       </div>
                     )}
@@ -8861,7 +8861,7 @@ function ResumoPanel({ creator, patchCreator }) {
                         <Inline value={t.price} onChange={saveArrayItem('pricing_tiers', i, 'price')} placeholder="€X" />
                       </div>
                     )}
-                    <div style={{ fontSize: 11, color: "#888", lineHeight: 1.45 }}>
+                    <div style={{ fontSize: 12, color: "var(--sl-text-muted)", lineHeight: 1.45 }}>
                       <Inline value={t.note} onChange={saveArrayItem('pricing_tiers', i, 'note')} placeholder="Nota (ex: 2 meses grátis)" multiline />
                     </div>
                   </div>
@@ -8878,8 +8878,8 @@ function ResumoPanel({ creator, patchCreator }) {
           <Eyebrow>Bónus Desbloqueados</Eyebrow>
           <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 8 }}>
             {cfo.unlocked_bonuses.map((b, i) => (
-              <li key={i} style={{ display: "flex", gap: 10, fontSize: 13, color: "#D9D9D9", lineHeight: 1.5, alignItems: "baseline" }}>
-                <span style={{ color: "#22c55e", flexShrink: 0, fontWeight: 700 }}>★</span>
+              <li key={i} style={{ display: "flex", gap: 10, fontSize: 13, color: "var(--sl-text-muted)", lineHeight: 1.5, alignItems: "baseline" }}>
+                <span style={{ color: "var(--sl-success)", flexShrink: 0, fontWeight: 700 }}>★</span>
                 <span style={{ flex: 1 }}>
                   <Inline value={b} onChange={saveArrayString('unlocked_bonuses', i)} placeholder="Bónus…" multiline />
                 </span>
@@ -8891,7 +8891,7 @@ function ResumoPanel({ creator, patchCreator }) {
         </Section>
       )}
 
-      <div style={{ textAlign: "center", padding: "12px 0 24px", color: "#444", fontSize: 11 }}>
+      <div style={{ textAlign: "center", padding: "12px 0 24px", color: "var(--sl-text-faint)", fontSize: 12 }}>
         Tudo nesta página é editável. Os edits gravam automaticamente para usares em screen-share durante chamadas.
       </div>
     </div>
@@ -9117,8 +9117,8 @@ function PivotTierModal({ creator, onClose, onComplete, mode = 'tier', fromCpId 
         onClick={e => e.stopPropagation()}
         style={{
           maxWidth: 560, width: '100%', maxHeight: '90vh', overflowY: 'auto',
-          background: '#0f0f0f', border: '1px solid rgba(255,255,255,0.08)',
-          borderRadius: 14, padding: '32px 36px', color: '#f5f5f5',
+          background: 'var(--sl-surface)', border: '1px solid var(--sl-border)',
+          borderRadius: 14, padding: '32px 36px', color: 'var(--sl-text)',
         }}
       >
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 6 }}>
@@ -9130,10 +9130,10 @@ function PivotTierModal({ creator, onClose, onComplete, mode = 'tier', fromCpId 
               : `Regenerar a partir de CP${startCp}`}
           </h2>
           {!running && (
-            <button onClick={onClose} style={{ background: 'transparent', border: 'none', color: '#555', cursor: 'pointer', fontSize: 18, padding: 0 }}>✕</button>
+            <button onClick={onClose} style={{ background: 'transparent', border: 'none', color: 'var(--sl-text-faint)', cursor: 'pointer', fontSize: 18, padding: 0 }}>✕</button>
           )}
         </div>
-        <p style={{ fontSize: 12, color: '#888', marginTop: 0, marginBottom: 24, lineHeight: 1.55 }}>
+        <p style={{ fontSize: 12, color: 'var(--sl-text-muted)', marginTop: 0, marginBottom: 24, lineHeight: 1.55 }}>
           {mode === 'tier'
             ? 'Regenera CP2 → CP3 → CP4 com o novo tier. Apaga modules, value stack e pricing antigos (mantém apenas o frame estratégico de CP1). ~2-3 minutos. Não feches esta janela durante o processo.'
             : mode === 'reset'
@@ -9141,7 +9141,7 @@ function PivotTierModal({ creator, onClose, onComplete, mode = 'tier', fromCpId 
             : `Regenera CP${startCp}${startCp < 4 ? ' até CP4' : ''} em cascata. ${startCp > 1 ? `Mantém intactos CP1${startCp > 2 ? '/CP2' : ''}${startCp > 3 ? '/CP3' : ''}.` : ''} ~${Math.max(1, (5 - startCp))} minutos. Não feches esta janela durante o processo.`}
         </p>
         {mode === 'reset' && !running && (
-          <div style={{ padding: '10px 14px', background: 'rgba(234,179,8,0.06)', border: '1px solid rgba(234,179,8,0.25)', borderRadius: 6, marginBottom: 18, fontSize: 12, color: '#eab308', lineHeight: 1.5 }}>
+          <div style={{ padding: '10px 14px', background: 'color-mix(in srgb, var(--sl-warning) 6%, transparent)', border: '1px solid color-mix(in srgb, var(--sl-warning) 25%, transparent)', borderRadius: 6, marginBottom: 18, fontSize: 12, color: 'var(--sl-warning)', lineHeight: 1.5 }}>
             ⚠ Não tem undo. Todos os edits inline e overrides de campos do CP1-4 vão ser apagados. Os 3 inputs (audit, archetype, uniqueness) ficam intactos.
           </div>
         )}
@@ -9151,22 +9151,22 @@ function PivotTierModal({ creator, onClose, onComplete, mode = 'tier', fromCpId 
             {mode === 'tier' && (
               <>
                 <div style={{ marginBottom: 16 }}>
-                  <label style={{ display: 'block', fontSize: 10, fontWeight: 700, color: '#7A0E18', letterSpacing: '0.14em', textTransform: 'uppercase', marginBottom: 6 }}>Novo tier</label>
+                  <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: 'var(--sl-accent-text)', letterSpacing: '0.14em', textTransform: 'uppercase', marginBottom: 6 }}>Novo tier</label>
                   <select
                     value={tier}
                     onChange={e => setTier(e.target.value)}
-                    style={{ width: '100%', padding: '10px 12px', background: '#1a1a1a', color: '#f5f5f5', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 6, fontSize: 13, fontFamily: 'inherit' }}
+                    style={{ width: '100%', padding: '10px 12px', background: 'var(--sl-surface-raised)', color: 'var(--sl-text)', border: '1px solid var(--sl-border-strong)', borderRadius: 6, fontSize: 13, fontFamily: 'inherit' }}
                   >
                     {TIER_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                   </select>
                 </div>
 
                 <div style={{ marginBottom: 16 }}>
-                  <label style={{ display: 'block', fontSize: 10, fontWeight: 700, color: '#7A0E18', letterSpacing: '0.14em', textTransform: 'uppercase', marginBottom: 6 }}>Modelo de pricing</label>
+                  <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: 'var(--sl-accent-text)', letterSpacing: '0.14em', textTransform: 'uppercase', marginBottom: 6 }}>Modelo de pricing</label>
                   <select
                     value={model}
                     onChange={e => setModel(e.target.value)}
-                    style={{ width: '100%', padding: '10px 12px', background: '#1a1a1a', color: '#f5f5f5', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 6, fontSize: 13, fontFamily: 'inherit' }}
+                    style={{ width: '100%', padding: '10px 12px', background: 'var(--sl-surface-raised)', color: 'var(--sl-text)', border: '1px solid var(--sl-border-strong)', borderRadius: 6, fontSize: 13, fontFamily: 'inherit' }}
                   >
                     {MODEL_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                   </select>
@@ -9175,25 +9175,25 @@ function PivotTierModal({ creator, onClose, onComplete, mode = 'tier', fromCpId 
             )}
 
             <div style={{ marginBottom: 24 }}>
-              <label style={{ display: 'block', fontSize: 10, fontWeight: 700, color: '#7A0E18', letterSpacing: '0.14em', textTransform: 'uppercase', marginBottom: 6 }}>Porquê <span style={{ color: '#555', fontWeight: 500 }}>(opcional, mas recomendado)</span></label>
+              <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: 'var(--sl-accent-text)', letterSpacing: '0.14em', textTransform: 'uppercase', marginBottom: 6 }}>Porquê <span style={{ color: 'var(--sl-text-faint)', fontWeight: 500 }}>(opcional, mas recomendado)</span></label>
               <textarea
                 value={instruction}
                 onChange={e => setInstruction(e.target.value)}
                 placeholder="ex: Creator quer preço mais baixo porque audiência é maioritariamente estudantes; modules devem ser mais comunidade e menos 1-on-1"
                 rows={4}
-                style={{ width: '100%', padding: '10px 12px', background: '#1a1a1a', color: '#f5f5f5', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 6, fontSize: 13, fontFamily: 'inherit', resize: 'vertical', lineHeight: 1.5 }}
+                style={{ width: '100%', padding: '10px 12px', background: 'var(--sl-surface-raised)', color: 'var(--sl-text)', border: '1px solid var(--sl-border-strong)', borderRadius: 6, fontSize: 13, fontFamily: 'inherit', resize: 'vertical', lineHeight: 1.5 }}
               />
-              <p style={{ fontSize: 11, color: '#666', marginTop: 6, lineHeight: 1.4 }}>Esta instrução vai como direção operacional no topo do prompt de cada CP — o LLM aplica-a literalmente.</p>
+              <p style={{ fontSize: 12, color: 'var(--sl-text-faint)', marginTop: 6, lineHeight: 1.4 }}>Esta instrução vai como direção operacional no topo do prompt de cada CP — o LLM aplica-a literalmente.</p>
             </div>
 
             <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
               <button
                 onClick={onClose}
-                style={{ padding: '10px 18px', background: 'transparent', color: '#888', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}
+                style={{ padding: '10px 18px', background: 'transparent', color: 'var(--sl-text-muted)', border: '1px solid var(--sl-border-strong)', borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}
               >Cancelar</button>
               <button
                 onClick={run}
-                style={{ padding: '10px 18px', background: '#7A0E18', color: '#fff', border: '1px solid #7A0E18', borderRadius: 6, fontSize: 12, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}
+                style={{ padding: '10px 18px', background: 'var(--sl-primary)', color: 'var(--sl-text)', border: '1px solid var(--sl-primary)', borderRadius: 6, fontSize: 12, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}
               >{mode === 'reset' ? 'Apagar CP1-4' : '↻ Regenerar tudo'}</button>
             </div>
           </>
@@ -9201,30 +9201,30 @@ function PivotTierModal({ creator, onClose, onComplete, mode = 'tier', fromCpId 
 
         {(running || steps.some(s => s.status !== 'pending')) && (
           <div style={{ marginTop: 8 }}>
-            <div style={{ fontSize: 10, fontWeight: 700, color: '#7A0E18', letterSpacing: '0.14em', textTransform: 'uppercase', marginBottom: 14 }}>Progresso</div>
+            <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--sl-accent-text)', letterSpacing: '0.14em', textTransform: 'uppercase', marginBottom: 14 }}>Progresso</div>
             <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: 8 }}>
               {steps.map(s => {
                 const isDone = s.status === 'done';
                 const isRunning = s.status === 'running';
                 const isFailed = s.status === 'failed';
                 const isPending = s.status === 'pending';
-                const dotColor = isDone ? '#22c55e' : isRunning ? '#eab308' : isFailed ? '#ef4444' : '#333';
+                const dotColor = isDone ? 'var(--sl-success)' : isRunning ? 'var(--sl-warning)' : isFailed ? 'var(--sl-danger)' : 'var(--sl-border-strong)';
                 return (
-                  <li key={s.id} style={{ display: 'flex', alignItems: 'center', gap: 12, fontSize: 12, color: isPending ? '#555' : '#ccc' }}>
+                  <li key={s.id} style={{ display: 'flex', alignItems: 'center', gap: 12, fontSize: 12, color: isPending ? 'var(--sl-text-faint)' : 'var(--sl-text-muted)' }}>
                     <span style={{ width: 10, height: 10, borderRadius: '50%', background: dotColor, flexShrink: 0, ...(isRunning ? { animation: 'pulse 1.2s ease-in-out infinite' } : {}) }} />
                     <span style={{ flex: 1, fontWeight: isRunning ? 600 : 400 }}>{s.label}</span>
-                    {isDone && <span style={{ color: '#22c55e', fontSize: 11 }}>✓</span>}
-                    {isRunning && <span style={{ color: '#eab308', fontSize: 11 }}>a correr…</span>}
-                    {isFailed && <span style={{ color: '#ef4444', fontSize: 11 }}>falhou</span>}
+                    {isDone && <span style={{ color: 'var(--sl-success)', fontSize: 12 }}>✓</span>}
+                    {isRunning && <span style={{ color: 'var(--sl-warning)', fontSize: 12 }}>a correr…</span>}
+                    {isFailed && <span style={{ color: 'var(--sl-danger)', fontSize: 12 }}>falhou</span>}
                   </li>
                 );
               })}
             </ul>
 
             {error && (
-              <div style={{ marginTop: 18, padding: '12px 14px', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.25)', borderRadius: 6, fontSize: 12, color: '#ef4444', lineHeight: 1.5 }}>
+              <div style={{ marginTop: 18, padding: '12px 14px', background: 'color-mix(in srgb, var(--sl-danger) 8%, transparent)', border: '1px solid color-mix(in srgb, var(--sl-danger) 25%, transparent)', borderRadius: 6, fontSize: 12, color: 'var(--sl-danger)', lineHeight: 1.5 }}>
                 Erro: {error}
-                <div style={{ marginTop: 6, fontSize: 11, color: '#888' }}>
+                <div style={{ marginTop: 6, fontSize: 12, color: 'var(--sl-text-muted)' }}>
                   Estado parcial guardado. Podes continuar manualmente pelo wizard ou tentar de novo.
                 </div>
               </div>
@@ -9234,20 +9234,20 @@ function PivotTierModal({ creator, onClose, onComplete, mode = 'tier', fromCpId 
               <div style={{ marginTop: 14, display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
                 <button
                   onClick={onClose}
-                  style={{ padding: '10px 18px', background: 'transparent', color: '#888', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}
+                  style={{ padding: '10px 18px', background: 'transparent', color: 'var(--sl-text-muted)', border: '1px solid var(--sl-border-strong)', borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}
                 >Fechar</button>
               </div>
             )}
 
             {!running && !error && steps.every(s => s.status === 'done') && (
               <div style={{ marginTop: 18 }}>
-                <div style={{ padding: '12px 14px', background: 'rgba(34,197,94,0.08)', border: '1px solid rgba(34,197,94,0.3)', borderRadius: 6, fontSize: 12, color: '#22c55e', lineHeight: 1.5, marginBottom: 12 }}>
+                <div style={{ padding: '12px 14px', background: 'color-mix(in srgb, var(--sl-success) 8%, transparent)', border: '1px solid color-mix(in srgb, var(--sl-success) 30%, transparent)', borderRadius: 6, fontSize: 12, color: 'var(--sl-success)', lineHeight: 1.5, marginBottom: 12 }}>
                   Oferta regenerada com sucesso ao novo tier. Vai ao tab Resumo para ver o resultado.
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
                   <button
                     onClick={onClose}
-                    style={{ padding: '10px 18px', background: '#22c55e', color: '#0a0a0a', border: '1px solid #22c55e', borderRadius: 6, fontSize: 12, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}
+                    style={{ padding: '10px 18px', background: 'var(--sl-primary)', color: 'var(--sl-primary-contrast)', border: 'none', borderRadius: 'var(--sl-r-pill)', fontSize: 12, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}
                   >Concluído</button>
                 </div>
               </div>
@@ -9301,22 +9301,22 @@ function ReplyThreadRow({ message, index, onDelete, onRegenerate, onMarkSent }) 
     <div
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
-      style={{ padding: "10px 12px", background: "rgba(34,197,94,0.05)", border: "1px solid rgba(34,197,94,0.15)", borderRadius: 8, position: "relative" }}
+      style={{ padding: "10px 12px", background: "color-mix(in srgb, var(--sl-success) 5%, transparent)", border: "1px solid color-mix(in srgb, var(--sl-success) 15%, transparent)", borderRadius: 8, position: "relative" }}
     >
       {/* Header: index + timestamp + (optional) sent chip + hover action chips */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <span style={{ fontSize: 9, fontWeight: 700, color: "#22c55e", letterSpacing: "0.08em", textTransform: "uppercase" }}>
+          <span style={{ fontSize: 12, fontWeight: 700, color: "var(--sl-success)", letterSpacing: "0.08em", textTransform: "uppercase" }}>
             {message.legacy ? 'Mensagem' : `Mensagem ${index + 1}`}
           </span>
           {isSent && (
-            <span style={{ fontSize: 9, fontWeight: 700, color: "#888", letterSpacing: "0.08em", textTransform: "uppercase", padding: "1px 6px", borderRadius: 3, background: "rgba(255,255,255,0.04)" }}>
+            <span style={{ fontSize: 12, fontWeight: 700, color: "var(--sl-text-muted)", letterSpacing: "0.08em", textTransform: "uppercase", padding: "1px 6px", borderRadius: 3, background: "color-mix(in srgb, var(--sl-text) 4%, transparent)" }}>
               ✓ Enviada
             </span>
           )}
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <span style={{ fontSize: 10, color: "#888", fontFamily: "ui-monospace, monospace" }}>
+          <span style={{ fontSize: 12, color: "var(--sl-text-muted)", fontFamily: "ui-monospace, monospace" }}>
             {message.at ? formatChatTimestamp(message.at) : 'sem data'}
           </span>
           {/* Hover-revealed action chips. Hidden on legacy rows (no id). */}
@@ -9325,57 +9325,57 @@ function ReplyThreadRow({ message, index, onDelete, onRegenerate, onMarkSent }) 
               <button
                 onClick={onDelete}
                 title="Apagar mensagem (⌘Z para anular)"
-                style={{ padding: "2px 7px", background: "transparent", border: "1px solid rgba(177,30,47,0.3)", borderRadius: 4, color: "#B11E2F", fontSize: 10, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}
+                style={{ padding: "2px 7px", background: "transparent", border: "1px solid color-mix(in srgb, var(--sl-primary) 30%, transparent)", borderRadius: 4, color: "var(--sl-accent-text)", fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}
               >×</button>
             </div>
           )}
         </div>
       </div>
-      <div style={{ fontSize: 13, color: "#ddd", lineHeight: 1.55, whiteSpace: "pre-wrap" }}>{message.content}</div>
+      <div style={{ fontSize: 13, color: "var(--sl-text)", lineHeight: 1.55, whiteSpace: "pre-wrap" }}>{message.content}</div>
 
       {/* Anchored AI sub-card */}
       {(aiPending || aiError || hasAi) && (
-        <div style={{ marginTop: 10, marginLeft: 16, paddingLeft: 12, paddingTop: 8, paddingBottom: 8, paddingRight: 12, background: "rgba(122,14,24,0.05)", borderLeft: "2px solid #7A0E18", borderRadius: 4 }}>
+        <div style={{ marginTop: 10, marginLeft: 16, paddingLeft: 12, paddingTop: 8, paddingBottom: 8, paddingRight: 12, background: "color-mix(in srgb, var(--sl-primary) 5%, transparent)", borderLeft: "2px solid var(--sl-primary)", borderRadius: 4 }}>
           {aiPending && (
-            <div style={{ fontSize: 11, color: "#888" }}>
+            <div style={{ fontSize: 12, color: "var(--sl-text-muted)" }}>
               <span style={{ animation: "pulse 1.4s ease-in-out infinite" }}>● A classificar resposta…</span>
             </div>
           )}
           {aiError && (
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-              <span style={{ fontSize: 11, color: "#ef4444" }}>Falhou: {ai?.errorMessage || 'erro desconhecido'}</span>
-              <button onClick={onRegenerate} style={{ padding: "3px 9px", background: "rgba(177,30,47,0.15)", border: "1px solid rgba(177,30,47,0.4)", borderRadius: 4, color: "#f5b5bb", fontSize: 10, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>Tentar de novo</button>
+              <span style={{ fontSize: 12, color: "var(--sl-danger)" }}>Falhou: {ai?.errorMessage || 'erro desconhecido'}</span>
+              <button onClick={onRegenerate} style={{ padding: "3px 9px", background: "color-mix(in srgb, var(--sl-primary) 15%, transparent)", border: "1px solid color-mix(in srgb, var(--sl-primary) 40%, transparent)", borderRadius: 4, color: "var(--sl-accent-text)", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>Tentar de novo</button>
             </div>
           )}
           {hasAi && !isSent && (
             <>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <span style={{ fontSize: 9, fontWeight: 700, color: "#B11E2F", letterSpacing: "0.1em", textTransform: "uppercase" }}>Sugestão Raul</span>
+                  <span style={{ fontSize: 12, fontWeight: 700, color: "var(--sl-accent-text)", letterSpacing: "0.1em", textTransform: "uppercase" }}>Sugestão Raul</span>
                   {ai.category && (
-                    <span style={{ fontSize: 9, color: "#888", fontFamily: "ui-monospace, monospace" }}>· {ai.category}</span>
+                    <span style={{ fontSize: 12, color: "var(--sl-text-muted)", fontFamily: "ui-monospace, monospace" }}>· {ai.category}</span>
                   )}
                 </div>
-                <span style={{ fontSize: 9, color: "#555", fontFamily: "ui-monospace, monospace" }}>{ai.at ? formatChatTimestamp(ai.at) : ''}</span>
+                <span style={{ fontSize: 12, color: "var(--sl-text-faint)", fontFamily: "ui-monospace, monospace" }}>{ai.at ? formatChatTimestamp(ai.at) : ''}</span>
               </div>
-              <div style={{ fontSize: 13, color: "#ccc", lineHeight: 1.65, whiteSpace: "pre-wrap", marginBottom: 8 }}>{ai.response}</div>
+              <div style={{ fontSize: 13, color: "var(--sl-text-muted)", lineHeight: 1.65, whiteSpace: "pre-wrap", marginBottom: 8 }}>{ai.response}</div>
               <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                <button onClick={copyAi} style={{ padding: "4px 10px", background: copiedAt ? "rgba(34,197,94,0.15)" : "rgba(255,255,255,0.04)", border: `1px solid ${copiedAt ? "rgba(34,197,94,0.35)" : "rgba(255,255,255,0.08)"}`, borderRadius: 4, color: copiedAt ? "#86efac" : "#888", fontSize: 10, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>
+                <button onClick={copyAi} style={{ padding: "4px 10px", background: copiedAt ? "color-mix(in srgb, var(--sl-success) 15%, transparent)" : "color-mix(in srgb, var(--sl-text) 4%, transparent)", border: `1px solid ${copiedAt ? "color-mix(in srgb, var(--sl-success) 35%, transparent)" : "color-mix(in srgb, var(--sl-text) 8%, transparent)"}`, borderRadius: 4, color: copiedAt ? "var(--sl-success)" : "var(--sl-text-muted)", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>
                   {copiedAt ? "Copiado ✓" : "Copiar"}
                 </button>
-                <button onClick={onRegenerate} style={{ padding: "4px 10px", background: "transparent", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 4, color: "#888", fontSize: 10, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>Regenerar</button>
-                <button onClick={onMarkSent} style={{ padding: "4px 10px", background: "transparent", border: "1px solid rgba(34,197,94,0.25)", borderRadius: 4, color: "#22c55e", fontSize: 10, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>✓ Marcar enviada</button>
+                <button onClick={onRegenerate} style={{ padding: "4px 10px", background: "transparent", border: "1px solid var(--sl-border)", borderRadius: 4, color: "var(--sl-text-muted)", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>Regenerar</button>
+                <button onClick={onMarkSent} style={{ padding: "4px 10px", background: "transparent", border: "1px solid color-mix(in srgb, var(--sl-success) 25%, transparent)", borderRadius: 4, color: "var(--sl-success)", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>✓ Marcar enviada</button>
                 {(message.aiHistory?.length || 0) > 0 && (
-                  <span style={{ fontSize: 9, color: "#555", alignSelf: "center" }}>{message.aiHistory.length} sugestão{message.aiHistory.length === 1 ? '' : 'ões'} anterior{message.aiHistory.length === 1 ? '' : 'es'}</span>
+                  <span style={{ fontSize: 12, color: "var(--sl-text-faint)", alignSelf: "center" }}>{message.aiHistory.length} sugestão{message.aiHistory.length === 1 ? '' : 'ões'} anterior{message.aiHistory.length === 1 ? '' : 'es'}</span>
                 )}
               </div>
             </>
           )}
           {hasAi && isSent && (
-            <div style={{ fontSize: 11, color: "#666", display: "flex", alignItems: "center", gap: 8 }}>
-              <span style={{ color: "#22c55e" }}>✓</span>
+            <div style={{ fontSize: 12, color: "var(--sl-text-faint)", display: "flex", alignItems: "center", gap: 8 }}>
+              <span style={{ color: "var(--sl-success)" }}>✓</span>
               <span>Resposta enviada · {formatChatTimestamp(message.sentAt)}</span>
-              <button onClick={copyAi} style={{ marginLeft: "auto", padding: "2px 8px", background: "transparent", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 3, color: "#666", fontSize: 9, cursor: "pointer", fontFamily: "inherit" }}>
+              <button onClick={copyAi} style={{ marginLeft: "auto", padding: "2px 8px", background: "transparent", border: "1px solid var(--sl-border)", borderRadius: 3, color: "var(--sl-text-faint)", fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>
                 {copiedAt ? "Copiado ✓" : "Copiar texto"}
               </button>
             </div>
