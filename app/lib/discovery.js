@@ -439,6 +439,12 @@ async function addDailyGo(n, now = new Date()) {
 
 export async function getAutopilotStatus(now = new Date()) {
   const spent = await getMonthSpend(now);
+  // Cheap seed-pool counts (summaries only, no full-record loads).
+  let intentSeeds = 0;
+  try {
+    const summaries = await listCreators();
+    intentSeeds = summaries.filter(s => s.videoRequestedAt || s.pipelineStatus === 'signed').length;
+  } catch { /* status is best-effort */ }
   return {
     enabled: await getAutopilotEnabled(),
     cap: DISCOVERY_MONTHLY_CAP,
@@ -448,8 +454,35 @@ export async function getAutopilotStatus(now = new Date()) {
     dailyTarget: DISCOVERY_DAILY_TARGET,
     goToday: await getDailyGo(now),
     costPerScrape: DISCOVERY_COST_PER_SCRAPE,
-    seeds: (await listSeedUrls()).length,
+    manualSeeds: (await listSeedUrls()).length,
+    intentSeeds,
   };
+}
+
+// Intent seeds — the pipeline seeds itself from its own warm leads. Creators
+// who reached "Pediu vídeo" (videoRequestedAt) or signed asked for / bought what
+// we sell, so Instagram's "similar accounts" to them surface more of exactly the
+// right ICP — right niche, right geography, already-interested-shaped. The pool
+// grows on its own as more leads warm up, so discovery gets smarter over time.
+// Explicit "não interessado" is excluded (a bad anchor). The warm set is small,
+// so loading those full records for their IG URL is cheap.
+export async function getIntentSeedUrls() {
+  const summaries = await listCreators();
+  const warmIds = summaries
+    .filter(s => s.videoRequestedAt || s.pipelineStatus === 'signed')
+    .map(s => s.id);
+  if (!warmIds.length) return [];
+  const fulls = await runInBatches(warmIds, id => getCreator(id).catch(() => null), 25);
+  const urls = [];
+  const seen = new Set();
+  for (const c of fulls) {
+    if (!c || c.outreach?.notInterestedAt) continue;
+    const url = c.platforms?.instagram?.url
+      || c.instagramUrl
+      || (c.platforms?.instagram?.handle ? `https://instagram.com/${String(c.platforms.instagram.handle).replace(/^@/, '')}` : null);
+    if (url && !seen.has(url)) { seen.add(url); urls.push(url); }
+  }
+  return urls;
 }
 
 // Rotate through the seed list across runs so we don't hammer the same handful.
@@ -482,7 +515,11 @@ export async function runDiscoveryAutopilot({ maxScrapesPerRun = 12 } = {}) {
     return { ok: false, done: true, reason: 'daily_target_reached', budget: await getAutopilotStatus() };
   }
 
-  const seeds = await listSeedUrls();
+  // Seed pool: warm CRM leads ("Pediu vídeo" + signed) FIRST — highest signal,
+  // grows on its own — then the hand-curated seed list. Deduped.
+  const intent = await getIntentSeedUrls();
+  const manual = await listSeedUrls();
+  const seeds = [...new Set([...intent, ...manual])];
   if (!seeds.length) return { ok: false, done: true, reason: 'no_seeds', budget: await getAutopilotStatus() };
 
   // Scrapes we can afford this run = min(per-run cap, budget remaining).
