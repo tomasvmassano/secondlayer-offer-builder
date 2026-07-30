@@ -421,31 +421,28 @@ ${uniquenessCapped}
 
 Return ONLY the JSON object per the schema in the system prompt.${formatInstructionsReminder(extraInstruction)}`;
 
-  // Two-tier model strategy (2026-06-18):
-  //   - INITIAL generation (no operator instruction) → Haiku 4.5. The CP1
-  //     task is mostly structured extraction + classification (which
-  //     archetype, which moves apply). Haiku streams ~3× faster than
-  //     Sonnet, so 3500 max_tokens fits in ~17s wall-clock — leaving
-  //     plenty of headroom under Vercel's 60s Hobby cap even on cold
-  //     starts. ~5× cheaper output too.
-  //   - REGEN WITH INSTRUCTION (operator typed a nudge, or cascade
-  //     regenerating with refinement) → Sonnet 4.5. The operator is
-  //     deliberately invoking deeper reasoning, so we route to the
-  //     smarter model and accept the tighter latency budget.
+  // Model + output budget (revised 2026-07 after team feedback: the instructed
+  // path was timing out AND going superficial). Root cause was backwards — a
+  // specific brief routed to Sonnet with FEWER tokens (2500), so it was slower
+  // and more cramped at the exact moment it needed to be more thorough. On
+  // Vercel Hobby the function is HARD-capped at 60s, so a finished Haiku beats a
+  // Sonnet killed mid-thought. Both paths now use Haiku 4.5 (fast enough to
+  // land), and the INSTRUCTED path gets MORE room so it can actually absorb the
+  // operator's brief instead of rushing a thin answer. (For true Sonnet-depth
+  // without the clock, the fix is Vercel Pro's 300s cap — flagged for the team.)
   const isInstructedRegen = !!extraInstruction;
-  const modelId = isInstructedRegen ? 'claude-sonnet-4-5-20250929' : 'claude-haiku-4-5-20251001';
-  // With the schema char caps + exactly-3 sequenced_plays, expected output
-  // is ~2500-2800 tokens. 4000 on Haiku is comfortable headroom (Haiku 4.5
-  // caps at 8192) and still streams in well under 20s. Sonnet stays at
-  // 2500 since the instructed-regen path uses the same tightened schema.
-  const maxOut = isInstructedRegen ? 2500 : 4000;
-  // Fail fast under the 60s Hobby cap. Without this, a slow or overloaded
-  // Anthropic call hangs until Vercel kills the function at 60s and returns a
-  // raw platform 504 (no JSON, ugly "HTTP 504" in the UI). Aborting at 52s
-  // turns that into a clean, retriable error and still leaves ~8s for JSON
-  // parse + validation + persistence + the response.
+  const modelId = 'claude-haiku-4-5-20251001';
+  // Haiku 4.5 caps at 8192. Base frame ~2500-2800 tokens; with a brief we give
+  // 5000 so there's headroom to address everything they said (the old 2500 cap
+  // was a big part of the "superficial" complaint) while still landing under 60s.
+  const maxOut = isInstructedRegen ? 5000 : 4000;
+  // Fail cleanly under the 60s Hobby cap rather than hanging to a raw platform
+  // 504. Set at 56s to use as much of the budget as possible while leaving a few
+  // seconds for JSON parse + validation + persistence + the response. On Hobby
+  // this ceiling is unavoidable — the only real way to "remove the limit" (the
+  // team's ask) is Vercel Pro, which raises maxDuration to 300s.
   const controller = new AbortController();
-  const abortTimer = setTimeout(() => controller.abort(), 52_000);
+  const abortTimer = setTimeout(() => controller.abort(), 56_000);
   let resp, data;
   try {
     resp = await fetch('https://api.anthropic.com/v1/messages', {
@@ -463,7 +460,7 @@ Return ONLY the JSON object per the schema in the system prompt.${formatInstruct
   } catch (err) {
     return {
       error: err?.name === 'AbortError'
-        ? 'O modelo demorou demasiado a responder (>52s). Tenta de novo, costuma passar à segunda.'
+        ? 'O modelo demorou demasiado a responder (>56s). Tenta de novo, costuma passar à segunda.'
         : `Falha a contactar o modelo: ${err?.message || err}`,
       errors: [], raw: null, retries: retryCount,
     };
