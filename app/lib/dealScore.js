@@ -271,3 +271,57 @@ export function calculateDealScore(creator) {
     },
   };
 }
+
+// ─────────────────────────────────────────────────────────────────
+// GO / NO GO — the team's creator-qualification rule for the discovery feed.
+// The follower + engagement bar scales with the niche's ROI potential: the
+// higher a niche monetizes, the LOWER the reach it needs (a small, engaged
+// creator in a very-high-ROI niche is worth more than a huge one in a low-ROI
+// niche). ROI tier comes straight from the niche map's existing `roi` field.
+// Follower floor = the LOWER bound of the team's stated range.
+//   Very high (Muito Alto): 20-30k followers, >3% engagement
+//   High      (Alto):       50-60k followers, >2% engagement
+//   Medium    (Médio):      100k   followers, >0.5% engagement
+//   Low       (Baixo):      200k   followers, >0.5% engagement
+// Explicit override: a Deal Score of A or B is always a GO, even if the reach
+// bar isn't met. Everything else is NO GO.
+export const ROI_GO_THRESHOLDS = {
+  'Very high': { minFollowers: 20000,  minEngagement: 3 },
+  'High':      { minFollowers: 50000,  minEngagement: 2 },
+  'Medium':    { minFollowers: 100000, minEngagement: 0.5 },
+  'Low':       { minFollowers: 200000, minEngagement: 0.5 },
+};
+
+export function qualifyCreator(creator) {
+  const ig = creator.platforms?.instagram;
+  const tk = creator.platforms?.tiktok;
+  const yt = creator.platforms?.youtube;
+  const followers = ig?.followers || tk?.followers || yt?.subscribers || 0;
+  const engagement = parseFloat(ig?.engagementRate || creator.engagement || '0') || 0;
+
+  const nicheData = matchNiche(creator.niche);
+  const roi = nicheData?.roi || null;
+  const thresholds = roi ? ROI_GO_THRESHOLDS[roi] : null;
+
+  // Primary path: meets the ROI tier's reach + engagement bar.
+  const meetsRoiBar = !!thresholds
+    && followers >= thresholds.minFollowers
+    && engagement >= thresholds.minEngagement;
+
+  // Override path: Deal Score A or B qualifies regardless.
+  const { grade } = calculateDealScore(creator);
+  const dealScoreOverride = grade === 'A' || grade === 'B';
+
+  const go = meetsRoiBar || dealScoreOverride;
+  return {
+    go,
+    grade,
+    roiTier: roi,               // null = niche not in the map (only A/B can GO)
+    followers,
+    engagement,
+    thresholds,
+    reason: go
+      ? (meetsRoiBar ? 'roi_bar' : 'deal_score_ab')
+      : (roi ? 'below_roi_bar' : 'unknown_niche'),
+  };
+}
