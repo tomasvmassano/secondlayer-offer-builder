@@ -439,17 +439,37 @@ Return ONLY the JSON object per the schema in the system prompt.${formatInstruct
   // caps at 8192) and still streams in well under 20s. Sonnet stays at
   // 2500 since the instructed-regen path uses the same tightened schema.
   const maxOut = isInstructedRegen ? 2500 : 4000;
-  const resp = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01' },
-    body: JSON.stringify({
-      model: modelId,
-      max_tokens: maxOut,
-      system: [{ type: 'text', text: SYSTEM_PROMPT, cache_control: { type: 'ephemeral' } }],
-      messages: [{ role: 'user', content: userMessage }],
-    }),
-  });
-  const data = await resp.json();
+  // Fail fast under the 60s Hobby cap. Without this, a slow or overloaded
+  // Anthropic call hangs until Vercel kills the function at 60s and returns a
+  // raw platform 504 (no JSON, ugly "HTTP 504" in the UI). Aborting at 52s
+  // turns that into a clean, retriable error and still leaves ~8s for JSON
+  // parse + validation + persistence + the response.
+  const controller = new AbortController();
+  const abortTimer = setTimeout(() => controller.abort(), 52_000);
+  let resp, data;
+  try {
+    resp = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01' },
+      body: JSON.stringify({
+        model: modelId,
+        max_tokens: maxOut,
+        system: [{ type: 'text', text: SYSTEM_PROMPT, cache_control: { type: 'ephemeral' } }],
+        messages: [{ role: 'user', content: userMessage }],
+      }),
+      signal: controller.signal,
+    });
+    data = await resp.json();
+  } catch (err) {
+    return {
+      error: err?.name === 'AbortError'
+        ? 'O modelo demorou demasiado a responder (>52s). Tenta de novo, costuma passar à segunda.'
+        : `Falha a contactar o modelo: ${err?.message || err}`,
+      errors: [], raw: null, retries: retryCount,
+    };
+  } finally {
+    clearTimeout(abortTimer);
+  }
   if (data?.usage) recordLlmUsage({ route: 'strategic-frame', model: modelId, usage: data.usage }).catch(() => {});
   if (!resp.ok) {
     return { error: data.error?.message || `Anthropic ${resp.status}`, errors: [], raw: null, retries: retryCount };

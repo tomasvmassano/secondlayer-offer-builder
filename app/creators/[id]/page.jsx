@@ -5224,7 +5224,7 @@ function StrategicFramePanel({ creator, setCreator, running, setRunning, error, 
           const detail = data.errors?.length ? '\n\n' + data.errors.join('\n') : '';
           throw new Error(data.error + detail);
         }
-        const hint = r.status === 504 || r.status === 500
+        const hint = [500, 502, 503, 504].includes(r.status)
           ? ' (provavelmente timeout do servidor — tenta de novo)'
           : '';
         throw new Error(`Strategic frame falhou · HTTP ${r.status}${hint}`);
