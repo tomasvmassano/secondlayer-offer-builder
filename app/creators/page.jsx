@@ -499,21 +499,21 @@ export default function CreatorsPage() {
   };
 
   return (
-    <div style={{ minHeight: "100vh", background: "#0a0a0a", color: "#f5f5f5", fontFamily: "'Inter', 'Helvetica Neue', Helvetica, Arial, sans-serif", overflowX: "hidden" }}>
+    <div style={{ minHeight: "100vh", background: "var(--sl-bg)", color: "var(--sl-text)", fontFamily: "inherit", overflowX: "hidden" }}>
       <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
 
       {/* Header */}
-      <div style={{ padding: "20px 28px", borderBottom: "1px solid rgba(255,255,255,0.04)", display: "flex", alignItems: "center", justifyContent: "space-between", boxSizing: "border-box", width: "100%" }}>
+      <div style={{ padding: "20px 28px", borderBottom: "1px solid var(--sl-border)", display: "flex", alignItems: "center", justifyContent: "space-between", boxSizing: "border-box", width: "100%" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
           <a href="/" style={{ display: "flex", alignItems: "center", textDecoration: "none" }}>
             <img src={LOGO_B64} alt="Second Layer" style={{ height: 16, opacity: 0.85 }} />
           </a>
-          <span style={{ color: "#333", fontSize: 14 }}>|</span>
-          <span style={{ fontSize: 10, fontWeight: 600, letterSpacing: "0.12em", textTransform: "uppercase", color: "#555" }}>CRM</span>
+          <span style={{ color: "var(--sl-border-strong)", fontSize: 14 }}>|</span>
+          <span style={{ fontSize: 12, fontWeight: 600, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--sl-text-faint)" }}>CRM</span>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <a href="/pipeline" style={{ fontSize: 11, color: "#555", textDecoration: "none", padding: "6px 12px", borderRadius: 6, border: "1px solid rgba(255,255,255,0.06)" }}>Pipeline</a>
-          <a href="/" style={{ fontSize: 12, color: "#555", textDecoration: "none" }}>HQ</a>
+          <a href="/pipeline" style={{ fontSize: 12, color: "var(--sl-text-faint)", textDecoration: "none", padding: "6px 12px", borderRadius: 6, border: "1px solid var(--sl-border)" }}>Pipeline</a>
+          <a href="/" style={{ fontSize: 12, color: "var(--sl-text-faint)", textDecoration: "none" }}>HQ</a>
         </div>
       </div>
 
@@ -533,14 +533,14 @@ export default function CreatorsPage() {
                 teammate changes every 10s. Pulses on every successful poll
                 (syncTick increments). Pauses during drag so the operator
                 knows their move won't be clobbered. */}
-            <div style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "3px 10px", borderRadius: 999, background: isDragging ? "rgba(234,179,8,0.1)" : "rgba(34,197,94,0.08)", border: `1px solid ${isDragging ? "rgba(234,179,8,0.25)" : "rgba(34,197,94,0.2)"}` }} title={isDragging ? "Sync pausado durante drag" : `A sincronizar a cada 10s · última: ${syncTick > 0 ? `${syncTick} polls` : 'em breve'}`}>
-              <span key={syncTick} className="sl-live-dot" style={{ width: 6, height: 6, borderRadius: "50%", background: isDragging ? "#eab308" : "#22c55e" }} />
-              <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: isDragging ? "#eab308" : "#22c55e" }}>
+            <div style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "3px 10px", borderRadius: 999, background: isDragging ? "color-mix(in srgb, var(--sl-warning) 10%, transparent)" : "color-mix(in srgb, var(--sl-success) 8%, transparent)", border: `1px solid ${isDragging ? "color-mix(in srgb, var(--sl-warning) 25%, transparent)" : "color-mix(in srgb, var(--sl-success) 20%, transparent)"}` }} title={isDragging ? "Sync pausado durante drag" : `A sincronizar a cada 10s · última: ${syncTick > 0 ? `${syncTick} polls` : 'em breve'}`}>
+              <span key={syncTick} className="sl-live-dot" style={{ width: 6, height: 6, borderRadius: "50%", background: isDragging ? "var(--sl-warning)" : "var(--sl-success)" }} />
+              <span style={{ fontSize: 12, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: isDragging ? "var(--sl-warning)" : "var(--sl-success)" }}>
                 {isDragging ? "Drag" : "Live"}
               </span>
             </div>
           </div>
-          <p style={{ fontSize: 13, color: "#888", margin: "6px 0 0" }}>
+          <p style={{ fontSize: 13, color: "var(--sl-text-muted)", margin: "6px 0 0" }}>
             Base de dados de todos os criadores. Perfil, pesquisa, notas de reuniao e ferramentas.
           </p>
           <style>{`
@@ -563,10 +563,10 @@ export default function CreatorsPage() {
             style={{
               flex: "1 1 200px",
               padding: "14px 16px",
-              background: "#141414",
-              border: "1px solid rgba(255,255,255,0.04)",
+              background: "var(--sl-surface)",
+              border: "1px solid var(--sl-border)",
               borderRadius: 10,
-              color: "#f5f5f5",
+              color: "var(--sl-text)",
               fontSize: 14,
               outline: "none",
               fontFamily: "inherit",
@@ -576,10 +576,10 @@ export default function CreatorsPage() {
             onClick={() => setShowAdd(!showAdd)}
             style={{
               padding: "14px 24px",
-              background: "#7A0E18",
+              background: "var(--sl-primary)",
               border: "none",
-              borderRadius: 10,
-              color: "#fff",
+              borderRadius: "var(--sl-r-pill)",
+              color: "var(--sl-primary-contrast)",
               fontSize: 14,
               fontWeight: 600,
               cursor: "pointer",
@@ -595,9 +595,9 @@ export default function CreatorsPage() {
             style={{
               padding: "14px 18px",
               background: "transparent",
-              border: "1px solid rgba(177,30,47,0.4)",
+              border: "1px solid color-mix(in srgb, var(--sl-primary) 40%, transparent)",
               borderRadius: 10,
-              color: "#B11E2F",
+              color: "var(--sl-accent-text)",
               fontSize: 14,
               fontWeight: 600,
               cursor: "pointer",
@@ -616,9 +616,9 @@ export default function CreatorsPage() {
             style={{
               padding: "14px 18px",
               background: "transparent",
-              border: "1px solid rgba(255,255,255,0.1)",
+              border: "1px solid var(--sl-border-strong)",
               borderRadius: 10,
-              color: "#888",
+              color: "var(--sl-text-muted)",
               fontSize: 14,
               fontWeight: 600,
               cursor: "pointer",
@@ -640,22 +640,22 @@ export default function CreatorsPage() {
           <div style={{
             margin: "0 0 20px",
             padding: "14px 18px",
-            background: "rgba(122,14,24,0.10)",
-            border: "1px solid rgba(122,14,24,0.35)",
+            background: "color-mix(in srgb, var(--sl-primary) 10%, transparent)",
+            border: "1px solid color-mix(in srgb, var(--sl-primary) 35%, transparent)",
             borderRadius: 10,
-            color: "#f5b3b8",
+            color: "var(--sl-accent-text)",
             fontSize: 13,
             lineHeight: 1.55,
           }}>
-            <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "#ef4444", marginBottom: 6 }}>
+            <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--sl-danger)", marginBottom: 6 }}>
               Dados temporariamente indisponíveis
             </div>
-            <div style={{ color: "#ddd", marginBottom: 6 }}>
+            <div style={{ color: "var(--sl-text)", marginBottom: 6 }}>
               {/[Mm]ax requests limit/i.test(fetchError)
                 ? "Atingimos o limite diário de leituras do Upstash Redis (500K/dia). Os teus dados ESTÃO no Redis — só não podem ser lidos até ao reset, à meia-noite UTC. Volta amanhã ou faz upgrade do plano no dashboard do Upstash."
                 : "O servidor devolveu um erro a tentar ler os criadores. Os dados estão no Redis; quando a leitura voltar a passar, a página enche outra vez."}
             </div>
-            <div style={{ fontSize: 11, color: "#888", fontFamily: "ui-monospace, monospace", wordBreak: "break-all" }}>
+            <div style={{ fontSize: 12, color: "var(--sl-text-muted)", fontFamily: "ui-monospace, monospace", wordBreak: "break-all" }}>
               {fetchError}
             </div>
             <button
@@ -663,8 +663,8 @@ export default function CreatorsPage() {
               onClick={() => fetchCreators(search)}
               style={{
                 marginTop: 10, padding: "6px 14px", borderRadius: 6,
-                border: "1px solid rgba(239,68,68,0.4)", background: "transparent",
-                color: "#ef4444", fontSize: 11, fontWeight: 600,
+                border: "1px solid color-mix(in srgb, var(--sl-danger) 40%, transparent)", background: "transparent",
+                color: "var(--sl-danger)", fontSize: 12, fontWeight: 600,
                 cursor: "pointer", fontFamily: "inherit",
               }}
             >
@@ -677,8 +677,8 @@ export default function CreatorsPage() {
         {showAdd && (
           <div style={{
             padding: 24,
-            background: "#141414",
-            border: "1px solid rgba(255,255,255,0.06)",
+            background: "var(--sl-surface)",
+            border: "1px solid var(--sl-border)",
             borderRadius: 12,
             marginBottom: 24,
           }}>
@@ -693,10 +693,10 @@ export default function CreatorsPage() {
                   style={{
                     flex: 1,
                     padding: "12px 14px",
-                    background: "#1a1a1a",
-                    border: "1px solid rgba(255,255,255,0.06)",
+                    background: "var(--sl-surface-raised)",
+                    border: "1px solid var(--sl-border)",
                     borderRadius: 8,
-                    color: "#f5f5f5",
+                    color: "var(--sl-text)",
                     fontSize: 13,
                     outline: "none",
                     fontFamily: "inherit",
@@ -710,10 +710,10 @@ export default function CreatorsPage() {
                   style={{
                     flex: 1,
                     padding: "12px 14px",
-                    background: "#1a1a1a",
-                    border: "1px solid rgba(255,255,255,0.06)",
+                    background: "var(--sl-surface-raised)",
+                    border: "1px solid var(--sl-border)",
                     borderRadius: 8,
-                    color: "#f5f5f5",
+                    color: "var(--sl-text)",
                     fontSize: 13,
                     outline: "none",
                     fontFamily: "inherit",
@@ -729,10 +729,10 @@ export default function CreatorsPage() {
                   style={{
                     flex: 1,
                     padding: "12px 14px",
-                    background: "#1a1a1a",
-                    border: "1px solid rgba(255,255,255,0.06)",
+                    background: "var(--sl-surface-raised)",
+                    border: "1px solid var(--sl-border)",
                     borderRadius: 8,
-                    color: "#f5f5f5",
+                    color: "var(--sl-text)",
                     fontSize: 13,
                     outline: "none",
                     fontFamily: "inherit",
@@ -746,10 +746,10 @@ export default function CreatorsPage() {
                   style={{
                     flex: 1,
                     padding: "12px 14px",
-                    background: "#1a1a1a",
-                    border: "1px solid rgba(255,255,255,0.06)",
+                    background: "var(--sl-surface-raised)",
+                    border: "1px solid var(--sl-border)",
                     borderRadius: 8,
-                    color: "#f5f5f5",
+                    color: "var(--sl-text)",
                     fontSize: 13,
                     outline: "none",
                     fontFamily: "inherit",
@@ -763,10 +763,10 @@ export default function CreatorsPage() {
                 disabled={adding || (!addInstagramUrl.trim() && !addTiktokUrl.trim() && !addYoutubeUrl.trim())}
                 style={{
                   padding: "10px 20px",
-                  background: adding ? "#333" : "#7A0E18",
+                  background: adding ? "var(--sl-border-strong)" : "var(--sl-primary)",
                   border: "none",
                   borderRadius: 8,
-                  color: "#fff",
+                  color: "var(--sl-text)",
                   fontSize: 13,
                   fontWeight: 600,
                   cursor: adding ? "not-allowed" : "pointer",
@@ -780,9 +780,9 @@ export default function CreatorsPage() {
                 style={{
                   padding: "10px 20px",
                   background: "transparent",
-                  border: "1px solid rgba(255,255,255,0.08)",
+                  border: "1px solid var(--sl-border)",
                   borderRadius: 8,
-                  color: "#888",
+                  color: "var(--sl-text-muted)",
                   fontSize: 13,
                   cursor: "pointer",
                   fontFamily: "inherit",
@@ -790,10 +790,10 @@ export default function CreatorsPage() {
               >
                 Cancelar
               </button>
-              {addError && <span style={{ color: "#ef4444", fontSize: 12 }}>{addError}</span>}
+              {addError && <span style={{ color: "var(--sl-danger)", fontSize: 12 }}>{addError}</span>}
             </div>
             {adding && (
-              <p style={{ fontSize: 12, color: "#888", margin: "12px 0 0" }}>
+              <p style={{ fontSize: 12, color: "var(--sl-text-muted)", margin: "12px 0 0" }}>
                 A pesquisar informacoes do creator com IA... pode demorar 15-30 segundos.
               </p>
             )}
@@ -850,7 +850,7 @@ export default function CreatorsPage() {
               {/* Filter chips row — sits above the tab bar so it applies to ALL tabs. */}
               {creators.length > 0 && (
                 <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 8, marginBottom: 16, padding: "10px 0" }}>
-                  <span style={{ fontSize: 9, fontWeight: 700, color: "#555", letterSpacing: "0.10em", textTransform: "uppercase", marginRight: 4 }}>Filtros</span>
+                  <span style={{ fontSize: 12, fontWeight: 700, color: "var(--sl-text-faint)", letterSpacing: "0.10em", textTransform: "uppercase", marginRight: 4 }}>Filtros</span>
 
                   {/* Adicionado por */}
                   <FilterDropdown
@@ -887,7 +887,7 @@ export default function CreatorsPage() {
                   {filterCount > 0 && (
                     <button
                       onClick={() => setFilters({ addedBy: null, dealScore: null, hasAudit: null })}
-                      style={{ padding: "5px 11px", borderRadius: 4, background: "transparent", border: "1px solid rgba(177,30,47,0.3)", color: "#B11E2F", fontSize: 11, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}
+                      style={{ padding: "5px 11px", borderRadius: 4, background: "transparent", border: "1px solid color-mix(in srgb, var(--sl-primary) 30%, transparent)", color: "var(--sl-accent-text)", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}
                     >
                       Limpar ({filterCount})
                     </button>
@@ -911,17 +911,17 @@ export default function CreatorsPage() {
                       onClick={() => setCrmTab(m.key === 'discovery' ? 'discovery' : 'por-contactar')}
                       style={{
                         padding: "8px 16px",
-                        background: isActive ? "rgba(122,14,24,0.18)" : "rgba(255,255,255,0.02)",
-                        border: `1px solid ${isActive ? "rgba(122,14,24,0.45)" : "rgba(255,255,255,0.06)"}`,
+                        background: isActive ? "color-mix(in srgb, var(--sl-primary) 18%, transparent)" : "color-mix(in srgb, var(--sl-text) 2%, transparent)",
+                        border: `1px solid ${isActive ? "color-mix(in srgb, var(--sl-primary) 45%, transparent)" : "color-mix(in srgb, var(--sl-text) 6%, transparent)"}`,
                         borderRadius: 6,
-                        color: isActive ? "#f5f5f5" : "#666",
+                        color: isActive ? "var(--sl-text)" : "var(--sl-text-faint)",
                         fontSize: 12, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase",
                         cursor: "pointer", fontFamily: "inherit",
                         display: "flex", alignItems: "center", gap: 8,
                       }}
                     >
                       {m.label}
-                      <span style={{ fontSize: 11, color: isActive ? "#888" : "#444", fontWeight: 700 }}>{m.count}</span>
+                      <span style={{ fontSize: 12, color: isActive ? "var(--sl-text-muted)" : "var(--sl-text-faint)", fontWeight: 700 }}>{m.count}</span>
                     </button>
                   );
                 })}
@@ -932,11 +932,11 @@ export default function CreatorsPage() {
                 <div>
                   <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "space-between", alignItems: "center", gap: 12, marginBottom: 20 }}>
                     <div style={{ flex: "1 1 200px", minWidth: 0 }}>
-                      <p style={{ fontSize: 12, color: "#888", margin: 0 }}>
+                      <p style={{ fontSize: 12, color: "var(--sl-text-muted)", margin: 0 }}>
                         Creators similares descobertos automaticamente a partir dos teus creators existentes. Apenas A/B tier.
                       </p>
                       {discoveryStatus && (
-                        <p style={{ fontSize: 11, color: discoveryStatus.startsWith("Erro") ? "#ef4444" : "#22c55e", margin: "6px 0 0" }}>{discoveryStatus}</p>
+                        <p style={{ fontSize: 12, color: discoveryStatus.startsWith("Erro") ? "var(--sl-danger)" : "var(--sl-success)", margin: "6px 0 0" }}>{discoveryStatus}</p>
                       )}
                     </div>
                     <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
@@ -946,10 +946,10 @@ export default function CreatorsPage() {
                         style={{
                           padding: "10px 14px",
                           background: "transparent",
-                          border: "1px solid rgba(255,255,255,0.08)",
+                          border: "1px solid var(--sl-border)",
                           borderRadius: 8,
-                          color: "#888",
-                          fontSize: 11,
+                          color: "var(--sl-text-muted)",
+                          fontSize: 12,
                           fontWeight: 600,
                           cursor: "pointer",
                           fontFamily: "inherit",
@@ -965,10 +965,10 @@ export default function CreatorsPage() {
                         style={{
                           padding: "10px 14px",
                           background: "transparent",
-                          border: "1px solid rgba(255,255,255,0.08)",
+                          border: "1px solid var(--sl-border)",
                           borderRadius: 8,
-                          color: "#888",
-                          fontSize: 11,
+                          color: "var(--sl-text-muted)",
+                          fontSize: 12,
                           fontWeight: 600,
                           cursor: discovering ? "not-allowed" : "pointer",
                           fontFamily: "inherit",
@@ -982,11 +982,11 @@ export default function CreatorsPage() {
                         title="Gerir autopilot: seeds persistentes, toggle on/off, histórico de runs"
                         style={{
                           padding: "10px 14px",
-                          background: showAutopilot ? "rgba(34,197,94,0.15)" : (autopilotEnabled ? "rgba(34,197,94,0.08)" : "transparent"),
-                          border: `1px solid ${showAutopilot ? "rgba(34,197,94,0.4)" : (autopilotEnabled ? "rgba(34,197,94,0.25)" : "rgba(255,255,255,0.08)")}`,
+                          background: showAutopilot ? "color-mix(in srgb, var(--sl-success) 15%, transparent)" : (autopilotEnabled ? "color-mix(in srgb, var(--sl-success) 8%, transparent)" : "transparent"),
+                          border: `1px solid ${showAutopilot ? "color-mix(in srgb, var(--sl-success) 40%, transparent)" : (autopilotEnabled ? "color-mix(in srgb, var(--sl-success) 25%, transparent)" : "color-mix(in srgb, var(--sl-text) 8%, transparent)")}`,
                           borderRadius: 8,
-                          color: autopilotEnabled ? "#22c55e" : "#888",
-                          fontSize: 11,
+                          color: autopilotEnabled ? "var(--sl-success)" : "var(--sl-text-muted)",
+                          fontSize: 12,
                           fontWeight: 600,
                           cursor: "pointer",
                           fontFamily: "inherit",
@@ -1000,11 +1000,11 @@ export default function CreatorsPage() {
                         title="Descobrir a partir de URLs de Instagram que cola manualmente (seeds externos)"
                         style={{
                           padding: "10px 14px",
-                          background: showSeedInput ? "rgba(122,14,24,0.2)" : "transparent",
-                          border: `1px solid ${showSeedInput ? "rgba(122,14,24,0.4)" : "rgba(255,255,255,0.08)"}`,
+                          background: showSeedInput ? "color-mix(in srgb, var(--sl-primary) 20%, transparent)" : "transparent",
+                          border: `1px solid ${showSeedInput ? "color-mix(in srgb, var(--sl-primary) 40%, transparent)" : "color-mix(in srgb, var(--sl-text) 8%, transparent)"}`,
                           borderRadius: 8,
-                          color: showSeedInput ? "#f5f5f5" : "#888",
-                          fontSize: 11,
+                          color: showSeedInput ? "var(--sl-text)" : "var(--sl-text-muted)",
+                          fontSize: 12,
                           fontWeight: 600,
                           cursor: "pointer",
                           fontFamily: "inherit",
@@ -1018,10 +1018,10 @@ export default function CreatorsPage() {
                         disabled={discovering}
                         style={{
                           padding: "10px 18px",
-                          background: discovering ? "#333" : "#7A0E18",
+                          background: discovering ? "var(--sl-border-strong)" : "var(--sl-primary)",
                           border: "none",
                           borderRadius: 8,
-                          color: "#fff",
+                          color: "var(--sl-text)",
                           fontSize: 12,
                           fontWeight: 600,
                           cursor: discovering ? "not-allowed" : "pointer",
@@ -1036,11 +1036,11 @@ export default function CreatorsPage() {
 
                   {/* Seed input */}
                   {showSeedInput && (
-                    <div style={{ marginBottom: 20, padding: "16px 18px", background: "#0f0f0f", border: "1px solid rgba(122,14,24,0.2)", borderRadius: 10 }}>
-                      <div style={{ fontSize: 12, fontWeight: 600, color: "#f5f5f5", marginBottom: 4 }}>
+                    <div style={{ marginBottom: 20, padding: "16px 18px", background: "var(--sl-surface)", border: "1px solid color-mix(in srgb, var(--sl-primary) 20%, transparent)", borderRadius: 10 }}>
+                      <div style={{ fontSize: 12, fontWeight: 600, color: "var(--sl-text)", marginBottom: 4 }}>
                         Discovery com seeds manuais
                       </div>
-                      <div style={{ fontSize: 11, color: "#666", marginBottom: 10 }}>
+                      <div style={{ fontSize: 12, color: "var(--sl-text-faint)", marginBottom: 10 }}>
                         Cola URLs de Instagram de creators grandes que já conheces (um por linha ou separados por vírgula). O sistema vai scrapear cada um, extrair os seus similares, e filtrar pela tua ICP.
                       </div>
                       <textarea
@@ -1051,10 +1051,10 @@ export default function CreatorsPage() {
                         style={{
                           width: "100%",
                           padding: "10px 12px",
-                          background: "#1a1a1a",
-                          border: "1px solid rgba(255,255,255,0.06)",
+                          background: "var(--sl-surface-raised)",
+                          border: "1px solid var(--sl-border)",
                           borderRadius: 8,
-                          color: "#f5f5f5",
+                          color: "var(--sl-text)",
                           fontSize: 12,
                           fontFamily: "monospace",
                           outline: "none",
@@ -1064,7 +1064,7 @@ export default function CreatorsPage() {
                         }}
                       />
                       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
-                        <div style={{ fontSize: 10, color: "#555" }}>
+                        <div style={{ fontSize: 12, color: "var(--sl-text-faint)" }}>
                           Até 15 candidatos por run. Cada seed pode dar ~15 candidatos para filtrar.
                         </div>
                         <button
@@ -1072,11 +1072,11 @@ export default function CreatorsPage() {
                           disabled={discovering || !seedUrls.trim()}
                           style={{
                             padding: "8px 16px",
-                            background: (discovering || !seedUrls.trim()) ? "#333" : "#7A0E18",
+                            background: (discovering || !seedUrls.trim()) ? "var(--sl-border-strong)" : "var(--sl-primary)",
                             border: "none",
                             borderRadius: 6,
-                            color: "#fff",
-                            fontSize: 11,
+                            color: "var(--sl-text)",
+                            fontSize: 12,
                             fontWeight: 600,
                             cursor: (discovering || !seedUrls.trim()) ? "not-allowed" : "pointer",
                             fontFamily: "inherit",
@@ -1091,11 +1091,11 @@ export default function CreatorsPage() {
 
                   {/* Autopilot panel */}
                   {showAutopilot && (
-                    <div style={{ marginBottom: 20, padding: "16px 18px", background: "#0f0f0f", border: "1px solid rgba(34,197,94,0.15)", borderRadius: 10 }}>
+                    <div style={{ marginBottom: 20, padding: "16px 18px", background: "var(--sl-surface)", border: "1px solid color-mix(in srgb, var(--sl-success) 15%, transparent)", borderRadius: 10 }}>
                       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
                         <div>
-                          <div style={{ fontSize: 12, fontWeight: 600, color: "#f5f5f5" }}>Autopilot Discovery</div>
-                          <div style={{ fontSize: 10, color: "#666", marginTop: 2 }}>
+                          <div style={{ fontSize: 12, fontWeight: 600, color: "var(--sl-text)" }}>Autopilot Discovery</div>
+                          <div style={{ fontSize: 12, color: "var(--sl-text-faint)", marginTop: 2 }}>
                             Corre automaticamente todos os dias às 6AM (Lisboa) · até 30 candidatos · notifica tom@ + raul@secondlayerhq.com
                           </div>
                         </div>
@@ -1105,11 +1105,11 @@ export default function CreatorsPage() {
                           title={persistentSeeds.length === 0 ? "Adiciona pelo menos 1 seed antes de activar" : ""}
                           style={{
                             padding: "8px 18px",
-                            background: autopilotEnabled ? "#22c55e" : (persistentSeeds.length === 0 ? "#222" : "#1a1a1a"),
-                            border: `1px solid ${autopilotEnabled ? "#22c55e" : "rgba(255,255,255,0.1)"}`,
+                            background: autopilotEnabled ? "var(--sl-success)" : (persistentSeeds.length === 0 ? "var(--sl-surface-raised)" : "var(--sl-surface-raised)"),
+                            border: `1px solid ${autopilotEnabled ? "var(--sl-success)" : "color-mix(in srgb, var(--sl-text) 10%, transparent)"}`,
                             borderRadius: 8,
-                            color: autopilotEnabled ? "#000" : (persistentSeeds.length === 0 ? "#444" : "#888"),
-                            fontSize: 11,
+                            color: autopilotEnabled ? "var(--sl-bg)" : (persistentSeeds.length === 0 ? "var(--sl-text-faint)" : "var(--sl-text-muted)"),
+                            fontSize: 12,
                             fontWeight: 700,
                             cursor: persistentSeeds.length === 0 && !autopilotEnabled ? "not-allowed" : "pointer",
                             fontFamily: "inherit",
@@ -1124,12 +1124,12 @@ export default function CreatorsPage() {
 
                       {/* Seeds list grouped by niche/country */}
                       <div style={{ marginBottom: 14 }}>
-                        <div style={{ fontSize: 10, fontWeight: 600, color: "#555", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 8 }}>
+                        <div style={{ fontSize: 12, fontWeight: 600, color: "var(--sl-text-faint)", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 8 }}>
                           Seeds persistentes ({persistentSeeds.length})
                         </div>
 
                         {persistentSeeds.length === 0 ? (
-                          <div style={{ fontSize: 11, color: "#555", padding: "8px 0 12px" }}>
+                          <div style={{ fontSize: 12, color: "var(--sl-text-faint)", padding: "8px 0 12px" }}>
                             Nenhum seed ainda. Adiciona creators grandes nos teus nichos target para o autopilot usar.
                           </div>
                         ) : (
@@ -1152,16 +1152,16 @@ export default function CreatorsPage() {
                               });
                               return sortedKeys.map(groupKey => (
                                 <div key={groupKey} style={{ marginBottom: 8 }}>
-                                  <div style={{ fontSize: 9, fontWeight: 700, color: "#7A0E18", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 4 }}>
-                                    {groupKey} <span style={{ color: "#444", fontWeight: 400 }}>({groups[groupKey].length})</span>
+                                  <div style={{ fontSize: 12, fontWeight: 700, color: "var(--sl-accent-text)", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 4 }}>
+                                    {groupKey} <span style={{ color: "var(--sl-text-faint)", fontWeight: 400 }}>({groups[groupKey].length})</span>
                                   </div>
                                   <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
                                     {groups[groupKey].map(url => {
                                       const handle = url.match(/instagram\.com\/([^/?]+)/i)?.[1] || url;
                                       return (
-                                        <div key={url} style={{ display: "flex", alignItems: "center", gap: 4, padding: "4px 7px 4px 10px", background: "rgba(34,197,94,0.05)", border: "1px solid rgba(34,197,94,0.15)", borderRadius: 5 }}>
-                                          <a href={url} target="_blank" rel="noopener noreferrer" style={{ fontSize: 11, color: "#aaa", textDecoration: "none" }}>@{handle}</a>
-                                          <button onClick={() => removePersistentSeed(url)} title="Remover" style={{ fontSize: 11, color: "#555", background: "transparent", border: "none", cursor: "pointer", padding: 0, fontFamily: "inherit", lineHeight: 1 }}>×</button>
+                                        <div key={url} style={{ display: "flex", alignItems: "center", gap: 4, padding: "4px 7px 4px 10px", background: "color-mix(in srgb, var(--sl-success) 5%, transparent)", border: "1px solid color-mix(in srgb, var(--sl-success) 15%, transparent)", borderRadius: 5 }}>
+                                          <a href={url} target="_blank" rel="noopener noreferrer" style={{ fontSize: 12, color: "var(--sl-text-muted)", textDecoration: "none" }}>@{handle}</a>
+                                          <button onClick={() => removePersistentSeed(url)} title="Remover" style={{ fontSize: 12, color: "var(--sl-text-faint)", background: "transparent", border: "none", cursor: "pointer", padding: 0, fontFamily: "inherit", lineHeight: 1 }}>×</button>
                                         </div>
                                       );
                                     })}
@@ -1173,15 +1173,15 @@ export default function CreatorsPage() {
                         )}
 
                         {/* Add form with niche + country tags */}
-                        <div style={{ padding: "10px 12px", background: "#1a1a1a", border: "1px solid rgba(255,255,255,0.04)", borderRadius: 8 }}>
-                          <div style={{ fontSize: 9, fontWeight: 600, color: "#666", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 6 }}>
+                        <div style={{ padding: "10px 12px", background: "var(--sl-surface-raised)", border: "1px solid var(--sl-border)", borderRadius: 8 }}>
+                          <div style={{ fontSize: 12, fontWeight: 600, color: "var(--sl-text-faint)", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 6 }}>
                             Adicionar novo seed
                           </div>
                           <div style={{ display: "flex", gap: 6, marginBottom: 6 }}>
                             <select
                               value={newSeedNiche}
                               onChange={(e) => setNewSeedNiche(e.target.value)}
-                              style={{ flex: 1, padding: "6px 8px", background: "#0f0f0f", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 5, color: "#ccc", fontSize: 11, fontFamily: "inherit", outline: "none" }}
+                              style={{ flex: 1, padding: "6px 8px", background: "var(--sl-surface)", border: "1px solid var(--sl-border)", borderRadius: 5, color: "var(--sl-text-muted)", fontSize: 12, fontFamily: "inherit", outline: "none" }}
                             >
                               {["Fitness", "Empreendedorismo", "Nutrição", "Finanças", "Imobiliário", "Educação", "Culinária"].map(n => (
                                 <option key={n} value={n}>{n}</option>
@@ -1190,7 +1190,7 @@ export default function CreatorsPage() {
                             <select
                               value={newSeedCountry}
                               onChange={(e) => setNewSeedCountry(e.target.value)}
-                              style={{ flex: 1, padding: "6px 8px", background: "#0f0f0f", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 5, color: "#ccc", fontSize: 11, fontFamily: "inherit", outline: "none" }}
+                              style={{ flex: 1, padding: "6px 8px", background: "var(--sl-surface)", border: "1px solid var(--sl-border)", borderRadius: 5, color: "var(--sl-text-muted)", fontSize: 12, fontFamily: "inherit", outline: "none" }}
                             >
                               {["PT", "BR", "Dubai", "Other"].map(c => (
                                 <option key={c} value={c}>{c}</option>
@@ -1207,11 +1207,11 @@ export default function CreatorsPage() {
                               style={{
                                 flex: 1,
                                 padding: "6px 10px",
-                                background: "#0f0f0f",
-                                border: "1px solid rgba(255,255,255,0.06)",
+                                background: "var(--sl-surface)",
+                                border: "1px solid var(--sl-border)",
                                 borderRadius: 5,
-                                color: "#f5f5f5",
-                                fontSize: 11,
+                                color: "var(--sl-text)",
+                                fontSize: 12,
                                 fontFamily: "monospace",
                                 outline: "none",
                               }}
@@ -1221,11 +1221,11 @@ export default function CreatorsPage() {
                               disabled={!newSeedInput.trim()}
                               style={{
                                 padding: "6px 14px",
-                                background: newSeedInput.trim() ? "#7A0E18" : "#1a1a1a",
+                                background: newSeedInput.trim() ? "var(--sl-primary)" : "var(--sl-surface-raised)",
                                 border: "none",
                                 borderRadius: 5,
-                                color: newSeedInput.trim() ? "#fff" : "#444",
-                                fontSize: 11,
+                                color: newSeedInput.trim() ? "var(--sl-primary-contrast)" : "var(--sl-text-faint)",
+                                fontSize: 12,
                                 fontWeight: 600,
                                 cursor: newSeedInput.trim() ? "pointer" : "not-allowed",
                                 fontFamily: "inherit",
@@ -1234,7 +1234,7 @@ export default function CreatorsPage() {
                               Adicionar
                             </button>
                           </div>
-                          <div style={{ fontSize: 9, color: "#444", marginTop: 6 }}>
+                          <div style={{ fontSize: 12, color: "var(--sl-text-faint)", marginTop: 6 }}>
                             Todos os URLs adicionados nesta operação recebem o mesmo nicho e país. Adiciona nichos diferentes um de cada vez.
                           </div>
                         </div>
@@ -1243,23 +1243,23 @@ export default function CreatorsPage() {
                       {/* Recent runs */}
                       {recentRuns.length > 0 && (
                         <div>
-                          <div style={{ fontSize: 10, fontWeight: 600, color: "#555", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 8 }}>
+                          <div style={{ fontSize: 12, fontWeight: 600, color: "var(--sl-text-faint)", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 8 }}>
                             Últimas runs ({recentRuns.length})
                           </div>
                           <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
                             {recentRuns.slice(0, 5).map((run, i) => (
-                              <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "6px 10px", background: "rgba(255,255,255,0.02)", borderRadius: 5 }}>
-                                <span style={{ fontSize: 10, color: "#666", minWidth: 120 }}>
+                              <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "6px 10px", background: "color-mix(in srgb, var(--sl-text) 2%, transparent)", borderRadius: 5 }}>
+                                <span style={{ fontSize: 12, color: "var(--sl-text-faint)", minWidth: 120 }}>
                                   {new Date(run.timestamp).toLocaleString("pt-PT", { timeZone: "Europe/Lisbon", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
                                 </span>
                                 {run.status === 'ok' ? (
                                   <>
-                                    <span style={{ fontSize: 11, fontWeight: 700, color: "#22c55e" }}>{run.queued || 0}</span>
-                                    <span style={{ fontSize: 10, color: "#666" }}>qualificados</span>
-                                    <span style={{ fontSize: 10, color: "#444" }}>· {run.scanned} scaneados · {run.seeds} seeds</span>
+                                    <span style={{ fontSize: 12, fontWeight: 700, color: "var(--sl-success)" }}>{run.queued || 0}</span>
+                                    <span style={{ fontSize: 12, color: "var(--sl-text-faint)" }}>qualificados</span>
+                                    <span style={{ fontSize: 12, color: "var(--sl-text-faint)" }}>· {run.scanned} scaneados · {run.seeds} seeds</span>
                                   </>
                                 ) : (
-                                  <span style={{ fontSize: 10, color: "#eab308" }}>{run.status === 'skipped' ? `skipped (${run.reason})` : `error: ${run.error || 'unknown'}`}</span>
+                                  <span style={{ fontSize: 12, color: "var(--sl-warning)" }}>{run.status === 'skipped' ? `skipped (${run.reason})` : `error: ${run.error || 'unknown'}`}</span>
                                 )}
                               </div>
                             ))}
@@ -1271,24 +1271,24 @@ export default function CreatorsPage() {
 
                   {/* Blacklist viewer */}
                   {showBlacklist && (
-                    <div style={{ marginBottom: 20, padding: "14px 16px", background: "#0f0f0f", border: "1px solid rgba(255,255,255,0.04)", borderRadius: 10 }}>
-                      <div style={{ fontSize: 11, fontWeight: 600, color: "#888", marginBottom: 10 }}>
+                    <div style={{ marginBottom: 20, padding: "14px 16px", background: "var(--sl-surface)", border: "1px solid var(--sl-border)", borderRadius: 10 }}>
+                      <div style={{ fontSize: 12, fontWeight: 600, color: "var(--sl-text-muted)", marginBottom: 10 }}>
                         Blacklist — {blacklist.dismissed.length + blacklist.outOfRange.length} handles bloqueados
                       </div>
                       {blacklist.dismissed.length === 0 && blacklist.outOfRange.length === 0 ? (
-                        <div style={{ fontSize: 11, color: "#555", padding: "6px 0" }}>Blacklist vazio.</div>
+                        <div style={{ fontSize: 12, color: "var(--sl-text-faint)", padding: "6px 0" }}>Blacklist vazio.</div>
                       ) : (
                         <>
                           {blacklist.dismissed.length > 0 && (
                             <div style={{ marginBottom: 10 }}>
-                              <div style={{ fontSize: 9, fontWeight: 600, color: "#555", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 6 }}>
+                              <div style={{ fontSize: 12, fontWeight: 600, color: "var(--sl-text-faint)", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 6 }}>
                                 C/D Tier ({blacklist.dismissed.length}) — dispensados por baixa qualidade
                               </div>
                               <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
                                 {blacklist.dismissed.map(h => (
-                                  <div key={h} style={{ display: "flex", alignItems: "center", gap: 4, padding: "3px 6px 3px 8px", background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.04)", borderRadius: 5 }}>
-                                    <a href={`https://instagram.com/${h}`} target="_blank" rel="noopener noreferrer" style={{ fontSize: 10, color: "#999", textDecoration: "none" }}>@{h}</a>
-                                    <button onClick={() => unblock(h)} title="Libertar" style={{ fontSize: 10, color: "#555", background: "transparent", border: "none", cursor: "pointer", padding: 0, fontFamily: "inherit", lineHeight: 1 }}>×</button>
+                                  <div key={h} style={{ display: "flex", alignItems: "center", gap: 4, padding: "3px 6px 3px 8px", background: "color-mix(in srgb, var(--sl-text) 2%, transparent)", border: "1px solid var(--sl-border)", borderRadius: 5 }}>
+                                    <a href={`https://instagram.com/${h}`} target="_blank" rel="noopener noreferrer" style={{ fontSize: 12, color: "var(--sl-text-muted)", textDecoration: "none" }}>@{h}</a>
+                                    <button onClick={() => unblock(h)} title="Libertar" style={{ fontSize: 12, color: "var(--sl-text-faint)", background: "transparent", border: "none", cursor: "pointer", padding: 0, fontFamily: "inherit", lineHeight: 1 }}>×</button>
                                   </div>
                                 ))}
                               </div>
@@ -1296,14 +1296,14 @@ export default function CreatorsPage() {
                           )}
                           {blacklist.outOfRange.length > 0 && (
                             <div>
-                              <div style={{ fontSize: 9, fontWeight: 600, color: "#555", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 6 }}>
+                              <div style={{ fontSize: 12, fontWeight: 600, color: "var(--sl-text-faint)", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 6 }}>
                                 Out of Range ({blacklist.outOfRange.length}) — fora do range de seguidores
                               </div>
                               <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
                                 {blacklist.outOfRange.map(h => (
-                                  <div key={h} style={{ display: "flex", alignItems: "center", gap: 4, padding: "3px 6px 3px 8px", background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.04)", borderRadius: 5 }}>
-                                    <a href={`https://instagram.com/${h}`} target="_blank" rel="noopener noreferrer" style={{ fontSize: 10, color: "#999", textDecoration: "none" }}>@{h}</a>
-                                    <button onClick={() => unblock(h)} title="Libertar" style={{ fontSize: 10, color: "#555", background: "transparent", border: "none", cursor: "pointer", padding: 0, fontFamily: "inherit", lineHeight: 1 }}>×</button>
+                                  <div key={h} style={{ display: "flex", alignItems: "center", gap: 4, padding: "3px 6px 3px 8px", background: "color-mix(in srgb, var(--sl-text) 2%, transparent)", border: "1px solid var(--sl-border)", borderRadius: 5 }}>
+                                    <a href={`https://instagram.com/${h}`} target="_blank" rel="noopener noreferrer" style={{ fontSize: 12, color: "var(--sl-text-muted)", textDecoration: "none" }}>@{h}</a>
+                                    <button onClick={() => unblock(h)} title="Libertar" style={{ fontSize: 12, color: "var(--sl-text-faint)", background: "transparent", border: "none", cursor: "pointer", padding: 0, fontFamily: "inherit", lineHeight: 1 }}>×</button>
                                   </div>
                                 ))}
                               </div>
@@ -1315,58 +1315,58 @@ export default function CreatorsPage() {
                   )}
 
                   {discoveryQueue.length === 0 ? (
-                    <div style={{ textAlign: "center", padding: 60, color: "#555" }}>
+                    <div style={{ textAlign: "center", padding: 60, color: "var(--sl-text-faint)" }}>
                       Queue vazio. Clica em "Correr Discovery" para encontrar creators similares.
                     </div>
                   ) : (
                     <div className="sl-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 14 }}>
                       {discoveryQueue.map((c) => {
-                        const gradeColor = c.dealScoreGrade === 'A' ? "#22c55e" : "#3b82f6";
+                        const gradeColor = c.dealScoreGrade === 'A' ? "var(--sl-success)" : "var(--sl-info)";
                         return (
-                          <div key={c.id} style={{ padding: "18px 18px 14px", background: "#141414", border: "1px solid rgba(255,255,255,0.04)", borderRadius: 12 }}>
+                          <div key={c.id} style={{ padding: "18px 18px 14px", background: "var(--sl-surface)", border: "1px solid var(--sl-border)", borderRadius: 12 }}>
                             <div style={{ display: "flex", alignItems: "flex-start", gap: 10, marginBottom: 10 }}>
                               {c.profilePicUrl ? (
                                 <img src={`/api/proxy-image?url=${encodeURIComponent(c.profilePicUrl)}`} alt="" style={{ width: 36, height: 36, borderRadius: "50%", objectFit: "cover" }} />
                               ) : (
-                                <div style={{ width: 36, height: 36, borderRadius: "50%", background: "#1a1a1a", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700, color: "#555" }}>{(c.name || "?")[0].toUpperCase()}</div>
+                                <div style={{ width: 36, height: 36, borderRadius: "50%", background: "var(--sl-surface-raised)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700, color: "var(--sl-text-faint)" }}>{(c.name || "?")[0].toUpperCase()}</div>
                               )}
                               <div style={{ flex: 1, minWidth: 0 }}>
                                 <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                                  <h3 style={{ fontSize: 13, fontWeight: 600, margin: 0, color: "#f5f5f5", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                                  <h3 style={{ fontSize: 13, fontWeight: 600, margin: 0, color: "var(--sl-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                                     {c.name}
                                   </h3>
-                                  <span style={{ fontSize: 9, fontWeight: 700, padding: "2px 6px", background: gradeColor + "20", color: gradeColor, borderRadius: 4 }}>
+                                  <span style={{ fontSize: 12, fontWeight: 700, padding: "2px 6px", background: gradeColor + "20", color: gradeColor, borderRadius: 4 }}>
                                     {c.dealScoreGrade}
                                   </span>
                                 </div>
-                                <a href={c.url} target="_blank" rel="noopener noreferrer" style={{ fontSize: 10, color: "#555", textDecoration: "none" }}>
+                                <a href={c.url} target="_blank" rel="noopener noreferrer" style={{ fontSize: 12, color: "var(--sl-text-faint)", textDecoration: "none" }}>
                                   @{c.handle}
                                 </a>
                               </div>
-                              <span style={{ fontSize: 12, fontWeight: 700, color: "#7A0E18" }}>
+                              <span style={{ fontSize: 12, fontWeight: 700, color: "var(--sl-accent-text)" }}>
                                 {formatFollowers(c.followers)}
                               </span>
                             </div>
 
                             <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 10 }}>
-                              {c.engagement && <span style={{ fontSize: 10, color: "#888", padding: "2px 7px", background: "rgba(255,255,255,0.03)", borderRadius: 4 }}>Eng: {c.engagement}</span>}
-                              {c.isVerified && <span style={{ fontSize: 10, color: "#3b82f6", padding: "2px 7px", background: "rgba(59,130,246,0.08)", borderRadius: 4 }}>✓ Verified</span>}
-                              {c.isBusinessAccount && <span style={{ fontSize: 10, color: "#888", padding: "2px 7px", background: "rgba(255,255,255,0.03)", borderRadius: 4 }}>Business</span>}
+                              {c.engagement && <span style={{ fontSize: 12, color: "var(--sl-text-muted)", padding: "2px 7px", background: "color-mix(in srgb, var(--sl-text) 3%, transparent)", borderRadius: 4 }}>Eng: {c.engagement}</span>}
+                              {c.isVerified && <span style={{ fontSize: 12, color: "var(--sl-info)", padding: "2px 7px", background: "color-mix(in srgb, var(--sl-info) 8%, transparent)", borderRadius: 4 }}>✓ Verified</span>}
+                              {c.isBusinessAccount && <span style={{ fontSize: 12, color: "var(--sl-text-muted)", padding: "2px 7px", background: "color-mix(in srgb, var(--sl-text) 3%, transparent)", borderRadius: 4 }}>Business</span>}
                             </div>
 
                             {c.bio && (
-                              <p style={{ fontSize: 11, color: "#888", margin: "0 0 10px", lineHeight: 1.5, overflow: "hidden", textOverflow: "ellipsis", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" }}>
+                              <p style={{ fontSize: 12, color: "var(--sl-text-muted)", margin: "0 0 10px", lineHeight: 1.5, overflow: "hidden", textOverflow: "ellipsis", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" }}>
                                 {c.bio}
                               </p>
                             )}
 
-                            <div style={{ fontSize: 10, color: "#444", marginBottom: 10 }}>
-                              Descoberto de <span style={{ color: "#666" }}>@{c.sourceCreatorHandle || c.sourceCreatorName}</span>
+                            <div style={{ fontSize: 12, color: "var(--sl-text-faint)", marginBottom: 10 }}>
+                              Descoberto de <span style={{ color: "var(--sl-text-faint)" }}>@{c.sourceCreatorHandle || c.sourceCreatorName}</span>
                             </div>
 
                             {acceptingId === c.id ? (
-                              <div style={{ display: "flex", flexDirection: "column", gap: 6, padding: "10px 12px", background: "rgba(34,197,94,0.05)", border: "1px solid rgba(34,197,94,0.2)", borderRadius: 8 }}>
-                                <div style={{ fontSize: 9, fontWeight: 600, color: "#22c55e", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 2 }}>
+                              <div style={{ display: "flex", flexDirection: "column", gap: 6, padding: "10px 12px", background: "color-mix(in srgb, var(--sl-success) 5%, transparent)", border: "1px solid color-mix(in srgb, var(--sl-success) 20%, transparent)", borderRadius: 8 }}>
+                                <div style={{ fontSize: 12, fontWeight: 600, color: "var(--sl-success)", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 2 }}>
                                   Plataformas adicionais (opcional)
                                 </div>
                                 <input
@@ -1374,27 +1374,27 @@ export default function CreatorsPage() {
                                   value={acceptTiktok}
                                   onChange={(e) => setAcceptTiktok(e.target.value)}
                                   placeholder="TikTok URL (opcional)"
-                                  style={{ padding: "6px 10px", background: "#0f0f0f", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 5, color: "#f5f5f5", fontSize: 10, fontFamily: "monospace", outline: "none" }}
+                                  style={{ padding: "6px 10px", background: "var(--sl-surface)", border: "1px solid var(--sl-border)", borderRadius: 5, color: "var(--sl-text)", fontSize: 12, fontFamily: "monospace", outline: "none" }}
                                 />
                                 <input
                                   type="text"
                                   value={acceptYoutube}
                                   onChange={(e) => setAcceptYoutube(e.target.value)}
                                   placeholder="YouTube URL (opcional)"
-                                  style={{ padding: "6px 10px", background: "#0f0f0f", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 5, color: "#f5f5f5", fontSize: 10, fontFamily: "monospace", outline: "none" }}
+                                  style={{ padding: "6px 10px", background: "var(--sl-surface)", border: "1px solid var(--sl-border)", borderRadius: 5, color: "var(--sl-text)", fontSize: 12, fontFamily: "monospace", outline: "none" }}
                                 />
                                 <div style={{ display: "flex", gap: 6, marginTop: 2 }}>
                                   <button
                                     onClick={() => acceptCandidate(c.id)}
                                     disabled={processingId === c.id}
-                                    style={{ flex: 1, padding: "6px 12px", background: processingId === c.id ? "#222" : "#22c55e", border: "none", borderRadius: 5, color: processingId === c.id ? "#666" : "#000", fontSize: 10, fontWeight: 700, cursor: processingId === c.id ? "wait" : "pointer", fontFamily: "inherit" }}
+                                    style={{ flex: 1, padding: "6px 12px", background: processingId === c.id ? "var(--sl-surface-raised)" : "var(--sl-success)", border: "none", borderRadius: 5, color: processingId === c.id ? "var(--sl-text-faint)" : "var(--sl-bg)", fontSize: 12, fontWeight: 700, cursor: processingId === c.id ? "wait" : "pointer", fontFamily: "inherit" }}
                                   >
                                     {processingId === c.id ? "A processar..." : "Confirmar"}
                                   </button>
                                   <button
                                     onClick={cancelAccepting}
                                     disabled={processingId === c.id}
-                                    style={{ padding: "6px 12px", background: "transparent", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 5, color: "#555", fontSize: 10, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}
+                                    style={{ padding: "6px 12px", background: "transparent", border: "1px solid var(--sl-border)", borderRadius: 5, color: "var(--sl-text-faint)", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}
                                   >
                                     Cancelar
                                   </button>
@@ -1405,14 +1405,14 @@ export default function CreatorsPage() {
                                 <button
                                   onClick={() => startAccepting(c.id)}
                                   disabled={processingId === c.id}
-                                  style={{ flex: 1, padding: "8px 12px", background: processingId === c.id ? "#222" : "rgba(34,197,94,0.15)", border: "1px solid rgba(34,197,94,0.3)", borderRadius: 6, color: "#22c55e", fontSize: 11, fontWeight: 600, cursor: processingId === c.id ? "wait" : "pointer", fontFamily: "inherit" }}
+                                  style={{ flex: 1, padding: "8px 12px", background: processingId === c.id ? "var(--sl-surface-raised)" : "color-mix(in srgb, var(--sl-success) 15%, transparent)", border: "1px solid color-mix(in srgb, var(--sl-success) 30%, transparent)", borderRadius: 6, color: "var(--sl-success)", fontSize: 12, fontWeight: 600, cursor: processingId === c.id ? "wait" : "pointer", fontFamily: "inherit" }}
                                 >
                                   {processingId === c.id ? "A processar..." : "Aceitar"}
                                 </button>
                                 <button
                                   onClick={() => dismissCandidate(c.id)}
                                   disabled={processingId === c.id}
-                                  style={{ padding: "8px 12px", background: "transparent", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 6, color: "#555", fontSize: 11, fontWeight: 600, cursor: processingId === c.id ? "wait" : "pointer", fontFamily: "inherit" }}
+                                  style={{ padding: "8px 12px", background: "transparent", border: "1px solid var(--sl-border)", borderRadius: 6, color: "var(--sl-text-faint)", fontSize: 12, fontWeight: 600, cursor: processingId === c.id ? "wait" : "pointer", fontFamily: "inherit" }}
                                 >
                                   Dispensar
                                 </button>
@@ -1443,8 +1443,8 @@ export default function CreatorsPage() {
         })()}
 
         {/* Footer */}
-        <div style={{ marginTop: 60, paddingTop: 20, borderTop: "1px solid rgba(255,255,255,0.04)", textAlign: "center" }}>
-          <p style={{ fontSize: 10, color: "#333", margin: 0 }}>Second Layer HQ &middot; Creator CRM</p>
+        <div style={{ marginTop: 60, paddingTop: 20, borderTop: "1px solid var(--sl-border)", textAlign: "center" }}>
+          <p style={{ fontSize: 12, color: "var(--sl-border-strong)", margin: 0 }}>Second Layer HQ &middot; Creator CRM</p>
         </div>
       </div>
     </div>
@@ -1463,26 +1463,26 @@ function FilterDropdown({ label, value, options, onChange }) {
       display: "inline-flex", alignItems: "center", gap: 6,
       padding: "4px 4px 4px 10px",
       borderRadius: 4,
-      border: `1px solid ${active ? "rgba(177,30,47,0.4)" : "rgba(255,255,255,0.08)"}`,
-      background: active ? "rgba(177,30,47,0.06)" : "transparent",
-      fontSize: 11, fontFamily: "inherit",
+      border: `1px solid ${active ? "color-mix(in srgb, var(--sl-primary) 40%, transparent)" : "color-mix(in srgb, var(--sl-text) 8%, transparent)"}`,
+      background: active ? "color-mix(in srgb, var(--sl-primary) 6%, transparent)" : "transparent",
+      fontSize: 12, fontFamily: "inherit",
       cursor: "pointer",
     }}>
-      <span style={{ fontSize: 10, color: active ? "#B11E2F" : "#666", fontWeight: 600 }}>{label}:</span>
+      <span style={{ fontSize: 12, color: active ? "var(--sl-accent-text)" : "var(--sl-text-faint)", fontWeight: 600 }}>{label}:</span>
       <select
         value={value || ''}
         onChange={(e) => onChange(e.target.value || null)}
         style={{
           background: "transparent", border: "none", outline: "none",
-          color: active ? "#f5f5f5" : "#888",
-          fontSize: 11, fontWeight: 600, fontFamily: "inherit",
+          color: active ? "var(--sl-text)" : "var(--sl-text-muted)",
+          fontSize: 12, fontWeight: 600, fontFamily: "inherit",
           padding: "2px 4px", cursor: "pointer",
           appearance: "none", WebkitAppearance: "none",
         }}
       >
-        <option value="" style={{ background: "#141414" }}>Todos</option>
+        <option value="" style={{ background: "var(--sl-surface)" }}>Todos</option>
         {options.map(opt => (
-          <option key={opt.value} value={opt.value} style={{ background: "#141414" }}>{opt.label}</option>
+          <option key={opt.value} value={opt.value} style={{ background: "var(--sl-surface)" }}>{opt.label}</option>
         ))}
       </select>
     </label>
@@ -1595,13 +1595,13 @@ function CrmKanban({ creators, setCreators, onDragChange }) {
       .sl-kanban-col::-webkit-scrollbar { width: 6px; }
       .sl-kanban-col::-webkit-scrollbar-track { background: transparent; }
       .sl-kanban-col::-webkit-scrollbar-thumb {
-        background: rgba(255,255,255,0.08);
+        background: color-mix(in srgb, var(--sl-text) 8%, transparent);
         border-radius: 3px;
       }
       .sl-kanban-col::-webkit-scrollbar-thumb:hover {
-        background: rgba(122,14,24,0.4);
+        background: color-mix(in srgb, var(--sl-primary) 40%, transparent);
       }
-      .sl-kanban-col { scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.08) transparent; }
+      .sl-kanban-col { scrollbar-width: thin; scrollbar-color: color-mix(in srgb, var(--sl-text) 8%, transparent) transparent; }
     `}</style>
     <div style={{ display: "flex", gap: 10, overflowX: "auto", paddingBottom: 12, marginBottom: 32, width: "100%", maxWidth: "100%" }}>
       {STAGES.map(stage => {
@@ -1615,8 +1615,8 @@ function CrmKanban({ creators, setCreators, onDragChange }) {
             onDrop={onDropCol(stage.key)}
             style={{
               minWidth: 240, width: 240, flexShrink: 0,
-              background: isDropTarget ? "rgba(122,14,24,0.08)" : "transparent",
-              border: isDropTarget ? "1px dashed rgba(122,14,24,0.4)" : "1px dashed transparent",
+              background: isDropTarget ? "color-mix(in srgb, var(--sl-primary) 8%, transparent)" : "transparent",
+              border: isDropTarget ? "1px dashed color-mix(in srgb, var(--sl-primary) 40%, transparent)" : "1px dashed transparent",
               borderRadius: 8, padding: 4, transition: "background 0.1s, border-color 0.1s",
               // Column wraps a sticky-style header + scrollable body. The
               // total column height is capped so a creator at the bottom
@@ -1629,9 +1629,9 @@ function CrmKanban({ creators, setCreators, onDragChange }) {
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "4px 8px 8px", flexShrink: 0 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                 <span style={{ width: 6, height: 6, borderRadius: "50%", background: stage.accent }} />
-                <span style={{ fontSize: 10, fontWeight: 700, color: "#f5f5f5", letterSpacing: "0.08em", textTransform: "uppercase" }}>{stage.label}</span>
+                <span style={{ fontSize: 12, fontWeight: 700, color: "var(--sl-text)", letterSpacing: "0.08em", textTransform: "uppercase" }}>{stage.label}</span>
               </div>
-              <span style={{ fontSize: 11, color: "#555", fontWeight: 600 }}>{items.length}</span>
+              <span style={{ fontSize: 12, color: "var(--sl-text-faint)", fontWeight: 600 }}>{items.length}</span>
             </div>
             <div
               className="sl-kanban-col"
@@ -1645,7 +1645,7 @@ function CrmKanban({ creators, setCreators, onDragChange }) {
               }}
             >
               {items.length === 0 ? (
-                <div style={{ padding: "20px 10px", fontSize: 10, color: "#333", textAlign: "center", background: "rgba(255,255,255,0.01)", border: "1px dashed rgba(255,255,255,0.04)", borderRadius: 6 }}>
+                <div style={{ padding: "20px 10px", fontSize: 12, color: "var(--sl-border-strong)", textAlign: "center", background: "color-mix(in srgb, var(--sl-text) 1%, transparent)", border: "1px dashed color-mix(in srgb, var(--sl-text) 4%, transparent)", borderRadius: 6 }}>
                   {stage.description}
                 </div>
               ) : items.map(c => (
@@ -1670,8 +1670,8 @@ function CrmKanban({ creators, setCreators, onDragChange }) {
 // followers, niche, platform chip + date) but compact + draggable.
 function KanbanCard({ creator, isDragging, onDragStart, onDragEnd }) {
   const stale = stageStaleness(creator);
-  const ageColor = stale.level === 'cold' ? '#7A0E18' : stale.level === 'warn' ? '#eab308' : '#444';
-  const ageBg    = stale.level === 'cold' ? 'rgba(122,14,24,0.15)' : stale.level === 'warn' ? 'rgba(234,179,8,0.1)' : 'rgba(255,255,255,0.03)';
+  const ageColor = stale.level === 'cold' ? 'var(--sl-primary)' : stale.level === 'warn' ? 'var(--sl-warning)' : 'var(--sl-text-faint)';
+  const ageBg    = stale.level === 'cold' ? 'color-mix(in srgb, var(--sl-primary) 15%, transparent)' : stale.level === 'warn' ? 'color-mix(in srgb, var(--sl-warning) 10%, transparent)' : 'color-mix(in srgb, var(--sl-text) 3%, transparent)';
   // Deal value chip + LOOM/Nota indicators are still shown for at-a-glance
   // context; a click opens the full profile (the deal fields live in its
   // "Negócio" tab). The card summary carries these so no fetch is needed.
@@ -1683,43 +1683,43 @@ function KanbanCard({ creator, isDragging, onDragStart, onDragEnd }) {
       onDragStart={onDragStart}
       onDragEnd={onDragEnd}
       style={{
-        display: "block", padding: "12px 14px", background: "#141414",
-        border: "1px solid rgba(255,255,255,0.04)", borderRadius: 8,
+        display: "block", padding: "12px 14px", background: "var(--sl-surface)",
+        border: "1px solid var(--sl-border)", borderRadius: 8,
         textDecoration: "none", color: "inherit",
         cursor: isDragging ? "grabbing" : "grab",
         opacity: isDragging ? 0.4 : 1,
         transition: "border-color 0.15s, transform 0.1s, opacity 0.1s",
       }}
-      onMouseEnter={e => { if (!isDragging) e.currentTarget.style.borderColor = "rgba(122,14,24,0.4)"; }}
-      onMouseLeave={e => { e.currentTarget.style.borderColor = "rgba(255,255,255,0.04)"; }}
+      onMouseEnter={e => { if (!isDragging) e.currentTarget.style.borderColor = "color-mix(in srgb, var(--sl-primary) 40%, transparent)"; }}
+      onMouseLeave={e => { e.currentTarget.style.borderColor = "color-mix(in srgb, var(--sl-text) 4%, transparent)"; }}
     >
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 6 }}>
-        <h3 style={{ fontSize: 13, fontWeight: 700, margin: 0, color: "#f5f5f5", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1, paddingRight: 8 }}>
+        <h3 style={{ fontSize: 13, fontWeight: 700, margin: 0, color: "var(--sl-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1, paddingRight: 8 }}>
           {creator.name || "Unknown"}
         </h3>
-        <span style={{ fontSize: 12, fontWeight: 700, color: "#7A0E18", flexShrink: 0 }}>
+        <span style={{ fontSize: 12, fontWeight: 700, color: "var(--sl-accent-text)", flexShrink: 0 }}>
           {formatFollowers(creator.followers)}
         </span>
       </div>
       {creator.niche && (
-        <p style={{ fontSize: 11, color: "#888", margin: "0 0 8px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{creator.niche}</p>
+        <p style={{ fontSize: 12, color: "var(--sl-text-muted)", margin: "0 0 8px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{creator.niche}</p>
       )}
       {/* Quick-view signals — deal value + loom/notes flags. Only rendered
           when there's something to show, so untouched cards stay clean. */}
       {(valueLabel || creator.hasLoom || creator.hasNotes) && (
         <div style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 8, flexWrap: "wrap" }}>
           {valueLabel && (
-            <span style={{ fontSize: 10, fontWeight: 700, color: "#4ade80", padding: "2px 7px", background: "rgba(34,197,94,0.1)", border: "1px solid rgba(34,197,94,0.22)", borderRadius: 5, fontFamily: "ui-monospace, monospace" }}>
+            <span style={{ fontSize: 12, fontWeight: 700, color: "var(--sl-success)", padding: "2px 7px", background: "color-mix(in srgb, var(--sl-success) 10%, transparent)", border: "1px solid color-mix(in srgb, var(--sl-success) 22%, transparent)", borderRadius: 5, fontFamily: "ui-monospace, monospace" }}>
               {valueLabel}
             </span>
           )}
           {creator.hasLoom && (
-            <span title="Loom disponível" style={{ fontSize: 9, fontWeight: 700, color: "#f5f5f5", padding: "2px 6px", background: "rgba(122,14,24,0.22)", border: "1px solid rgba(122,14,24,0.45)", borderRadius: 5, letterSpacing: "0.05em" }}>
+            <span title="Loom disponível" style={{ fontSize: 12, fontWeight: 700, color: "var(--sl-text)", padding: "2px 6px", background: "color-mix(in srgb, var(--sl-primary) 22%, transparent)", border: "1px solid color-mix(in srgb, var(--sl-primary) 45%, transparent)", borderRadius: 5, letterSpacing: "0.05em" }}>
               LOOM
             </span>
           )}
           {creator.hasNotes && (
-            <span title="Tem notas" style={{ fontSize: 9, fontWeight: 600, color: "#999", padding: "2px 6px", background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 5 }}>
+            <span title="Tem notas" style={{ fontSize: 12, fontWeight: 600, color: "var(--sl-text-muted)", padding: "2px 6px", background: "color-mix(in srgb, var(--sl-text) 3%, transparent)", border: "1px solid var(--sl-border)", borderRadius: 5 }}>
               Nota
             </span>
           )}
@@ -1727,16 +1727,16 @@ function KanbanCard({ creator, isDragging, onDragStart, onDragEnd }) {
       )}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 6 }}>
         <span style={{
-          fontSize: 9, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.08em",
-          color: "#555", padding: "2px 7px", background: "rgba(255,255,255,0.03)", borderRadius: 5,
+          fontSize: 12, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.08em",
+          color: "var(--sl-text-faint)", padding: "2px 7px", background: "color-mix(in srgb, var(--sl-text) 3%, transparent)", borderRadius: 5,
         }}>{creator.primaryPlatform || "Instagram"}</span>
         <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
           {stale.days >= 0 && (
-            <span style={{ fontSize: 9, fontWeight: 700, color: ageColor, padding: "2px 6px", borderRadius: 3, background: ageBg, fontFamily: "ui-monospace, monospace" }}>
+            <span style={{ fontSize: 12, fontWeight: 700, color: ageColor, padding: "2px 6px", borderRadius: 3, background: ageBg, fontFamily: "ui-monospace, monospace" }}>
               {stale.days}d
             </span>
           )}
-          <span style={{ fontSize: 10, color: "#555" }}>
+          <span style={{ fontSize: 12, color: "var(--sl-text-faint)" }}>
             {creator.createdAt ? new Date(creator.createdAt).toLocaleDateString("pt-PT", { day: '2-digit', month: '2-digit' }) : ""}
           </span>
         </div>

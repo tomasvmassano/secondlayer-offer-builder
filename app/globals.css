@@ -23,6 +23,10 @@
   --sl-primary: #6F1A1C;
   --sl-primary-hover: #8A2427;
   --sl-primary-contrast: #FFFFFF;
+  /* accent for TEXT. Deep burgundy is 2.8:1 on the dark canvas (unreadable),
+     so accent-coloured text uses a lighter rose on dark and the deep burgundy
+     on light. Fills/borders use --sl-primary; small coloured text uses this. */
+  --sl-accent-text: #CE6F76;
 
   /* restrained status set — replaces the old neon palette */
   --sl-success: #4FA97B;
@@ -78,6 +82,9 @@
   --sl-text: #0A0A0A;
   --sl-text-muted: rgba(10, 10, 10, 0.62);
   --sl-text-faint: rgba(10, 10, 10, 0.40);
+
+  /* on light, deep brand burgundy reads cleanly (4.2:1) */
+  --sl-accent-text: #6F1A1C;
 
   /* status hues darken for legibility on the light canvas */
   --sl-success: #2F8A5E;

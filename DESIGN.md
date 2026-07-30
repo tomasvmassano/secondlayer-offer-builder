@@ -19,6 +19,7 @@ colors:
   primary: "#6F1A1C"
   primary-hover: "#8A2427"
   primary-contrast: "#FFFFFF"
+  accent-text: "#CE6F76"
   success: "#4FA97B"
   warning: "#C9922E"
   danger: "#C2453C"
