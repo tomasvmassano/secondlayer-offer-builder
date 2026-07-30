@@ -38,6 +38,56 @@ export function extractAmount(priceStr) {
   return Number.isFinite(num) ? num : null;
 }
 
+// Trim a free-text field to a hard char cap WITHOUT cutting a word in half.
+// Same self-heal helper the modules schema uses — cosmetic overshoots
+// shouldn't bounce (and re-bill) the whole checkpoint.
+function clampField(v, max) {
+  if (typeof v !== 'string' || v.length <= max) return v;
+  let cut = v.slice(0, max);
+  const lastSpace = cut.lastIndexOf(' ');
+  if (lastSpace > max * 0.6) cut = cut.slice(0, lastSpace);
+  return cut.replace(/[\s,;:.–—-]+$/, '').trim();
+}
+
+// Clamp ONLY the free-text prose fields to their caps before validation.
+// Deliberately does NOT touch:
+//   - mechanism.name / letter.letter — the acronym is tied to letters[] by a
+//     one-to-one count+match invariant; trimming it would desync the array.
+//   - price / dollarValue / total / actualPrice — numeric strings; a trim
+//     could corrupt "€1,500" into "€1,5".
+export function normalizeValueStack(obj) {
+  if (!obj || typeof obj !== 'object' || Array.isArray(obj)) return obj;
+  const out = { ...obj };
+  if (obj.mechanism && typeof obj.mechanism === 'object' && !Array.isArray(obj.mechanism)) {
+    out.mechanism = {
+      ...obj.mechanism,
+      description: clampField(obj.mechanism.description, 400),
+      letters: Array.isArray(obj.mechanism.letters)
+        ? obj.mechanism.letters.map(l => (l && typeof l === 'object' && !Array.isArray(l))
+            ? { ...l, word: clampField(l.word, 30), explanation: clampField(l.explanation, 200) }
+            : l)
+        : obj.mechanism.letters,
+    };
+  }
+  if (obj.value_stack && typeof obj.value_stack === 'object' && !Array.isArray(obj.value_stack) && Array.isArray(obj.value_stack.items)) {
+    out.value_stack = {
+      ...obj.value_stack,
+      items: obj.value_stack.items.map(it => (it && typeof it === 'object' && !Array.isArray(it))
+        ? { ...it, problem: clampField(it.problem, 200), solution: clampField(it.solution, 200), delivery: clampField(it.delivery, 120) }
+        : it),
+    };
+  }
+  if (Array.isArray(obj.pricing_tiers)) {
+    out.pricing_tiers = obj.pricing_tiers.map(t => (t && typeof t === 'object' && !Array.isArray(t))
+      ? { ...t, name: clampField(t.name, 40), note: clampField(t.note, 140) }
+      : t);
+  }
+  if (Array.isArray(obj.unlocked_bonuses)) {
+    out.unlocked_bonuses = obj.unlocked_bonuses.map(s => clampField(s, 160));
+  }
+  return out;
+}
+
 export function validateValueStack(obj) {
   const errors = [];
   const warnings = [];

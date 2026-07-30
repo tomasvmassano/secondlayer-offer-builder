@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { recordLlmUsage, logError } from '../../../../../lib/obs';
 import { repairJsonWithHaiku } from '../../../../../lib/jsonRepair';
 import { getCreator, updateCreator } from '../../../../../lib/creators';
-import { validateValueStack } from '../../../../../lib/schemas/valueStack';
+import { validateValueStack, normalizeValueStack } from '../../../../../lib/schemas/valueStack';
 import { formatStrategicFrameForPrompt } from '../../../../../lib/schemas/strategicFrame';
 import { readCheckpointProgress } from '../../../../../lib/offerSchema';
 import { OPERATOR_INSTRUCTIONS_RULE, formatInstructionsBlock, formatInstructionsReminder } from '../../../../../lib/operatorInstructions';
@@ -363,6 +363,10 @@ Return ONLY the JSON object per the schema in the system prompt.${formatInstruct
   if (parsed.value_stack && client.target_price) {
     parsed.value_stack.actualPrice = client.target_price;
   }
+
+  // Self-heal cosmetic length overshoots on the prose fields before the
+  // validator sees them (numeric + acronym fields are left untouched).
+  parsed = normalizeValueStack(parsed);
 
   const validation = validateValueStack(parsed);
   if (!validation.valid) {
