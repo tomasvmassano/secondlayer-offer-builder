@@ -3,7 +3,7 @@ import { saveCreator, getCreator, listCreators, searchCreators } from '../../lib
 import { syncCreatorEmail } from '../../lib/syncEmailToSheet';
 import { getCurrentUser, displayFirstName } from '../../lib/auth';
 import { apifyToCreatorProfile, scrapeMultiplePlatforms, scrapeLean } from '../../lib/apify';
-import { calculateDealScore } from '../../lib/dealScore';
+import { calculateDealScore, qualifyCreator } from '../../lib/dealScore';
 
 // Lean scrape only — no LLM inference. Ecosystem audit fires next in the
 // pipeline and does full niche/audience/product inference with web search.
@@ -215,25 +215,27 @@ RESEARCH: [2-3 paragraph summary]`,
     if (tiktokUrl && profile) profile.tiktokUrl = tiktokUrl;
     if (youtubeUrl && profile) profile.youtubeUrl = youtubeUrl;
 
-    // Bulk-import opt-in: callers can pass `minDealScore` (e.g. 35 to drop D-tier).
-    // We compute the score on the freshly built profile BEFORE saving so rejected
-    // creators never touch the DB — saves Apify cost on obvious passes and keeps
-    // the CRM clean. The client gets back the score so it can show why each row
-    // was rejected.
+    // Bulk-import filter (opt-in via `minDealScore` in the body). Retrofitted
+    // to the team's GO / NO GO rule: a creator is kept if they clear their
+    // niche's ROI reach+engagement bar OR score C or better. NO GO (a D that
+    // also misses the reach bar) is rejected BEFORE saving, so junk never
+    // touches the DB. The client gets the reason to show why each row dropped.
     if (profile && body.minDealScore != null) {
       try {
-        const score = calculateDealScore(profile);
-        if (score && score.score < Number(body.minDealScore)) {
+        const q = qualifyCreator(profile);
+        if (!q.go) {
+          const score = calculateDealScore(profile);
           return NextResponse.json({
             rejected: true,
-            reason: 'below_min_score',
+            reason: q.reason,               // 'below_roi_bar' | 'unknown_niche'
             score: score.score,
             grade: score.grade,
+            roiTier: q.roiTier,
             profile: { name: profile.name, niche: profile.niche, primaryPlatform: profile.primaryPlatform },
           });
         }
       } catch {
-        // Score calc failed — save anyway, don't punish the creator for our bug.
+        // Qualification failed — save anyway, don't punish the creator for our bug.
       }
     }
 

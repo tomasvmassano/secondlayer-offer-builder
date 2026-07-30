@@ -283,8 +283,9 @@ export function calculateDealScore(creator) {
 //   High      (Alto):       50-60k followers, >2% engagement
 //   Medium    (Médio):      100k   followers, >0.5% engagement
 //   Low       (Baixo):      200k   followers, >0.5% engagement
-// Explicit override: a Deal Score of A or B is always a GO, even if the reach
-// bar isn't met. Everything else is NO GO.
+// Explicit override: a Deal Score of A, B, or C is always a GO, even if the
+// reach bar isn't met (C included per the team's rule — it preserves the old
+// "C and above" import bar). Only a D that also misses the reach bar is NO GO.
 export const ROI_GO_THRESHOLDS = {
   'Very high': { minFollowers: 20000,  minEngagement: 3 },
   'High':      { minFollowers: 50000,  minEngagement: 2 },
@@ -308,20 +309,21 @@ export function qualifyCreator(creator) {
     && followers >= thresholds.minFollowers
     && engagement >= thresholds.minEngagement;
 
-  // Override path: Deal Score A or B qualifies regardless.
+  // Override path: Deal Score A, B, or C qualifies regardless (C included per
+  // the team's rule — keeps the old "C and above" import bar alive).
   const { grade } = calculateDealScore(creator);
-  const dealScoreOverride = grade === 'A' || grade === 'B';
+  const dealScoreOverride = grade === 'A' || grade === 'B' || grade === 'C';
 
   const go = meetsRoiBar || dealScoreOverride;
   return {
     go,
     grade,
-    roiTier: roi,               // null = niche not in the map (only A/B can GO)
+    roiTier: roi,               // null = niche not in the map (only a C+ score can GO)
     followers,
     engagement,
     thresholds,
     reason: go
-      ? (meetsRoiBar ? 'roi_bar' : 'deal_score_ab')
+      ? (meetsRoiBar ? 'roi_bar' : 'deal_score')
       : (roi ? 'below_roi_bar' : 'unknown_niche'),
   };
 }
