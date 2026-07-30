@@ -1655,8 +1655,9 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
         [data-tip]:hover::after{content:attr(data-tip);position:absolute;left:0;top:100%;margin-top:4px;padding:8px 12px;background:var(--sl-surface-raised);border:1px solid var(--sl-border-strong);border-radius:6px;font-size:11px;color:var(--sl-text-muted);white-space:pre-line;line-height:1.5;z-index:100;min-width:200px;max-width:320px;pointer-events:none;box-shadow:0 4px 12px rgba(0,0,0,0.4)}
       `}</style>
 
-      {/* Header */}
-      <div style={{ padding: "20px 28px", borderBottom: "1px solid var(--sl-border)", display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+      {/* Header — full-width divider, items aligned to the 1240 content column */}
+      <div style={{ borderBottom: "1px solid var(--sl-border)" }}>
+      <div style={{ maxWidth: 1240, margin: "0 auto", padding: "20px 32px", display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap", minWidth: 0 }}>
           <a href="/" style={{ display: "flex", alignItems: "center", textDecoration: "none" }}><img src={LOGO_B64} alt="SL" style={{ height: 16, opacity: 0.85 }} /></a>
           <span style={{ color: "var(--sl-border-strong)", fontSize: 14 }}>|</span>
@@ -1675,6 +1676,7 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
             <a href="/creators" style={{ fontSize: 12, color: "var(--sl-text-faint)", textDecoration: "none" }}>Voltar</a>
           )}
         </div>
+      </div>
       </div>
 
       {creator.pipelineStatus === 'signed' && !forcedCrmView ? (
