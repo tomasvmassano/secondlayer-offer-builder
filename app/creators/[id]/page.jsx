@@ -5164,6 +5164,51 @@ function OfferJudgmentPanel({ creator, setCreator }) {
 }
 
 // ──────────────────────────────────────────────────────────────────────────
+// Checkpoint prerequisite gate
+// ──────────────────────────────────────────────────────────────────────────
+// The wizard is strictly sequential: CP2 needs CP1 locked, CP3 needs CP1+CP2,
+// and so on. The API routes enforce this with a 412, but the panels used to
+// render an active "Gerar" button regardless of prior state — so an operator
+// could click Generate on CP2 before CP1 even existed and get a raw
+// "CP1 must be locked before running CP2" error. This gate closes that gap:
+// each downstream panel asks firstMissingPrereq() and, if anything upstream
+// isn't locked yet, shows a calm "aprova o CP{n} primeiro" notice instead of
+// the tier picker + Generate flow.
+const CP_PT_NAMES = {
+  1: 'Frame estratégico',
+  2: 'Oferta principal',
+  3: 'Módulos',
+  4: 'Stack de valor',
+  5: 'Sales copy',
+};
+
+// Returns the id of the first upstream checkpoint (1..cpNum-1) that isn't
+// locked yet, or 0 when every prerequisite is already approved.
+function firstMissingPrereq(progress, cpNum) {
+  for (let i = 1; i < cpNum; i++) {
+    if (!progress?.locked?.[i]) return i;
+  }
+  return 0;
+}
+
+function PrereqGate({ blockedBy, cpNum }) {
+  const isImmediatePrev = blockedBy === cpNum - 1;
+  return (
+    <div style={{ padding: "18px 16px", textAlign: "center", border: "1px dashed rgba(255,255,255,0.08)", borderRadius: 8, background: "rgba(255,255,255,0.01)" }}>
+      <div style={{ fontSize: 22, marginBottom: 8, opacity: 0.5 }}>🔒</div>
+      <div style={{ fontSize: 12.5, fontWeight: 600, color: "#888", marginBottom: 4 }}>
+        Aprova primeiro o CP{blockedBy} · {CP_PT_NAMES[blockedBy]}
+      </div>
+      <p style={{ fontSize: 11, color: "#555", margin: 0, lineHeight: 1.5, maxWidth: 360, marginLeft: "auto", marginRight: "auto" }}>
+        {isImmediatePrev
+          ? `Gera e aprova o «${CP_PT_NAMES[blockedBy]}» acima. Este checkpoint usa-o como base.`
+          : `Os checkpoints são sequenciais. Falta aprovar o CP${blockedBy} («${CP_PT_NAMES[blockedBy]}») antes de chegares aqui.`}
+      </p>
+    </div>
+  );
+}
+
+// ──────────────────────────────────────────────────────────────────────────
 // Phase 4 · CP1 — Strategic Frame Panel
 // ──────────────────────────────────────────────────────────────────────────
 // Renders the strategic_frame from internal_metadata + handles three actions:
@@ -6392,6 +6437,9 @@ function CoreOfferPanel({ creator, setCreator, running, setRunning, error, setEr
   const client = creator?.offer?.client_facing_output || {};
   const progress = readCheckpointProgress(meta);
   const cp2Locked = !!progress.locked[2];
+  // CP2 can't run until CP1 is locked. When it isn't, show the prereq gate
+  // instead of the tier picker + Generate flow (which would 412 on click).
+  const blockedBy = firstMissingPrereq(progress, 2);
   const runAt = meta.generation_timestamps?.core_offer || null;
   const frame = meta.strategic_frame || null;
 
@@ -6639,10 +6687,15 @@ function CoreOfferPanel({ creator, setCreator, running, setRunning, error, setEr
         <div style={{ padding: "10px 14px", borderRadius: 6, background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.25)", color: "#ef4444", fontSize: 11, marginBottom: 12, whiteSpace: "pre-wrap" }}>{error}</div>
       )}
 
+      {/* Prereq gate — CP1 not locked yet. Suppresses the whole generate flow. */}
+      {blockedBy > 0 && !cp2Locked && (
+        <PrereqGate blockedBy={blockedBy} cpNum={2} />
+      )}
+
       {/* Thesis-only gate — replaces the tier picker + generate flow when
           the strategic frame's archetype isn't community_recurring. Operator
           can force-override (and then the picker re-appears below). */}
-      {showThesisGate && (
+      {!blockedBy && showThesisGate && (
         <ThesisOnlyGate
           frame={frame}
           creator={creator}
@@ -6651,8 +6704,8 @@ function CoreOfferPanel({ creator, setCreator, running, setRunning, error, setEr
         />
       )}
 
-      {/* Tier picker — only when editable AND not gated by archetype */}
-      {!cp2Locked && !showThesisGate && (
+      {/* Tier picker — only when editable AND not gated by archetype/prereq */}
+      {!cp2Locked && !showThesisGate && !blockedBy && (
         <div style={{ marginBottom: 16, padding: "12px 14px", background: "rgba(255,255,255,0.02)", borderRadius: 8, border: "1px solid rgba(255,255,255,0.05)" }}>
           <div style={{ fontSize: 9, fontWeight: 700, color: "#666", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 8 }}>
             Tier de pricing {pendingTier === suggestedTier ? <span style={{ color: "#888", fontWeight: 500, letterSpacing: 0, textTransform: "none" }}>· sugerido pelo frame + arquétipo</span> : null}
@@ -6745,7 +6798,7 @@ function CoreOfferPanel({ creator, setCreator, running, setRunning, error, setEr
         </div>
       )}
 
-      {!hasOutput && !running && !showThesisGate && (
+      {!hasOutput && !running && !showThesisGate && !blockedBy && (
         <div style={{ padding: "20px 16px", textAlign: "center", color: "#444", fontSize: 12, border: "1px dashed rgba(255,255,255,0.06)", borderRadius: 6 }}>
           Ainda não há oferta. Escolhe um tier acima e clica <strong style={{ color: "#888" }}>Gerar</strong> (~15-25s, Sonnet).
         </div>
@@ -6966,6 +7019,7 @@ function ModulesPanel({ creator, setCreator, running, setRunning, error, setErro
   const client = creator?.offer?.client_facing_output || {};
   const progress = readCheckpointProgress(meta);
   const cp3Locked = !!progress.locked[3];
+  const blockedBy = firstMissingPrereq(progress, 3);
   const runAt = meta.generation_timestamps?.modules || null;
   const modules = Array.isArray(client.modules) ? client.modules : [];
   const weeklyFormats = Array.isArray(client.weekly_formats) ? client.weekly_formats : [];
@@ -7134,7 +7188,7 @@ function ModulesPanel({ creator, setCreator, running, setRunning, error, setErro
           </p>
         </div>
         <div style={{ display: "flex", gap: 8 }}>
-          {!cp3Locked && !hasOutput && (
+          {!cp3Locked && !hasOutput && !blockedBy && (
             <button
               onClick={generate}
               disabled={running || lockBusy}
@@ -7237,9 +7291,13 @@ function ModulesPanel({ creator, setCreator, running, setRunning, error, setErro
         />
       )}
 
-      {!hasOutput && !running && (
+      {blockedBy > 0 && !cp3Locked && (
+        <PrereqGate blockedBy={blockedBy} cpNum={3} />
+      )}
+
+      {!hasOutput && !running && !blockedBy && (
         <div style={{ padding: "20px 16px", textAlign: "center", color: "#444", fontSize: 12, border: "1px dashed rgba(255,255,255,0.06)", borderRadius: 6 }}>
-          No modules yet. Click <strong style={{ color: "#888" }}>Generate</strong> (~20-40s, Sonnet only).
+          Ainda não há módulos. Clica <strong style={{ color: "#888" }}>Gerar</strong> (~20-40s, só Sonnet).
         </div>
       )}
 
@@ -7447,6 +7505,7 @@ function ValueStackPanel({ creator, setCreator, running, setRunning, error, setE
   const client = creator?.offer?.client_facing_output || {};
   const progress = readCheckpointProgress(meta);
   const cp4Locked = !!progress.locked[4];
+  const blockedBy = firstMissingPrereq(progress, 4);
   const runAt = meta.generation_timestamps?.value_stack || null;
   const [lockBusy, setLockBusy] = useState(false);
 
@@ -7561,7 +7620,7 @@ function ValueStackPanel({ creator, setCreator, running, setRunning, error, setE
           </p>
         </div>
         <div style={{ display: "flex", gap: 8 }}>
-          {!cp4Locked && (
+          {!cp4Locked && !blockedBy && (
             <button
               onClick={generate}
               disabled={running || lockBusy}
@@ -7647,9 +7706,13 @@ function ValueStackPanel({ creator, setCreator, running, setRunning, error, setE
         />
       )}
 
-      {!hasOutput && !running && (
+      {blockedBy > 0 && !cp4Locked && (
+        <PrereqGate blockedBy={blockedBy} cpNum={4} />
+      )}
+
+      {!hasOutput && !running && !blockedBy && (
         <div style={{ padding: "20px 16px", textAlign: "center", color: "#444", fontSize: 12, border: "1px dashed rgba(255,255,255,0.06)", borderRadius: 6 }}>
-          No value stack yet. Click <strong style={{ color: "#888" }}>Generate</strong> (~30-50s, Sonnet only). Largest checkpoint output.
+          Ainda não há stack de valor. Clica <strong style={{ color: "#888" }}>Gerar</strong> (~30-50s, só Sonnet). É o maior output de todos os checkpoints.
         </div>
       )}
 
@@ -7778,6 +7841,7 @@ function SalesCopyPanel({ creator, setCreator, running, setRunning, error, setEr
   const client = creator?.offer?.client_facing_output || {};
   const progress = readCheckpointProgress(meta);
   const cp5Locked = !!progress.locked[5];
+  const blockedBy = firstMissingPrereq(progress, 5);
   const runAt = meta.generation_timestamps?.sales_copy || null;
   const [lockBusy, setLockBusy] = useState(false);
 
@@ -7896,7 +7960,7 @@ function SalesCopyPanel({ creator, setCreator, running, setRunning, error, setEr
           </p>
         </div>
         <div style={{ display: "flex", gap: 8 }}>
-          {!cp5Locked && (
+          {!cp5Locked && !blockedBy && (
             <button
               onClick={generate}
               disabled={running || lockBusy}
@@ -7979,9 +8043,13 @@ function SalesCopyPanel({ creator, setCreator, running, setRunning, error, setEr
         />
       )}
 
-      {!hasOutput && !running && (
+      {blockedBy > 0 && !cp5Locked && (
+        <PrereqGate blockedBy={blockedBy} cpNum={5} />
+      )}
+
+      {!hasOutput && !running && !blockedBy && (
         <div style={{ padding: "20px 16px", textAlign: "center", color: "#444", fontSize: 12, border: "1px dashed rgba(255,255,255,0.06)", borderRadius: 6 }}>
-          No sales copy yet. Click <strong style={{ color: "#888" }}>Generate</strong> (~30-60s, Sonnet only, reads every previous CP).
+          Ainda não há sales copy. Clica <strong style={{ color: "#888" }}>Gerar</strong> (~30-60s, só Sonnet, lê todos os checkpoints anteriores).
         </div>
       )}
 
