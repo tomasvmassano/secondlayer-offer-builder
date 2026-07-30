@@ -7,6 +7,10 @@
     {
       "path": "/api/cron/daily-dm-report",
       "schedule": "0 3 * * 2-6"
+    },
+    {
+      "path": "/api/cron/discovery-autopilot",
+      "schedule": "0 8 * * 1-5"
     }
   ]
 }

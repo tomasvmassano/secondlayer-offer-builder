@@ -12,7 +12,7 @@ import { Redis } from '@upstash/redis';
 import { nanoid } from 'nanoid';
 import { scrapeInstagramBasic, scrapeInstagram } from './apify';
 import { listCreators, getCreator, getAllCrmHandles } from './creators';
-import { calculateDealScore } from './dealScore';
+import { calculateDealScore, qualifyCreator } from './dealScore';
 
 // In-memory fallback for local dev
 const memQueue = [];
@@ -394,6 +394,115 @@ export async function setAutopilotEnabled(enabled) {
 }
 
 // ─────────────────────────────────────────────
+// Autopilot budget guard + one capped pass
+// ─────────────────────────────────────────────
+// Every profile scrape (a seed's related-profiles lookup OR a candidate
+// enrichment) costs ~one Apify result. We meter month-to-date spend so the
+// autopilot can NEVER overshoot the cap, and cap each run's scrape count so it
+// fits Vercel's 60s function. Prices default to the team's Bronze tier.
+const DISCOVERY_COST_PER_SCRAPE = Number(process.env.DISCOVERY_COST_PER_SCRAPE_USD) || 0.0023;
+const DISCOVERY_MONTHLY_CAP = Number(process.env.DISCOVERY_MONTHLY_CAP_USD) || 25;
+const DISCOVERY_WORKING_DAYS = Number(process.env.DISCOVERY_WORKING_DAYS) || 22;
+const DISCOVERY_DAILY_TARGET = Number(process.env.DISCOVERY_DAILY_TARGET) || 70;
+export const DISCOVERY_BUDGET = { costPerScrape: DISCOVERY_COST_PER_SCRAPE, monthlyCap: DISCOVERY_MONTHLY_CAP, workingDays: DISCOVERY_WORKING_DAYS, dailyTarget: DISCOVERY_DAILY_TARGET };
+
+let memSpend = {};      // { 'YYYY-MM': usd }
+let memDailyGo = {};    // { 'YYYY-MM-DD': count }
+let memSeedOffset = 0;
+
+function ymKey(now = new Date()) { return `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, '0')}`; }
+function ymdKey(now = new Date()) { return now.toISOString().slice(0, 10); }
+
+export async function getMonthSpend(now = new Date()) {
+  const k = ymKey(now);
+  if (useMemory()) return memSpend[k] || 0;
+  return Number(await getRedis().get(`discovery:spend:${k}`)) || 0;
+}
+async function addSpend(usd, now = new Date()) {
+  const k = ymKey(now);
+  if (useMemory()) { memSpend[k] = (memSpend[k] || 0) + usd; return; }
+  await getRedis().incrbyfloat(`discovery:spend:${k}`, usd);
+}
+async function getDailyGo(now = new Date()) {
+  const k = ymdKey(now);
+  if (useMemory()) return memDailyGo[k] || 0;
+  return Number(await getRedis().get(`discovery:go:${k}`)) || 0;
+}
+async function addDailyGo(n, now = new Date()) {
+  if (!n) return;
+  const k = ymdKey(now);
+  if (useMemory()) { memDailyGo[k] = (memDailyGo[k] || 0) + n; return; }
+  const redis = getRedis();
+  await redis.incrby(`discovery:go:${k}`, n);
+  await redis.expire(`discovery:go:${k}`, 60 * 60 * 48); // self-expire after 2 days
+}
+
+export async function getAutopilotStatus(now = new Date()) {
+  const spent = await getMonthSpend(now);
+  return {
+    enabled: await getAutopilotEnabled(),
+    cap: DISCOVERY_MONTHLY_CAP,
+    spent: Math.round(spent * 1000) / 1000,
+    remaining: Math.round(Math.max(0, DISCOVERY_MONTHLY_CAP - spent) * 1000) / 1000,
+    dailySlice: Math.round((DISCOVERY_MONTHLY_CAP / DISCOVERY_WORKING_DAYS) * 100) / 100,
+    dailyTarget: DISCOVERY_DAILY_TARGET,
+    goToday: await getDailyGo(now),
+    costPerScrape: DISCOVERY_COST_PER_SCRAPE,
+    seeds: (await listSeedUrls()).length,
+  };
+}
+
+// Rotate through the seed list across runs so we don't hammer the same handful.
+async function nextSeedWindow(seeds, size) {
+  if (seeds.length <= size) return seeds;
+  let offset;
+  if (useMemory()) { memSeedOffset += size; offset = memSeedOffset; }
+  else offset = Number(await getRedis().incrby('discovery:autopilot_seed_offset', size)) || 0;
+  const start = ((offset - size) % seeds.length + seeds.length) % seeds.length;
+  const out = [];
+  for (let i = 0; i < size; i++) out.push(seeds[(start + i) % seeds.length]);
+  return out;
+}
+
+/**
+ * ONE budget-capped autopilot pass. Bounded by THREE independent guards so it
+ * can never runaway: the monthly $ cap, a per-run scrape cap (60s fit), and the
+ * caller's daily GO target. The weekday cron calls this repeatedly (self-chain).
+ * Returns { ok, queued, scanned, scrapes, spentThisRun, budget, done, reason }.
+ */
+export async function runDiscoveryAutopilot({ maxScrapesPerRun = 12 } = {}) {
+  if (!(await getAutopilotEnabled())) return { ok: false, done: true, reason: 'autopilot_disabled' };
+
+  const spent = await getMonthSpend();
+  const remaining = Math.max(0, DISCOVERY_MONTHLY_CAP - spent);
+  if (remaining < DISCOVERY_COST_PER_SCRAPE * 2) {
+    return { ok: false, done: true, reason: 'monthly_budget_exhausted', budget: await getAutopilotStatus() };
+  }
+  if ((await getDailyGo()) >= DISCOVERY_DAILY_TARGET) {
+    return { ok: false, done: true, reason: 'daily_target_reached', budget: await getAutopilotStatus() };
+  }
+
+  const seeds = await listSeedUrls();
+  if (!seeds.length) return { ok: false, done: true, reason: 'no_seeds', budget: await getAutopilotStatus() };
+
+  // Scrapes we can afford this run = min(per-run cap, budget remaining).
+  const affordable = Math.min(maxScrapesPerRun, Math.floor(remaining / DISCOVERY_COST_PER_SCRAPE));
+  const seedCount = Math.max(1, Math.min(3, Math.floor(affordable / 4)));   // ~1-3 seeds/run
+  const sample = await nextSeedWindow(seeds, seedCount);
+  const candidateCap = Math.max(1, affordable - sample.length);
+
+  const res = await runDiscoveryFromSeeds(sample, candidateCap);
+  const scrapes = (res.seedsProcessed || sample.length) + (res.scanned || 0);
+  const spentNow = scrapes * DISCOVERY_COST_PER_SCRAPE;
+  await addSpend(spentNow);
+  await addDailyGo(res.queued || 0);
+
+  const budget = await getAutopilotStatus();
+  const done = budget.remaining < DISCOVERY_COST_PER_SCRAPE * 2 || budget.goToday >= DISCOVERY_DAILY_TARGET;
+  return { ok: true, done, queued: res.queued || 0, scanned: res.scanned || 0, seeds: sample.length, scrapes, spentThisRun: Math.round(spentNow * 1000) / 1000, budget };
+}
+
+// ─────────────────────────────────────────────
 // Run history log
 // ─────────────────────────────────────────────
 
@@ -595,6 +704,9 @@ async function processCandidate(candidate) {
     creatorShape.niche = scraped.bio || '';
 
     const score = calculateDealScore(creatorShape);
+    // GO / NO GO — the team's real qualification (ROI reach+engagement bar OR
+    // A/B/C score). Replaces the old A/B-only gate that discarded every C.
+    const q = qualifyCreator(creatorShape);
 
     // Override niche with the detected one (if matched) for display
     const detectedNiche = score.nicheData ? (scraped.bio.split('\n')[0].slice(0, 60)) : '';
@@ -618,18 +730,21 @@ async function processCandidate(candidate) {
       niche: detectedNiche,
       dealScoreGrade: score.grade,
       dealScore: score.score,
+      go: q.go,
+      goReason: q.reason,      // 'roi_bar' | 'deal_score'
+      roiTier: q.roiTier,      // 'Very high' | 'High' | 'Medium' | 'Low'
       sourceCreatorId: candidate.sourceCreatorId,
       sourceCreatorName: candidate.sourceCreatorName,
       sourceCreatorHandle: candidate.sourceCreatorHandle,
     };
 
-    // A/B → queue. C/D → permanent dismiss.
-    if (score.grade === 'A' || score.grade === 'B') {
+    // GO → Discovery queue. NO GO (a D that also misses the ROI bar) → dismiss.
+    if (q.go) {
       const entry = await addToQueue(queueEntry);
       return { status: 'queued', candidate: entry };
     } else {
       await addToDismissed(candidate.handle);
-      return { status: 'dismissed', handle: candidate.handle, grade: score.grade };
+      return { status: 'dismissed', handle: candidate.handle, grade: score.grade, reason: q.reason };
     }
   } catch (err) {
     return { status: 'failed', handle: candidate.handle, reason: err.message };
