@@ -3,9 +3,9 @@
 import { useEffect, useState, useCallback } from "react";
 
 // ── tokens (match the dark hub aesthetic) ──
-const BG = "#0a0a0a", SURFACE = "#141414", BORDER = "rgba(255,255,255,0.06)";
-const HI = "#f5f5f5", MID = "#aaa", LO = "#666", DIM = "#444";
-const ACCENT = "#B11E2F", GREEN = "#22c55e", AMBER = "#eab308", RED = "#ef4444";
+const BG = "var(--sl-bg)", SURFACE = "var(--sl-surface)", BORDER = "color-mix(in srgb, var(--sl-text) 6%, transparent)";
+const HI = "var(--sl-text)", MID = "var(--sl-text-muted)", LO = "var(--sl-text-faint)", DIM = "var(--sl-text-faint)";
+const ACCENT = "var(--sl-primary)", GREEN = "var(--sl-success)", AMBER = "var(--sl-warning)", RED = "var(--sl-danger)";
 const mono = { fontFamily: "'JetBrains Mono', ui-monospace, monospace" };
 
 const TABS = [
@@ -47,7 +47,7 @@ export default function AdminPage() {
       <div style={{ maxWidth: 1000, margin: "0 auto" }}>
         {/* Header */}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, marginBottom: 20, flexWrap: "wrap" }}>
-          <a href="/" style={{ fontSize: 11, color: LO, textDecoration: "none", letterSpacing: "0.12em", textTransform: "uppercase" }}>← Hub</a>
+          <a href="/" style={{ fontSize: 12, color: LO, textDecoration: "none", letterSpacing: "0.12em", textTransform: "uppercase" }}>← Hub</a>
           <button onClick={loadOverview} style={{ ...btnGhost }}>↻ Atualizar</button>
         </div>
         <h1 style={{ fontSize: 30, fontWeight: 700, margin: "0 0 4px", letterSpacing: "-0.02em" }}>Admin</h1>
@@ -96,12 +96,12 @@ function SaudePanel({ ov }) {
               <Stat label="Erros hoje" value={o.errorsToday || 0} accent={o.errorsToday > 0 ? RED : null} />
             </div>
             {/* 30-day trend */}
-            <div style={{ fontSize: 10, fontWeight: 600, color: LO, letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 8 }}>Últimos 30 dias</div>
+            <div style={{ fontSize: 12, fontWeight: 600, color: LO, letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 8 }}>Últimos 30 dias</div>
             <div style={{ display: "flex", alignItems: "flex-end", gap: 2, height: 60 }}>
               {trend.map((d, i) => (
                 <div key={i} title={`${d.day} · ${usd(d.cost)}`} style={{
                   flex: 1, height: `${Math.max(2, (d.cost / maxCost) * 100)}%`,
-                  background: d.cost > 0 ? `linear-gradient(180deg, ${ACCENT}, ${ACCENT}55)` : "rgba(255,255,255,0.04)",
+                  background: d.cost > 0 ? `linear-gradient(180deg, ${ACCENT}, ${ACCENT}55)` : "color-mix(in srgb, var(--sl-text) 4%, transparent)",
                   borderRadius: 2,
                 }} />
               ))}
@@ -109,7 +109,7 @@ function SaudePanel({ ov }) {
             {/* Per-route */}
             {perRoute.length > 0 && (
               <div style={{ marginTop: 18 }}>
-                <div style={{ fontSize: 10, fontWeight: 600, color: LO, letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 8 }}>Por rota · hoje</div>
+                <div style={{ fontSize: 12, fontWeight: 600, color: LO, letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 8 }}>Por rota · hoje</div>
                 <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
                   {perRoute.map(([route, v]) => (
                     <div key={route} style={{ display: "flex", justifyContent: "space-between", fontSize: 12, padding: "6px 0", borderBottom: `1px solid ${BORDER}` }}>
@@ -129,7 +129,7 @@ function SaudePanel({ ov }) {
         {!o.recentErrors?.length ? <Muted>Sem erros registados. ✓</Muted> : (
           <div style={{ display: "flex", flexDirection: "column", gap: 6, maxHeight: 260, overflowY: "auto" }}>
             {o.recentErrors.map((e, i) => (
-              <div key={i} style={{ fontSize: 11, padding: "8px 10px", background: BG, border: `1px solid ${BORDER}`, borderRadius: 8 }}>
+              <div key={i} style={{ fontSize: 12, padding: "8px 10px", background: BG, border: `1px solid ${BORDER}`, borderRadius: 8 }}>
                 <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}>
                   <span style={{ ...mono, color: ACCENT }}>{e.route || "?"}</span>
                   <span style={{ color: DIM }}>{ago(e.at)}</span>
@@ -147,7 +147,7 @@ function SaudePanel({ ov }) {
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
             {(ov.env || []).map(e => (
               <div key={e.key} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 12 }}>
-                <span style={{ color: MID }}>{e.label} {!e.required && <span style={{ color: DIM, fontSize: 10 }}>(opcional)</span>}</span>
+                <span style={{ color: MID }}>{e.label} {!e.required && <span style={{ color: DIM, fontSize: 12 }}>(opcional)</span>}</span>
                 <span style={{ fontWeight: 700, color: e.set ? GREEN : (e.required ? RED : DIM) }}>{e.set ? "✓" : "✗"}</span>
               </div>
             ))}
@@ -195,8 +195,8 @@ function AutomacoesPanel({ ov, reload, toast }) {
             <div key={c.name} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, padding: "12px 14px", background: BG, border: `1px solid ${BORDER}`, borderRadius: 10, flexWrap: "wrap" }}>
               <div>
                 <div style={{ fontSize: 13, fontWeight: 600, color: HI }}>{c.label}</div>
-                <div style={{ fontSize: 11, color: LO, marginTop: 2 }}>{c.scheduleLabel} · <span style={mono}>{c.schedule}</span></div>
-                <div style={{ fontSize: 11, marginTop: 3, color: c.lastRun ? (c.lastRun.ok ? GREEN : RED) : DIM }}>
+                <div style={{ fontSize: 12, color: LO, marginTop: 2 }}>{c.scheduleLabel} · <span style={mono}>{c.schedule}</span></div>
+                <div style={{ fontSize: 12, marginTop: 3, color: c.lastRun ? (c.lastRun.ok ? GREEN : RED) : DIM }}>
                   {c.lastRun ? `última: ${ago(c.lastRun.at)} · ${c.lastRun.summary || (c.lastRun.ok ? "ok" : "falhou")}` : "sem registo de execução"}
                 </div>
               </div>
@@ -212,7 +212,7 @@ function AutomacoesPanel({ ov, reload, toast }) {
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
           <div>
             <div style={{ fontSize: 13, color: MID }}>Descoberta automática de candidatos · todos os dias 06:00.</div>
-            <div style={{ fontSize: 11, color: LO, marginTop: 3 }}>Estado: <strong style={{ color: ov.autopilotEnabled ? GREEN : DIM }}>{ov.autopilotEnabled ? "ligado" : "desligado"}</strong></div>
+            <div style={{ fontSize: 12, color: LO, marginTop: 3 }}>Estado: <strong style={{ color: ov.autopilotEnabled ? GREEN : DIM }}>{ov.autopilotEnabled ? "ligado" : "desligado"}</strong></div>
           </div>
           <div style={{ display: "flex", gap: 8 }}>
             <a href="/creators" style={{ ...btnGhost, textDecoration: "none", display: "inline-block" }}>Ver Discovery →</a>
@@ -269,7 +269,7 @@ function EquipaPanel({ toast }) {
         {mig && (
           <div style={{ marginTop: 12, display: "flex", flexDirection: "column", gap: 5 }}>
             {mig.map((r, i) => (
-              <div key={i} style={{ fontSize: 11, ...mono, color: MID }}>
+              <div key={i} style={{ fontSize: 12, ...mono, color: MID }}>
                 <span style={{ color: LO }}>{r.oldEmail || "—"} → </span><strong style={{ color: HI }}>{r.newEmail}</strong>
                 <span style={{ color: r.status === "migrated" || r.status === "already" ? GREEN : AMBER, marginLeft: 8 }}>· {r.status}</span>
               </div>
@@ -291,8 +291,8 @@ function EquipaPanel({ toast }) {
             return (
               <div key={email} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 0", borderBottom: `1px solid ${BORDER}`, gap: 12, flexWrap: "wrap" }}>
                 <div>
-                  <span style={{ ...mono, fontSize: 13 }}>{email} {isMe && <span style={{ fontSize: 9, color: GREEN, marginLeft: 6, letterSpacing: "0.1em", textTransform: "uppercase" }}>tu</span>}</span>
-                  <div style={{ fontSize: 10, color: DIM, marginTop: 2 }}>{user ? `last seen ${ago(user.lastSeenAt)}` : "nunca entrou"}</div>
+                  <span style={{ ...mono, fontSize: 13 }}>{email} {isMe && <span style={{ fontSize: 12, color: GREEN, marginLeft: 6, letterSpacing: "0.1em", textTransform: "uppercase" }}>tu</span>}</span>
+                  <div style={{ fontSize: 12, color: DIM, marginTop: 2 }}>{user ? `last seen ${ago(user.lastSeenAt)}` : "nunca entrou"}</div>
                 </div>
                 <button onClick={() => remove(email)} disabled={busy || isMe} style={{ ...btnGhost, color: isMe ? DIM : MID, cursor: isMe ? "default" : "pointer" }}>Remover</button>
               </div>
@@ -365,7 +365,7 @@ function ConfigPanel({ ov, reload, toast }) {
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 12, marginBottom: 16 }}>
           {FIELDS.map(f => (
             <div key={f.key}>
-              <label style={{ display: "block", fontSize: 10, fontWeight: 600, color: LO, letterSpacing: "0.06em", textTransform: "uppercase", marginBottom: 6 }}>{f.label}</label>
+              <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: LO, letterSpacing: "0.06em", textTransform: "uppercase", marginBottom: 6 }}>{f.label}</label>
               <input type="number" min={0} value={form[f.key]} onChange={e => setForm(p => ({ ...p, [f.key]: Number(e.target.value) || 0 }))}
                 style={{ width: "100%", padding: "10px 12px", background: BG, border: `1px solid ${BORDER}`, borderRadius: 8, color: HI, fontSize: 14, ...mono, outline: "none", boxSizing: "border-box" }} />
             </div>
@@ -382,7 +382,7 @@ function ConfigPanel({ ov, reload, toast }) {
             {busy === "rebuild-index" ? "A reindexar…" : "Forçar reindex"}
           </button>
         </div>
-        <div style={{ fontSize: 11, color: DIM, marginTop: 12 }}>
+        <div style={{ fontSize: 12, color: DIM, marginTop: 12 }}>
           {ov.data?.creators ?? "—"} criadores · índice v{ov.data?.summaryVersion} {ov.data?.rebuilding && <span style={{ color: AMBER }}>· reindex a correr</span>}
         </div>
       </Section>
@@ -393,8 +393,8 @@ function ConfigPanel({ ov, reload, toast }) {
 // ───────────────────────── shared bits ─────────────────────────
 function Section({ title, children, accentBorder }) {
   return (
-    <div style={{ background: SURFACE, border: `1px solid ${accentBorder ? "rgba(177,30,47,0.25)" : BORDER}`, borderRadius: 12, padding: "18px 20px" }}>
-      <h2 style={{ fontSize: 11, fontWeight: 700, color: LO, letterSpacing: "0.16em", textTransform: "uppercase", margin: "0 0 16px" }}>{title}</h2>
+    <div style={{ background: SURFACE, border: `1px solid ${accentBorder ? "color-mix(in srgb, var(--sl-primary) 25%, transparent)" : BORDER}`, borderRadius: 12, padding: "18px 20px" }}>
+      <h2 style={{ fontSize: 12, fontWeight: 700, color: LO, letterSpacing: "0.16em", textTransform: "uppercase", margin: "0 0 16px" }}>{title}</h2>
       {children}
     </div>
   );
@@ -402,11 +402,11 @@ function Section({ title, children, accentBorder }) {
 function Stat({ label, value, accent }) {
   return (
     <div>
-      <div style={{ fontSize: 10, fontWeight: 600, color: LO, letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 6 }}>{label}</div>
+      <div style={{ fontSize: 12, fontWeight: 600, color: LO, letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 6 }}>{label}</div>
       <div style={{ ...mono, fontSize: 22, fontWeight: 700, color: accent || HI, lineHeight: 1 }}>{value}</div>
     </div>
   );
 }
 const Muted = ({ children }) => <div style={{ fontSize: 12, color: LO }}>{children}</div>;
-const btnPrimary = { padding: "9px 16px", background: ACCENT, color: "#fff", border: "none", borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" };
+const btnPrimary = { padding: "9px 16px", background: ACCENT, color: "var(--sl-text)", border: "none", borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" };
 const btnGhost = { padding: "9px 14px", background: "transparent", color: MID, border: `1px solid ${BORDER}`, borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" };

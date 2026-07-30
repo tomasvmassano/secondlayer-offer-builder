@@ -14,15 +14,15 @@ function formatFollowers(n) {
 export default function Hub() {
 
   return (
-    <div style={{ minHeight: "100vh", background: "#0a0a0a", color: "#f5f5f5", fontFamily: "'Inter', 'Helvetica Neue', Helvetica, Arial, sans-serif" }}>
+    <div style={{ minHeight: "100vh", background: "var(--sl-bg)", color: "var(--sl-text)", fontFamily: "inherit" }}>
       <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
 
       {/* Header */}
-      <div style={{ padding: "20px 28px", borderBottom: "1px solid rgba(255,255,255,0.04)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+      <div style={{ padding: "20px 28px", borderBottom: "1px solid var(--sl-border)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
           <img src={LOGO_B64} alt="Second Layer" style={{ height: 16, opacity: 0.85 }} />
-          <span style={{ color: "#333", fontSize: 14 }}>|</span>
-          <span style={{ fontSize: 10, fontWeight: 600, letterSpacing: "0.12em", textTransform: "uppercase", color: "#555" }}>HQ</span>
+          <span style={{ color: "var(--sl-border-strong)", fontSize: 14 }}>|</span>
+          <span style={{ fontSize: 12, fontWeight: 600, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--sl-text-faint)" }}>HQ</span>
         </div>
       </div>
 
@@ -31,9 +31,9 @@ export default function Hub() {
         {/* Hero */}
         <div style={{ textAlign: "center", marginBottom: 64 }}>
           <h1 className="sl-h1" style={{ fontSize: 36, fontWeight: 300, margin: "0 0 10px", letterSpacing: "-0.03em", lineHeight: 1.2 }}>
-            Second <span style={{ color: "#7A0E18", fontWeight: 700 }}>Layer</span>
+            Second <span style={{ color: "var(--sl-accent-text)", fontWeight: 700 }}>Layer</span>
           </h1>
-          <p style={{ fontSize: 14, color: "#555", margin: 0 }}>
+          <p style={{ fontSize: 14, color: "var(--sl-text-faint)", margin: 0 }}>
             Central de operações de criadoras
           </p>
         </div>
@@ -44,20 +44,20 @@ export default function Hub() {
           {/* CRM Card */}
           <a href="/creators" style={{
             display: "block", padding: "36px 32px", borderRadius: 14,
-            background: "#141414", border: "1px solid rgba(255,255,255,0.06)",
+            background: "var(--sl-surface)", border: "1px solid var(--sl-border)",
             textDecoration: "none", color: "inherit",
             transition: "border-color 0.2s, transform 0.2s",
             cursor: "pointer",
           }}
-            onMouseEnter={e => { e.currentTarget.style.borderColor = "#7A0E18"; e.currentTarget.style.transform = "translateY(-2px)"; }}
-            onMouseLeave={e => { e.currentTarget.style.borderColor = "rgba(255,255,255,0.06)"; e.currentTarget.style.transform = "translateY(0)"; }}
+            onMouseEnter={e => { e.currentTarget.style.borderColor = "var(--sl-primary)"; e.currentTarget.style.transform = "translateY(-2px)"; }}
+            onMouseLeave={e => { e.currentTarget.style.borderColor = "color-mix(in srgb, var(--sl-text) 6%, transparent)"; e.currentTarget.style.transform = "translateY(0)"; }}
           >
             <div style={{ fontSize: 32, marginBottom: 20, opacity: 0.9 }}>+</div>
-            <h2 style={{ fontSize: 20, fontWeight: 700, margin: "0 0 8px", color: "#f5f5f5" }}>CRM</h2>
-            <p style={{ fontSize: 13, color: "#666", margin: "0 0 20px", lineHeight: 1.6 }}>
+            <h2 style={{ fontSize: 20, fontWeight: 700, margin: "0 0 8px", color: "var(--sl-text)" }}>CRM</h2>
+            <p style={{ fontSize: 13, color: "var(--sl-text-faint)", margin: "0 0 20px", lineHeight: 1.6 }}>
               Adicionar e pesquisar novos creators. Scraping automatico de Instagram, TikTok e YouTube.
             </p>
-            <div style={{ fontSize: 11, color: "#7A0E18", fontWeight: 600 }}>
+            <div style={{ fontSize: 12, color: "var(--sl-accent-text)", fontWeight: 600 }}>
               Novo creator &rarr;
             </div>
           </a>
@@ -65,24 +65,24 @@ export default function Hub() {
           {/* Pipeline Card */}
           <a href="/pipeline" style={{
             display: "block", padding: "36px 32px", borderRadius: 14,
-            background: "#141414", border: "1px solid rgba(255,255,255,0.06)",
+            background: "var(--sl-surface)", border: "1px solid var(--sl-border)",
             textDecoration: "none", color: "inherit",
             transition: "border-color 0.2s, transform 0.2s",
             cursor: "pointer",
           }}
-            onMouseEnter={e => { e.currentTarget.style.borderColor = "#7A0E18"; e.currentTarget.style.transform = "translateY(-2px)"; }}
-            onMouseLeave={e => { e.currentTarget.style.borderColor = "rgba(255,255,255,0.06)"; e.currentTarget.style.transform = "translateY(0)"; }}
+            onMouseEnter={e => { e.currentTarget.style.borderColor = "var(--sl-primary)"; e.currentTarget.style.transform = "translateY(-2px)"; }}
+            onMouseLeave={e => { e.currentTarget.style.borderColor = "color-mix(in srgb, var(--sl-text) 6%, transparent)"; e.currentTarget.style.transform = "translateY(0)"; }}
           >
             <div style={{ display: "flex", gap: 3, marginBottom: 20 }}>
-              {["#555","#eab308","#22c55e","#7A0E18"].map((c,i) => (
+              {["var(--sl-text-faint)","var(--sl-warning)","var(--sl-success)","var(--sl-primary)"].map((c,i) => (
                 <span key={i} style={{ width: 8, height: 8, borderRadius: 2, background: c }} />
               ))}
             </div>
-            <h2 style={{ fontSize: 20, fontWeight: 700, margin: "0 0 8px", color: "#f5f5f5" }}>Pipeline</h2>
-            <p style={{ fontSize: 13, color: "#666", margin: "0 0 20px", lineHeight: 1.6 }}>
+            <h2 style={{ fontSize: 20, fontWeight: 700, margin: "0 0 8px", color: "var(--sl-text)" }}>Pipeline</h2>
+            <p style={{ fontSize: 13, color: "var(--sl-text-faint)", margin: "0 0 20px", lineHeight: 1.6 }}>
               Gerir creators ativos. DMs, ofertas, launch assets, status e workspaces completos.
             </p>
-            <div style={{ fontSize: 11, color: "#7A0E18", fontWeight: 600 }}>
+            <div style={{ fontSize: 12, color: "var(--sl-accent-text)", fontWeight: 600 }}>
               Ver pipeline &rarr;
             </div>
           </a>
@@ -94,39 +94,39 @@ export default function Hub() {
           <a href="/equipa" style={{
             flex: 1, display: "flex", alignItems: "center", justifyContent: "space-between",
             padding: "14px 18px", borderRadius: 8,
-            background: "rgba(177,30,47,0.04)", border: "1px solid rgba(177,30,47,0.20)",
+            background: "color-mix(in srgb, var(--sl-primary) 4%, transparent)", border: "1px solid color-mix(in srgb, var(--sl-primary) 20%, transparent)",
             textDecoration: "none", color: "inherit", transition: "border-color 0.15s",
           }}
-            onMouseEnter={e => e.currentTarget.style.borderColor = "rgba(177,30,47,0.45)"}
-            onMouseLeave={e => e.currentTarget.style.borderColor = "rgba(177,30,47,0.20)"}
+            onMouseEnter={e => e.currentTarget.style.borderColor = "color-mix(in srgb, var(--sl-primary) 45%, transparent)"}
+            onMouseLeave={e => e.currentTarget.style.borderColor = "color-mix(in srgb, var(--sl-primary) 20%, transparent)"}
           >
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-              <span style={{ fontSize: 11, color: "#B11E2F" }}>●</span>
-              <span style={{ fontSize: 12, fontWeight: 600, color: "#f5f5f5" }}>Equipa</span>
-              <span style={{ fontSize: 10, color: "#666" }}>scoreboard + €50 daily rule</span>
+              <span style={{ fontSize: 12, color: "var(--sl-accent-text)" }}>●</span>
+              <span style={{ fontSize: 12, fontWeight: 600, color: "var(--sl-text)" }}>Equipa</span>
+              <span style={{ fontSize: 12, color: "var(--sl-text-faint)" }}>scoreboard + €50 daily rule</span>
             </div>
-            <span style={{ fontSize: 10, color: "#666" }}>&rarr;</span>
+            <span style={{ fontSize: 12, color: "var(--sl-text-faint)" }}>&rarr;</span>
           </a>
           <a href="/support" style={{
             flex: 1, display: "flex", alignItems: "center", justifyContent: "space-between",
             padding: "14px 18px", borderRadius: 8,
-            background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.04)",
+            background: "color-mix(in srgb, var(--sl-text) 2%, transparent)", border: "1px solid var(--sl-border)",
             textDecoration: "none", color: "inherit", transition: "border-color 0.15s",
           }}
-            onMouseEnter={e => e.currentTarget.style.borderColor = "rgba(122,14,24,0.3)"}
-            onMouseLeave={e => e.currentTarget.style.borderColor = "rgba(255,255,255,0.04)"}
+            onMouseEnter={e => e.currentTarget.style.borderColor = "color-mix(in srgb, var(--sl-primary) 30%, transparent)"}
+            onMouseLeave={e => e.currentTarget.style.borderColor = "color-mix(in srgb, var(--sl-text) 4%, transparent)"}
           >
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-              <span style={{ fontSize: 11, color: "#555" }}>+</span>
-              <span style={{ fontSize: 12, fontWeight: 600, color: "#888" }}>Feedback & Suporte</span>
+              <span style={{ fontSize: 12, color: "var(--sl-text-faint)" }}>+</span>
+              <span style={{ fontSize: 12, fontWeight: 600, color: "var(--sl-text-muted)" }}>Feedback & Suporte</span>
             </div>
-            <span style={{ fontSize: 10, color: "#333" }}>&rarr;</span>
+            <span style={{ fontSize: 12, color: "var(--sl-border-strong)" }}>&rarr;</span>
           </a>
         </div>
 
         {/* Footer */}
         <div style={{ marginTop: 48, textAlign: "center" }}>
-          <p style={{ fontSize: 9, color: "#333", margin: 0 }}>Second Layer HQ &middot; Internal Operations</p>
+          <p style={{ fontSize: 12, color: "var(--sl-border-strong)", margin: 0 }}>Second Layer HQ &middot; Internal Operations</p>
         </div>
       </div>
     </div>

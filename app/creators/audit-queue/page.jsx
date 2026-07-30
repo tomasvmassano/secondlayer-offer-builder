@@ -235,32 +235,32 @@ export default function AuditQueuePage() {
   const etaStr = etaSecs < 60 ? `${etaSecs}s` : `${Math.floor(etaSecs / 60)}min ${etaSecs % 60}s`;
 
   return (
-    <div style={{ minHeight: "100vh", background: "#0a0a0a", color: "#f5f5f5", fontFamily: "'Inter', sans-serif" }}>
+    <div style={{ minHeight: "100vh", background: "var(--sl-bg)", color: "var(--sl-text)", fontFamily: "'Inter', sans-serif" }}>
       <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
 
       {/* Header */}
-      <div style={{ padding: "20px 28px", borderBottom: "1px solid rgba(255,255,255,0.04)", display: "flex", alignItems: "center", gap: 14 }}>
-        <a href="/creators" style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.12em", textTransform: "uppercase", color: "#555", textDecoration: "none" }}>← Voltar ao CRM</a>
-        <span style={{ color: "#333", fontSize: 14 }}>|</span>
-        <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.12em", textTransform: "uppercase", color: "#888" }}>Bulk Audit</span>
+      <div style={{ padding: "20px 28px", borderBottom: "1px solid var(--sl-border)", display: "flex", alignItems: "center", gap: 14 }}>
+        <a href="/creators" style={{ fontSize: 12, fontWeight: 600, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--sl-text-faint)", textDecoration: "none" }}>← Voltar ao CRM</a>
+        <span style={{ color: "var(--sl-border-strong)", fontSize: 14 }}>|</span>
+        <span style={{ fontSize: 12, fontWeight: 600, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--sl-text-muted)" }}>Bulk Audit</span>
       </div>
 
       <div className="sl-page" style={{ maxWidth: 1100, margin: "0 auto", padding: "40px 28px" }}>
         <h1 className="sl-h1" style={{ fontSize: 28, fontWeight: 700, marginBottom: 8 }}>Auditar creators em massa</h1>
-        <p style={{ fontSize: 14, color: "#888", marginBottom: 32, maxWidth: 720, lineHeight: 1.6 }}>
+        <p style={{ fontSize: 14, color: "var(--sl-text-muted)", marginBottom: 32, maxWidth: 720, lineHeight: 1.6 }}>
           Corre o ecosystem audit em todos os creators que ainda não têm um. Cada audit usa Sonnet + web_search (~$0.12, 30-60s). Worker é paced a 25s/audit para respeitar o limite de 30K tokens/minuto da Anthropic. Deixa o tab aberto durante a corrida.
         </p>
 
         {loading && (
-          <div style={{ padding: 60, textAlign: "center", color: "#666" }}>
-            <div style={{ width: 20, height: 20, margin: "0 auto 12px", border: "2px solid #222", borderTopColor: "#7A0E18", borderRadius: "50%", animation: "sl-spin 0.8s linear infinite" }} />
+          <div style={{ padding: 60, textAlign: "center", color: "var(--sl-text-faint)" }}>
+            <div style={{ width: 20, height: 20, margin: "0 auto 12px", border: "2px solid var(--sl-surface-raised)", borderTopColor: "var(--sl-primary)", borderRadius: "50%", animation: "sl-spin 0.8s linear infinite" }} />
             <p style={{ fontSize: 12 }}>A carregar creators...</p>
             <style>{`@keyframes sl-spin{to{transform:rotate(360deg)}}`}</style>
           </div>
         )}
 
         {loadError && (
-          <div style={{ padding: "14px 20px", background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.25)", borderRadius: 10, color: "#ef4444", fontSize: 13, marginBottom: 20 }}>
+          <div style={{ padding: "14px 20px", background: "color-mix(in srgb, var(--sl-danger) 8%, transparent)", border: "1px solid color-mix(in srgb, var(--sl-danger) 25%, transparent)", borderRadius: 10, color: "var(--sl-danger)", fontSize: 13, marginBottom: 20 }}>
             {loadError}
           </div>
         )}
@@ -269,24 +269,24 @@ export default function AuditQueuePage() {
           <>
             {/* Stats */}
             <div className="sl-grid-2" style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 14, marginBottom: 16 }}>
-              <StatCard label="Sem audit" value={total} color="#f5f5f5" />
-              <StatCard label="Selecionados" value={selectedCount} color={selectedCount > 0 ? "#22c55e" : "#444"} />
-              <StatCard label="Concluídos" value={done} color={done > 0 ? "#22c55e" : "#444"} />
-              <StatCard label={selectedCount > 0 ? "Custo · ETA" : "Concluídos · A correr"} value={selectedCount > 0 ? `$${estCost} · ${etaStr}` : `${done} · ${queued}`} small color="#B11E2F" />
+              <StatCard label="Sem audit" value={total} color="var(--sl-text)" />
+              <StatCard label="Selecionados" value={selectedCount} color={selectedCount > 0 ? "var(--sl-success)" : "var(--sl-text-faint)"} />
+              <StatCard label="Concluídos" value={done} color={done > 0 ? "var(--sl-success)" : "var(--sl-text-faint)"} />
+              <StatCard label={selectedCount > 0 ? "Custo · ETA" : "Concluídos · A correr"} value={selectedCount > 0 ? `$${estCost} · ${etaStr}` : `${done} · ${queued}`} small color="var(--sl-primary)" />
             </div>
 
             {/* Toggle: include cold */}
-            <label style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 16px", background: "#141414", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 10, marginBottom: 12, cursor: running ? "not-allowed" : "pointer", opacity: running ? 0.7 : 1 }}>
+            <label style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 16px", background: "var(--sl-surface)", border: "1px solid var(--sl-border)", borderRadius: 10, marginBottom: 12, cursor: running ? "not-allowed" : "pointer", opacity: running ? 0.7 : 1 }}>
               <input
                 type="checkbox"
                 checked={includeCold}
                 disabled={running}
                 onChange={e => setIncludeCold(e.target.checked)}
-                style={{ width: 16, height: 16, accentColor: "#22c55e" }}
+                style={{ width: 16, height: 16, accentColor: "var(--sl-success)" }}
               />
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 13, fontWeight: 600, color: "#f5f5f5" }}>Incluir creators frios</div>
-                <div style={{ fontSize: 11, color: "#888", marginTop: 2 }}>Por defeito, deals marcados como cold ficam de fora — não há motivo para auditar uma conversa morta.</div>
+                <div style={{ fontSize: 13, fontWeight: 600, color: "var(--sl-text)" }}>Incluir creators frios</div>
+                <div style={{ fontSize: 12, color: "var(--sl-text-muted)", marginTop: 2 }}>Por defeito, deals marcados como cold ficam de fora — não há motivo para auditar uma conversa morta.</div>
               </div>
             </label>
 
@@ -304,33 +304,33 @@ export default function AuditQueuePage() {
               const active = !!filterAddedBy;
               return (
                 <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 8, marginBottom: 20 }}>
-                  <span style={{ fontSize: 9, fontWeight: 700, color: "#555", letterSpacing: "0.10em", textTransform: "uppercase", marginRight: 4 }}>Filtros</span>
+                  <span style={{ fontSize: 12, fontWeight: 700, color: "var(--sl-text-faint)", letterSpacing: "0.10em", textTransform: "uppercase", marginRight: 4 }}>Filtros</span>
                   <label style={{
                     display: "inline-flex", alignItems: "center", gap: 6,
                     padding: "4px 4px 4px 10px",
                     borderRadius: 4,
-                    border: `1px solid ${active ? "rgba(177,30,47,0.4)" : "rgba(255,255,255,0.08)"}`,
-                    background: active ? "rgba(177,30,47,0.06)" : "transparent",
-                    fontSize: 11, fontFamily: "inherit",
+                    border: `1px solid ${active ? "color-mix(in srgb, var(--sl-primary) 40%, transparent)" : "color-mix(in srgb, var(--sl-text) 8%, transparent)"}`,
+                    background: active ? "color-mix(in srgb, var(--sl-primary) 6%, transparent)" : "transparent",
+                    fontSize: 12, fontFamily: "inherit",
                     cursor: running ? "not-allowed" : "pointer",
                     opacity: running ? 0.7 : 1,
                   }}>
-                    <span style={{ fontSize: 10, color: active ? "#B11E2F" : "#666", fontWeight: 600 }}>Adicionado por:</span>
+                    <span style={{ fontSize: 12, color: active ? "var(--sl-accent-text)" : "var(--sl-text-faint)", fontWeight: 600 }}>Adicionado por:</span>
                     <select
                       value={filterAddedBy || ''}
                       disabled={running}
                       onChange={e => setFilterAddedBy(e.target.value || null)}
                       style={{
                         background: "transparent", border: "none", outline: "none",
-                        color: active ? "#f5f5f5" : "#888",
-                        fontSize: 11, fontWeight: 600, fontFamily: "inherit",
+                        color: active ? "var(--sl-text)" : "var(--sl-text-muted)",
+                        fontSize: 12, fontWeight: 600, fontFamily: "inherit",
                         padding: "2px 4px", cursor: "pointer",
                         appearance: "none", WebkitAppearance: "none",
                       }}
                     >
-                      <option value="" style={{ background: "#141414" }}>Todos</option>
+                      <option value="" style={{ background: "var(--sl-surface)" }}>Todos</option>
                       {operatorOptions.map(opt => (
-                        <option key={opt} value={opt} style={{ background: "#141414" }}>{opt}</option>
+                        <option key={opt} value={opt} style={{ background: "var(--sl-surface)" }}>{opt}</option>
                       ))}
                     </select>
                   </label>
@@ -338,7 +338,7 @@ export default function AuditQueuePage() {
                     <button
                       onClick={() => setFilterAddedBy(null)}
                       disabled={running}
-                      style={{ fontSize: 10, padding: "3px 8px", border: "1px solid rgba(255,255,255,0.06)", background: "transparent", color: "#666", borderRadius: 4, cursor: running ? "not-allowed" : "pointer", fontFamily: "inherit" }}
+                      style={{ fontSize: 12, padding: "3px 8px", border: "1px solid var(--sl-border)", background: "transparent", color: "var(--sl-text-faint)", borderRadius: 4, cursor: running ? "not-allowed" : "pointer", fontFamily: "inherit" }}
                     >
                       Limpar
                     </button>
@@ -349,33 +349,33 @@ export default function AuditQueuePage() {
 
             {/* Action bar */}
             {total === 0 ? (
-              <div style={{ padding: "20px 24px", background: "rgba(34,197,94,0.06)", border: "1px solid rgba(34,197,94,0.25)", borderRadius: 10, marginBottom: 20 }}>
-                <div style={{ fontSize: 14, fontWeight: 600, color: "#22c55e" }}>Tudo auditado.</div>
-                <div style={{ fontSize: 12, color: "#888", marginTop: 4 }}>Não há creators sem ecosystem audit{includeCold ? '' : ' (excluindo os cold — desliga o filtro para os ver)'}.</div>
+              <div style={{ padding: "20px 24px", background: "color-mix(in srgb, var(--sl-success) 6%, transparent)", border: "1px solid color-mix(in srgb, var(--sl-success) 25%, transparent)", borderRadius: 10, marginBottom: 20 }}>
+                <div style={{ fontSize: 14, fontWeight: 600, color: "var(--sl-success)" }}>Tudo auditado.</div>
+                <div style={{ fontSize: 12, color: "var(--sl-text-muted)", marginTop: 4 }}>Não há creators sem ecosystem audit{includeCold ? '' : ' (excluindo os cold — desliga o filtro para os ver)'}.</div>
               </div>
             ) : running ? (
-              <div style={{ padding: "14px 20px", background: "rgba(177,30,47,0.08)", border: "1px solid rgba(177,30,47,0.3)", borderRadius: 10, marginBottom: 20, display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12 }}>
+              <div style={{ padding: "14px 20px", background: "color-mix(in srgb, var(--sl-primary) 8%, transparent)", border: "1px solid color-mix(in srgb, var(--sl-primary) 30%, transparent)", borderRadius: 10, marginBottom: 20, display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12 }}>
                 <div>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: "#B11E2F" }}>A correr audits…</div>
-                  <div style={{ fontSize: 11, color: "#888", marginTop: 4 }}>{done} concluídos · {failed} falharam · {queued} em fila · ETA {etaStr}</div>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: "var(--sl-accent-text)" }}>A correr audits…</div>
+                  <div style={{ fontSize: 12, color: "var(--sl-text-muted)", marginTop: 4 }}>{done} concluídos · {failed} falharam · {queued} em fila · ETA {etaStr}</div>
                 </div>
-                <button onClick={stop} style={{ padding: "8px 16px", background: "transparent", border: "1px solid rgba(255,255,255,0.15)", borderRadius: 6, color: "#888", fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>Pausar</button>
+                <button onClick={stop} style={{ padding: "8px 16px", background: "transparent", border: "1px solid var(--sl-border-strong)", borderRadius: 6, color: "var(--sl-text-muted)", fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>Pausar</button>
               </div>
             ) : (
-              <div style={{ padding: "14px 20px", background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 10, marginBottom: 20, display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12 }}>
+              <div style={{ padding: "14px 20px", background: "color-mix(in srgb, var(--sl-text) 2%, transparent)", border: "1px solid var(--sl-border)", borderRadius: 10, marginBottom: 20, display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12 }}>
                 <div>
                   <div style={{ fontSize: 13, fontWeight: 600 }}>
                     {willRun > 0 ? `${willRun} creator${willRun === 1 ? '' : 's'} selecionado${willRun === 1 ? '' : 's'} para auditar` : 'Seleciona creators para correr o audit'}
                   </div>
-                  <div style={{ fontSize: 11, color: "#888", marginTop: 4 }}>
+                  <div style={{ fontSize: 12, color: "var(--sl-text-muted)", marginTop: 4 }}>
                     {willRun > 0 ? `~${etaStr} · $${estCost} Claude · pacing de 25s/audit` : 'Usa as checkboxes na tabela ou os atalhos abaixo'}
                   </div>
                 </div>
                 <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
                   {selectedCount > 0 && (
-                    <button onClick={clearSelection} style={{ padding: "10px 16px", background: "transparent", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 6, color: "#888", fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>Limpar seleção</button>
+                    <button onClick={clearSelection} style={{ padding: "10px 16px", background: "transparent", border: "1px solid var(--sl-border-strong)", borderRadius: 6, color: "var(--sl-text-muted)", fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>Limpar seleção</button>
                   )}
-                  <button onClick={runAll} disabled={willRun === 0} style={{ padding: "10px 20px", background: willRun > 0 ? "#7A0E18" : "#1a1a1a", border: "none", borderRadius: 6, color: willRun > 0 ? "#fff" : "#666", fontSize: 13, fontWeight: 600, cursor: willRun > 0 ? "pointer" : "not-allowed", fontFamily: "inherit" }}>{willRun > 0 ? `Correr ${willRun} audit${willRun === 1 ? '' : 's'}` : 'Correr audits'}</button>
+                  <button onClick={runAll} disabled={willRun === 0} style={{ padding: "10px 20px", background: willRun > 0 ? "var(--sl-primary)" : "var(--sl-surface-raised)", border: "none", borderRadius: 6, color: willRun > 0 ? "var(--sl-text)" : "var(--sl-text-faint)", fontSize: 13, fontWeight: 600, cursor: willRun > 0 ? "pointer" : "not-allowed", fontFamily: "inherit" }}>{willRun > 0 ? `Correr ${willRun} audit${willRun === 1 ? '' : 's'}` : 'Correr audits'}</button>
                 </div>
               </div>
             )}
@@ -383,17 +383,17 @@ export default function AuditQueuePage() {
             {/* Selection shortcuts — handy when there are many rows. */}
             {total > 0 && !running && (
               <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 16, alignItems: "center" }}>
-                <span style={{ fontSize: 10, fontWeight: 700, color: "#555", letterSpacing: "0.08em", textTransform: "uppercase", marginRight: 4 }}>Atalhos</span>
-                <button onClick={() => selectByStatus('prospect')} style={{ padding: "6px 12px", background: "transparent", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 4, color: "#888", fontSize: 11, cursor: "pointer", fontFamily: "inherit" }}>+ Todos os prospects</button>
-                <button onClick={() => selectByStatus('signed')} style={{ padding: "6px 12px", background: "transparent", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 4, color: "#888", fontSize: 11, cursor: "pointer", fontFamily: "inherit" }}>+ Todos os signed</button>
-                <button onClick={toggleAllVisible} style={{ padding: "6px 12px", background: "transparent", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 4, color: "#888", fontSize: 11, cursor: "pointer", fontFamily: "inherit" }}>{allVisibleSelected ? 'Desselecionar todos' : 'Selecionar todos visíveis'}</button>
+                <span style={{ fontSize: 12, fontWeight: 700, color: "var(--sl-text-faint)", letterSpacing: "0.08em", textTransform: "uppercase", marginRight: 4 }}>Atalhos</span>
+                <button onClick={() => selectByStatus('prospect')} style={{ padding: "6px 12px", background: "transparent", border: "1px solid var(--sl-border)", borderRadius: 4, color: "var(--sl-text-muted)", fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>+ Todos os prospects</button>
+                <button onClick={() => selectByStatus('signed')} style={{ padding: "6px 12px", background: "transparent", border: "1px solid var(--sl-border)", borderRadius: 4, color: "var(--sl-text-muted)", fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>+ Todos os signed</button>
+                <button onClick={toggleAllVisible} style={{ padding: "6px 12px", background: "transparent", border: "1px solid var(--sl-border)", borderRadius: 4, color: "var(--sl-text-muted)", fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>{allVisibleSelected ? 'Desselecionar todos' : 'Selecionar todos visíveis'}</button>
               </div>
             )}
 
             {/* Table */}
             {total > 0 && (
-              <div className="sl-hscroll" style={{ border: "1px solid rgba(255,255,255,0.06)", borderRadius: 10, overflow: "hidden" }}>
-                <div style={{ display: "grid", gridTemplateColumns: "36px 50px 2fr 1.5fr 0.8fr 0.8fr 1.4fr 1.6fr", padding: "12px 16px", background: "#141414", fontSize: 10, fontWeight: 700, color: "#666", letterSpacing: "0.08em", textTransform: "uppercase", minWidth: 760, alignItems: "center" }}>
+              <div className="sl-hscroll" style={{ border: "1px solid var(--sl-border)", borderRadius: 10, overflow: "hidden" }}>
+                <div style={{ display: "grid", gridTemplateColumns: "36px 50px 2fr 1.5fr 0.8fr 0.8fr 1.4fr 1.6fr", padding: "12px 16px", background: "var(--sl-surface)", fontSize: 12, fontWeight: 700, color: "var(--sl-text-faint)", letterSpacing: "0.08em", textTransform: "uppercase", minWidth: 760, alignItems: "center" }}>
                   <div>
                     {/* Master checkbox — toggles all visible. Indeterminate
                         styling not used (browser support is uneven); we
@@ -403,7 +403,7 @@ export default function AuditQueuePage() {
                       checked={allVisibleSelected}
                       onChange={toggleAllVisible}
                       disabled={running}
-                      style={{ width: 14, height: 14, accentColor: "#22c55e", cursor: running ? "not-allowed" : "pointer" }}
+                      style={{ width: 14, height: 14, accentColor: "var(--sl-success)", cursor: running ? "not-allowed" : "pointer" }}
                       title={allVisibleSelected ? "Desselecionar todos" : "Selecionar todos"}
                     />
                   </div>
@@ -423,25 +423,25 @@ export default function AuditQueuePage() {
 
 function StatCard({ label, value, color, small }) {
   return (
-    <div style={{ padding: "14px 16px", background: "#141414", border: "1px solid rgba(255,255,255,0.04)", borderRadius: 10 }}>
-      <div style={{ fontSize: 9, fontWeight: 700, color: "#666", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 6 }}>{label}</div>
-      <div style={{ fontSize: small ? 16 : 22, fontWeight: 700, color: color || "#f5f5f5" }}>{value}</div>
+    <div style={{ padding: "14px 16px", background: "var(--sl-surface)", border: "1px solid var(--sl-border)", borderRadius: 10 }}>
+      <div style={{ fontSize: 12, fontWeight: 700, color: "var(--sl-text-faint)", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 6 }}>{label}</div>
+      <div style={{ fontSize: small ? 16 : 22, fontWeight: 700, color: color || "var(--sl-text)" }}>{value}</div>
     </div>
   );
 }
 
 function Row({ idx, row, selected, onToggle, disabled }) {
   const statusColors = {
-    null:    { color: '#888',    bg: 'transparent',                  label: 'À espera' },
-    pending: { color: '#888',    bg: 'rgba(255,255,255,0.03)',       label: 'em fila' },
-    running: { color: '#3b82f6', bg: 'rgba(59,130,246,0.08)',        label: 'a correr…' },
-    done:    { color: '#22c55e', bg: 'rgba(34,197,94,0.08)',         label: null /* see counts */ },
-    failed:  { color: '#ef4444', bg: 'rgba(239,68,68,0.08)',         label: 'falhou' },
+    null:    { color: 'var(--sl-text-muted)',    bg: 'transparent',                  label: 'À espera' },
+    pending: { color: 'var(--sl-text-muted)',    bg: 'color-mix(in srgb, var(--sl-text) 3%, transparent)',       label: 'em fila' },
+    running: { color: 'var(--sl-info)', bg: 'color-mix(in srgb, var(--sl-info) 8%, transparent)',        label: 'a correr…' },
+    done:    { color: 'var(--sl-success)', bg: 'color-mix(in srgb, var(--sl-success) 8%, transparent)',         label: null /* see counts */ },
+    failed:  { color: 'var(--sl-danger)', bg: 'color-mix(in srgb, var(--sl-danger) 8%, transparent)',         label: 'falhou' },
   };
   const pipeColors = {
-    prospect: '#888',
-    signed:   '#22c55e',
-    cold:     '#ef4444',
+    prospect: 'var(--sl-text-muted)',
+    signed:   'var(--sl-success)',
+    cold:     'var(--sl-danger)',
   };
   const s = statusColors[row.status] || statusColors.null;
   const statusLabel = row.status === 'done' && row.auditCounts
@@ -458,30 +458,30 @@ function Row({ idx, row, selected, onToggle, disabled }) {
   // Highlight selected rows so they pop visually — easier to scan a long
   // list and confirm what's about to run.
   const rowBg = selected
-    ? "rgba(34,197,94,0.04)"
-    : (idx % 2 === 0 ? "transparent" : "rgba(255,255,255,0.01)");
+    ? "color-mix(in srgb, var(--sl-success) 4%, transparent)"
+    : (idx % 2 === 0 ? "transparent" : "color-mix(in srgb, var(--sl-text) 1%, transparent)");
   return (
-    <div style={{ display: "grid", gridTemplateColumns: "36px 50px 2fr 1.5fr 0.8fr 0.8fr 1.4fr 1.6fr", padding: "10px 16px", borderTop: "1px solid rgba(255,255,255,0.04)", background: rowBg, fontSize: 12, alignItems: "center", minWidth: 760 }}>
+    <div style={{ display: "grid", gridTemplateColumns: "36px 50px 2fr 1.5fr 0.8fr 0.8fr 1.4fr 1.6fr", padding: "10px 16px", borderTop: "1px solid var(--sl-border)", background: rowBg, fontSize: 12, alignItems: "center", minWidth: 760 }}>
       <div>
         <input
           type="checkbox"
           checked={selected}
           onChange={onToggle}
           disabled={disabled}
-          style={{ width: 14, height: 14, accentColor: "#22c55e", cursor: disabled ? "not-allowed" : "pointer" }}
+          style={{ width: 14, height: 14, accentColor: "var(--sl-success)", cursor: disabled ? "not-allowed" : "pointer" }}
         />
       </div>
-      <div style={{ color: "#444", fontFamily: "'JetBrains Mono', monospace", fontSize: 11 }}>{idx + 1}</div>
-      <div style={{ color: "#f5f5f5", fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+      <div style={{ color: "var(--sl-text-faint)", fontFamily: "'JetBrains Mono', monospace", fontSize: 12 }}>{idx + 1}</div>
+      <div style={{ color: "var(--sl-text)", fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
         <a href={`/creators/${row.id}`} target="_blank" rel="noopener" style={{ color: "inherit", textDecoration: "none" }}>{row.name || '—'}</a>
       </div>
-      <div style={{ color: "#888", fontSize: 11, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{row.niche || '—'}</div>
-      <div style={{ color: "#888", fontSize: 11 }}>{formatFollowers(row.followers)}</div>
-      <div style={{ color: pipeColors[row.pipelineStatus] || '#666', fontSize: 10, textTransform: "uppercase", letterSpacing: "0.04em" }}>{row.pipelineStatus}</div>
+      <div style={{ color: "var(--sl-text-muted)", fontSize: 12, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{row.niche || '—'}</div>
+      <div style={{ color: "var(--sl-text-muted)", fontSize: 12 }}>{formatFollowers(row.followers)}</div>
+      <div style={{ color: pipeColors[row.pipelineStatus] || 'var(--sl-text-faint)', fontSize: 12, textTransform: "uppercase", letterSpacing: "0.04em" }}>{row.pipelineStatus}</div>
       <div>
-        <span style={{ padding: "3px 8px", borderRadius: 4, fontSize: 10, fontWeight: 600, background: s.bg, color: s.color, border: `1px solid ${s.color}33` }}>{statusLabel}</span>
+        <span style={{ padding: "3px 8px", borderRadius: 4, fontSize: 12, fontWeight: 600, background: s.bg, color: s.color, border: `1px solid ${s.color}33` }}>{statusLabel}</span>
       </div>
-      <div style={{ color: "#666", fontSize: 11, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={row.auditError || ''}>{detail}</div>
+      <div style={{ color: "var(--sl-text-faint)", fontSize: 12, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={row.auditError || ''}>{detail}</div>
     </div>
   );
 }

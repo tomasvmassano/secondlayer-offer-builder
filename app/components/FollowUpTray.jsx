@@ -26,12 +26,12 @@ import { useState, useEffect, useCallback, useRef } from "react";
  */
 
 const MILESTONE_STYLES = {
-  voiceNote: { label: "Nota de voz", color: "#14b8a6", bg: "rgba(20,184,166,0.12)", border: "rgba(20,184,166,0.3)" },
-  pediuVideo: { label: "Pediu vídeo", color: "#a855f7", bg: "rgba(168,85,247,0.12)", border: "rgba(168,85,247,0.3)" },
-  videoNudge: { label: "Vídeo", color: "#8b5cf6", bg: "rgba(139,92,246,0.12)", border: "rgba(139,92,246,0.3)" },
-  softNudge: { label: "Dia 3",  color: "#f59e0b", bg: "rgba(245,158,11,0.12)", border: "rgba(245,158,11,0.3)" },
-  valueDrop: { label: "Dia 7",  color: "#f97316", bg: "rgba(249,115,22,0.12)", border: "rgba(249,115,22,0.3)" },
-  lastTouch: { label: "Dia 14", color: "#ea580c", bg: "rgba(234,88,12,0.12)",  border: "rgba(234,88,12,0.3)" },
+  voiceNote: { label: "Nota de voz", color: "var(--sl-info)", bg: "color-mix(in srgb, var(--sl-info) 12%, transparent)", border: "color-mix(in srgb, var(--sl-info) 30%, transparent)" },
+  pediuVideo: { label: "Pediu vídeo", color: "var(--sl-info)", bg: "color-mix(in srgb, var(--sl-info) 12%, transparent)", border: "color-mix(in srgb, var(--sl-info) 30%, transparent)" },
+  videoNudge: { label: "Vídeo", color: "var(--sl-info)", bg: "color-mix(in srgb, var(--sl-info) 12%, transparent)", border: "color-mix(in srgb, var(--sl-info) 30%, transparent)" },
+  softNudge: { label: "Dia 3",  color: "var(--sl-warning)", bg: "color-mix(in srgb, var(--sl-warning) 12%, transparent)", border: "color-mix(in srgb, var(--sl-warning) 30%, transparent)" },
+  valueDrop: { label: "Dia 7",  color: "var(--sl-warning)", bg: "color-mix(in srgb, var(--sl-warning) 12%, transparent)", border: "color-mix(in srgb, var(--sl-warning) 30%, transparent)" },
+  lastTouch: { label: "Dia 14", color: "var(--sl-warning)", bg: "color-mix(in srgb, var(--sl-warning) 12%, transparent)",  border: "color-mix(in srgb, var(--sl-warning) 30%, transparent)" },
 };
 
 export default function FollowUpTray({ onAfterCopy }) {
@@ -142,11 +142,11 @@ export default function FollowUpTray({ onAfterCopy }) {
           width: 56,
           height: 56,
           borderRadius: "50%",
-          background: total > 0 ? "#7A0E18" : "#1a1a1a",
-          color: "#fff",
-          border: total > 0 ? "1px solid rgba(255,255,255,0.1)" : "1px solid rgba(255,255,255,0.06)",
+          background: total > 0 ? "var(--sl-primary)" : "var(--sl-surface-raised)",
+          color: "var(--sl-text)",
+          border: total > 0 ? "1px solid var(--sl-border-strong)" : "1px solid var(--sl-border)",
           boxShadow: total > 0
-            ? "0 8px 24px rgba(122,14,24,0.4), 0 2px 6px rgba(0,0,0,0.4)"
+            ? "0 8px 24px color-mix(in srgb, var(--sl-primary) 40%, transparent), 0 2px 6px rgba(0,0,0,0.4)"
             : "0 4px 14px rgba(0,0,0,0.4)",
           cursor: "pointer",
           display: "flex",
@@ -170,14 +170,14 @@ export default function FollowUpTray({ onAfterCopy }) {
             height: 22,
             padding: "0 6px",
             borderRadius: 11,
-            background: "#fff",
-            color: "#7A0E18",
-            fontSize: 11,
+            background: "var(--sl-text)",
+            color: "var(--sl-accent-text)",
+            fontSize: 12,
             fontWeight: 700,
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            border: "2px solid #0a0a0a",
+            border: "2px solid var(--sl-bg)",
             boxSizing: "border-box",
           }}>
             {total}
@@ -194,8 +194,8 @@ export default function FollowUpTray({ onAfterCopy }) {
           width: 380,
           maxWidth: "calc(100vw - 48px)",
           maxHeight: "calc(100vh - 120px)",
-          background: "#0f0f0f",
-          border: "1px solid rgba(255,255,255,0.08)",
+          background: "var(--sl-surface)",
+          border: "1px solid var(--sl-border)",
           borderRadius: 12,
           boxShadow: "0 16px 40px rgba(0,0,0,0.6)",
           zIndex: 1001,
@@ -204,19 +204,19 @@ export default function FollowUpTray({ onAfterCopy }) {
           overflow: "hidden",
         }}>
           {/* Header */}
-          <div style={{ padding: "14px 16px 12px", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
+          <div style={{ padding: "14px 16px 12px", borderBottom: "1px solid var(--sl-border)" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
               <div>
-                <div style={{ fontSize: 13, fontWeight: 700, color: "#f5f5f5" }}>
+                <div style={{ fontSize: 13, fontWeight: 700, color: "var(--sl-text)" }}>
                   Os teus follow-ups
                 </div>
-                <div style={{ fontSize: 10, color: "#666", marginTop: 2 }}>
+                <div style={{ fontSize: 12, color: "var(--sl-text-faint)", marginTop: 2 }}>
                   {total === 0 ? "Tudo em dia ✓" : `${total} por fazer · só os teus`}
                 </div>
               </div>
               <button
                 onClick={() => setOpen(false)}
-                style={{ background: "transparent", border: "none", color: "#666", fontSize: 18, cursor: "pointer", padding: 0, fontFamily: "inherit" }}
+                style={{ background: "transparent", border: "none", color: "var(--sl-text-faint)", fontSize: 18, cursor: "pointer", padding: 0, fontFamily: "inherit" }}
                 aria-label="Fechar"
               >
                 ×
@@ -233,7 +233,7 @@ export default function FollowUpTray({ onAfterCopy }) {
                       background: m.bg,
                       border: `1px solid ${m.border}`,
                       color: m.color,
-                      fontSize: 9,
+                      fontSize: 12,
                       fontWeight: 700,
                       letterSpacing: "0.05em",
                       textTransform: "uppercase",
@@ -249,14 +249,14 @@ export default function FollowUpTray({ onAfterCopy }) {
           {/* List */}
           <div style={{ flex: 1, overflowY: "auto", padding: "8px 8px 12px" }}>
             {loading ? (
-              <div style={{ textAlign: "center", padding: 30, color: "#555", fontSize: 12 }}>
+              <div style={{ textAlign: "center", padding: 30, color: "var(--sl-text-faint)", fontSize: 12 }}>
                 A carregar…
               </div>
             ) : total === 0 ? (
               <div style={{ textAlign: "center", padding: "40px 20px" }}>
                 <div style={{ fontSize: 32, opacity: 0.3, marginBottom: 8 }}>✓</div>
-                <div style={{ fontSize: 12, color: "#666" }}>Sem follow-ups pendentes</div>
-                <div style={{ fontSize: 10, color: "#444", marginTop: 4 }}>Volta amanhã.</div>
+                <div style={{ fontSize: 12, color: "var(--sl-text-faint)" }}>Sem follow-ups pendentes</div>
+                <div style={{ fontSize: 12, color: "var(--sl-text-faint)", marginTop: 4 }}>Volta amanhã.</div>
               </div>
             ) : (
               items.map(item => {
@@ -267,8 +267,8 @@ export default function FollowUpTray({ onAfterCopy }) {
                   <div key={item.id} style={{
                     margin: "4px 4px 6px",
                     padding: "10px 12px",
-                    background: "#161616",
-                    border: "1px solid rgba(255,255,255,0.04)",
+                    background: "var(--sl-surface)",
+                    border: "1px solid var(--sl-border)",
                     borderRadius: 8,
                   }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
@@ -280,18 +280,18 @@ export default function FollowUpTray({ onAfterCopy }) {
                         />
                       ) : (
                         <div style={{
-                          width: 28, height: 28, borderRadius: "50%", background: "#262626",
+                          width: 28, height: 28, borderRadius: "50%", background: "var(--sl-surface-raised)",
                           display: "flex", alignItems: "center", justifyContent: "center",
-                          fontSize: 11, fontWeight: 700, color: "#666", flexShrink: 0,
+                          fontSize: 12, fontWeight: 700, color: "var(--sl-text-faint)", flexShrink: 0,
                         }}>
                           {(item.name || "?")[0].toUpperCase()}
                         </div>
                       )}
                       <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: 12, fontWeight: 600, color: "#f5f5f5", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                        <div style={{ fontSize: 12, fontWeight: 600, color: "var(--sl-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                           {item.name}
                         </div>
-                        <div style={{ fontSize: 10, color: "#555", marginTop: 1 }}>
+                        <div style={{ fontSize: 12, color: "var(--sl-text-faint)", marginTop: 1 }}>
                           {item.niche ? `${item.niche} · ` : ""}DM há {item.daysSinceDM}d
                         </div>
                       </div>
@@ -301,7 +301,7 @@ export default function FollowUpTray({ onAfterCopy }) {
                         background: m.bg,
                         border: `1px solid ${m.border}`,
                         color: m.color,
-                        fontSize: 9,
+                        fontSize: 12,
                         fontWeight: 700,
                         letterSpacing: "0.05em",
                         textTransform: "uppercase",
@@ -314,17 +314,17 @@ export default function FollowUpTray({ onAfterCopy }) {
                       <div style={{
                         margin: "0 0 8px",
                         padding: "8px 10px",
-                        background: "rgba(20,184,166,0.06)",
-                        border: "1px solid rgba(20,184,166,0.18)",
+                        background: "color-mix(in srgb, var(--sl-info) 6%, transparent)",
+                        border: "1px solid color-mix(in srgb, var(--sl-info) 18%, transparent)",
                         borderRadius: 6,
-                        fontSize: 11,
+                        fontSize: 12,
                         lineHeight: 1.5,
-                        color: "#cbd5d1",
+                        color: "var(--sl-text-muted)",
                         maxHeight: 132,
                         overflowY: "auto",
                         whiteSpace: "pre-wrap",
                       }}>
-                        <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.05em", textTransform: "uppercase", color: "#14b8a6", marginBottom: 4 }}>
+                        <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: "0.05em", textTransform: "uppercase", color: "var(--sl-info)", marginBottom: 4 }}>
                           Guião do áudio · lê em voz alta
                         </div>
                         {item.dmText}
@@ -336,10 +336,10 @@ export default function FollowUpTray({ onAfterCopy }) {
                         style={{
                           padding: "6px 10px",
                           borderRadius: 5,
-                          border: "1px solid rgba(255,255,255,0.06)",
+                          border: "1px solid var(--sl-border)",
                           background: "transparent",
-                          color: "#888",
-                          fontSize: 10,
+                          color: "var(--sl-text-muted)",
+                          fontSize: 12,
                           fontWeight: 600,
                           textDecoration: "none",
                           fontFamily: "inherit",
@@ -358,9 +358,9 @@ export default function FollowUpTray({ onAfterCopy }) {
                           padding: "6px 10px",
                           borderRadius: 5,
                           border: "none",
-                          background: wasCopied ? "rgba(34,197,94,0.15)" : isBusy ? "#444" : "#7A0E18",
-                          color: wasCopied ? "#22c55e" : "#fff",
-                          fontSize: 10,
+                          background: wasCopied ? "color-mix(in srgb, var(--sl-success) 15%, transparent)" : isBusy ? "var(--sl-text-faint)" : "var(--sl-primary)",
+                          color: wasCopied ? "var(--sl-success)" : "var(--sl-text)",
+                          fontSize: 12,
                           fontWeight: 700,
                           cursor: isBusy ? "wait" : "pointer",
                           fontFamily: "inherit",

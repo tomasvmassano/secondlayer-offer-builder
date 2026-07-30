@@ -10,22 +10,22 @@ const AREAS = [
 ];
 
 const PRIORITY_STYLES = {
-  low: { bg: "rgba(255,255,255,0.03)", border: "rgba(255,255,255,0.06)", color: "#666", label: "Baixa" },
-  medium: { bg: "rgba(234,179,8,0.08)", border: "rgba(234,179,8,0.2)", color: "#eab308", label: "Média" },
-  high: { bg: "rgba(239,68,68,0.08)", border: "rgba(239,68,68,0.2)", color: "#ef4444", label: "Alta" },
+  low: { bg: "color-mix(in srgb, var(--sl-text) 3%, transparent)", border: "color-mix(in srgb, var(--sl-text) 6%, transparent)", color: "var(--sl-text-faint)", label: "Baixa" },
+  medium: { bg: "color-mix(in srgb, var(--sl-warning) 8%, transparent)", border: "color-mix(in srgb, var(--sl-warning) 20%, transparent)", color: "var(--sl-warning)", label: "Média" },
+  high: { bg: "color-mix(in srgb, var(--sl-danger) 8%, transparent)", border: "color-mix(in srgb, var(--sl-danger) 20%, transparent)", color: "var(--sl-danger)", label: "Alta" },
 };
 
 const STATUS_STYLES = {
-  new: { bg: "rgba(59,130,246,0.1)", border: "rgba(59,130,246,0.25)", color: "#3b82f6", label: "Novo" },
-  reviewing: { bg: "rgba(234,179,8,0.1)", border: "rgba(234,179,8,0.25)", color: "#eab308", label: "Em revisão" },
-  building: { bg: "rgba(122,14,24,0.1)", border: "rgba(122,14,24,0.25)", color: "#7A0E18", label: "A construir" },
-  done: { bg: "rgba(34,197,94,0.1)", border: "rgba(34,197,94,0.25)", color: "#22c55e", label: "Feito" },
-  wont_do: { bg: "rgba(255,255,255,0.03)", border: "rgba(255,255,255,0.06)", color: "#555", label: "Não vai ser feito" },
+  new: { bg: "color-mix(in srgb, var(--sl-info) 10%, transparent)", border: "color-mix(in srgb, var(--sl-info) 25%, transparent)", color: "var(--sl-info)", label: "Novo" },
+  reviewing: { bg: "color-mix(in srgb, var(--sl-warning) 10%, transparent)", border: "color-mix(in srgb, var(--sl-warning) 25%, transparent)", color: "var(--sl-warning)", label: "Em revisão" },
+  building: { bg: "color-mix(in srgb, var(--sl-primary) 10%, transparent)", border: "color-mix(in srgb, var(--sl-primary) 25%, transparent)", color: "var(--sl-accent-text)", label: "A construir" },
+  done: { bg: "color-mix(in srgb, var(--sl-success) 10%, transparent)", border: "color-mix(in srgb, var(--sl-success) 25%, transparent)", color: "var(--sl-success)", label: "Feito" },
+  wont_do: { bg: "color-mix(in srgb, var(--sl-text) 3%, transparent)", border: "color-mix(in srgb, var(--sl-text) 6%, transparent)", color: "var(--sl-text-faint)", label: "Não vai ser feito" },
 };
 
 const STATUS_ORDER = ["new", "reviewing", "building", "done", "wont_do"];
 
-const inputStyle = { width: "100%", padding: "10px 14px", background: "#1a1a1a", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 8, color: "#f5f5f5", fontSize: 13, fontFamily: "inherit", outline: "none", boxSizing: "border-box", resize: "vertical" };
+const inputStyle = { width: "100%", padding: "10px 14px", background: "var(--sl-surface-raised)", border: "1px solid var(--sl-border)", borderRadius: 8, color: "var(--sl-text)", fontSize: 13, fontFamily: "inherit", outline: "none", boxSizing: "border-box", resize: "vertical" };
 
 export default function SupportPage() {
   const [tickets, setTickets] = useState([]);
@@ -197,15 +197,15 @@ export default function SupportPage() {
   };
 
   return (
-    <div style={{ minHeight: "100vh", background: "#0a0a0a", color: "#f5f5f5", fontFamily: "'Inter', -apple-system, sans-serif" }}>
+    <div style={{ minHeight: "100vh", background: "var(--sl-bg)", color: "var(--sl-text)", fontFamily: "'Inter', -apple-system, sans-serif" }}>
       {/* Header */}
-      <div style={{ padding: "20px 28px", borderBottom: "1px solid rgba(255,255,255,0.04)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+      <div style={{ padding: "20px 28px", borderBottom: "1px solid var(--sl-border)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
           <a href="/" style={{ display: "flex", alignItems: "center", textDecoration: "none" }}><img src={LOGO_B64} alt="SL" style={{ height: 16, opacity: 0.85 }} /></a>
-          <span style={{ color: "#333", fontSize: 14 }}>|</span>
-          <span style={{ fontSize: 10, fontWeight: 600, letterSpacing: "0.12em", textTransform: "uppercase", color: "#888" }}>Feedback & Suporte</span>
+          <span style={{ color: "var(--sl-border-strong)", fontSize: 14 }}>|</span>
+          <span style={{ fontSize: 12, fontWeight: 600, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--sl-text-muted)" }}>Feedback & Suporte</span>
         </div>
-        <a href="/" style={{ fontSize: 12, color: "#555", textDecoration: "none" }}>Voltar</a>
+        <a href="/" style={{ fontSize: 12, color: "var(--sl-text-faint)", textDecoration: "none" }}>Voltar</a>
       </div>
 
       <div className="sl-page" style={{ maxWidth: 800, margin: "0 auto", padding: "32px 24px 80px" }}>
@@ -215,7 +215,7 @@ export default function SupportPage() {
           <div>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>
               <h1 style={{ fontSize: 20, fontWeight: 700, margin: 0 }}>Novo Ticket</h1>
-              <button onClick={() => setView("list")} style={{ padding: "6px 14px", borderRadius: 6, border: "1px solid rgba(255,255,255,0.08)", background: "transparent", color: "#888", fontSize: 11, cursor: "pointer", fontFamily: "inherit" }}>Cancelar</button>
+              <button onClick={() => setView("list")} style={{ padding: "6px 14px", borderRadius: 6, border: "1px solid var(--sl-border)", background: "transparent", color: "var(--sl-text-muted)", fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>Cancelar</button>
             </div>
 
             {/* Type */}
@@ -225,7 +225,7 @@ export default function SupportPage() {
                 { key: "bug", label: "Reportar bug" },
               ].map(t => (
                 <button key={t.key} onClick={() => setForm(f => ({ ...f, type: t.key }))}
-                  style={{ flex: 1, padding: "14px 16px", borderRadius: 8, border: `1px solid ${form.type === t.key ? "rgba(122,14,24,0.3)" : "rgba(255,255,255,0.06)"}`, background: form.type === t.key ? "rgba(122,14,24,0.08)" : "#141414", color: form.type === t.key ? "#f5f5f5" : "#888", fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", textAlign: "left" }}>
+                  style={{ flex: 1, padding: "14px 16px", borderRadius: 8, border: `1px solid ${form.type === t.key ? "color-mix(in srgb, var(--sl-primary) 30%, transparent)" : "color-mix(in srgb, var(--sl-text) 6%, transparent)"}`, background: form.type === t.key ? "color-mix(in srgb, var(--sl-primary) 8%, transparent)" : "var(--sl-surface)", color: form.type === t.key ? "var(--sl-text)" : "var(--sl-text-muted)", fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", textAlign: "left" }}>
                   {t.label}
                 </button>
               ))}
@@ -234,13 +234,13 @@ export default function SupportPage() {
             {/* Row: Area + Priority + Submitter */}
             <div className="sl-grid-3" style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12, marginBottom: 16 }}>
               <div>
-                <label style={{ display: "block", fontSize: 10, fontWeight: 600, color: "#555", marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.05em" }}>Área</label>
+                <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "var(--sl-text-faint)", marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.05em" }}>Área</label>
                 <select style={inputStyle} value={form.area} onChange={e => setForm(f => ({ ...f, area: e.target.value }))}>
                   {AREAS.map(a => <option key={a} value={a}>{a}</option>)}
                 </select>
               </div>
               <div>
-                <label style={{ display: "block", fontSize: 10, fontWeight: 600, color: "#555", marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.05em" }}>Prioridade</label>
+                <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "var(--sl-text-faint)", marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.05em" }}>Prioridade</label>
                 <select style={inputStyle} value={form.priority} onChange={e => setForm(f => ({ ...f, priority: e.target.value }))}>
                   <option value="low">Low</option>
                   <option value="medium">Medium</option>
@@ -248,22 +248,22 @@ export default function SupportPage() {
                 </select>
               </div>
               <div>
-                <label style={{ display: "block", fontSize: 10, fontWeight: 600, color: "#555", marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.05em" }}>O teu nome</label>
+                <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "var(--sl-text-faint)", marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.05em" }}>O teu nome</label>
                 <input type="text" style={inputStyle} placeholder="Ex: Raul" value={form.submitter} onChange={e => setForm(f => ({ ...f, submitter: e.target.value }))} />
               </div>
             </div>
 
             {/* 1. What */}
             <div style={{ marginBottom: 16 }}>
-              <label style={{ display: "block", fontSize: 10, fontWeight: 600, color: "#555", marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.05em" }}>
-                {form.type === "bug" ? "O que está partido?" : "O que queres mudar?"} <span style={{ color: "#7A0E18" }}>*</span>
+              <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "var(--sl-text-faint)", marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                {form.type === "bug" ? "O que está partido?" : "O que queres mudar?"} <span style={{ color: "var(--sl-accent-text)" }}>*</span>
               </label>
               <input type="text" style={inputStyle} placeholder={form.type === "bug" ? "Ex: O DM Writer não gera a segunda DM" : "Ex: Adicionar campo de email ao perfil do criador"} value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} />
             </div>
 
             {/* 2. Why */}
             <div style={{ marginBottom: 16 }}>
-              <label style={{ display: "block", fontSize: 10, fontWeight: 600, color: "#555", marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+              <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "var(--sl-text-faint)", marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.05em" }}>
                 {form.type === "bug" ? "O que deveria acontecer?" : "Porquê?"}
               </label>
               <textarea style={{ ...inputStyle, minHeight: 70 }} placeholder={form.type === "bug" ? "Descreve o comportamento esperado vs. o que acontece" : "Porque é que isto é importante para o workflow?"} value={form.why} onChange={e => setForm(f => ({ ...f, why: e.target.value }))} />
@@ -271,7 +271,7 @@ export default function SupportPage() {
 
             {/* 3. How */}
             <div style={{ marginBottom: 16 }}>
-              <label style={{ display: "block", fontSize: 10, fontWeight: 600, color: "#555", marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+              <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "var(--sl-text-faint)", marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.05em" }}>
                 {form.type === "bug" ? "Passos para reproduzir" : "Como farias?"}
               </label>
               <textarea style={{ ...inputStyle, minHeight: 70 }} placeholder={form.type === "bug" ? "1. Abrir o creator X\n2. Clicar em DM Writer\n3. ..." : "Descreve como imaginas que deveria funcionar"} value={form.suggestion} onChange={e => setForm(f => ({ ...f, suggestion: e.target.value }))} />
@@ -279,7 +279,7 @@ export default function SupportPage() {
 
             {/* 4. Example */}
             <div style={{ marginBottom: 16 }}>
-              <label style={{ display: "block", fontSize: 10, fontWeight: 600, color: "#555", marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+              <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "var(--sl-text-faint)", marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.05em" }}>
                 {form.type === "bug" ? "Screenshot ou erro" : "Exemplo real ou resultado esperado"}
               </label>
               <textarea style={{ ...inputStyle, minHeight: 70 }} placeholder={form.type === "bug" ? "Cola aqui o erro ou descreve o que vês no ecrã" : "Mostra um exemplo concreto do resultado final que esperas"} value={form.example} onChange={e => setForm(f => ({ ...f, example: e.target.value }))} />
@@ -287,8 +287,8 @@ export default function SupportPage() {
 
             {/* 5. Attachments — drag-drop files + optional URL */}
             <div style={{ marginBottom: 24 }}>
-              <label style={{ display: "block", fontSize: 10, fontWeight: 600, color: "#555", marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.05em" }}>
-                Anexos <span style={{ fontWeight: 400, color: "#333" }}>(arrasta ficheiros ou clica · max {MAX_FILES} ficheiros · 1MB cada)</span>
+              <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "var(--sl-text-faint)", marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                Anexos <span style={{ fontWeight: 400, color: "var(--sl-border-strong)" }}>(arrasta ficheiros ou clica · max {MAX_FILES} ficheiros · 1MB cada)</span>
               </label>
 
               {/* Dropzone — clickable wrapper around a hidden <input type=file>. */}
@@ -301,8 +301,8 @@ export default function SupportPage() {
                   display: "block",
                   padding: "22px 18px",
                   borderRadius: 8,
-                  border: `1.5px dashed ${dragActive ? "rgba(122,14,24,0.6)" : "rgba(255,255,255,0.12)"}`,
-                  background: dragActive ? "rgba(122,14,24,0.06)" : "#141414",
+                  border: `1.5px dashed ${dragActive ? "color-mix(in srgb, var(--sl-primary) 60%, transparent)" : "color-mix(in srgb, var(--sl-text) 12%, transparent)"}`,
+                  background: dragActive ? "color-mix(in srgb, var(--sl-primary) 6%, transparent)" : "var(--sl-surface)",
                   textAlign: "center",
                   cursor: "pointer",
                   transition: "border-color 0.12s, background 0.12s",
@@ -314,10 +314,10 @@ export default function SupportPage() {
                   style={{ display: "none" }}
                   onChange={(e) => { if (e.target.files?.length) ingestFiles(e.target.files); e.target.value = ""; }}
                 />
-                <div style={{ fontSize: 13, color: dragActive ? "#f5f5f5" : "#888", fontWeight: 500 }}>
+                <div style={{ fontSize: 13, color: dragActive ? "var(--sl-text)" : "var(--sl-text-muted)", fontWeight: 500 }}>
                   {dragActive ? "Solta para anexar" : "Arrasta ficheiros aqui ou clica"}
                 </div>
-                <div style={{ fontSize: 10, color: "#555", marginTop: 4 }}>
+                <div style={{ fontSize: 12, color: "var(--sl-text-faint)", marginTop: 4 }}>
                   Screenshots, PDFs, logs, etc.
                 </div>
               </label>
@@ -328,19 +328,19 @@ export default function SupportPage() {
                   {attachmentFiles.map((f, i) => {
                     const isImg = f.type?.startsWith("image/");
                     return (
-                      <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 12px", background: "#1a1a1a", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 6 }}>
+                      <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 12px", background: "var(--sl-surface-raised)", border: "1px solid var(--sl-border)", borderRadius: 6 }}>
                         {isImg ? (
                           <img src={f.dataUrl} alt={f.name} style={{ width: 32, height: 32, objectFit: "cover", borderRadius: 4, flexShrink: 0 }} />
                         ) : (
-                          <div style={{ width: 32, height: 32, borderRadius: 4, background: "#262626", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 9, fontWeight: 700, color: "#888", flexShrink: 0 }}>
+                          <div style={{ width: 32, height: 32, borderRadius: 4, background: "var(--sl-surface-raised)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700, color: "var(--sl-text-muted)", flexShrink: 0 }}>
                             {(f.name.split(".").pop() || "?").slice(0, 4).toUpperCase()}
                           </div>
                         )}
                         <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ fontSize: 12, color: "#ddd", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{f.name}</div>
-                          <div style={{ fontSize: 10, color: "#555" }}>{(f.size / 1024).toFixed(0)} KB</div>
+                          <div style={{ fontSize: 12, color: "var(--sl-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{f.name}</div>
+                          <div style={{ fontSize: 12, color: "var(--sl-text-faint)" }}>{(f.size / 1024).toFixed(0)} KB</div>
                         </div>
-                        <button type="button" onClick={() => removeFile(i)} style={{ padding: "4px 10px", borderRadius: 4, border: "1px solid rgba(255,255,255,0.08)", background: "transparent", color: "#888", fontSize: 10, cursor: "pointer", fontFamily: "inherit" }}>
+                        <button type="button" onClick={() => removeFile(i)} style={{ padding: "4px 10px", borderRadius: 4, border: "1px solid var(--sl-border)", background: "transparent", color: "var(--sl-text-muted)", fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>
                           Remover
                         </button>
                       </div>
@@ -350,7 +350,7 @@ export default function SupportPage() {
               )}
 
               {uploadError && (
-                <div style={{ marginTop: 8, fontSize: 11, color: "#ef4444" }}>{uploadError}</div>
+                <div style={{ marginTop: 8, fontSize: 12, color: "var(--sl-danger)" }}>{uploadError}</div>
               )}
 
               {/* Optional URL field — kept for Drive / Notion links. */}
@@ -364,7 +364,7 @@ export default function SupportPage() {
             </div>
 
             <button onClick={submitTicket} disabled={saving || !form.title.trim()}
-              style={{ padding: "14px 32px", borderRadius: 8, border: "none", background: form.title.trim() ? "#7A0E18" : "#333", color: form.title.trim() ? "#fff" : "#666", fontSize: 14, fontWeight: 600, cursor: saving ? "wait" : form.title.trim() ? "pointer" : "default", fontFamily: "inherit", width: "100%" }}>
+              style={{ padding: "14px 32px", borderRadius: 8, border: "none", background: form.title.trim() ? "var(--sl-primary)" : "var(--sl-border-strong)", color: form.title.trim() ? "var(--sl-text)" : "var(--sl-text-faint)", fontSize: 14, fontWeight: 600, cursor: saving ? "wait" : form.title.trim() ? "pointer" : "default", fontFamily: "inherit", width: "100%" }}>
               {saving ? "A enviar..." : "Submeter Ticket"}
             </button>
           </div>
@@ -378,19 +378,19 @@ export default function SupportPage() {
           return (
             <div>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
-                <button onClick={() => { setView("list"); setExpandedTicket(null); }} style={{ padding: "6px 14px", borderRadius: 6, border: "1px solid rgba(255,255,255,0.08)", background: "transparent", color: "#888", fontSize: 11, cursor: "pointer", fontFamily: "inherit" }}>← Voltar</button>
-                <button onClick={() => deleteTicket(t.id)} style={{ padding: "6px 14px", borderRadius: 6, border: "1px solid rgba(239,68,68,0.2)", background: "transparent", color: "#ef4444", fontSize: 11, cursor: "pointer", fontFamily: "inherit" }}>Eliminar</button>
+                <button onClick={() => { setView("list"); setExpandedTicket(null); }} style={{ padding: "6px 14px", borderRadius: 6, border: "1px solid var(--sl-border)", background: "transparent", color: "var(--sl-text-muted)", fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>← Voltar</button>
+                <button onClick={() => deleteTicket(t.id)} style={{ padding: "6px 14px", borderRadius: 6, border: "1px solid color-mix(in srgb, var(--sl-danger) 20%, transparent)", background: "transparent", color: "var(--sl-danger)", fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>Eliminar</button>
               </div>
 
               {/* Header */}
               <div style={{ marginBottom: 20 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
-                  <span style={{ fontSize: 10, fontWeight: 700, color: t.type === "bug" ? "#ef4444" : "#3b82f6", padding: "2px 6px", background: t.type === "bug" ? "rgba(239,68,68,0.1)" : "rgba(59,130,246,0.1)", borderRadius: 4, textTransform: "uppercase" }}>{t.type === "bug" ? "Bug" : "Idea"}</span>
+                  <span style={{ fontSize: 12, fontWeight: 700, color: t.type === "bug" ? "var(--sl-danger)" : "var(--sl-info)", padding: "2px 6px", background: t.type === "bug" ? "color-mix(in srgb, var(--sl-danger) 10%, transparent)" : "color-mix(in srgb, var(--sl-info) 10%, transparent)", borderRadius: 4, textTransform: "uppercase" }}>{t.type === "bug" ? "Bug" : "Idea"}</span>
                   <span style={{ fontSize: 8, fontWeight: 700, padding: "2px 8px", borderRadius: 4, background: pri.bg, border: `1px solid ${pri.border}`, color: pri.color, letterSpacing: "0.06em", textTransform: "uppercase" }}>{pri.label}</span>
-                  <span style={{ fontSize: 9, color: "#555" }}>{t.area}</span>
+                  <span style={{ fontSize: 12, color: "var(--sl-text-faint)" }}>{t.area}</span>
                 </div>
                 <h1 style={{ fontSize: 22, fontWeight: 700, margin: "0 0 6px" }}>{t.title}</h1>
-                <div style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 11, color: "#555" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 12, color: "var(--sl-text-faint)" }}>
                   <span>{t.submitter || "Anónimo"}</span>
                   <span>·</span>
                   <span>{new Date(t.createdAt).toLocaleDateString("pt-PT", { day: "numeric", month: "short", year: "numeric" })}</span>
@@ -404,7 +404,7 @@ export default function SupportPage() {
                   const active = t.status === s;
                   return (
                     <button key={s} onClick={() => updateStatus(t.id, s)}
-                      style={{ padding: "6px 12px", borderRadius: 6, border: `1px solid ${active ? st.border : "rgba(255,255,255,0.06)"}`, background: active ? st.bg : "transparent", color: active ? st.color : "#555", fontSize: 10, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", letterSpacing: "0.04em" }}>
+                      style={{ padding: "6px 12px", borderRadius: 6, border: `1px solid ${active ? st.border : "color-mix(in srgb, var(--sl-text) 6%, transparent)"}`, background: active ? st.bg : "transparent", color: active ? st.color : "var(--sl-text-faint)", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", letterSpacing: "0.04em" }}>
                       {st.label}
                     </button>
                   );
@@ -417,33 +417,33 @@ export default function SupportPage() {
                 { label: t.type === "bug" ? "Passos para reproduzir" : "Sugestão de como fazer", value: t.suggestion },
                 { label: t.type === "bug" ? "Screenshot / Erro" : "Exemplo / Resultado esperado", value: t.example },
               ].filter(s => s.value).map((s, i) => (
-                <div key={i} style={{ marginBottom: 16, padding: "16px 18px", borderRadius: 8, background: "#141414", border: "1px solid rgba(255,255,255,0.04)" }}>
-                  <p style={{ fontSize: 10, fontWeight: 600, color: "#555", textTransform: "uppercase", letterSpacing: "0.06em", margin: "0 0 8px" }}>{s.label}</p>
-                  <p style={{ fontSize: 13, color: "#ccc", lineHeight: 1.7, margin: 0, whiteSpace: "pre-wrap" }}>{s.value}</p>
+                <div key={i} style={{ marginBottom: 16, padding: "16px 18px", borderRadius: 8, background: "var(--sl-surface)", border: "1px solid var(--sl-border)" }}>
+                  <p style={{ fontSize: 12, fontWeight: 600, color: "var(--sl-text-faint)", textTransform: "uppercase", letterSpacing: "0.06em", margin: "0 0 8px" }}>{s.label}</p>
+                  <p style={{ fontSize: 13, color: "var(--sl-text-muted)", lineHeight: 1.7, margin: 0, whiteSpace: "pre-wrap" }}>{s.value}</p>
                 </div>
               ))}
 
               {/* Uploaded files (drag-drop). Click an image to enlarge,
                   click a non-image to download. */}
               {Array.isArray(t.attachmentFiles) && t.attachmentFiles.length > 0 && (
-                <div style={{ marginBottom: 16, padding: "16px 18px", borderRadius: 8, background: "#141414", border: "1px solid rgba(255,255,255,0.04)" }}>
-                  <p style={{ fontSize: 10, fontWeight: 600, color: "#555", textTransform: "uppercase", letterSpacing: "0.06em", margin: "0 0 10px" }}>Ficheiros anexados</p>
+                <div style={{ marginBottom: 16, padding: "16px 18px", borderRadius: 8, background: "var(--sl-surface)", border: "1px solid var(--sl-border)" }}>
+                  <p style={{ fontSize: 12, fontWeight: 600, color: "var(--sl-text-faint)", textTransform: "uppercase", letterSpacing: "0.06em", margin: "0 0 10px" }}>Ficheiros anexados</p>
                   <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
                     {t.attachmentFiles.map((f, i) => {
                       const isImg = f.type?.startsWith("image/");
                       return (
                         <a key={i} href={f.dataUrl} download={f.name} target="_blank" rel="noopener noreferrer"
-                          style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 12px", background: "#1a1a1a", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 6, textDecoration: "none", maxWidth: 280 }}>
+                          style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 12px", background: "var(--sl-surface-raised)", border: "1px solid var(--sl-border)", borderRadius: 6, textDecoration: "none", maxWidth: 280 }}>
                           {isImg ? (
                             <img src={f.dataUrl} alt={f.name} style={{ width: 40, height: 40, objectFit: "cover", borderRadius: 4, flexShrink: 0 }} />
                           ) : (
-                            <div style={{ width: 40, height: 40, borderRadius: 4, background: "#262626", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, fontWeight: 700, color: "#888", flexShrink: 0 }}>
+                            <div style={{ width: 40, height: 40, borderRadius: 4, background: "var(--sl-surface-raised)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700, color: "var(--sl-text-muted)", flexShrink: 0 }}>
                               {(f.name.split(".").pop() || "?").slice(0, 4).toUpperCase()}
                             </div>
                           )}
                           <div style={{ flex: 1, minWidth: 0 }}>
-                            <div style={{ fontSize: 12, color: "#ddd", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{f.name}</div>
-                            <div style={{ fontSize: 10, color: "#555" }}>{((f.size || 0) / 1024).toFixed(0)} KB</div>
+                            <div style={{ fontSize: 12, color: "var(--sl-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{f.name}</div>
+                            <div style={{ fontSize: 12, color: "var(--sl-text-faint)" }}>{((f.size || 0) / 1024).toFixed(0)} KB</div>
                           </div>
                         </a>
                       );
@@ -453,9 +453,9 @@ export default function SupportPage() {
               )}
 
               {t.attachments && (
-                <div style={{ marginBottom: 16, padding: "12px 18px", borderRadius: 8, background: "#141414", border: "1px solid rgba(255,255,255,0.04)" }}>
-                  <p style={{ fontSize: 10, fontWeight: 600, color: "#555", textTransform: "uppercase", letterSpacing: "0.06em", margin: "0 0 6px" }}>Link</p>
-                  <a href={t.attachments} target="_blank" rel="noopener noreferrer" style={{ fontSize: 12, color: "#3b82f6", wordBreak: "break-all" }}>{t.attachments}</a>
+                <div style={{ marginBottom: 16, padding: "12px 18px", borderRadius: 8, background: "var(--sl-surface)", border: "1px solid var(--sl-border)" }}>
+                  <p style={{ fontSize: 12, fontWeight: 600, color: "var(--sl-text-faint)", textTransform: "uppercase", letterSpacing: "0.06em", margin: "0 0 6px" }}>Link</p>
+                  <a href={t.attachments} target="_blank" rel="noopener noreferrer" style={{ fontSize: 12, color: "var(--sl-info)", wordBreak: "break-all" }}>{t.attachments}</a>
                 </div>
               )}
             </div>
@@ -468,7 +468,7 @@ export default function SupportPage() {
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>
               <h1 style={{ fontSize: 20, fontWeight: 700, margin: 0 }}>Feedback & Suporte</h1>
               <button onClick={() => setView("new")}
-                style={{ padding: "10px 20px", borderRadius: 8, border: "none", background: "#7A0E18", color: "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>
+                style={{ padding: "10px 20px", borderRadius: 8, border: "none", background: "var(--sl-primary)", color: "var(--sl-primary-contrast)", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>
                 + Novo Ticket
               </button>
             </div>
@@ -478,7 +478,7 @@ export default function SupportPage() {
               <div style={{ display: "flex", gap: 4, marginRight: 12 }}>
                 {["all", "suggestion", "bug"].map(t => (
                   <button key={t} onClick={() => setTypeFilter(t)}
-                    style={{ padding: "5px 10px", borderRadius: 5, border: `1px solid ${typeFilter === t ? "rgba(122,14,24,0.3)" : "rgba(255,255,255,0.06)"}`, background: typeFilter === t ? "rgba(122,14,24,0.08)" : "transparent", color: typeFilter === t ? "#f5f5f5" : "#555", fontSize: 10, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>
+                    style={{ padding: "5px 10px", borderRadius: 5, border: `1px solid ${typeFilter === t ? "color-mix(in srgb, var(--sl-primary) 30%, transparent)" : "color-mix(in srgb, var(--sl-text) 6%, transparent)"}`, background: typeFilter === t ? "color-mix(in srgb, var(--sl-primary) 8%, transparent)" : "transparent", color: typeFilter === t ? "var(--sl-text)" : "var(--sl-text-faint)", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>
                     {t === "all" ? "Todos" : t === "suggestion" ? "Sugestões" : "Bugs"}
                   </button>
                 ))}
@@ -488,7 +488,7 @@ export default function SupportPage() {
                   const st = s === "all" ? null : STATUS_STYLES[s];
                   return (
                     <button key={s} onClick={() => setFilter(s)}
-                      style={{ padding: "5px 10px", borderRadius: 5, border: `1px solid ${filter === s ? (st?.border || "rgba(122,14,24,0.3)") : "rgba(255,255,255,0.06)"}`, background: filter === s ? (st?.bg || "rgba(122,14,24,0.08)") : "transparent", color: filter === s ? (st?.color || "#f5f5f5") : "#555", fontSize: 10, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>
+                      style={{ padding: "5px 10px", borderRadius: 5, border: `1px solid ${filter === s ? (st?.border || "color-mix(in srgb, var(--sl-primary) 30%, transparent)") : "color-mix(in srgb, var(--sl-text) 6%, transparent)"}`, background: filter === s ? (st?.bg || "color-mix(in srgb, var(--sl-primary) 8%, transparent)") : "transparent", color: filter === s ? (st?.color || "var(--sl-text)") : "var(--sl-text-faint)", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>
                       {s === "all" ? "All" : st?.label}
                     </button>
                   );
@@ -499,14 +499,14 @@ export default function SupportPage() {
             {/* List */}
             {loading ? (
               <div style={{ textAlign: "center", padding: 40 }}>
-                <div style={{ width: 20, height: 20, margin: "0 auto 12px", border: "2px solid #222", borderTopColor: "#7A0E18", borderRadius: "50%", animation: "sl-spin 0.8s linear infinite" }} />
+                <div style={{ width: 20, height: 20, margin: "0 auto 12px", border: "2px solid var(--sl-surface-raised)", borderTopColor: "var(--sl-primary)", borderRadius: "50%", animation: "sl-spin 0.8s linear infinite" }} />
                 <style>{`@keyframes sl-spin{to{transform:rotate(360deg)}}`}</style>
               </div>
             ) : filtered.length === 0 ? (
               <div style={{ textAlign: "center", padding: "60px 24px" }}>
                 <div style={{ fontSize: 32, marginBottom: 12, opacity: 0.3 }}>✓</div>
-                <p style={{ fontSize: 14, color: "#555", margin: "0 0 4px" }}>Sem tickets</p>
-                <p style={{ fontSize: 11, color: "#333" }}>{filter !== "all" || typeFilter !== "all" ? "Nenhum ticket com estes filtros." : "Ninguém reportou nada ainda."}</p>
+                <p style={{ fontSize: 14, color: "var(--sl-text-faint)", margin: "0 0 4px" }}>Sem tickets</p>
+                <p style={{ fontSize: 12, color: "var(--sl-border-strong)" }}>{filter !== "all" || typeFilter !== "all" ? "Nenhum ticket com estes filtros." : "Ninguém reportou nada ainda."}</p>
               </div>
             ) : (
               <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
@@ -515,16 +515,16 @@ export default function SupportPage() {
                   const sts = STATUS_STYLES[t.status] || STATUS_STYLES.new;
                   return (
                     <div key={t.id} onClick={() => loadDetail(t.id)}
-                      style={{ padding: "14px 18px", borderRadius: 8, background: "#141414", border: "1px solid rgba(255,255,255,0.04)", cursor: "pointer", transition: "border-color 0.15s" }}
-                      onMouseEnter={e => e.currentTarget.style.borderColor = "rgba(255,255,255,0.1)"}
-                      onMouseLeave={e => e.currentTarget.style.borderColor = "rgba(255,255,255,0.04)"}>
+                      style={{ padding: "14px 18px", borderRadius: 8, background: "var(--sl-surface)", border: "1px solid var(--sl-border)", cursor: "pointer", transition: "border-color 0.15s" }}
+                      onMouseEnter={e => e.currentTarget.style.borderColor = "color-mix(in srgb, var(--sl-text) 10%, transparent)"}
+                      onMouseLeave={e => e.currentTarget.style.borderColor = "color-mix(in srgb, var(--sl-text) 4%, transparent)"}>
                       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12 }}>
                         <div style={{ flex: 1, minWidth: 0 }}>
                           <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
-                            <span style={{ fontSize: 10, fontWeight: 700, color: t.type === "bug" ? "#ef4444" : "#3b82f6", padding: "2px 6px", background: t.type === "bug" ? "rgba(239,68,68,0.1)" : "rgba(59,130,246,0.1)", borderRadius: 4, textTransform: "uppercase" }}>{t.type === "bug" ? "Bug" : "Idea"}</span>
-                            <span style={{ fontSize: 13, fontWeight: 600, color: "#f5f5f5", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{t.title}</span>
+                            <span style={{ fontSize: 12, fontWeight: 700, color: t.type === "bug" ? "var(--sl-danger)" : "var(--sl-info)", padding: "2px 6px", background: t.type === "bug" ? "color-mix(in srgb, var(--sl-danger) 10%, transparent)" : "color-mix(in srgb, var(--sl-info) 10%, transparent)", borderRadius: 4, textTransform: "uppercase" }}>{t.type === "bug" ? "Bug" : "Idea"}</span>
+                            <span style={{ fontSize: 13, fontWeight: 600, color: "var(--sl-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{t.title}</span>
                           </div>
-                          <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 10, color: "#555" }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, color: "var(--sl-text-faint)" }}>
                             <span>{t.area}</span>
                             <span>·</span>
                             <span>{t.submitter || "Anónimo"}</span>

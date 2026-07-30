@@ -466,20 +466,20 @@ export default function BulkImportPage() {
   const auditTotal = auditPending + auditRunning + auditDone + auditFailed;
 
   return (
-    <div style={{ minHeight: "100vh", background: "#0a0a0a", color: "#f5f5f5", fontFamily: "'Inter', sans-serif" }}>
+    <div style={{ minHeight: "100vh", background: "var(--sl-bg)", color: "var(--sl-text)", fontFamily: "'Inter', sans-serif" }}>
       <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
 
       {/* Header */}
-      <div style={{ padding: "20px 28px", borderBottom: "1px solid rgba(255,255,255,0.04)", display: "flex", alignItems: "center", gap: 14 }}>
-        <a href="/creators" style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.12em", textTransform: "uppercase", color: "#555", textDecoration: "none" }}>← Voltar ao CRM</a>
-        <span style={{ color: "#333", fontSize: 14 }}>|</span>
-        <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.12em", textTransform: "uppercase", color: "#888" }}>Bulk Import</span>
+      <div style={{ padding: "20px 28px", borderBottom: "1px solid var(--sl-border)", display: "flex", alignItems: "center", gap: 14 }}>
+        <a href="/creators" style={{ fontSize: 12, fontWeight: 600, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--sl-text-faint)", textDecoration: "none" }}>← Voltar ao CRM</a>
+        <span style={{ color: "var(--sl-border-strong)", fontSize: 14 }}>|</span>
+        <span style={{ fontSize: 12, fontWeight: 600, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--sl-text-muted)" }}>Bulk Import</span>
       </div>
 
       <div className="sl-page" style={{ maxWidth: 1100, margin: "0 auto", padding: "40px 28px" }}>
         <h1 className="sl-h1" style={{ fontSize: 28, fontWeight: 700, marginBottom: 8 }}>Importar creators em massa</h1>
-        <p style={{ fontSize: 14, color: "#888", marginBottom: 32, maxWidth: 720, lineHeight: 1.6 }}>
-          Cola um CSV com colunas <code style={{ background: "rgba(255,255,255,0.06)", padding: "2px 6px", borderRadius: 3, color: "#B11E2F" }}>Name, Instagram, TikTok, YouTube</code> ou faz upload de um ficheiro <code style={{ background: "rgba(255,255,255,0.06)", padding: "2px 6px", borderRadius: 3 }}>.csv</code>.
+        <p style={{ fontSize: 14, color: "var(--sl-text-muted)", marginBottom: 32, maxWidth: 720, lineHeight: 1.6 }}>
+          Cola um CSV com colunas <code style={{ background: "color-mix(in srgb, var(--sl-text) 6%, transparent)", padding: "2px 6px", borderRadius: 3, color: "var(--sl-accent-text)" }}>Name, Instagram, TikTok, YouTube</code> ou faz upload de um ficheiro <code style={{ background: "color-mix(in srgb, var(--sl-text) 6%, transparent)", padding: "2px 6px", borderRadius: 3 }}>.csv</code>.
           Cada linha corre lean scrape (~€0.10 + ~$0.01). Creators com Deal Score &lt; {MIN_DEAL_SCORE} são automaticamente filtrados. Throttle de 7s entre chamadas para respeitar o limite de 30K tokens/minuto.
         </p>
 
@@ -487,21 +487,21 @@ export default function BulkImportPage() {
         {parsedRows.length === 0 && (
           <div>
             <div style={{ display: "flex", gap: 12, marginBottom: 16 }}>
-              <label style={{ flex: 1, padding: "14px 20px", background: "transparent", border: "1px dashed rgba(255,255,255,0.15)", borderRadius: 10, color: "#888", fontSize: 13, cursor: "pointer", textAlign: "center", fontFamily: "inherit" }}>
+              <label style={{ flex: 1, padding: "14px 20px", background: "transparent", border: "1px dashed color-mix(in srgb, var(--sl-text) 15%, transparent)", borderRadius: 10, color: "var(--sl-text-muted)", fontSize: 13, cursor: "pointer", textAlign: "center", fontFamily: "inherit" }}>
                 ↑ Upload .csv
                 <input ref={fileRef} type="file" accept=".csv,text/csv" onChange={handleFile} style={{ display: "none" }} />
               </label>
-              <span style={{ alignSelf: "center", fontSize: 11, color: "#444" }}>ou cola abaixo</span>
+              <span style={{ alignSelf: "center", fontSize: 12, color: "var(--sl-text-faint)" }}>ou cola abaixo</span>
             </div>
             <textarea
               value={csvText}
               onChange={(e) => setCsvText(e.target.value)}
               placeholder={'Name,Instagram,TikTok,YouTube\nTomás Estarreja,https://instagram.com/tomas_estarreja,https://tiktok.com/@tomas_estarreja,https://youtube.com/@tomasestarreja\nLia Faria,https://instagram.com/lia_faria,,...'}
-              style={{ width: "100%", minHeight: 240, padding: "16px 18px", background: "#141414", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 10, color: "#f5f5f5", fontSize: 12, fontFamily: "'JetBrains Mono', ui-monospace, monospace", outline: "none", resize: "vertical", lineHeight: 1.5 }}
+              style={{ width: "100%", minHeight: 240, padding: "16px 18px", background: "var(--sl-surface)", border: "1px solid var(--sl-border)", borderRadius: 10, color: "var(--sl-text)", fontSize: 12, fontFamily: "'JetBrains Mono', ui-monospace, monospace", outline: "none", resize: "vertical", lineHeight: 1.5 }}
             />
-            {parseError && <p style={{ color: "#ef4444", fontSize: 13, marginTop: 12 }}>{parseError}</p>}
+            {parseError && <p style={{ color: "var(--sl-danger)", fontSize: 13, marginTop: 12 }}>{parseError}</p>}
             <div style={{ marginTop: 16, display: "flex", gap: 10 }}>
-              <button onClick={parseAndPreview} disabled={!csvText.trim()} style={{ padding: "12px 24px", background: csvText.trim() ? "#7A0E18" : "#1a1a1a", border: "none", borderRadius: 10, color: "#fff", fontSize: 14, fontWeight: 600, cursor: csvText.trim() ? "pointer" : "not-allowed", fontFamily: "inherit" }}>Pré-visualizar</button>
+              <button onClick={parseAndPreview} disabled={!csvText.trim()} style={{ padding: "12px 24px", background: csvText.trim() ? "var(--sl-primary)" : "var(--sl-surface-raised)", border: "none", borderRadius: 10, color: "var(--sl-text)", fontSize: 14, fontWeight: 600, cursor: csvText.trim() ? "pointer" : "not-allowed", fontFamily: "inherit" }}>Pré-visualizar</button>
             </div>
           </div>
         )}
@@ -511,29 +511,29 @@ export default function BulkImportPage() {
           <div>
             {/* Stats bar */}
             <div className="sl-grid-2" style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 14, marginBottom: 16 }}>
-              <StatCard label="Total" value={total} color="#f5f5f5" />
-              <StatCard label="Para scrape" value={scrapable} color="#22c55e" />
-              <StatCard label="Skip (dup / inválido)" value={duplicates + invalid} color="#888" />
-              <StatCard label="Custo estimado" value={`€${estApifyCost} + $${estClaudeCost}`} small color="#B11E2F" />
+              <StatCard label="Total" value={total} color="var(--sl-text)" />
+              <StatCard label="Para scrape" value={scrapable} color="var(--sl-success)" />
+              <StatCard label="Skip (dup / inválido)" value={duplicates + invalid} color="var(--sl-text-muted)" />
+              <StatCard label="Custo estimado" value={`€${estApifyCost} + $${estClaudeCost}`} small color="var(--sl-primary)" />
             </div>
 
             {/* Auto-audit toggle — sits between stats and action banner so the
                 cost estimate above reacts to it in real time. Disabled while
                 a run is in progress so we don't strand half the queue. */}
-            <label style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 16px", background: "#141414", border: `1px solid ${autoAudit ? "rgba(34,197,94,0.25)" : "rgba(255,255,255,0.06)"}`, borderRadius: 10, marginBottom: 20, cursor: running ? "not-allowed" : "pointer", opacity: running ? 0.7 : 1 }}>
+            <label style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 16px", background: "var(--sl-surface)", border: `1px solid ${autoAudit ? "color-mix(in srgb, var(--sl-success) 25%, transparent)" : "color-mix(in srgb, var(--sl-text) 6%, transparent)"}`, borderRadius: 10, marginBottom: 20, cursor: running ? "not-allowed" : "pointer", opacity: running ? 0.7 : 1 }}>
               <input
                 type="checkbox"
                 checked={autoAudit}
                 disabled={running}
                 onChange={e => setAutoAudit(e.target.checked)}
-                style={{ width: 16, height: 16, accentColor: "#22c55e" }}
+                style={{ width: 16, height: 16, accentColor: "var(--sl-success)" }}
               />
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 13, fontWeight: 600, color: "#f5f5f5" }}>Correr ecosystem audit automaticamente</div>
-                <div style={{ fontSize: 11, color: "#888", marginTop: 2 }}>Após cada import, audit dispara em fila com pacing de 25s/audit. +${AUDIT_COST_PER_ROW.toFixed(2)} Claude por creator.</div>
+                <div style={{ fontSize: 13, fontWeight: 600, color: "var(--sl-text)" }}>Correr ecosystem audit automaticamente</div>
+                <div style={{ fontSize: 12, color: "var(--sl-text-muted)", marginTop: 2 }}>Após cada import, audit dispara em fila com pacing de 25s/audit. +${AUDIT_COST_PER_ROW.toFixed(2)} Claude por creator.</div>
               </div>
               {auditTotal > 0 && (
-                <span style={{ fontSize: 10, color: "#888", whiteSpace: "nowrap", fontFamily: "'JetBrains Mono', monospace" }}>
+                <span style={{ fontSize: 12, color: "var(--sl-text-muted)", whiteSpace: "nowrap", fontFamily: "'JetBrains Mono', monospace" }}>
                   {auditDone}/{auditTotal} ✓ {auditFailed > 0 ? `· ${auditFailed} ✗` : ''} {(auditPending + auditRunning) > 0 ? `· ${auditPending + auditRunning} a correr` : ''}
                 </span>
               )}
@@ -541,45 +541,45 @@ export default function BulkImportPage() {
 
             {/* Progress + actions */}
             {running ? (
-              <div style={{ padding: "14px 20px", background: "rgba(177,30,47,0.08)", border: "1px solid rgba(177,30,47,0.3)", borderRadius: 10, marginBottom: 20, display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12 }}>
+              <div style={{ padding: "14px 20px", background: "color-mix(in srgb, var(--sl-primary) 8%, transparent)", border: "1px solid color-mix(in srgb, var(--sl-primary) 30%, transparent)", borderRadius: 10, marginBottom: 20, display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12 }}>
                 <div>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: "#B11E2F" }}>A scrapear {currentIdx + 1} de {total}{currentIdx >= 0 && parsedRows[currentIdx]?.name ? ` · ${parsedRows[currentIdx].name}` : ''}…</div>
-                  <div style={{ fontSize: 11, color: "#888", marginTop: 4 }}>{saved} guardados · {rejected} rejeitados · {errors} erros · ETA restante ~{Math.ceil((pending - 0) * THROTTLE_MS / 1000 / 60)}min</div>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: "var(--sl-accent-text)" }}>A scrapear {currentIdx + 1} de {total}{currentIdx >= 0 && parsedRows[currentIdx]?.name ? ` · ${parsedRows[currentIdx].name}` : ''}…</div>
+                  <div style={{ fontSize: 12, color: "var(--sl-text-muted)", marginTop: 4 }}>{saved} guardados · {rejected} rejeitados · {errors} erros · ETA restante ~{Math.ceil((pending - 0) * THROTTLE_MS / 1000 / 60)}min</div>
                 </div>
-                <button onClick={stopImport} style={{ padding: "8px 16px", background: "transparent", border: "1px solid rgba(255,255,255,0.15)", borderRadius: 6, color: "#888", fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>Pausar</button>
+                <button onClick={stopImport} style={{ padding: "8px 16px", background: "transparent", border: "1px solid var(--sl-border-strong)", borderRadius: 6, color: "var(--sl-text-muted)", fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>Pausar</button>
               </div>
             ) : pending > 0 ? (
-              <div style={{ padding: "14px 20px", background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 10, marginBottom: 20, display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12 }}>
+              <div style={{ padding: "14px 20px", background: "color-mix(in srgb, var(--sl-text) 2%, transparent)", border: "1px solid var(--sl-border)", borderRadius: 10, marginBottom: 20, display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12 }}>
                 <div>
                   <div style={{ fontSize: 13, fontWeight: 600 }}>{pending} creator{pending === 1 ? '' : 's'} pronto{pending === 1 ? '' : 's'} para scrape</div>
-                  <div style={{ fontSize: 11, color: "#888", marginTop: 4 }}>~{etaStr} · €{estApifyCost} Apify + ${estClaudeCost} Claude · throttle de 7s/call</div>
+                  <div style={{ fontSize: 12, color: "var(--sl-text-muted)", marginTop: 4 }}>~{etaStr} · €{estApifyCost} Apify + ${estClaudeCost} Claude · throttle de 7s/call</div>
                 </div>
                 <div style={{ display: "flex", gap: 8 }}>
-                  <button onClick={resetAll} style={{ padding: "10px 16px", background: "transparent", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 6, color: "#888", fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>Limpar</button>
-                  <button onClick={runImport} style={{ padding: "10px 20px", background: "#7A0E18", border: "none", borderRadius: 6, color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>{paused ? "Retomar" : "Iniciar import"}</button>
+                  <button onClick={resetAll} style={{ padding: "10px 16px", background: "transparent", border: "1px solid var(--sl-border-strong)", borderRadius: 6, color: "var(--sl-text-muted)", fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>Limpar</button>
+                  <button onClick={runImport} style={{ padding: "10px 20px", background: "var(--sl-primary)", border: "none", borderRadius: 6, color: "var(--sl-primary-contrast)", fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>{paused ? "Retomar" : "Iniciar import"}</button>
                 </div>
               </div>
             ) : (
-              <div style={{ padding: "14px 20px", background: "rgba(34,197,94,0.06)", border: "1px solid rgba(34,197,94,0.25)", borderRadius: 10, marginBottom: 20, display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12 }}>
+              <div style={{ padding: "14px 20px", background: "color-mix(in srgb, var(--sl-success) 6%, transparent)", border: "1px solid color-mix(in srgb, var(--sl-success) 25%, transparent)", borderRadius: 10, marginBottom: 20, display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12 }}>
                 <div>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: "#22c55e" }}>Import concluído</div>
-                  <div style={{ fontSize: 11, color: "#888", marginTop: 4 }}>{saved} guardados · {rejected} rejeitados (D-tier) · {duplicates} duplicados · {invalid} inválidos · {errors} erros</div>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: "var(--sl-success)" }}>Import concluído</div>
+                  <div style={{ fontSize: 12, color: "var(--sl-text-muted)", marginTop: 4 }}>{saved} guardados · {rejected} rejeitados (D-tier) · {duplicates} duplicados · {invalid} inválidos · {errors} erros</div>
                   {(auditPending + auditRunning) > 0 && (
-                    <div style={{ fontSize: 11, color: "#3b82f6", marginTop: 6 }}>
+                    <div style={{ fontSize: 12, color: "var(--sl-info)", marginTop: 6 }}>
                       Audits em curso: {auditDone}/{auditTotal} · {auditPending + auditRunning} a aguardar. Deixa esta página aberta — fecha o tab e os audits param.
                     </div>
                   )}
                 </div>
                 <div style={{ display: "flex", gap: 8 }}>
-                  <button onClick={resetAll} style={{ padding: "10px 16px", background: "transparent", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 6, color: "#888", fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>Nova importação</button>
-                  <a href="/creators" style={{ padding: "10px 20px", background: "#7A0E18", border: "none", borderRadius: 6, color: "#fff", fontSize: 13, fontWeight: 600, textDecoration: "none", fontFamily: "inherit" }}>Ver CRM</a>
+                  <button onClick={resetAll} style={{ padding: "10px 16px", background: "transparent", border: "1px solid var(--sl-border-strong)", borderRadius: 6, color: "var(--sl-text-muted)", fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>Nova importação</button>
+                  <a href="/creators" style={{ padding: "10px 20px", background: "var(--sl-primary)", border: "none", borderRadius: 6, color: "var(--sl-primary-contrast)", fontSize: 13, fontWeight: 600, textDecoration: "none", fontFamily: "inherit" }}>Ver CRM</a>
                 </div>
               </div>
             )}
 
             {/* Preview table */}
-            <div className="sl-hscroll" style={{ border: "1px solid rgba(255,255,255,0.06)", borderRadius: 10, overflow: "hidden" }}>
-              <div style={{ display: "grid", gridTemplateColumns: "50px 1.5fr 2fr 0.6fr 0.6fr 1.6fr 1.4fr", padding: "12px 16px", background: "#141414", fontSize: 10, fontWeight: 700, color: "#666", letterSpacing: "0.08em", textTransform: "uppercase", minWidth: 680 }}>
+            <div className="sl-hscroll" style={{ border: "1px solid var(--sl-border)", borderRadius: 10, overflow: "hidden" }}>
+              <div style={{ display: "grid", gridTemplateColumns: "50px 1.5fr 2fr 0.6fr 0.6fr 1.6fr 1.4fr", padding: "12px 16px", background: "var(--sl-surface)", fontSize: 12, fontWeight: 700, color: "var(--sl-text-faint)", letterSpacing: "0.08em", textTransform: "uppercase", minWidth: 680 }}>
                 <div>#</div><div>Nome</div><div>Instagram</div><div>TT</div><div>YT</div><div>Status</div><div>Detalhe</div>
               </div>
               {parsedRows.map((r, i) => (
@@ -595,32 +595,32 @@ export default function BulkImportPage() {
 
 function StatCard({ label, value, color, small }) {
   return (
-    <div style={{ padding: "14px 16px", background: "#141414", border: "1px solid rgba(255,255,255,0.04)", borderRadius: 10 }}>
-      <div style={{ fontSize: 9, fontWeight: 700, color: "#666", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 6 }}>{label}</div>
-      <div style={{ fontSize: small ? 16 : 22, fontWeight: 700, color: color || "#f5f5f5" }}>{value}</div>
+    <div style={{ padding: "14px 16px", background: "var(--sl-surface)", border: "1px solid var(--sl-border)", borderRadius: 10 }}>
+      <div style={{ fontSize: 12, fontWeight: 700, color: "var(--sl-text-faint)", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 6 }}>{label}</div>
+      <div style={{ fontSize: small ? 16 : 22, fontWeight: 700, color: color || "var(--sl-text)" }}>{value}</div>
     </div>
   );
 }
 
 function RowItem({ idx, row, isCurrent }) {
   const statusColors = {
-    pending:   { color: '#888',     bg: 'transparent',                  label: 'À espera' },
-    scraping:  { color: '#3b82f6',  bg: 'rgba(59,130,246,0.08)',        label: 'A scrapear…' },
-    retrying:  { color: '#eab308',  bg: 'rgba(234,179,8,0.08)',         label: '↻ A repetir…' },
-    saved:     { color: '#22c55e',  bg: 'rgba(34,197,94,0.08)',         label: '✓ Guardado' },
-    rejected:  { color: '#eab308',  bg: 'rgba(234,179,8,0.08)',         label: '⊝ Rejeitado' },
-    duplicate: { color: '#888',     bg: 'rgba(255,255,255,0.03)',       label: '⊝ Duplicado' },
-    invalid:   { color: '#ef4444',  bg: 'rgba(239,68,68,0.06)',         label: '✗ Inválido' },
-    error:     { color: '#ef4444',  bg: 'rgba(239,68,68,0.08)',         label: '✗ Erro' },
+    pending:   { color: 'var(--sl-text-muted)',     bg: 'transparent',                  label: 'À espera' },
+    scraping:  { color: 'var(--sl-info)',  bg: 'color-mix(in srgb, var(--sl-info) 8%, transparent)',        label: 'A scrapear…' },
+    retrying:  { color: 'var(--sl-warning)',  bg: 'color-mix(in srgb, var(--sl-warning) 8%, transparent)',         label: '↻ A repetir…' },
+    saved:     { color: 'var(--sl-success)',  bg: 'color-mix(in srgb, var(--sl-success) 8%, transparent)',         label: '✓ Guardado' },
+    rejected:  { color: 'var(--sl-warning)',  bg: 'color-mix(in srgb, var(--sl-warning) 8%, transparent)',         label: '⊝ Rejeitado' },
+    duplicate: { color: 'var(--sl-text-muted)',     bg: 'color-mix(in srgb, var(--sl-text) 3%, transparent)',       label: '⊝ Duplicado' },
+    invalid:   { color: 'var(--sl-danger)',  bg: 'color-mix(in srgb, var(--sl-danger) 6%, transparent)',         label: '✗ Inválido' },
+    error:     { color: 'var(--sl-danger)',  bg: 'color-mix(in srgb, var(--sl-danger) 8%, transparent)',         label: '✗ Erro' },
   };
   // Audit status renders as a second pill so the operator can scan both
   // states at a glance. Only shown for rows that actually have an audit
   // attached (saved/duplicate creators).
   const auditColors = {
-    pending: { color: '#888',    bg: 'rgba(255,255,255,0.03)',    label: 'audit pendente' },
-    running: { color: '#3b82f6', bg: 'rgba(59,130,246,0.08)',     label: 'audit a correr…' },
-    done:    { color: '#22c55e', bg: 'rgba(34,197,94,0.08)',      label: null /* see counts below */ },
-    failed:  { color: '#ef4444', bg: 'rgba(239,68,68,0.08)',      label: 'audit falhou' },
+    pending: { color: 'var(--sl-text-muted)',    bg: 'color-mix(in srgb, var(--sl-text) 3%, transparent)',    label: 'audit pendente' },
+    running: { color: 'var(--sl-info)', bg: 'color-mix(in srgb, var(--sl-info) 8%, transparent)',     label: 'audit a correr…' },
+    done:    { color: 'var(--sl-success)', bg: 'color-mix(in srgb, var(--sl-success) 8%, transparent)',      label: null /* see counts below */ },
+    failed:  { color: 'var(--sl-danger)', bg: 'color-mix(in srgb, var(--sl-danger) 8%, transparent)',      label: 'audit falhou' },
   };
   const s = statusColors[row.status] || statusColors.pending;
   const a = row.auditStatus ? auditColors[row.auditStatus] : null;
@@ -631,21 +631,21 @@ function RowItem({ idx, row, isCurrent }) {
     : (a?.label || null);
   const detail = row.error || row.auditError || row.reason || (row.score ? `${row.score} (${row.grade})` : '');
   return (
-    <div style={{ display: "grid", gridTemplateColumns: "50px 1.5fr 2fr 0.6fr 0.6fr 1.6fr 1.4fr", padding: "10px 16px", borderTop: "1px solid rgba(255,255,255,0.04)", background: isCurrent ? "rgba(59,130,246,0.05)" : (idx % 2 === 0 ? "transparent" : "rgba(255,255,255,0.01)"), fontSize: 12, alignItems: "center", minWidth: 680 }}>
-      <div style={{ color: "#444", fontFamily: "'JetBrains Mono', monospace", fontSize: 11 }}>{idx + 1}</div>
-      <div style={{ color: row.creatorId ? "#22c55e" : "#f5f5f5", fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+    <div style={{ display: "grid", gridTemplateColumns: "50px 1.5fr 2fr 0.6fr 0.6fr 1.6fr 1.4fr", padding: "10px 16px", borderTop: "1px solid var(--sl-border)", background: isCurrent ? "color-mix(in srgb, var(--sl-info) 5%, transparent)" : (idx % 2 === 0 ? "transparent" : "color-mix(in srgb, var(--sl-text) 1%, transparent)"), fontSize: 12, alignItems: "center", minWidth: 680 }}>
+      <div style={{ color: "var(--sl-text-faint)", fontFamily: "'JetBrains Mono', monospace", fontSize: 12 }}>{idx + 1}</div>
+      <div style={{ color: row.creatorId ? "var(--sl-success)" : "var(--sl-text)", fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
         {row.creatorId ? <a href={`/creators/${row.creatorId}`} target="_blank" rel="noopener" style={{ color: "inherit", textDecoration: "none" }}>{row.name || '—'}</a> : (row.name || '—')}
       </div>
-      <div style={{ color: "#666", fontSize: 11, fontFamily: "'JetBrains Mono', monospace", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{row.igHandle ? `@${row.igHandle}` : '—'}</div>
-      <div style={{ color: row.tiktok ? "#888" : "#333", fontSize: 10 }}>{row.tiktok ? '✓' : '—'}</div>
-      <div style={{ color: row.youtube ? "#888" : "#333", fontSize: 10 }}>{row.youtube ? '✓' : '—'}</div>
+      <div style={{ color: "var(--sl-text-faint)", fontSize: 12, fontFamily: "'JetBrains Mono', monospace", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{row.igHandle ? `@${row.igHandle}` : '—'}</div>
+      <div style={{ color: row.tiktok ? "var(--sl-text-muted)" : "var(--sl-border-strong)", fontSize: 12 }}>{row.tiktok ? '✓' : '—'}</div>
+      <div style={{ color: row.youtube ? "var(--sl-text-muted)" : "var(--sl-border-strong)", fontSize: 12 }}>{row.youtube ? '✓' : '—'}</div>
       <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
-        <span style={{ padding: "3px 8px", borderRadius: 4, fontSize: 10, fontWeight: 600, background: s.bg, color: s.color, border: `1px solid ${s.color}33` }}>{s.label}</span>
+        <span style={{ padding: "3px 8px", borderRadius: 4, fontSize: 12, fontWeight: 600, background: s.bg, color: s.color, border: `1px solid ${s.color}33` }}>{s.label}</span>
         {a && auditLabel && (
-          <span style={{ padding: "3px 8px", borderRadius: 4, fontSize: 10, fontWeight: 600, background: a.bg, color: a.color, border: `1px solid ${a.color}33` }} title={row.auditError || ''}>{auditLabel}</span>
+          <span style={{ padding: "3px 8px", borderRadius: 4, fontSize: 12, fontWeight: 600, background: a.bg, color: a.color, border: `1px solid ${a.color}33` }} title={row.auditError || ''}>{auditLabel}</span>
         )}
       </div>
-      <div style={{ color: "#666", fontSize: 11, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{detail}</div>
+      <div style={{ color: "var(--sl-text-faint)", fontSize: 12, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{detail}</div>
     </div>
   );
 }

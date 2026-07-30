@@ -40,8 +40,8 @@ export default function PipelinePage() {
   }, []);
 
   if (loading) return (
-    <div style={{ minHeight: "100vh", background: "#0a0a0a", display: "flex", alignItems: "center", justifyContent: "center" }}>
-      <div style={{ width: 20, height: 20, border: "2px solid #222", borderTopColor: "#7A0E18", borderRadius: "50%", animation: "sl-spin 0.8s linear infinite" }} />
+    <div style={{ minHeight: "100vh", background: "var(--sl-bg)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+      <div style={{ width: 20, height: 20, border: "2px solid var(--sl-surface-raised)", borderTopColor: "var(--sl-primary)", borderRadius: "50%", animation: "sl-spin 0.8s linear infinite" }} />
       <style>{`@keyframes sl-spin{to{transform:rotate(360deg)}}`}</style>
     </div>
   );
@@ -49,19 +49,19 @@ export default function PipelinePage() {
   const totalFollowers = creators.reduce((sum, c) => sum + (c.platforms?.instagram?.followers || 0) + (c.platforms?.tiktok?.followers || 0) + (c.platforms?.youtube?.subscribers || 0), 0);
 
   return (
-    <div style={{ minHeight: "100vh", background: "#0a0a0a", color: "#f5f5f5", fontFamily: "'Inter', 'Helvetica Neue', Helvetica, Arial, sans-serif" }}>
+    <div style={{ minHeight: "100vh", background: "var(--sl-bg)", color: "var(--sl-text)", fontFamily: "inherit" }}>
       <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
 
       {/* Header */}
-      <div style={{ padding: "20px 28px", borderBottom: "1px solid rgba(255,255,255,0.04)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+      <div style={{ padding: "20px 28px", borderBottom: "1px solid var(--sl-border)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
           <a href="/" style={{ display: "flex", alignItems: "center", textDecoration: "none" }}><img src={LOGO_B64} alt="SL" style={{ height: 16, opacity: 0.85 }} /></a>
-          <span style={{ color: "#333", fontSize: 14 }}>|</span>
-          <span style={{ fontSize: 10, fontWeight: 600, letterSpacing: "0.12em", textTransform: "uppercase", color: "#888" }}>Pipeline</span>
+          <span style={{ color: "var(--sl-border-strong)", fontSize: 14 }}>|</span>
+          <span style={{ fontSize: 12, fontWeight: 600, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--sl-text-muted)" }}>Pipeline</span>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <a href="/creators" style={{ fontSize: 11, color: "#555", textDecoration: "none", padding: "6px 12px", borderRadius: 6, border: "1px solid rgba(255,255,255,0.06)" }}>CRM</a>
-          <a href="/" style={{ fontSize: 11, color: "#555", textDecoration: "none" }}>HQ</a>
+          <a href="/creators" style={{ fontSize: 12, color: "var(--sl-text-faint)", textDecoration: "none", padding: "6px 12px", borderRadius: 6, border: "1px solid var(--sl-border)" }}>CRM</a>
+          <a href="/" style={{ fontSize: 12, color: "var(--sl-text-faint)", textDecoration: "none" }}>HQ</a>
         </div>
       </div>
 
@@ -70,22 +70,22 @@ export default function PipelinePage() {
         {/* Title + stats */}
         <div style={{ marginBottom: 32 }}>
           <h1 className="sl-h1" style={{ fontSize: 24, fontWeight: 700, margin: "0 0 6px", letterSpacing: "-0.02em" }}>Pipeline</h1>
-          <p style={{ fontSize: 13, color: "#666", margin: 0 }}>Creators fechados. Cada um com o seu workspace para gerir assets, estrategia e lançamento.</p>
+          <p style={{ fontSize: 13, color: "var(--sl-text-faint)", margin: 0 }}>Creators fechados. Cada um com o seu workspace para gerir assets, estrategia e lançamento.</p>
         </div>
 
         {creators.length > 0 && (
           <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10, marginBottom: 32 }}>
-            <div style={{ padding: "14px 16px", background: "#141414", border: "1px solid rgba(255,255,255,0.04)", borderRadius: 10, textAlign: "center" }}>
-              <div style={{ fontSize: 24, fontWeight: 700, color: "#f5f5f5" }}>{creators.length}</div>
-              <div style={{ fontSize: 9, color: "#555", textTransform: "uppercase", letterSpacing: "0.06em", marginTop: 2 }}>Assinado</div>
+            <div style={{ padding: "14px 16px", background: "var(--sl-surface)", border: "1px solid var(--sl-border)", borderRadius: 10, textAlign: "center" }}>
+              <div style={{ fontSize: 24, fontWeight: 700, color: "var(--sl-text)" }}>{creators.length}</div>
+              <div style={{ fontSize: 12, color: "var(--sl-text-faint)", textTransform: "uppercase", letterSpacing: "0.06em", marginTop: 2 }}>Assinado</div>
             </div>
-            <div style={{ padding: "14px 16px", background: "#141414", border: "1px solid rgba(255,255,255,0.04)", borderRadius: 10, textAlign: "center" }}>
-              <div style={{ fontSize: 24, fontWeight: 700, color: "#f5f5f5" }}>{formatFollowers(totalFollowers)}</div>
-              <div style={{ fontSize: 9, color: "#555", textTransform: "uppercase", letterSpacing: "0.06em", marginTop: 2 }}>Alcance Total</div>
+            <div style={{ padding: "14px 16px", background: "var(--sl-surface)", border: "1px solid var(--sl-border)", borderRadius: 10, textAlign: "center" }}>
+              <div style={{ fontSize: 24, fontWeight: 700, color: "var(--sl-text)" }}>{formatFollowers(totalFollowers)}</div>
+              <div style={{ fontSize: 12, color: "var(--sl-text-faint)", textTransform: "uppercase", letterSpacing: "0.06em", marginTop: 2 }}>Alcance Total</div>
             </div>
-            <div style={{ padding: "14px 16px", background: "#141414", border: "1px solid rgba(255,255,255,0.04)", borderRadius: 10, textAlign: "center" }}>
-              <div style={{ fontSize: 24, fontWeight: 700, color: "#22c55e" }}>{creators.filter(c => Object.keys(c.launch || {}).length >= 5).length}</div>
-              <div style={{ fontSize: 9, color: "#555", textTransform: "uppercase", letterSpacing: "0.06em", marginTop: 2 }}>Em Launch</div>
+            <div style={{ padding: "14px 16px", background: "var(--sl-surface)", border: "1px solid var(--sl-border)", borderRadius: 10, textAlign: "center" }}>
+              <div style={{ fontSize: 24, fontWeight: 700, color: "var(--sl-success)" }}>{creators.filter(c => Object.keys(c.launch || {}).length >= 5).length}</div>
+              <div style={{ fontSize: 12, color: "var(--sl-text-faint)", textTransform: "uppercase", letterSpacing: "0.06em", marginTop: 2 }}>Em Launch</div>
             </div>
           </div>
         )}
@@ -93,10 +93,10 @@ export default function PipelinePage() {
         {/* Creator workspace cards */}
         {creators.length === 0 ? (
           <div style={{ textAlign: "center", padding: "60px 20px" }}>
-            <div style={{ width: 48, height: 48, margin: "0 auto 16px", borderRadius: 12, background: "rgba(255,255,255,0.03)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24, color: "#333" }}>&#128274;</div>
-            <p style={{ fontSize: 15, color: "#666", marginBottom: 8 }}>Nenhum creator fechado</p>
-            <p style={{ fontSize: 12, color: "#444", marginBottom: 24 }}>Marca um creator como signed para o adicionares ao pipeline.</p>
-            <a href="/creators" style={{ display: "inline-block", padding: "10px 24px", borderRadius: 8, background: "#7A0E18", color: "#fff", fontSize: 13, fontWeight: 600, textDecoration: "none", fontFamily: "inherit" }}>Ir para CRM</a>
+            <div style={{ width: 48, height: 48, margin: "0 auto 16px", borderRadius: 12, background: "color-mix(in srgb, var(--sl-text) 3%, transparent)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24, color: "var(--sl-border-strong)" }}>&var(--sl-info);</div>
+            <p style={{ fontSize: 15, color: "var(--sl-text-faint)", marginBottom: 8 }}>Nenhum creator fechado</p>
+            <p style={{ fontSize: 12, color: "var(--sl-text-faint)", marginBottom: 24 }}>Marca um creator como signed para o adicionares ao pipeline.</p>
+            <a href="/creators" style={{ display: "inline-block", padding: "10px 24px", borderRadius: 8, background: "var(--sl-primary)", color: "var(--sl-primary-contrast)", fontSize: 13, fontWeight: 600, textDecoration: "none", fontFamily: "inherit" }}>Ir para CRM</a>
           </div>
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
@@ -111,72 +111,72 @@ export default function PipelinePage() {
 
               return (
                 <a key={c.id} href={`/creators/${c.id}`} style={{
-                  display: "block", padding: "24px 28px", background: "#141414",
-                  border: "1px solid rgba(255,255,255,0.06)", borderRadius: 14,
+                  display: "block", padding: "24px 28px", background: "var(--sl-surface)",
+                  border: "1px solid var(--sl-border)", borderRadius: 14,
                   textDecoration: "none", color: "inherit", transition: "border-color 0.2s, transform 0.15s",
                 }}
-                  onMouseEnter={e => { e.currentTarget.style.borderColor = "rgba(122,14,24,0.4)"; e.currentTarget.style.transform = "translateY(-1px)"; }}
-                  onMouseLeave={e => { e.currentTarget.style.borderColor = "rgba(255,255,255,0.06)"; e.currentTarget.style.transform = "translateY(0)"; }}
+                  onMouseEnter={e => { e.currentTarget.style.borderColor = "color-mix(in srgb, var(--sl-primary) 40%, transparent)"; e.currentTarget.style.transform = "translateY(-1px)"; }}
+                  onMouseLeave={e => { e.currentTarget.style.borderColor = "color-mix(in srgb, var(--sl-text) 6%, transparent)"; e.currentTarget.style.transform = "translateY(0)"; }}
                 >
                   {/* Top row: photo, name, meta */}
                   <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 14, marginBottom: 16 }}>
                     {c.profilePicUrl ? (
-                      <img src={`/api/proxy-image?url=${encodeURIComponent(c.profilePicUrl)}`} alt="" style={{ width: 40, height: 40, borderRadius: "50%", objectFit: "cover", border: "2px solid rgba(255,255,255,0.06)" }} />
+                      <img src={`/api/proxy-image?url=${encodeURIComponent(c.profilePicUrl)}`} alt="" style={{ width: 40, height: 40, borderRadius: "50%", objectFit: "cover", border: "2px solid var(--sl-border)" }} />
                     ) : (
-                      <div style={{ width: 40, height: 40, borderRadius: "50%", background: "#1a1a1a", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, fontWeight: 700, color: "#555", border: "2px solid rgba(255,255,255,0.06)" }}>{(c.name || "?")[0].toUpperCase()}</div>
+                      <div style={{ width: 40, height: 40, borderRadius: "50%", background: "var(--sl-surface-raised)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, fontWeight: 700, color: "var(--sl-text-faint)", border: "2px solid var(--sl-border)" }}>{(c.name || "?")[0].toUpperCase()}</div>
                     )}
                     <div style={{ flex: 1 }}>
                       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                        <span style={{ fontSize: 16, fontWeight: 700, color: "#f5f5f5" }}>{c.name}</span>
-                        {c.niche && <span style={{ fontSize: 11, color: "#666" }}>{c.niche}</span>}
+                        <span style={{ fontSize: 16, fontWeight: 700, color: "var(--sl-text)" }}>{c.name}</span>
+                        {c.niche && <span style={{ fontSize: 12, color: "var(--sl-text-faint)" }}>{c.niche}</span>}
                       </div>
                       <div style={{ display: "flex", gap: 12, marginTop: 2, alignItems: "center" }}>
-                        {followers > 0 && <span style={{ fontSize: 11, color: "#888" }}>{formatFollowers(followers)} followers</span>}
-                        {signedDate && <span style={{ fontSize: 11, color: "#444" }}>Assinado {signedDate}</span>}
+                        {followers > 0 && <span style={{ fontSize: 12, color: "var(--sl-text-muted)" }}>{formatFollowers(followers)} followers</span>}
+                        {signedDate && <span style={{ fontSize: 12, color: "var(--sl-text-faint)" }}>Assinado {signedDate}</span>}
                         {(() => {
                           const ks = c.onboarding?.status;
-                          if (!ks || ks === 'not_started') return <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", padding: "2px 7px", borderRadius: 4, background: "rgba(234,179,8,0.1)", color: "#eab308", border: "1px solid rgba(234,179,8,0.2)" }}>Formulário pendente</span>;
-                          if (ks === 'form_pending') return <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", padding: "2px 7px", borderRadius: 4, background: "rgba(234,179,8,0.1)", color: "#eab308", border: "1px solid rgba(234,179,8,0.2)" }}>Formulário em curso</span>;
-                          if (ks === 'form_complete') return <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", padding: "2px 7px", borderRadius: 4, background: "rgba(34,197,94,0.1)", color: "#22c55e", border: "1px solid rgba(34,197,94,0.2)" }}>Formulário completo</span>;
-                          if (ks === 'call_scheduled') return <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", padding: "2px 7px", borderRadius: 4, background: "rgba(59,130,246,0.1)", color: "#3b82f6", border: "1px solid rgba(59,130,246,0.2)" }}>Call agendada</span>;
-                          if (ks === 'brief_signed') return <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", padding: "2px 7px", borderRadius: 4, background: "rgba(168,85,247,0.1)", color: "#a855f7", border: "1px solid rgba(168,85,247,0.2)" }}>Brief assinado</span>;
+                          if (!ks || ks === 'not_started') return <span style={{ fontSize: 12, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", padding: "2px 7px", borderRadius: 4, background: "color-mix(in srgb, var(--sl-warning) 10%, transparent)", color: "var(--sl-warning)", border: "1px solid color-mix(in srgb, var(--sl-warning) 20%, transparent)" }}>Formulário pendente</span>;
+                          if (ks === 'form_pending') return <span style={{ fontSize: 12, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", padding: "2px 7px", borderRadius: 4, background: "color-mix(in srgb, var(--sl-warning) 10%, transparent)", color: "var(--sl-warning)", border: "1px solid color-mix(in srgb, var(--sl-warning) 20%, transparent)" }}>Formulário em curso</span>;
+                          if (ks === 'form_complete') return <span style={{ fontSize: 12, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", padding: "2px 7px", borderRadius: 4, background: "color-mix(in srgb, var(--sl-success) 10%, transparent)", color: "var(--sl-success)", border: "1px solid color-mix(in srgb, var(--sl-success) 20%, transparent)" }}>Formulário completo</span>;
+                          if (ks === 'call_scheduled') return <span style={{ fontSize: 12, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", padding: "2px 7px", borderRadius: 4, background: "color-mix(in srgb, var(--sl-info) 10%, transparent)", color: "var(--sl-info)", border: "1px solid color-mix(in srgb, var(--sl-info) 20%, transparent)" }}>Call agendada</span>;
+                          if (ks === 'brief_signed') return <span style={{ fontSize: 12, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", padding: "2px 7px", borderRadius: 4, background: "color-mix(in srgb, var(--sl-info) 10%, transparent)", color: "var(--sl-info)", border: "1px solid color-mix(in srgb, var(--sl-info) 20%, transparent)" }}>Brief assinado</span>;
                           return null;
                         })()}
                       </div>
                     </div>
-                    <span style={{ fontSize: 11, color: "#7A0E18", fontWeight: 600 }}>Abrir workspace &rarr;</span>
+                    <span style={{ fontSize: 12, color: "var(--sl-accent-text)", fontWeight: 600 }}>Abrir workspace &rarr;</span>
                   </div>
 
                   {/* Asset status row */}
                   <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center" }}>
                     {/* DM */}
-                    <div style={{ padding: "6px 12px", borderRadius: 6, background: hasDm ? "rgba(34,197,94,0.08)" : "rgba(255,255,255,0.02)", border: `1px solid ${hasDm ? "rgba(34,197,94,0.15)" : "rgba(255,255,255,0.04)"}`, display: "flex", alignItems: "center", gap: 5 }}>
-                      <span style={{ width: 6, height: 6, borderRadius: "50%", background: hasDm ? "#22c55e" : "rgba(255,255,255,0.1)" }} />
-                      <span style={{ fontSize: 10, color: hasDm ? "#22c55e" : "#444", fontWeight: 600 }}>DMs</span>
+                    <div style={{ padding: "6px 12px", borderRadius: 6, background: hasDm ? "color-mix(in srgb, var(--sl-success) 8%, transparent)" : "color-mix(in srgb, var(--sl-text) 2%, transparent)", border: `1px solid ${hasDm ? "color-mix(in srgb, var(--sl-success) 15%, transparent)" : "color-mix(in srgb, var(--sl-text) 4%, transparent)"}`, display: "flex", alignItems: "center", gap: 5 }}>
+                      <span style={{ width: 6, height: 6, borderRadius: "50%", background: hasDm ? "var(--sl-success)" : "color-mix(in srgb, var(--sl-text) 10%, transparent)" }} />
+                      <span style={{ fontSize: 12, color: hasDm ? "var(--sl-success)" : "var(--sl-text-faint)", fontWeight: 600 }}>DMs</span>
                     </div>
                     {/* Offer */}
-                    <div style={{ padding: "6px 12px", borderRadius: 6, background: hasOffer ? "rgba(34,197,94,0.08)" : "rgba(255,255,255,0.02)", border: `1px solid ${hasOffer ? "rgba(34,197,94,0.15)" : "rgba(255,255,255,0.04)"}`, display: "flex", alignItems: "center", gap: 5 }}>
-                      <span style={{ width: 6, height: 6, borderRadius: "50%", background: hasOffer ? "#22c55e" : "rgba(255,255,255,0.1)" }} />
-                      <span style={{ fontSize: 10, color: hasOffer ? "#22c55e" : "#444", fontWeight: 600 }}>Oferta</span>
+                    <div style={{ padding: "6px 12px", borderRadius: 6, background: hasOffer ? "color-mix(in srgb, var(--sl-success) 8%, transparent)" : "color-mix(in srgb, var(--sl-text) 2%, transparent)", border: `1px solid ${hasOffer ? "color-mix(in srgb, var(--sl-success) 15%, transparent)" : "color-mix(in srgb, var(--sl-text) 4%, transparent)"}`, display: "flex", alignItems: "center", gap: 5 }}>
+                      <span style={{ width: 6, height: 6, borderRadius: "50%", background: hasOffer ? "var(--sl-success)" : "color-mix(in srgb, var(--sl-text) 10%, transparent)" }} />
+                      <span style={{ fontSize: 12, color: hasOffer ? "var(--sl-success)" : "var(--sl-text-faint)", fontWeight: 600 }}>Oferta</span>
                     </div>
                     {/* Divider */}
-                    <span style={{ width: 1, height: 16, background: "rgba(255,255,255,0.06)" }} />
+                    <span style={{ width: 1, height: 16, background: "color-mix(in srgb, var(--sl-text) 6%, transparent)" }} />
                     {/* Launch assets mini dots */}
                     {ALL_LAUNCH_ASSETS.map(a => {
                       const la = launchAssets[a.key];
                       const st = la?.status || (la ? 'draft' : null);
-                      const dotColor = st === 'approved' || st === 'live' ? '#22c55e' : st === 'reviewed' ? '#3b82f6' : st === 'draft' ? '#eab308' : 'rgba(255,255,255,0.08)';
+                      const dotColor = st === 'approved' || st === 'live' ? 'var(--sl-success)' : st === 'reviewed' ? 'var(--sl-info)' : st === 'draft' ? 'var(--sl-warning)' : 'color-mix(in srgb, var(--sl-text) 8%, transparent)';
                       return (
                         <div key={a.key} title={`${a.label}: ${st || 'pendente'}`} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 2 }}>
                           <span style={{ width: 8, height: 8, borderRadius: 2, background: dotColor }} />
-                          <span style={{ fontSize: 7, color: "#333" }}>{a.label}</span>
+                          <span style={{ fontSize: 7, color: "var(--sl-border-strong)" }}>{a.label}</span>
                         </div>
                       );
                     })}
                     {/* Summary */}
                     <div style={{ marginLeft: "auto", textAlign: "right" }}>
-                      <span style={{ fontSize: 11, color: "#888", fontWeight: 600 }}>{launchDone}/{ALL_LAUNCH_ASSETS.length}</span>
-                      {launchApproved > 0 && <span style={{ fontSize: 10, color: "#22c55e", marginLeft: 6 }}>{launchApproved} aprovados</span>}
+                      <span style={{ fontSize: 12, color: "var(--sl-text-muted)", fontWeight: 600 }}>{launchDone}/{ALL_LAUNCH_ASSETS.length}</span>
+                      {launchApproved > 0 && <span style={{ fontSize: 12, color: "var(--sl-success)", marginLeft: 6 }}>{launchApproved} aprovados</span>}
                     </div>
                   </div>
                 </a>
@@ -186,8 +186,8 @@ export default function PipelinePage() {
         )}
 
         {/* Footer */}
-        <div style={{ marginTop: 60, paddingTop: 20, borderTop: "1px solid rgba(255,255,255,0.04)", textAlign: "center" }}>
-          <p style={{ fontSize: 9, color: "#333", margin: 0 }}>Second Layer HQ &middot; Pipeline</p>
+        <div style={{ marginTop: 60, paddingTop: 20, borderTop: "1px solid var(--sl-border)", textAlign: "center" }}>
+          <p style={{ fontSize: 12, color: "var(--sl-border-strong)", margin: 0 }}>Second Layer HQ &middot; Pipeline</p>
         </div>
       </div>
     </div>

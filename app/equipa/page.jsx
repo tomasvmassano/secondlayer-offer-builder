@@ -15,26 +15,26 @@ import { useState, useEffect, useMemo } from "react";
 //   - Per-operator leaderboard is a bordered TABLE with column headers
 //     instead of a grid of vertical cards. Same data, side-by-side at
 //     a glance — built for morning-standup reading.
-//   - One accent (brand red #B11E2F) for highlights; status uses
+//   - One accent (brand red var(--sl-primary)) for highlights; status uses
 //     green/amber/red only when a value crosses a threshold.
 //   - Motion intentionally restrained: fade-up on initial mount, no
 //     hover-lift on non-interactive surfaces.
 // ─────────────────────────────────────────────────────────────────────
 
-const ACCENT = '#B11E2F';
-const ACCENT_DEEP = '#7A0E18';
-const SURFACE_0 = '#0a0a0a';
-const SURFACE_1 = '#0f0f0f';   // section blocks (subtly elevated)
-const SURFACE_2 = '#161616';   // nested rows / inputs
-const BORDER = 'rgba(255,255,255,0.05)';
-const BORDER_HI = 'rgba(255,255,255,0.10)';
-const TEXT_HI = '#f5f5f5';
-const TEXT_MID = '#aaa';
-const TEXT_LO = '#666';
-const TEXT_DIM = '#444';
-const GREEN = '#22c55e';
-const AMBER = '#eab308';
-const RED = '#ef4444';
+const ACCENT = 'var(--sl-primary)';
+const ACCENT_DEEP = 'var(--sl-primary)';
+const SURFACE_0 = 'var(--sl-bg)';
+const SURFACE_1 = 'var(--sl-surface)';   // section blocks (subtly elevated)
+const SURFACE_2 = 'var(--sl-surface)';   // nested rows / inputs
+const BORDER = 'color-mix(in srgb, var(--sl-text) 5%, transparent)';
+const BORDER_HI = 'color-mix(in srgb, var(--sl-text) 10%, transparent)';
+const TEXT_HI = 'var(--sl-text)';
+const TEXT_MID = 'var(--sl-text-muted)';
+const TEXT_LO = 'var(--sl-text-faint)';
+const TEXT_DIM = 'var(--sl-text-faint)';
+const GREEN = 'var(--sl-success)';
+const AMBER = 'var(--sl-warning)';
+const RED = 'var(--sl-danger)';
 
 // Tabular-mono stack for every number on the page. Uses the system
 // monospace (no extra font load) and forces equal-width digits so
@@ -168,7 +168,7 @@ export default function EquipaPage() {
       {/* Sticky top bar — slimmer, hairline border, smaller window chips. */}
       <div className="sl-tabs" style={{ position: "sticky", top: 0, zIndex: 10, padding: "12px 28px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, background: "rgba(10,10,10,0.78)", backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)", borderBottom: `1px solid ${BORDER}` }}>
         <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
-          <a href="/creators" style={{ fontSize: 10, fontWeight: 600, letterSpacing: "0.14em", textTransform: "uppercase", color: TEXT_LO, textDecoration: "none" }}>← Voltar</a>
+          <a href="/creators" style={{ fontSize: 12, fontWeight: 600, letterSpacing: "0.14em", textTransform: "uppercase", color: TEXT_LO, textDecoration: "none" }}>← Voltar</a>
           <div className="sl-hide-mobile" style={{ width: 1, height: 12, background: BORDER_HI }} />
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <div style={{ width: 6, height: 6, borderRadius: '50%', background: ACCENT }} />
@@ -183,11 +183,11 @@ export default function EquipaPage() {
               data-sl-compact
               style={{
                 padding: "5px 10px",
-                background: windowKey === w.key ? "rgba(177,30,47,0.12)" : "transparent",
-                border: `1px solid ${windowKey === w.key ? "rgba(177,30,47,0.35)" : "transparent"}`,
+                background: windowKey === w.key ? "color-mix(in srgb, var(--sl-primary) 12%, transparent)" : "transparent",
+                border: `1px solid ${windowKey === w.key ? "color-mix(in srgb, var(--sl-primary) 35%, transparent)" : "transparent"}`,
                 borderRadius: 6,
                 color: windowKey === w.key ? ACCENT : TEXT_LO,
-                fontSize: 10, fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase",
+                fontSize: 12, fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase",
                 cursor: "pointer", fontFamily: "inherit", transition: "color 120ms, background 120ms, border-color 120ms",
               }}
             >
@@ -206,12 +206,12 @@ export default function EquipaPage() {
           <>
             {/* Needs attention strip */}
             {data.needsAttention?.length > 0 && (
-              <div className="eq-fade" style={{ marginBottom: 24, padding: "14px 22px", background: "linear-gradient(135deg, rgba(234,179,8,0.06), rgba(234,179,8,0.02))", border: "1px solid rgba(234,179,8,0.20)", borderRadius: 24, display: "flex", alignItems: "center", gap: 18 }}>
+              <div className="eq-fade" style={{ marginBottom: 24, padding: "14px 22px", background: "linear-gradient(135deg, color-mix(in srgb, var(--sl-warning) 6%, transparent), color-mix(in srgb, var(--sl-warning) 2%, transparent))", border: "1px solid color-mix(in srgb, var(--sl-warning) 20%, transparent)", borderRadius: 24, display: "flex", alignItems: "center", gap: 18 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                   <span style={{ width: 6, height: 6, borderRadius: '50%', background: AMBER, animation: 'pulseRing 2s infinite' }} />
-                  <span style={{ fontSize: 10, fontWeight: 700, color: AMBER, letterSpacing: "0.14em", textTransform: "uppercase" }}>Precisa de atenção</span>
+                  <span style={{ fontSize: 12, fontWeight: 700, color: AMBER, letterSpacing: "0.14em", textTransform: "uppercase" }}>Precisa de atenção</span>
                 </div>
-                <div style={{ flex: 1, display: "flex", flexWrap: "wrap", gap: 18, fontSize: 12, color: "#ddd" }}>
+                <div style={{ flex: 1, display: "flex", flexWrap: "wrap", gap: 18, fontSize: 12, color: "var(--sl-text)" }}>
                   {data.needsAttention.map((item, i) => (
                     <span key={i} style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
                       <span style={{ width: 4, height: 4, borderRadius: '50%', background: item.severity === 'danger' ? RED : item.severity === 'warn' ? AMBER : TEXT_LO }} />
@@ -287,18 +287,18 @@ export default function EquipaPage() {
                   padding: "12px 20px",
                   borderBottom: `1px solid ${BORDER}`,
                   display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12,
-                  background: "rgba(255,255,255,0.012)",
+                  background: "color-mix(in srgb, var(--sl-text) 1%, transparent)",
                 }}>
                   <div>
-                    <div style={{ fontSize: 10, fontWeight: 600, color: TEXT_HI, letterSpacing: "0.16em", textTransform: "uppercase" }}>Operadores</div>
-                    <div style={{ fontSize: 11, color: TEXT_LO, marginTop: 3 }}>
+                    <div style={{ fontSize: 12, fontWeight: 600, color: TEXT_HI, letterSpacing: "0.16em", textTransform: "uppercase" }}>Operadores</div>
+                    <div style={{ fontSize: 12, color: TEXT_LO, marginTop: 3 }}>
                       {windowKey === 'today' ? 'Hoje · vs ontem' :
                        windowKey === 'yesterday' ? 'Ontem · fechado' :
                        windowKey === 'week' ? 'Esta semana' :
                        windowKey === 'month' ? 'Este mês' : 'Histórico completo'}
                     </div>
                   </div>
-                  <div style={{ fontSize: 9, fontWeight: 600, color: TEXT_DIM, letterSpacing: "0.12em", textTransform: "uppercase" }}>
+                  <div style={{ fontSize: 12, fontWeight: 600, color: TEXT_DIM, letterSpacing: "0.12em", textTransform: "uppercase" }}>
                     {data.rows.length} {data.rows.length === 1 ? 'operador' : 'operadores'}
                   </div>
                 </div>
@@ -416,8 +416,8 @@ export default function EquipaPage() {
                 width: "100%",
                 marginTop: 28, marginBottom: advancedOpen ? 14 : 28,
                 padding: "16px 22px",
-                background: advancedOpen ? "rgba(177,30,47,0.06)" : SURFACE_1,
-                border: `1px solid ${advancedOpen ? "rgba(177,30,47,0.22)" : BORDER}`,
+                background: advancedOpen ? "color-mix(in srgb, var(--sl-primary) 6%, transparent)" : SURFACE_1,
+                border: `1px solid ${advancedOpen ? "color-mix(in srgb, var(--sl-primary) 22%, transparent)" : BORDER}`,
                 borderRadius: 16,
                 cursor: "pointer", textAlign: "left", fontFamily: "inherit",
                 display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16,
@@ -425,7 +425,7 @@ export default function EquipaPage() {
               }}
             >
               <div>
-                <div style={{ fontSize: 10, fontWeight: 700, color: ACCENT, letterSpacing: "0.18em", textTransform: "uppercase", marginBottom: 4 }}>Métricas avançadas</div>
+                <div style={{ fontSize: 12, fontWeight: 700, color: ACCENT, letterSpacing: "0.18em", textTransform: "uppercase", marginBottom: 4 }}>Métricas avançadas</div>
                 <div style={{ fontSize: 12, color: TEXT_LO }}>CAC, show-up, ciclo de venda · respondem a "estou em ritmo para bater a meta?"</div>
               </div>
               <span style={{
@@ -456,14 +456,14 @@ export default function EquipaPage() {
                         <div style={{ ...monoNum, fontSize: 26, fontWeight: 600, color: TEXT_HI, letterSpacing: "-0.02em", marginBottom: 4, lineHeight: 1 }}>
                           {c.cacEur == null ? '—' : fmtEur(c.cacEur)}
                         </div>
-                        <div style={{ fontSize: 11, color: TEXT_LO, marginBottom: 12 }}>por deal assinado</div>
+                        <div style={{ fontSize: 12, color: TEXT_LO, marginBottom: 12 }}>por deal assinado</div>
                         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, paddingTop: 10, borderTop: `1px solid ${BORDER}` }}>
                           <div>
-                            <div style={{ fontSize: 9, fontWeight: 600, color: TEXT_DIM, letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 4 }}>Spend</div>
+                            <div style={{ fontSize: 12, fontWeight: 600, color: TEXT_DIM, letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 4 }}>Spend</div>
                             <div style={{ ...monoNum, fontSize: 13, fontWeight: 600, color: TEXT_MID }}>{fmtEur(c.spendEur)}</div>
                           </div>
                           <div>
-                            <div style={{ fontSize: 9, fontWeight: 600, color: TEXT_DIM, letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 4 }}>Payback</div>
+                            <div style={{ fontSize: 12, fontWeight: 600, color: TEXT_DIM, letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 4 }}>Payback</div>
                             <div style={{ ...monoNum, fontSize: 13, fontWeight: 600, color: c.paybackRatio && c.paybackRatio >= 5 ? GREEN : TEXT_MID }}>
                               {c.paybackRatio == null ? '—' : `${c.paybackRatio}×`}
                             </div>
@@ -480,7 +480,7 @@ export default function EquipaPage() {
             <div className="eq-fade sl-grid-2" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 18, marginBottom: 18 }}>
               <Card title="Show-up rate · calls" subtitle="Marcadas vs realizadas · alvo ≥ 70%">
                 <div style={{ marginBottom: 16, paddingBottom: 16, borderBottom: `1px solid ${BORDER}` }}>
-                  <div style={{ fontSize: 11, color: TEXT_LO, marginBottom: 4 }}>Equipa</div>
+                  <div style={{ fontSize: 12, color: TEXT_LO, marginBottom: 4 }}>Equipa</div>
                   <div style={{ display: "flex", alignItems: "baseline", gap: 12 }}>
                     <span style={{ ...monoNum, fontSize: 28, fontWeight: 600, color: data.showUp?.teamRate == null ? TEXT_DIM : data.showUp.teamRate >= 70 ? GREEN : data.showUp.teamRate >= 50 ? AMBER : RED, letterSpacing: "-0.02em" }}>
                       {data.showUp?.teamRate == null ? '—' : `${data.showUp.teamRate}%`}
@@ -494,7 +494,7 @@ export default function EquipaPage() {
                   {userOrder.map(({ userId, firstName }) => {
                     const s = data.showUp?.rows?.find(x => x.userId === userId);
                     if (!s || s.agreed === 0) return (
-                      <div key={userId} style={{ padding: 14, background: SURFACE_0, border: `1px solid ${BORDER}`, borderRadius: 14, color: TEXT_DIM, fontSize: 11 }}>
+                      <div key={userId} style={{ padding: 14, background: SURFACE_0, border: `1px solid ${BORDER}`, borderRadius: 14, color: TEXT_DIM, fontSize: 12 }}>
                         <div style={{ fontSize: 12, fontWeight: 700, color: TEXT_MID, marginBottom: 4 }}>{firstName}</div>
                         Sem calls
                       </div>
@@ -504,7 +504,7 @@ export default function EquipaPage() {
                       <div key={userId} style={{ padding: 14, background: SURFACE_0, border: `1px solid ${BORDER}`, borderRadius: 14 }}>
                         <div style={{ fontSize: 12, fontWeight: 700, color: TEXT_HI, marginBottom: 6 }}>{s.firstName}</div>
                         <div style={{ fontSize: 22, fontWeight: 800, color, letterSpacing: "-0.02em" }}>{s.rate == null ? '—' : `${s.rate}%`}</div>
-                        <div style={{ fontSize: 11, color: TEXT_LO, marginTop: 2 }}>{s.held}/{s.agreed} calls</div>
+                        <div style={{ fontSize: 12, color: TEXT_LO, marginTop: 2 }}>{s.held}/{s.agreed} calls</div>
                       </div>
                     );
                   })}
@@ -519,7 +519,7 @@ export default function EquipaPage() {
                     {userOrder.map(({ userId, firstName }) => {
                       const t = data.touchpoints?.rows?.find(x => x.userId === userId);
                       if (!t || t.signed === 0) return (
-                        <div key={userId} style={{ padding: 14, background: SURFACE_0, border: `1px solid ${BORDER}`, borderRadius: 14, color: TEXT_DIM, fontSize: 11 }}>
+                        <div key={userId} style={{ padding: 14, background: SURFACE_0, border: `1px solid ${BORDER}`, borderRadius: 14, color: TEXT_DIM, fontSize: 12 }}>
                           <div style={{ fontSize: 12, fontWeight: 700, color: TEXT_MID, marginBottom: 4 }}>{firstName}</div>
                           Sem fechos
                         </div>
@@ -533,7 +533,7 @@ export default function EquipaPage() {
                           <div style={{ fontSize: 22, fontWeight: 800, color: efficient ? GREEN : TEXT_HI, letterSpacing: "-0.02em" }}>
                             {t.avgPerClose == null ? '—' : t.avgPerClose}
                           </div>
-                          <div style={{ fontSize: 11, color: TEXT_LO, marginTop: 2 }}>touches · {t.signed} fechos</div>
+                          <div style={{ fontSize: 12, color: TEXT_LO, marginTop: 2 }}>touches · {t.signed} fechos</div>
                         </div>
                       );
                     })}
@@ -560,7 +560,7 @@ export default function EquipaPage() {
                         <div style={{ ...monoNum, fontSize: 22, fontWeight: 600, color: TEXT_HI, letterSpacing: "-0.02em", marginBottom: 4, lineHeight: 1 }}>
                           {v.velocityEurPerDay == null ? '—' : `${fmtEur(v.velocityEurPerDay)}/dia`}
                         </div>
-                        <div style={{ fontSize: 11, color: TEXT_LO, marginBottom: 12 }}>velocidade</div>
+                        <div style={{ fontSize: 12, color: TEXT_LO, marginBottom: 12 }}>velocidade</div>
                         <div className="sl-grid-4" style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 8, paddingTop: 10, borderTop: `1px solid ${BORDER}` }}>
                           <MicroStat label="Deals" value={(v.openDeals + v.signed)} />
                           <MicroStat label="Win %" value={`${v.winRatePct}%`} accent={v.winRatePct >= 20 ? GREEN : null} />
@@ -585,7 +585,7 @@ export default function EquipaPage() {
                       <div key={r.reason}>
                         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 6 }}>
                           <span style={{ fontSize: 12, color: TEXT_MID }}>{r.label}</span>
-                          <span style={{ fontSize: 11, color: TEXT_LO }}>
+                          <span style={{ fontSize: 12, color: TEXT_LO }}>
                             <strong style={{ color: TEXT_HI }}>{r.count}</strong> · {r.pct}%
                           </span>
                         </div>
@@ -611,10 +611,10 @@ export default function EquipaPage() {
                   <div className="sl-grid-2" style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12 }}>
                     {data.followUpEff.map(b => (
                       <div key={b.key} style={{ padding: 16, background: SURFACE_0, border: `1px solid ${BORDER}`, borderRadius: 14 }}>
-                        <div style={{ fontSize: 10, fontWeight: 600, color: TEXT_LO, letterSpacing: "0.10em", textTransform: "uppercase", marginBottom: 8 }}>{b.stage}</div>
+                        <div style={{ fontSize: 12, fontWeight: 600, color: TEXT_LO, letterSpacing: "0.10em", textTransform: "uppercase", marginBottom: 8 }}>{b.stage}</div>
                         <div style={{ fontSize: 24, fontWeight: 800, color: b.rate >= 15 ? GREEN : b.rate >= 8 ? AMBER : TEXT_HI, letterSpacing: "-0.025em" }}>{b.rate}%</div>
-                        <div style={{ fontSize: 11, color: TEXT_LO, marginTop: 4 }}>{b.replied} / {b.sent}</div>
-                        <div style={{ marginTop: 10, height: 4, background: "rgba(255,255,255,0.05)", borderRadius: 4, overflow: "hidden" }}>
+                        <div style={{ fontSize: 12, color: TEXT_LO, marginTop: 4 }}>{b.replied} / {b.sent}</div>
+                        <div style={{ marginTop: 10, height: 4, background: "color-mix(in srgb, var(--sl-text) 5%, transparent)", borderRadius: 4, overflow: "hidden" }}>
                           <div style={{ height: 4, width: `${Math.min(100, b.rate * 3)}%`, background: ACCENT, borderRadius: 4, transition: "width 600ms" }} />
                         </div>
                       </div>
@@ -657,7 +657,7 @@ function Card({ title, subtitle, children }) {
       {title && (
         <div style={{ marginBottom: 18 }}>
           <div style={{ fontSize: 13, fontWeight: 600, color: TEXT_HI, letterSpacing: "-0.005em" }}>{title}</div>
-          {subtitle && <div style={{ fontSize: 11, color: TEXT_LO, marginTop: 3, lineHeight: 1.5 }}>{subtitle}</div>}
+          {subtitle && <div style={{ fontSize: 12, color: TEXT_LO, marginTop: 3, lineHeight: 1.5 }}>{subtitle}</div>}
         </div>
       )}
       {children}
@@ -686,11 +686,11 @@ function SectionBlock({ title, subtitle, action, children, padded = true }) {
           alignItems: "center",
           justifyContent: "space-between",
           gap: 12,
-          background: "rgba(255,255,255,0.012)",
+          background: "color-mix(in srgb, var(--sl-text) 1%, transparent)",
         }}>
           <div>
-            {title && <div style={{ fontSize: 10, fontWeight: 600, color: TEXT_HI, letterSpacing: "0.14em", textTransform: "uppercase" }}>{title}</div>}
-            {subtitle && <div style={{ fontSize: 11, color: TEXT_LO, marginTop: 4, lineHeight: 1.5 }}>{subtitle}</div>}
+            {title && <div style={{ fontSize: 12, fontWeight: 600, color: TEXT_HI, letterSpacing: "0.14em", textTransform: "uppercase" }}>{title}</div>}
+            {subtitle && <div style={{ fontSize: 12, color: TEXT_LO, marginTop: 4, lineHeight: 1.5 }}>{subtitle}</div>}
           </div>
           {action}
         </div>
@@ -709,14 +709,14 @@ function HeroCard({ label, value, hint, accent, progress, deltaChip, children })
       background: SURFACE_1,
       // Hairline-only borders for the new design; the accent card gets a
       // slightly warmer red-tinted edge instead of the old big shadow.
-      border: `1px solid ${accent ? "rgba(177,30,47,0.22)" : BORDER}`,
+      border: `1px solid ${accent ? "color-mix(in srgb, var(--sl-primary) 22%, transparent)" : BORDER}`,
       borderRadius: 12,
       minHeight: 200,
       display: "flex",
       flexDirection: "column",
     }}>
       <div style={{
-        fontSize: 9, fontWeight: 600,
+        fontSize: 12, fontWeight: 600,
         color: accent ? ACCENT : TEXT_LO,
         letterSpacing: "0.16em", textTransform: "uppercase",
         marginBottom: 18,
@@ -733,9 +733,9 @@ function HeroCard({ label, value, hint, accent, progress, deltaChip, children })
         }}>{value}</div>
         {deltaChip && <div style={{ display: "inline-flex", alignSelf: "center" }}>{deltaChip}</div>}
       </div>
-      {hint && <div style={{ fontSize: 11, color: TEXT_MID, marginBottom: 4, lineHeight: 1.5 }}>{hint}</div>}
+      {hint && <div style={{ fontSize: 12, color: TEXT_MID, marginBottom: 4, lineHeight: 1.5 }}>{hint}</div>}
       {progress != null && (
-        <div style={{ marginTop: 10, marginBottom: 4, height: 3, background: "rgba(255,255,255,0.04)", borderRadius: 2, overflow: "hidden" }}>
+        <div style={{ marginTop: 10, marginBottom: 4, height: 3, background: "color-mix(in srgb, var(--sl-text) 4%, transparent)", borderRadius: 2, overflow: "hidden" }}>
           <div style={{ height: 3, width: `${progress}%`, background: ACCENT, borderRadius: 2, transition: "width 600ms cubic-bezier(.2,.7,.2,1)" }} />
         </div>
       )}
@@ -747,7 +747,7 @@ function HeroCard({ label, value, hint, accent, progress, deltaChip, children })
 function MicroStat({ label, value, accent }) {
   return (
     <div>
-      <div style={{ fontSize: 9, fontWeight: 600, color: TEXT_LO, letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 4 }}>{label}</div>
+      <div style={{ fontSize: 12, fontWeight: 600, color: TEXT_LO, letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 4 }}>{label}</div>
       <div style={{ ...monoNum, fontSize: 16, fontWeight: 600, color: accent || TEXT_HI, letterSpacing: "-0.01em" }}>{value}</div>
     </div>
   );
@@ -764,18 +764,18 @@ function PersonCard({ row, sbRow, streak, pipe, vel, delta, yesterdayRow, monthl
     <div className="eq-card" style={{
       padding: 26,
       background: SURFACE_1,
-      border: `1px solid ${isLeader ? "rgba(34,197,94,0.30)" : isLoser ? "rgba(239,68,68,0.25)" : BORDER}`,
+      border: `1px solid ${isLeader ? "color-mix(in srgb, var(--sl-success) 30%, transparent)" : isLoser ? "color-mix(in srgb, var(--sl-danger) 25%, transparent)" : BORDER}`,
       borderRadius: 24,
-      boxShadow: "0 1px 0 rgba(255,255,255,0.03) inset, 0 8px 32px rgba(0,0,0,0.4)",
+      boxShadow: "0 1px 0 color-mix(in srgb, var(--sl-text) 3%, transparent) inset, 0 8px 32px rgba(0,0,0,0.4)",
     }}>
       {/* Top: avatar + name + streak/leader */}
       <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 22 }}>
         <div style={{
           width: 44, height: 44, borderRadius: "50%",
-          background: isLeader ? `linear-gradient(135deg, ${ACCENT_DEEP}, ${ACCENT})` : "rgba(255,255,255,0.06)",
+          background: isLeader ? `linear-gradient(135deg, ${ACCENT_DEEP}, ${ACCENT})` : "color-mix(in srgb, var(--sl-text) 6%, transparent)",
           display: "flex", alignItems: "center", justifyContent: "center",
-          fontSize: 16, fontWeight: 700, color: isLeader ? "#fff" : TEXT_MID,
-          border: `1px solid ${isLeader ? "rgba(255,255,255,0.15)" : BORDER_HI}`,
+          fontSize: 16, fontWeight: 700, color: isLeader ? "var(--sl-text)" : TEXT_MID,
+          border: `1px solid ${isLeader ? "color-mix(in srgb, var(--sl-text) 15%, transparent)" : BORDER_HI}`,
         }}>
           {initials(row.firstName)}
         </div>
@@ -783,10 +783,10 @@ function PersonCard({ row, sbRow, streak, pipe, vel, delta, yesterdayRow, monthl
           <div style={{ fontSize: 17, fontWeight: 700, color: TEXT_HI, letterSpacing: "-0.01em" }}>{row.firstName}</div>
           <div style={{ display: "flex", gap: 6, marginTop: 4 }}>
             {streak?.streak > 0 && (
-              <span style={{ fontSize: 9, fontWeight: 700, padding: "2px 7px", borderRadius: 999, background: "rgba(234,179,8,0.10)", color: AMBER, border: "1px solid rgba(234,179,8,0.25)" }}>🔥 {streak.streak}d</span>
+              <span style={{ fontSize: 12, fontWeight: 700, padding: "2px 7px", borderRadius: 999, background: "color-mix(in srgb, var(--sl-warning) 10%, transparent)", color: AMBER, border: "1px solid color-mix(in srgb, var(--sl-warning) 25%, transparent)" }}>🔥 {streak.streak}d</span>
             )}
-            {isLeader && <span style={{ fontSize: 9, fontWeight: 700, padding: "2px 7px", borderRadius: 999, background: "rgba(34,197,94,0.10)", color: GREEN, border: "1px solid rgba(34,197,94,0.30)" }}>Líder</span>}
-            {isLoser && <span style={{ fontSize: 9, fontWeight: 700, padding: "2px 7px", borderRadius: 999, background: "rgba(239,68,68,0.10)", color: RED, border: "1px solid rgba(239,68,68,0.30)" }}>Atrás</span>}
+            {isLeader && <span style={{ fontSize: 12, fontWeight: 700, padding: "2px 7px", borderRadius: 999, background: "color-mix(in srgb, var(--sl-success) 10%, transparent)", color: GREEN, border: "1px solid color-mix(in srgb, var(--sl-success) 30%, transparent)" }}>Líder</span>}
+            {isLoser && <span style={{ fontSize: 12, fontWeight: 700, padding: "2px 7px", borderRadius: 999, background: "color-mix(in srgb, var(--sl-danger) 10%, transparent)", color: RED, border: "1px solid color-mix(in srgb, var(--sl-danger) 30%, transparent)" }}>Atrás</span>}
           </div>
         </div>
         {windowKey === 'today' && sbRow && (
@@ -799,7 +799,7 @@ function PersonCard({ row, sbRow, streak, pipe, vel, delta, yesterdayRow, monthl
           own yesterday. The week/month deltaDmsSent chip stays as-is for
           longer windows where vs-ontem doesn't apply. */}
       <div style={{ marginBottom: 18 }}>
-        <div style={{ fontSize: 10, fontWeight: 600, color: TEXT_LO, letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 6 }}>DMs enviadas</div>
+        <div style={{ fontSize: 12, fontWeight: 600, color: TEXT_LO, letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 6 }}>DMs enviadas</div>
         <div style={{ display: "flex", alignItems: "baseline", gap: 10, flexWrap: "wrap" }}>
           <span style={{ fontSize: 40, fontWeight: 800, color: TEXT_HI, letterSpacing: "-0.025em", lineHeight: 1 }}>{row.dmsSent}</span>
           {delta?.deltaDmsSent != null && delta.deltaDmsSent !== 0 && (
@@ -814,7 +814,7 @@ function PersonCard({ row, sbRow, streak, pipe, vel, delta, yesterdayRow, monthl
       {/* 7-day sparkline */}
       {series.length > 0 && (
         <div style={{ marginBottom: 18, padding: "12px 14px", background: SURFACE_0, borderRadius: 14, border: `1px solid ${BORDER}` }}>
-          <div style={{ fontSize: 9, fontWeight: 600, color: TEXT_LO, letterSpacing: "0.10em", textTransform: "uppercase", marginBottom: 8 }}>Últimos 7 dias</div>
+          <div style={{ fontSize: 12, fontWeight: 600, color: TEXT_LO, letterSpacing: "0.10em", textTransform: "uppercase", marginBottom: 8 }}>Últimos 7 dias</div>
           <Sparkline days={series} />
         </div>
       )}
@@ -832,19 +832,19 @@ function PersonCard({ row, sbRow, streak, pipe, vel, delta, yesterdayRow, monthl
       {/* Pipeline mini */}
       {pipe && (pipe.active > 0 || pipe.stale > 0 || pipe.inProgressOffer > 0) && (
         <div style={{ marginBottom: 14, padding: "10px 14px", background: SURFACE_0, borderRadius: 14, border: `1px solid ${BORDER}` }}>
-          <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12 }}>
             <PipelineTag label="Ativas" value={pipe.active} />
-            <PipelineTag label="A aguardar" value={pipe.awaiting} color="#3b82f6" />
+            <PipelineTag label="A aguardar" value={pipe.awaiting} color="var(--sl-info)" />
             <PipelineTag label="Paradas" value={pipe.stale} color={AMBER} />
-            <PipelineTag label="Em ofertas" value={pipe.inProgressOffer} color="#a855f7" />
+            <PipelineTag label="Em ofertas" value={pipe.inProgressOffer} color="var(--sl-info)" />
           </div>
         </div>
       )}
 
       {/* Velocity */}
       {vel && (vel.avgAddedToDmHours != null || vel.avgRepliedToFollowHours != null) && (
-        <div style={{ marginBottom: 14, padding: "10px 14px", background: SURFACE_0, borderRadius: 14, border: `1px solid ${BORDER}`, fontSize: 11, color: TEXT_MID }}>
-          <div style={{ fontSize: 9, fontWeight: 600, color: TEXT_LO, letterSpacing: "0.10em", textTransform: "uppercase", marginBottom: 6 }}>Velocidade</div>
+        <div style={{ marginBottom: 14, padding: "10px 14px", background: SURFACE_0, borderRadius: 14, border: `1px solid ${BORDER}`, fontSize: 12, color: TEXT_MID }}>
+          <div style={{ fontSize: 12, fontWeight: 600, color: TEXT_LO, letterSpacing: "0.10em", textTransform: "uppercase", marginBottom: 6 }}>Velocidade</div>
           {vel.avgAddedToDmHours != null && <div>Add → DM <strong style={{ color: TEXT_HI, marginLeft: 6 }}>{fmtHours(vel.avgAddedToDmHours)}</strong></div>}
           {vel.avgRepliedToFollowHours != null && <div>Resp → Follow <strong style={{ color: TEXT_HI, marginLeft: 6 }}>{fmtHours(vel.avgRepliedToFollowHours)}</strong></div>}
           {vel.avgFirstDmToSignedDays != null && <div>DM → Fechado <strong style={{ color: TEXT_HI, marginLeft: 6 }}>{vel.avgFirstDmToSignedDays}d</strong></div>}
@@ -854,20 +854,20 @@ function PersonCard({ row, sbRow, streak, pipe, vel, delta, yesterdayRow, monthl
       {/* Today debt + monthly tally combined */}
       {windowKey === 'today' && sbRow && (
         <div style={{ display: "flex", gap: 10 }}>
-          <div style={{ flex: 1, padding: "10px 14px", background: sbRow.totalOwedEur > 0 ? "rgba(239,68,68,0.06)" : sbRow.totalEarnedEur > 0 ? "rgba(34,197,94,0.06)" : SURFACE_0, borderRadius: 14, border: `1px solid ${sbRow.totalOwedEur > 0 ? "rgba(239,68,68,0.20)" : sbRow.totalEarnedEur > 0 ? "rgba(34,197,94,0.20)" : BORDER}` }}>
-            <div style={{ fontSize: 9, fontWeight: 600, color: TEXT_LO, letterSpacing: "0.10em", textTransform: "uppercase", marginBottom: 4 }}>Hoje</div>
+          <div style={{ flex: 1, padding: "10px 14px", background: sbRow.totalOwedEur > 0 ? "color-mix(in srgb, var(--sl-danger) 6%, transparent)" : sbRow.totalEarnedEur > 0 ? "color-mix(in srgb, var(--sl-success) 6%, transparent)" : SURFACE_0, borderRadius: 14, border: `1px solid ${sbRow.totalOwedEur > 0 ? "color-mix(in srgb, var(--sl-danger) 20%, transparent)" : sbRow.totalEarnedEur > 0 ? "color-mix(in srgb, var(--sl-success) 20%, transparent)" : BORDER}` }}>
+            <div style={{ fontSize: 12, fontWeight: 600, color: TEXT_LO, letterSpacing: "0.10em", textTransform: "uppercase", marginBottom: 4 }}>Hoje</div>
             <div style={{ fontSize: 15, fontWeight: 700, color: sbRow.totalOwedEur > 0 ? RED : sbRow.totalEarnedEur > 0 ? GREEN : TEXT_MID }}>
               {sbRow.totalOwedEur > 0 ? `-€${sbRow.totalOwedEur}` : sbRow.totalEarnedEur > 0 ? `+€${sbRow.totalEarnedEur}` : '—'}
             </div>
           </div>
           {monthly && (
             <div style={{ flex: 1, padding: "10px 14px", background: SURFACE_0, borderRadius: 14, border: `1px solid ${BORDER}` }}>
-              <div style={{ fontSize: 9, fontWeight: 600, color: TEXT_LO, letterSpacing: "0.10em", textTransform: "uppercase", marginBottom: 4 }}>Mês</div>
+              <div style={{ fontSize: 12, fontWeight: 600, color: TEXT_LO, letterSpacing: "0.10em", textTransform: "uppercase", marginBottom: 4 }}>Mês</div>
               <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between" }}>
                 <span style={{ fontSize: 15, fontWeight: 700, color: monthly.netEur >= 0 ? GREEN : RED }}>
                   {monthly.netEur >= 0 ? '+' : ''}{fmtEur(monthly.netEur)}
                 </span>
-                <span style={{ fontSize: 9, color: TEXT_LO }}>{monthly.daysHit}✓ · {monthly.daysMissed}✗</span>
+                <span style={{ fontSize: 12, color: TEXT_LO }}>{monthly.daysHit}✓ · {monthly.daysMissed}✗</span>
               </div>
             </div>
           )}
@@ -918,16 +918,16 @@ function PersonRow({ row, sbRow, streak, delta, yesterdayRow, activity, isLeader
       gap: 16,
       padding: "16px 20px",
       borderBottom: last ? "none" : `1px solid ${BORDER}`,
-      background: isLeader ? "rgba(34,197,94,0.025)" : "transparent",
+      background: isLeader ? "color-mix(in srgb, var(--sl-success) 2%, transparent)" : "transparent",
       transition: "background 150ms",
     }}>
       {/* Operador — avatar + name + leader/atrás chip */}
       <div style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0 }}>
         <div style={{
           width: 30, height: 30, borderRadius: "50%",
-          background: isLeader ? `linear-gradient(135deg, ${ACCENT_DEEP}, ${ACCENT})` : "rgba(255,255,255,0.04)",
+          background: isLeader ? `linear-gradient(135deg, ${ACCENT_DEEP}, ${ACCENT})` : "color-mix(in srgb, var(--sl-text) 4%, transparent)",
           display: "flex", alignItems: "center", justifyContent: "center",
-          fontSize: 11, fontWeight: 600, color: isLeader ? "#fff" : TEXT_MID,
+          fontSize: 12, fontWeight: 600, color: isLeader ? "var(--sl-text)" : TEXT_MID,
           border: `1px solid ${BORDER_HI}`,
           flexShrink: 0,
         }}>
@@ -950,10 +950,10 @@ function PersonRow({ row, sbRow, streak, delta, yesterdayRow, activity, isLeader
         {streak?.streak > 0 ? (
           <div>
             <div style={{ ...monoNum, fontSize: 15, fontWeight: 600, color: AMBER, lineHeight: 1 }}>{streak.streak}d</div>
-            <div style={{ fontSize: 9, color: TEXT_LO, letterSpacing: "0.12em", textTransform: "uppercase", marginTop: 3 }}>Streak</div>
+            <div style={{ fontSize: 12, color: TEXT_LO, letterSpacing: "0.12em", textTransform: "uppercase", marginTop: 3 }}>Streak</div>
           </div>
         ) : (
-          <div style={{ fontSize: 9, color: TEXT_DIM, letterSpacing: "0.12em", textTransform: "uppercase" }}>Sem streak</div>
+          <div style={{ fontSize: 12, color: TEXT_DIM, letterSpacing: "0.12em", textTransform: "uppercase" }}>Sem streak</div>
         )}
       </div>
 
@@ -983,8 +983,8 @@ function PersonRow({ row, sbRow, streak, delta, yesterdayRow, activity, isLeader
 
       {/* 7-day sparkline */}
       <div style={{ alignSelf: "center" }}>
-        <div style={{ fontSize: 9, fontWeight: 600, color: TEXT_LO, letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 6 }}>7 dias</div>
-        {series.length > 0 ? <Sparkline days={series} /> : <div style={{ fontSize: 10, color: TEXT_DIM }}>—</div>}
+        <div style={{ fontSize: 12, fontWeight: 600, color: TEXT_LO, letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 6 }}>7 dias</div>
+        {series.length > 0 ? <Sparkline days={series} /> : <div style={{ fontSize: 12, color: TEXT_DIM }}>—</div>}
       </div>
 
       {/* Goal ring — only on Hoje view, shows DMs/target progress */}
@@ -1000,11 +1000,11 @@ function PersonRow({ row, sbRow, streak, delta, yesterdayRow, activity, isLeader
 function PersonRowCell({ label, value, accent, delta, deltaSuffix = '' }) {
   return (
     <div>
-      <div style={{ fontSize: 9, fontWeight: 600, color: TEXT_LO, letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 6 }}>{label}</div>
+      <div style={{ fontSize: 12, fontWeight: 600, color: TEXT_LO, letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 6 }}>{label}</div>
       <div style={{ display: "flex", alignItems: "baseline", gap: 6 }}>
         <div style={{ ...monoNum, fontSize: 18, fontWeight: 600, color: accent || TEXT_HI, lineHeight: 1, letterSpacing: "-0.01em" }}>{value}</div>
         {delta != null && delta !== 0 && (
-          <span style={{ ...monoNum, fontSize: 10, fontWeight: 600, color: delta > 0 ? GREEN : RED }}>
+          <span style={{ ...monoNum, fontSize: 12, fontWeight: 600, color: delta > 0 ? GREEN : RED }}>
             {delta > 0 ? '+' : ''}{delta}{deltaSuffix}
           </span>
         )}
@@ -1016,11 +1016,11 @@ function PersonRowCell({ label, value, accent, delta, deltaSuffix = '' }) {
 function StatTile({ label, value, accent, delta, deltaSuffix = '' }) {
   return (
     <div style={{ padding: "8px 10px", background: SURFACE_0, borderRadius: 8, border: `1px solid ${BORDER}` }}>
-      <div style={{ fontSize: 9, fontWeight: 600, color: TEXT_LO, letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 4, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{label}</div>
+      <div style={{ fontSize: 12, fontWeight: 600, color: TEXT_LO, letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 4, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{label}</div>
       <div style={{ display: "flex", alignItems: "baseline", gap: 4, ...monoNum }}>
         <div style={{ fontSize: 17, fontWeight: 700, color: accent || TEXT_HI, letterSpacing: "-0.01em" }}>{value}</div>
         {delta != null && delta !== 0 && (
-          <span style={{ fontSize: 9, fontWeight: 700, color: delta > 0 ? GREEN : RED }}>
+          <span style={{ fontSize: 12, fontWeight: 700, color: delta > 0 ? GREEN : RED }}>
             {delta > 0 ? '+' : ''}{delta}{deltaSuffix}
           </span>
         )}
@@ -1032,7 +1032,7 @@ function StatTile({ label, value, accent, delta, deltaSuffix = '' }) {
 function PipelineTag({ label, value, color = GREEN }) {
   return (
     <div style={{ textAlign: "center", flex: 1 }}>
-      <div style={{ fontSize: 9, color: TEXT_LO, marginBottom: 2 }}>{label}</div>
+      <div style={{ fontSize: 12, color: TEXT_LO, marginBottom: 2 }}>{label}</div>
       <div style={{ fontSize: 14, fontWeight: 700, color: value > 0 ? color : TEXT_DIM }}>{value}</div>
     </div>
   );
@@ -1045,9 +1045,9 @@ function DeltaBadge({ value }) {
       ...monoNum,
       display: "inline-flex", alignItems: "center", gap: 2,
       padding: "1px 6px", borderRadius: 4,
-      background: positive ? "rgba(34,197,94,0.10)" : "rgba(239,68,68,0.10)",
+      background: positive ? "color-mix(in srgb, var(--sl-success) 10%, transparent)" : "color-mix(in srgb, var(--sl-danger) 10%, transparent)",
       color: positive ? GREEN : RED,
-      fontSize: 10, fontWeight: 600,
+      fontSize: 12, fontWeight: 600,
     }}>
       {positive ? '+' : '−'}{Math.abs(value)}
     </span>
@@ -1064,8 +1064,8 @@ function VsYesterdayChip({ current, previous, suffix = '', invertColor = false }
       <span style={{
         display: "inline-flex", alignItems: "center",
         padding: "1px 6px", borderRadius: 4,
-        background: "rgba(255,255,255,0.025)",
-        color: TEXT_LO, fontSize: 10, fontWeight: 500,
+        background: "color-mix(in srgb, var(--sl-text) 2%, transparent)",
+        color: TEXT_LO, fontSize: 12, fontWeight: 500,
       }}>
         <span style={{ ...monoNum, marginRight: 5 }}>=</span>
         <span style={{ fontWeight: 500, letterSpacing: "0.04em" }}>ontem</span>
@@ -1078,9 +1078,9 @@ function VsYesterdayChip({ current, previous, suffix = '', invertColor = false }
     <span style={{
       display: "inline-flex", alignItems: "center", gap: 5,
       padding: "1px 6px", borderRadius: 4,
-      background: positive ? "rgba(34,197,94,0.10)" : "rgba(239,68,68,0.10)",
+      background: positive ? "color-mix(in srgb, var(--sl-success) 10%, transparent)" : "color-mix(in srgb, var(--sl-danger) 10%, transparent)",
       color: positive ? GREEN : RED,
-      fontSize: 10, fontWeight: 600,
+      fontSize: 12, fontWeight: 600,
     }}>
       <span style={monoNum}>{sign}{Math.abs(diff)}{suffix}</span>
       <span style={{ opacity: 0.7, fontWeight: 500, letterSpacing: "0.04em" }}>vs ontem</span>
@@ -1098,7 +1098,7 @@ function ProgressRing({ value, size = 80, stroke = 8, color = ACCENT, centerLabe
   return (
     <div style={{ position: "relative", width: size, height: size }}>
       <svg width={size} height={size} style={{ transform: "rotate(-90deg)" }}>
-        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth={stroke} />
+        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="color-mix(in srgb, var(--sl-text) 6%, transparent)" strokeWidth={stroke} />
         <circle
           cx={size / 2} cy={size / 2} r={r} fill="none"
           stroke={color} strokeWidth={stroke} strokeLinecap="round"
@@ -1108,7 +1108,7 @@ function ProgressRing({ value, size = 80, stroke = 8, color = ACCENT, centerLabe
       </svg>
       <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", pointerEvents: "none" }}>
         {centerLabel ? (
-          <span style={{ fontSize: 11, fontWeight: 700, color: TEXT_HI, letterSpacing: "-0.01em" }}>{centerLabel}</span>
+          <span style={{ fontSize: 12, fontWeight: 700, color: TEXT_HI, letterSpacing: "-0.01em" }}>{centerLabel}</span>
         ) : (
           <span style={{ fontSize: size / 4, fontWeight: 700, color: TEXT_HI, letterSpacing: "-0.02em" }}>{v}%</span>
         )}
@@ -1145,7 +1145,7 @@ function ActivityBarChart({ days = [], target = 30 }) {
       <div style={{
         height: 70, display: "flex", alignItems: "center", justifyContent: "center",
         border: `1px dashed ${BORDER}`, borderRadius: 8,
-        fontSize: 11, color: TEXT_DIM, letterSpacing: "0.04em",
+        fontSize: 12, color: TEXT_DIM, letterSpacing: "0.04em",
       }}>
         Sem atividade ainda esta semana
       </div>
@@ -1161,7 +1161,7 @@ function ActivityBarChart({ days = [], target = 30 }) {
           <div key={d.date} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "stretch", minWidth: 0 }}>
             <div style={{
               position: "relative", flex: 1,
-              background: "rgba(255,255,255,0.03)",
+              background: "color-mix(in srgb, var(--sl-text) 3%, transparent)",
               borderRadius: 4, overflow: "hidden",
             }}>
               {/* Filled portion grows from the bottom up. Today's bar
@@ -1172,13 +1172,13 @@ function ActivityBarChart({ days = [], target = 30 }) {
                 height: `${Math.max(2, pct)}%`,
                 background: isToday
                   ? `linear-gradient(180deg, ${ACCENT}, ${ACCENT_DEEP})`
-                  : "rgba(255,255,255,0.20)",
+                  : "color-mix(in srgb, var(--sl-text) 20%, transparent)",
                 borderRadius: 4,
                 transition: "height 600ms cubic-bezier(.2,.7,.2,1)",
               }} />
             </div>
             <div style={{
-              fontSize: 9, fontWeight: 600, marginTop: 6, textAlign: "center",
+              fontSize: 12, fontWeight: 600, marginTop: 6, textAlign: "center",
               color: isToday ? ACCENT : TEXT_LO, letterSpacing: "0.08em",
             }}>
               {dayLabel(d.date)}
@@ -1204,7 +1204,7 @@ function Sparkline({ days = [] }) {
   const allZero = days.every(d => (d.dms || 0) === 0);
   if (allZero) {
     return (
-      <div style={{ height: 28, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, color: TEXT_DIM }}>
+      <div style={{ height: 28, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, color: TEXT_DIM }}>
         —
       </div>
     );
@@ -1251,7 +1251,7 @@ function FunnelChart({ funnel }) {
           return (
             <div key={i}>
               {s.rate != null && (
-                <div style={{ fontSize: 9, color: TEXT_DIM, marginLeft: 6, marginBottom: 2 }}>↓ {s.rate}%</div>
+                <div style={{ fontSize: 12, color: TEXT_DIM, marginLeft: 6, marginBottom: 2 }}>↓ {s.rate}%</div>
               )}
               <div style={{ position: "relative", height: 30, borderRadius: 12, overflow: "hidden", background: SURFACE_0, border: `1px solid ${BORDER}` }}>
                 <div style={{
@@ -1259,12 +1259,12 @@ function FunnelChart({ funnel }) {
                   width: `${Math.max(8, w)}%`,
                   background: s.highlight
                     ? `linear-gradient(90deg, ${ACCENT_DEEP}, ${ACCENT})`
-                    : `linear-gradient(90deg, rgba(177,30,47,0.20), rgba(177,30,47,0.10))`,
+                    : `linear-gradient(90deg, color-mix(in srgb, var(--sl-primary) 20%, transparent), color-mix(in srgb, var(--sl-primary) 10%, transparent))`,
                   borderRadius: 12,
                   transition: "width 600ms cubic-bezier(.2,.7,.2,1)",
                 }} />
                 <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 12px" }}>
-                  <span style={{ fontSize: 11, color: TEXT_MID }}>{s.label}</span>
+                  <span style={{ fontSize: 12, color: TEXT_MID }}>{s.label}</span>
                   <span style={{ fontSize: 13, fontWeight: 700, color: TEXT_HI }}>{s.value}</span>
                 </div>
               </div>
@@ -1272,7 +1272,7 @@ function FunnelChart({ funnel }) {
           );
         })}
       </div>
-      <div style={{ marginTop: 10, paddingTop: 10, borderTop: `1px solid ${BORDER}`, fontSize: 11, color: TEXT_LO, display: "flex", justifyContent: "space-between" }}>
+      <div style={{ marginTop: 10, paddingTop: 10, borderTop: `1px solid ${BORDER}`, fontSize: 12, color: TEXT_LO, display: "flex", justifyContent: "space-between" }}>
         <span>Taxa global</span>
         <strong style={{ color: TEXT_HI }}>{funnel.overallRate}%</strong>
       </div>
@@ -1304,7 +1304,7 @@ function TeamFunnel({ funnel, timing }) {
   return (
     <div>
       {empty && (
-        <div style={{ fontSize: 11, color: TEXT_DIM, marginBottom: 12 }}>
+        <div style={{ fontSize: 12, color: TEXT_DIM, marginBottom: 12 }}>
           Sem contactos nesta janela ainda — o funil preenche-se à medida que marcam as etapas no Kanban.
         </div>
       )}
@@ -1314,9 +1314,9 @@ function TeamFunnel({ funnel, timing }) {
           return (
             <div key={i}>
               {s.rate != null && (
-                <div style={{ fontSize: 9, color: TEXT_DIM, marginLeft: 6, marginBottom: 3, display: "flex", gap: 10 }}>
+                <div style={{ fontSize: 12, color: TEXT_DIM, marginLeft: 6, marginBottom: 3, display: "flex", gap: 10 }}>
                   <span>↓ {s.rate}%</span>
-                  <span style={{ color: "#3a3a3a" }}>·</span>
+                  <span style={{ color: "var(--sl-border-strong)" }}>·</span>
                   <span title="Tempo médio entre estas duas etapas">{fmtDays(s.gap)} em média</span>
                 </div>
               )}
@@ -1326,7 +1326,7 @@ function TeamFunnel({ funnel, timing }) {
                   width: `${Math.max(6, w)}%`,
                   background: s.highlight
                     ? `linear-gradient(90deg, ${ACCENT_DEEP}, ${ACCENT})`
-                    : `linear-gradient(90deg, rgba(177,30,47,0.22), rgba(177,30,47,0.08))`,
+                    : `linear-gradient(90deg, color-mix(in srgb, var(--sl-primary) 22%, transparent), color-mix(in srgb, var(--sl-primary) 8%, transparent))`,
                   borderRadius: 10,
                   transition: "width 600ms cubic-bezier(.2,.7,.2,1)",
                 }} />
@@ -1342,14 +1342,14 @@ function TeamFunnel({ funnel, timing }) {
       {/* Footer — taxa global + ciclo total */}
       <div style={{ marginTop: 14, paddingTop: 12, borderTop: `1px solid ${BORDER}`, display: "flex", gap: 28, flexWrap: "wrap" }}>
         <div>
-          <div style={{ fontSize: 9, fontWeight: 600, color: TEXT_LO, letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 4 }}>Taxa global (contacto→negócio)</div>
+          <div style={{ fontSize: 12, fontWeight: 600, color: TEXT_LO, letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 4 }}>Taxa global (contacto→negócio)</div>
           <div style={{ ...monoNum, fontSize: 20, fontWeight: 700, color: TEXT_HI }}>{R.overall != null ? `${R.overall}%` : "—"}</div>
         </div>
         <div>
-          <div style={{ fontSize: 9, fontWeight: 600, color: TEXT_LO, letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 4 }}>Ciclo médio de venda</div>
+          <div style={{ fontSize: 12, fontWeight: 600, color: TEXT_LO, letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 4 }}>Ciclo médio de venda</div>
           <div style={{ ...monoNum, fontSize: 20, fontWeight: 700, color: TEXT_HI }}>
             {T.cicloTotal != null ? `${T.cicloTotal} dias` : "—"}
-            {T.sampleSize > 0 && <span style={{ fontSize: 10, color: TEXT_DIM, marginLeft: 8 }}>({T.sampleSize} {T.sampleSize === 1 ? "negócio" : "negócios"})</span>}
+            {T.sampleSize > 0 && <span style={{ fontSize: 12, color: TEXT_DIM, marginLeft: 8 }}>({T.sampleSize} {T.sampleSize === 1 ? "negócio" : "negócios"})</span>}
           </div>
         </div>
       </div>
@@ -1378,9 +1378,9 @@ function StageAnalytics({ data }) {
     <div className="sl-grid-2" style={{ display: "grid", gridTemplateColumns: "1.15fr 1fr", gap: 26 }}>
       {/* Tempo mediano por fase */}
       <div>
-        <div style={{ fontSize: 9, fontWeight: 600, color: TEXT_LO, letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 12 }}>Tempo mediano por fase</div>
+        <div style={{ fontSize: 12, fontWeight: 600, color: TEXT_LO, letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 12 }}>Tempo mediano por fase</div>
         {!anyTime ? (
-          <div style={{ fontSize: 11, color: TEXT_DIM }}>Ainda sem transições completas para medir — preenche-se à medida que os leads avançam.</div>
+          <div style={{ fontSize: 12, color: TEXT_DIM }}>Ainda sem transições completas para medir — preenche-se à medida que os leads avançam.</div>
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: 9 }}>
             {time.map(t => {
@@ -1389,13 +1389,13 @@ function StageAnalytics({ data }) {
               return (
                 <div key={t.key}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 4 }}>
-                    <span style={{ display: "flex", alignItems: "center", gap: 7, fontSize: 11, color: dim ? TEXT_DIM : TEXT_MID }}>
+                    <span style={{ display: "flex", alignItems: "center", gap: 7, fontSize: 12, color: dim ? TEXT_DIM : TEXT_MID }}>
                       <span style={{ width: 7, height: 7, borderRadius: "50%", background: t.accent, opacity: dim ? 0.35 : 1, flexShrink: 0 }} />
                       {t.label}
                     </span>
                     <span style={{ ...monoNum, fontSize: 12, fontWeight: 700, color: dim ? TEXT_DIM : TEXT_HI, whiteSpace: "nowrap" }}>
                       {t.medianDays != null ? `${t.medianDays}d` : "—"}
-                      {t.sample > 0 && <span style={{ fontSize: 9, color: TEXT_DIM, marginLeft: 6, fontWeight: 500 }}>n={t.sample}</span>}
+                      {t.sample > 0 && <span style={{ fontSize: 12, color: TEXT_DIM, marginLeft: 6, fontWeight: 500 }}>n={t.sample}</span>}
                     </span>
                   </div>
                   <div style={{ height: 6, borderRadius: 4, background: SURFACE_0, border: `1px solid ${BORDER}`, overflow: "hidden" }}>
@@ -1409,9 +1409,9 @@ function StageAnalytics({ data }) {
       </div>
       {/* Conversão entre fases */}
       <div>
-        <div style={{ fontSize: 9, fontWeight: 600, color: TEXT_LO, letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 12 }}>Conversão entre fases</div>
+        <div style={{ fontSize: 12, fontWeight: 600, color: TEXT_LO, letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 12 }}>Conversão entre fases</div>
         {(rate[0]?.reached || 0) === 0 ? (
-          <div style={{ fontSize: 11, color: TEXT_DIM }}>Sem contactos registados ainda.</div>
+          <div style={{ fontSize: 12, color: TEXT_DIM }}>Sem contactos registados ainda.</div>
         ) : (
           <div style={{ display: "flex", flexDirection: "column" }}>
             {rate.map((s, i) => {
@@ -1419,11 +1419,11 @@ function StageAnalytics({ data }) {
               return (
                 <div key={s.key}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "5px 0" }}>
-                    <span style={{ fontSize: 11, color: last ? "#22c55e" : TEXT_MID, fontWeight: last ? 700 : 500 }}>{s.label}</span>
+                    <span style={{ fontSize: 12, color: last ? "var(--sl-success)" : TEXT_MID, fontWeight: last ? 700 : 500 }}>{s.label}</span>
                     <span style={{ ...monoNum, fontSize: 13, fontWeight: 700, color: TEXT_HI }}>{s.reached}</span>
                   </div>
                   {!last && (
-                    <div style={{ fontSize: 9, color: TEXT_DIM, paddingLeft: 8, marginLeft: 2, borderLeft: `1px solid ${BORDER}`, paddingTop: 1, paddingBottom: 1 }}>
+                    <div style={{ fontSize: 12, color: TEXT_DIM, paddingLeft: 8, marginLeft: 2, borderLeft: `1px solid ${BORDER}`, paddingTop: 1, paddingBottom: 1 }}>
                       ↓ {s.toNextRate != null ? `${s.toNextRate}%` : "—"}
                     </div>
                   )}
@@ -1478,7 +1478,7 @@ function TargetCalculator({ funnel, monthly = false }) {
   const fmtDec = (n) => (Number.isFinite(n) ? String(Math.round(n * 10) / 10) : "—");
 
   const numInput = { width: "100%", padding: "10px 12px", background: SURFACE_0, border: `1px solid ${BORDER_HI}`, borderRadius: 8, color: TEXT_HI, fontSize: 18, fontWeight: 700, outline: "none", boxSizing: "border-box", fontFamily: "ui-monospace, monospace" };
-  const numLabel = { display: "block", fontSize: 10, fontWeight: 600, color: TEXT_LO, letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 6 };
+  const numLabel = { display: "block", fontSize: 12, fontWeight: 600, color: TEXT_LO, letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 6 };
 
   const RATE_ROWS = [
     { label: "Taxa de fecho (proposta → negócio)", val: rFecho, set: setRFecho },
@@ -1529,29 +1529,29 @@ function TargetCalculator({ funnel, monthly = false }) {
       <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12, marginBottom: 14 }}>
         {OUT_TILES.map((t, i) => (
           <div key={i} style={{ padding: "14px 16px", background: SURFACE_0, border: `1px solid ${BORDER}`, borderRadius: 10 }}>
-            <div style={{ fontSize: 10, fontWeight: 600, color: TEXT_LO, letterSpacing: "0.06em", marginBottom: 6 }}>{t.label}</div>
+            <div style={{ fontSize: 12, fontWeight: 600, color: TEXT_LO, letterSpacing: "0.06em", marginBottom: 6 }}>{t.label}</div>
             <div style={{ ...monoNum, fontSize: 24, fontWeight: 800, color: TEXT_HI, lineHeight: 1 }}>{t.value}</div>
           </div>
         ))}
       </div>
 
       {/* Highlighted daily/weekly cadence bar */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12, padding: "16px 18px", background: "rgba(177,30,47,0.08)", border: `1px solid rgba(177,30,47,0.25)`, borderRadius: 12 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12, padding: "16px 18px", background: "color-mix(in srgb, var(--sl-primary) 8%, transparent)", border: `1px solid color-mix(in srgb, var(--sl-primary) 25%, transparent)`, borderRadius: 12 }}>
         <div>
-          <div style={{ fontSize: 10, fontWeight: 600, color: ACCENT, letterSpacing: "0.06em", marginBottom: 6 }}>Contactos por dia</div>
+          <div style={{ fontSize: 12, fontWeight: 600, color: ACCENT, letterSpacing: "0.06em", marginBottom: 6 }}>Contactos por dia</div>
           <div style={{ ...monoNum, fontSize: 30, fontWeight: 800, color: TEXT_HI, lineHeight: 1 }}>{fmtDec(contactosDia)}</div>
           {realContactosDia != null && (
-            <div style={{ fontSize: 10, color: TEXT_LO, marginTop: 6 }}>
+            <div style={{ fontSize: 12, color: TEXT_LO, marginTop: 6 }}>
               real: <strong style={{ color: realContactosDia >= (Number.isFinite(contactosDia) ? contactosDia : Infinity) ? GREEN : AMBER }}>{fmtDec(realContactosDia)}</strong> / dia
             </div>
           )}
         </div>
         <div>
-          <div style={{ fontSize: 10, fontWeight: 600, color: ACCENT, letterSpacing: "0.06em", marginBottom: 6 }}>Conversas por dia</div>
+          <div style={{ fontSize: 12, fontWeight: 600, color: ACCENT, letterSpacing: "0.06em", marginBottom: 6 }}>Conversas por dia</div>
           <div style={{ ...monoNum, fontSize: 30, fontWeight: 800, color: TEXT_HI, lineHeight: 1 }}>{fmtDec(conversasDia)}</div>
         </div>
         <div>
-          <div style={{ fontSize: 10, fontWeight: 600, color: ACCENT, letterSpacing: "0.06em", marginBottom: 6 }}>Reuniões por semana</div>
+          <div style={{ fontSize: 12, fontWeight: 600, color: ACCENT, letterSpacing: "0.06em", marginBottom: 6 }}>Reuniões por semana</div>
           <div style={{ ...monoNum, fontSize: 30, fontWeight: 800, color: TEXT_HI, lineHeight: 1 }}>{fmtDec(reunioesSemana)}</div>
         </div>
       </div>
@@ -1570,9 +1570,9 @@ function PipelineDonut({ pipeline = [] }) {
 
   const segments = [
     { label: 'Ativas', value: total.active, color: GREEN },
-    { label: 'A aguardar', value: total.awaiting, color: '#3b82f6' },
+    { label: 'A aguardar', value: total.awaiting, color: 'var(--sl-info)' },
     { label: 'Paradas', value: total.stale, color: AMBER },
-    { label: 'Em ofertas', value: total.inProgressOffer, color: '#a855f7' },
+    { label: 'Em ofertas', value: total.inProgressOffer, color: 'var(--sl-info)' },
   ];
   const sum = segments.reduce((s, x) => s + x.value, 0) || 1;
 
@@ -1584,7 +1584,7 @@ function PipelineDonut({ pipeline = [] }) {
     <div style={{ display: "flex", alignItems: "center", gap: 24 }}>
       <div style={{ position: "relative", width: size, height: size, flexShrink: 0 }}>
         <svg width={size} height={size} style={{ transform: "rotate(-90deg)" }}>
-          <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="rgba(255,255,255,0.04)" strokeWidth={stroke} />
+          <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="color-mix(in srgb, var(--sl-text) 4%, transparent)" strokeWidth={stroke} />
           {segments.map((s, i) => {
             const frac = s.value / sum;
             const dash = frac * c;
@@ -1598,7 +1598,7 @@ function PipelineDonut({ pipeline = [] }) {
         </svg>
         <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
           <span style={{ fontSize: 28, fontWeight: 800, color: TEXT_HI, letterSpacing: "-0.025em" }}>{sum === 1 && segments.every(s => s.value === 0) ? 0 : sum}</span>
-          <span style={{ fontSize: 10, color: TEXT_LO, letterSpacing: "0.12em", textTransform: "uppercase" }}>Total</span>
+          <span style={{ fontSize: 12, color: TEXT_LO, letterSpacing: "0.12em", textTransform: "uppercase" }}>Total</span>
         </div>
       </div>
       <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 8 }}>
@@ -1624,30 +1624,30 @@ function Heatmap({ data }) {
   const allVals = data.grid.flat();
   const max = Math.max(1, ...allVals);
   const colorAt = (v) => {
-    if (v === 0) return 'rgba(255,255,255,0.03)';
+    if (v === 0) return 'color-mix(in srgb, var(--sl-text) 3%, transparent)';
     const intensity = Math.min(1, v / max);
     // Interpolate from deep red base to bright accent.
     const alpha = 0.10 + intensity * 0.65;
-    return `rgba(177,30,47,${alpha.toFixed(2)})`;
+    return `color-mix(in srgb, var(--sl-primary) ${(alpha * 100).toFixed(0)}%, transparent)`;
   };
   return (
     <div>
       <div style={{ display: "grid", gridTemplateColumns: "44px repeat(4, 1fr)", gap: 4, marginBottom: 4 }}>
         <div />
         {buckets.map(b => (
-          <div key={b} style={{ fontSize: 9, fontWeight: 600, color: TEXT_LO, letterSpacing: "0.06em", textTransform: "uppercase", textAlign: "center", padding: "4px 0" }}>{b}</div>
+          <div key={b} style={{ fontSize: 12, fontWeight: 600, color: TEXT_LO, letterSpacing: "0.06em", textTransform: "uppercase", textAlign: "center", padding: "4px 0" }}>{b}</div>
         ))}
       </div>
       {days.map((dayLabel, dow) => (
         <div key={dow} style={{ display: "grid", gridTemplateColumns: "44px repeat(4, 1fr)", gap: 4, marginBottom: 4 }}>
-          <div style={{ fontSize: 11, fontWeight: 600, color: dow >= 5 ? TEXT_DIM : TEXT_MID, padding: "8px 0", textAlign: "right" }}>{dayLabel}</div>
+          <div style={{ fontSize: 12, fontWeight: 600, color: dow >= 5 ? TEXT_DIM : TEXT_MID, padding: "8px 0", textAlign: "right" }}>{dayLabel}</div>
           {data.grid[dow].map((v, b) => (
             <div key={b} title={`${dayLabel} · ${buckets[b]}: ${v} DM${v === 1 ? '' : 's'}`}
               style={{
                 height: 36,
                 background: colorAt(v),
                 borderRadius: 8,
-                border: `1px solid ${v > 0 ? 'rgba(177,30,47,0.18)' : BORDER}`,
+                border: `1px solid ${v > 0 ? 'color-mix(in srgb, var(--sl-primary) 18%, transparent)' : BORDER}`,
                 display: "flex", alignItems: "center", justifyContent: "center",
                 transition: "transform 150ms",
                 cursor: "default",
@@ -1655,16 +1655,16 @@ function Heatmap({ data }) {
               onMouseEnter={e => { e.currentTarget.style.transform = 'scale(1.04)'; }}
               onMouseLeave={e => { e.currentTarget.style.transform = 'scale(1)'; }}
             >
-              <span style={{ fontSize: 11, fontWeight: 700, color: v === 0 ? TEXT_DIM : TEXT_HI }}>{v}</span>
+              <span style={{ fontSize: 12, fontWeight: 700, color: v === 0 ? TEXT_DIM : TEXT_HI }}>{v}</span>
             </div>
           ))}
         </div>
       ))}
-      <div style={{ marginTop: 10, display: "flex", alignItems: "center", gap: 8, fontSize: 10, color: TEXT_LO }}>
+      <div style={{ marginTop: 10, display: "flex", alignItems: "center", gap: 8, fontSize: 12, color: TEXT_LO }}>
         <span>Menos</span>
         <div style={{ display: "flex", gap: 2 }}>
           {[0.05, 0.20, 0.40, 0.60, 0.80].map((a, i) => (
-            <div key={i} style={{ width: 14, height: 8, background: a === 0.05 ? 'rgba(255,255,255,0.03)' : `rgba(177,30,47,${a})`, borderRadius: 2 }} />
+            <div key={i} style={{ width: 14, height: 8, background: a === 0.05 ? 'color-mix(in srgb, var(--sl-text) 3%, transparent)' : `color-mix(in srgb, var(--sl-primary) ${(a * 100).toFixed(0)}%, transparent)`, borderRadius: 2 }} />
           ))}
         </div>
         <span>Mais</span>
@@ -1679,7 +1679,7 @@ function RecentActivityFeed({ events }) {
     added: { label: 'adicionou', color: TEXT_MID },
     dm_sent: { label: 'enviou DM a', color: ACCENT },
     follow_up: { label: 'fez follow-up a', color: AMBER },
-    replied: { label: 'recebeu resposta de', color: '#3b82f6' },
+    replied: { label: 'recebeu resposta de', color: 'var(--sl-info)' },
     signed: { label: 'fechou', color: GREEN },
   };
   const ago = (iso) => {
@@ -1701,7 +1701,7 @@ function RecentActivityFeed({ events }) {
               <span style={{ color: TEXT_LO, margin: "0 4px" }}>{cfg.label}</span>
               <a href={`/creators/${e.creatorId}`} style={{ color: TEXT_HI, textDecoration: 'none' }}>{e.creator || 'criador'}</a>
             </div>
-            <span style={{ fontSize: 10, color: TEXT_LO, flexShrink: 0 }}>{ago(e.at)}</span>
+            <span style={{ fontSize: 12, color: TEXT_LO, flexShrink: 0 }}>{ago(e.at)}</span>
           </div>
         );
       })}
@@ -1723,18 +1723,18 @@ function QualityBars({ title, items }) {
   const isTemplate = title === 'Template';
   return (
     <div style={{ marginBottom: 14 }}>
-      <div style={{ fontSize: 9, fontWeight: 600, color: TEXT_LO, letterSpacing: "0.10em", textTransform: "uppercase", marginBottom: 8 }}>{title}</div>
+      <div style={{ fontSize: 12, fontWeight: 600, color: TEXT_LO, letterSpacing: "0.10em", textTransform: "uppercase", marginBottom: 8 }}>{title}</div>
       <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
         {items.map((it, i) => {
           const color = it.rate >= 15 ? GREEN : it.rate >= 5 ? AMBER : TEXT_LO;
           const label = isTemplate ? (TEMPLATE_LABELS[it.key] || it.key) : it.key;
           return (
             <div key={i} style={{ display: "flex", alignItems: "center", gap: 10 }}>
-              <span style={{ fontSize: 11, color: TEXT_MID, width: isTemplate ? 130 : 60 }}>{label}</span>
+              <span style={{ fontSize: 12, color: TEXT_MID, width: isTemplate ? 130 : 60 }}>{label}</span>
               <div style={{ flex: 1, height: 6, background: SURFACE_0, borderRadius: 6, overflow: "hidden", border: `1px solid ${BORDER}` }}>
                 <div style={{ height: "100%", width: `${Math.min(100, it.rate * 2)}%`, background: color, borderRadius: 6, transition: "width 600ms" }} />
               </div>
-              <span style={{ fontSize: 11, color: TEXT_LO, width: 50, textAlign: "right" }}>{it.replied}/{it.sent}</span>
+              <span style={{ fontSize: 12, color: TEXT_LO, width: 50, textAlign: "right" }}>{it.replied}/{it.sent}</span>
               <span style={{ fontSize: 12, fontWeight: 700, color: TEXT_HI, width: 36, textAlign: "right" }}>{it.rate}%</span>
             </div>
           );
@@ -1777,8 +1777,8 @@ function WinRateTrajectory({ data }) {
   return (
     <div>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 12 }}>
-        <div style={{ fontSize: 11, color: TEXT_LO }}>Atual <strong style={{ color: TEXT_HI }}>{lastValid.winRatePct}%</strong> · há {validPoints.length} sem. <strong style={{ color: TEXT_HI }}>{firstValid.winRatePct}%</strong></div>
-        <span style={{ fontSize: 11, fontWeight: 700, padding: "3px 10px", borderRadius: 999, background: trendDelta > 0 ? "rgba(34,197,94,0.10)" : trendDelta < 0 ? "rgba(239,68,68,0.10)" : "rgba(255,255,255,0.05)", color: trendDelta > 0 ? GREEN : trendDelta < 0 ? RED : TEXT_MID, border: `1px solid ${trendDelta > 0 ? "rgba(34,197,94,0.25)" : trendDelta < 0 ? "rgba(239,68,68,0.25)" : BORDER_HI}` }}>
+        <div style={{ fontSize: 12, color: TEXT_LO }}>Atual <strong style={{ color: TEXT_HI }}>{lastValid.winRatePct}%</strong> · há {validPoints.length} sem. <strong style={{ color: TEXT_HI }}>{firstValid.winRatePct}%</strong></div>
+        <span style={{ fontSize: 12, fontWeight: 700, padding: "3px 10px", borderRadius: 999, background: trendDelta > 0 ? "color-mix(in srgb, var(--sl-success) 10%, transparent)" : trendDelta < 0 ? "color-mix(in srgb, var(--sl-danger) 10%, transparent)" : "color-mix(in srgb, var(--sl-text) 5%, transparent)", color: trendDelta > 0 ? GREEN : trendDelta < 0 ? RED : TEXT_MID, border: `1px solid ${trendDelta > 0 ? "color-mix(in srgb, var(--sl-success) 25%, transparent)" : trendDelta < 0 ? "color-mix(in srgb, var(--sl-danger) 25%, transparent)" : BORDER_HI}` }}>
           {trendDelta > 0 ? '↑' : trendDelta < 0 ? '↓' : '→'} {Math.abs(trendDelta)} pp
         </span>
       </div>
@@ -1786,7 +1786,7 @@ function WinRateTrajectory({ data }) {
         {/* Gridlines at 0/25/50/75/100% */}
         {[0, 25, 50, 75, 100].map(pct => (
           <g key={pct}>
-            <line x1={pad.l} x2={W - pad.r} y1={yAt(pct)} y2={yAt(pct)} stroke="rgba(255,255,255,0.04)" strokeWidth={1} />
+            <line x1={pad.l} x2={W - pad.r} y1={yAt(pct)} y2={yAt(pct)} stroke="color-mix(in srgb, var(--sl-text) 4%, transparent)" strokeWidth={1} />
             <text x={pad.l - 8} y={yAt(pct) + 4} fontSize={10} fill={TEXT_DIM} textAnchor="end">{pct}%</text>
           </g>
         ))}
