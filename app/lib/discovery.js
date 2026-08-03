@@ -503,8 +503,10 @@ async function nextSeedWindow(seeds, size) {
  * caller's daily GO target. The weekday cron calls this repeatedly (self-chain).
  * Returns { ok, queued, scanned, scrapes, spentThisRun, budget, done, reason }.
  */
-export async function runDiscoveryAutopilot({ maxScrapesPerRun = 12 } = {}) {
-  if (!(await getAutopilotEnabled())) return { ok: false, done: true, reason: 'autopilot_disabled' };
+export async function runDiscoveryAutopilot({ maxScrapesPerRun = 12, force = false } = {}) {
+  // `force` = operator clicked "Correr agora": skip the enabled gate (that
+  // gate is for the automated daily cron), but keep every budget guard below.
+  if (!force && !(await getAutopilotEnabled())) return { ok: false, done: true, reason: 'autopilot_disabled' };
 
   const spent = await getMonthSpend();
   const remaining = Math.max(0, DISCOVERY_MONTHLY_CAP - spent);

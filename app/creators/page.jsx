@@ -104,6 +104,8 @@ export default function CreatorsPage() {
   const [showAutopilot, setShowAutopilot] = useState(false);
   const [persistentSeeds, setPersistentSeeds] = useState([]);
   const [autopilotEnabled, setAutopilotEnabled] = useState(false);
+  const [autopilotStatus, setAutopilotStatus] = useState({});
+  const [runningAutopilot, setRunningAutopilot] = useState(false);
   const [recentRuns, setRecentRuns] = useState([]);
   const [newSeedInput, setNewSeedInput] = useState("");
   const [newSeedNiche, setNewSeedNiche] = useState("Fitness");
@@ -253,8 +255,48 @@ export default function CreatorsPage() {
       ]);
       setPersistentSeeds(seedsRes.seeds || []);
       setAutopilotEnabled(!!statusRes.enabled);
+      setAutopilotStatus(statusRes || {});
       setRecentRuns(runsRes.runs || []);
     } catch {}
+  };
+
+  // "Correr agora" — one budget-capped autopilot pass on demand, seeded from
+  // the warm "Pediu vídeo" (+ signed) leads. Works regardless of the daily
+  // enabled flag; bounded by the monthly cap.
+  const runAutopilotNow = async () => {
+    if (runningAutopilot) return;
+    const intent = autopilotStatus.intentSeeds || 0;
+    const manual = autopilotStatus.manualSeeds || 0;
+    if (intent + manual === 0) {
+      setDiscoveryStatus("Sem seeds: precisas de leads em 'Pediu vídeo' (ou adiciona seeds manuais).");
+      setTimeout(() => setDiscoveryStatus(""), 6000);
+      return;
+    }
+    if (!confirm(`Correr uma passagem de discovery agora?\n\nSeeds: ${intent} leads que pediram vídeo + ${manual} manuais.\nCusto limitado pelo cap mensal (~$${autopilotStatus.remaining ?? '?'} restante).`)) return;
+    setRunningAutopilot(true);
+    setDiscoveryStatus("A correr autopilot (seeds dos leads que pediram vídeo)…");
+    try {
+      const res = await fetch("/api/discovery/autopilot", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "run" }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Erro");
+      if (data.ok === false && data.reason) {
+        const reasons = { no_seeds: "sem seeds", monthly_budget_exhausted: "cap mensal esgotado", daily_target_reached: "alvo diário atingido", autopilot_disabled: "autopilot desligado" };
+        setDiscoveryStatus(`Autopilot parou: ${reasons[data.reason] || data.reason}`);
+      } else {
+        setDiscoveryStatus(`${data.queued || 0} qualificados de ${data.scanned || 0} scanned · ${data.seeds || 0} seeds usados · $${data.spentThisRun ?? 0} gasto`);
+      }
+      fetchDiscoveryQueue();
+      fetchAutopilotData();
+      setTimeout(() => setDiscoveryStatus(""), 30000);
+    } catch (e) {
+      setDiscoveryStatus(`Erro: ${e.message}`);
+    } finally {
+      setRunningAutopilot(false);
+    }
   };
 
   const toggleAutopilotPanel = () => {
@@ -933,7 +975,7 @@ export default function CreatorsPage() {
                   <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "space-between", alignItems: "center", gap: 12, marginBottom: 20 }}>
                     <div style={{ flex: "1 1 200px", minWidth: 0 }}>
                       <p style={{ fontSize: 12, color: "var(--sl-text-muted)", margin: 0 }}>
-                        Creators similares descobertos automaticamente a partir dos teus creators existentes. Apenas A/B tier.
+                        Creators similares descobertos automaticamente a partir dos leads que pediram vídeo (+ seeds manuais). Deal Score A, B ou C.
                       </p>
                       {discoveryStatus && (
                         <p style={{ fontSize: 12, color: discoveryStatus.startsWith("Erro") ? "var(--sl-danger)" : "var(--sl-success)", margin: "6px 0 0" }}>{discoveryStatus}</p>
@@ -1101,8 +1143,8 @@ export default function CreatorsPage() {
                         </div>
                         <button
                           onClick={toggleAutopilot}
-                          disabled={persistentSeeds.length === 0 && !autopilotEnabled}
-                          title={persistentSeeds.length === 0 ? "Adiciona pelo menos 1 seed antes de activar" : ""}
+                          disabled={(autopilotStatus.intentSeeds || 0) === 0 && persistentSeeds.length === 0 && !autopilotEnabled}
+                          title={((autopilotStatus.intentSeeds || 0) === 0 && persistentSeeds.length === 0) ? "Precisas de leads em 'Pediu vídeo' ou 1 seed manual" : ""}
                           style={{
                             padding: "8px 18px",
                             background: autopilotEnabled ? "var(--sl-success)" : (persistentSeeds.length === 0 ? "var(--sl-surface-raised)" : "var(--sl-surface-raised)"),
@@ -1111,7 +1153,7 @@ export default function CreatorsPage() {
                             color: autopilotEnabled ? "var(--sl-bg)" : (persistentSeeds.length === 0 ? "var(--sl-text-faint)" : "var(--sl-text-muted)"),
                             fontSize: 12,
                             fontWeight: 700,
-                            cursor: persistentSeeds.length === 0 && !autopilotEnabled ? "not-allowed" : "pointer",
+                            cursor: (autopilotStatus.intentSeeds || 0) === 0 && persistentSeeds.length === 0 && !autopilotEnabled ? "not-allowed" : "pointer",
                             fontFamily: "inherit",
                             whiteSpace: "nowrap",
                             textTransform: "uppercase",
@@ -1119,6 +1161,26 @@ export default function CreatorsPage() {
                           }}
                         >
                           {autopilotEnabled ? "ON" : "OFF"}
+                        </button>
+                      </div>
+
+                      {/* Seed pool + on-demand run. Discovery seeds itself from
+                          the warm "Pediu vídeo"/signed leads (intentSeeds); the
+                          persistent list below just supplements them. */}
+                      <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: 10, marginBottom: 16, padding: "10px 12px", background: "color-mix(in srgb, var(--sl-success) 5%, transparent)", border: "1px solid color-mix(in srgb, var(--sl-success) 15%, transparent)", borderRadius: 8 }}>
+                        <div style={{ fontSize: 12, color: "var(--sl-text-muted)", lineHeight: 1.5 }}>
+                          Seeds automáticos: <strong style={{ color: "var(--sl-text)" }}>{autopilotStatus.intentSeeds ?? 0}</strong> leads que pediram vídeo
+                          {(autopilotStatus.manualSeeds ?? 0) > 0 && <> + <strong style={{ color: "var(--sl-text)" }}>{autopilotStatus.manualSeeds}</strong> manuais</>}
+                          <span style={{ color: "var(--sl-text-faint)" }}> · ${autopilotStatus.spent ?? 0}/{autopilotStatus.cap ?? "?"} este mês</span>
+                        </div>
+                        <button
+                          onClick={runAutopilotNow}
+                          disabled={runningAutopilot}
+                          className="sl-btn-primary"
+                          data-sl-compact
+                          style={{ padding: "8px 16px", fontSize: 12, whiteSpace: "nowrap", opacity: runningAutopilot ? 0.6 : 1 }}
+                        >
+                          {runningAutopilot ? "A correr…" : "Correr agora"}
                         </button>
                       </div>
 
@@ -1130,7 +1192,7 @@ export default function CreatorsPage() {
 
                         {persistentSeeds.length === 0 ? (
                           <div style={{ fontSize: 12, color: "var(--sl-text-faint)", padding: "8px 0 12px" }}>
-                            Nenhum seed ainda. Adiciona creators grandes nos teus nichos target para o autopilot usar.
+                            Opcional. O autopilot já usa os teus leads que pediram vídeo como seeds — adiciona aqui creators grandes nos teus nichos target para complementar.
                           </div>
                         ) : (
                           <div style={{ marginBottom: 12 }}>
