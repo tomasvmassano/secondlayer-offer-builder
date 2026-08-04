@@ -538,7 +538,15 @@ export async function runDiscoveryAutopilot({ maxScrapesPerRun = 12, force = fal
 
   const budget = await getAutopilotStatus();
   const done = budget.remaining < DISCOVERY_COST_PER_SCRAPE * 2 || budget.goToday >= DISCOVERY_DAILY_TARGET;
-  return { ok: true, done, queued: res.queued || 0, scanned: res.scanned || 0, seeds: sample.length, scrapes, spentThisRun: Math.round(spentNow * 1000) / 1000, budget };
+  return {
+    ok: true, done, queued: res.queued || 0, scanned: res.scanned || 0, seeds: sample.length,
+    scrapes, spentThisRun: Math.round(spentNow * 1000) / 1000, budget,
+    // Diagnostics so "0 scanned" is explainable: drops shows whether the seed
+    // had NO related profiles vs. all of them already known (inCRM/queue/
+    // dismissed); seedResults shows each seed's scrape status + related count.
+    drops: res.drops || {},
+    seedResults: (res.seedResults || []).map(s => ({ handle: s.handle, status: s.status, relatedCount: s.relatedCount ?? 0 })),
+  };
 }
 
 // ─────────────────────────────────────────────

@@ -298,7 +298,25 @@ export default function CreatorsPage() {
         const reasons = { no_seeds: "sem seeds", monthly_budget_exhausted: "cap mensal esgotado", daily_target_reached: "alvo diário atingido", autopilot_disabled: "autopilot desligado" };
         setDiscoveryStatus(`Autopilot parou: ${reasons[data.reason] || data.reason}`);
       } else {
-        setDiscoveryStatus(`${data.queued || 0} qualificados de ${data.scanned || 0} scanned · ${data.seeds || 0} seeds usados · $${data.spentThisRun ?? 0} gasto`);
+        let msg = `${data.queued || 0} qualificados de ${data.scanned || 0} scanned · ${data.seeds || 0} seeds · $${data.spentThisRun ?? 0}`;
+        const d = data.drops || {};
+        const sr = data.seedResults || [];
+        // Per-seed status: no_related / scrape_failed surface the real cause.
+        const bad = sr.filter(s => s.status && s.status !== "ok");
+        if (bad.length) msg += ` | Seeds falhados: ${bad.map(s => `@${s.handle || "?"} (${s.status})`).join(", ")}`;
+        const okSeeds = sr.filter(s => s.status === "ok");
+        if (okSeeds.length) msg += ` | ${okSeeds.map(s => `@${s.handle}: ${s.relatedCount} related`).join(", ")}`;
+        // Related profiles existed but nothing new scanned → show where they went.
+        if ((d.totalRelated || 0) > 0 && (data.scanned || 0) === 0) {
+          const parts = [];
+          if (d.inCRM) parts.push(`${d.inCRM} já no CRM`);
+          if (d.inQueue) parts.push(`${d.inQueue} já na queue`);
+          if (d.dismissed) parts.push(`${d.dismissed} dismissed`);
+          if (d.outOfRange) parts.push(`${d.outOfRange} fora do range`);
+          if (d.noHandle) parts.push(`${d.noHandle} sem handle`);
+          if (parts.length) msg += ` → ${parts.join(", ")} (0 novos)`;
+        }
+        setDiscoveryStatus(msg);
       }
       fetchDiscoveryQueue();
       fetchAutopilotData();
