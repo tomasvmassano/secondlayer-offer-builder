@@ -883,7 +883,10 @@ export async function runDiscoveryFromSeeds(seedUrls, maxCandidates = 15) {
     if (!handle) return { url, status: 'invalid_url' };
 
     try {
-      const scraped = await scrapeInstagram(handle);
+      // Tight budget: on the 60s Hobby cap a 50s seed scrape + candidate
+      // scrapes overflow. Cap the seed at ~22s so a slow one is skipped
+      // (retried next pass) instead of timing out the whole run.
+      const scraped = await scrapeInstagram(handle, { timeoutMs: 22000, apifyTimeoutSec: 20 });
       if (!scraped || !scraped.relatedProfiles) {
         return { url, handle, status: 'no_related', followers: scraped?.followers };
       }

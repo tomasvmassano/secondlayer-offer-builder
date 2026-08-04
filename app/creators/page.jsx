@@ -281,7 +281,18 @@ export default function CreatorsPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "run" }),
       });
-      const data = await res.json();
+      const raw = await res.text();
+      let data;
+      try { data = JSON.parse(raw); }
+      catch {
+        // Non-JSON body = a Vercel timeout/500 page (the pass overran the 60s
+        // cap). Part may already be queued — refresh and let them retry.
+        fetchDiscoveryQueue();
+        fetchAutopilotData();
+        setDiscoveryStatus("O run excedeu o limite de 60s (ou falhou no servidor). Parte pode ter ficado na queue — recarrega. Clica outra vez para continuar.");
+        setTimeout(() => setDiscoveryStatus(""), 20000);
+        return;
+      }
       if (!res.ok) throw new Error(data.error || "Erro");
       if (data.ok === false && data.reason) {
         const reasons = { no_seeds: "sem seeds", monthly_budget_exhausted: "cap mensal esgotado", daily_target_reached: "alvo diário atingido", autopilot_disabled: "autopilot desligado" };

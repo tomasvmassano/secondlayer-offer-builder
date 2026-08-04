@@ -87,17 +87,20 @@ async function runApifyActor(actorId, input, opts = {}) {
  * Scrape Instagram profile via Apify
  * Returns structured creator data
  */
-export async function scrapeInstagram(username) {
-  // Run Instagram scraper and bot detector in parallel
+export async function scrapeInstagram(username, opts = {}) {
+  // Run Instagram scraper and bot detector in parallel. `opts` (timeoutMs /
+  // apifyTimeoutSec) lets time-boxed callers — e.g. the discovery autopilot on
+  // the 60s Hobby cap — pass a tighter budget than the default 50s so a single
+  // slow seed can't time out the whole request.
   const [items, botResult] = await Promise.all([
     runApifyActor('apify~instagram-scraper', {
       directUrls: [`https://www.instagram.com/${username}/`],
       resultsType: 'details',
       resultsLimit: 1,
-    }),
+    }, opts),
     runApifyActor('louisdeconinck~instagram-bot-detector', {
       username,
-    }).catch(() => null),
+    }, opts).catch(() => null),
   ]);
 
   if (!items || items.length === 0) return null;

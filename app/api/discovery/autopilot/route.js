@@ -23,7 +23,10 @@ export async function POST(request) {
     // "Correr agora" — run one budget-capped pass on demand, seeded from the
     // warm leads (+ manual seeds), regardless of the enabled flag.
     if (body.action === 'run') {
-      const res = await runDiscoveryAutopilot({ force: true });
+      // One manual pass must finish inside the 60s cap (no self-chain like the
+      // cron), so keep it small: ~1 seed + a handful of candidates. Click again
+      // for more. The daily cron uses the larger default with self-chaining.
+      const res = await runDiscoveryAutopilot({ force: true, maxScrapesPerRun: 6 });
       return NextResponse.json(res);
     }
 
