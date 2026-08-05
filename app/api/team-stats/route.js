@@ -49,7 +49,7 @@ export async function GET(request) {
       || Number(process.env.SALES_QUARTERLY_QUOTA_EUR)
       || 50000;
 
-    const valid = ['today', 'yesterday', 'week', 'month', 'all'];
+    const valid = ['today', 'yesterday', 'week', 'month', 'quarter', 'ytd', '30d', '90d', 'all'];
     if (!valid.includes(window)) {
       return NextResponse.json({ error: `window must be one of ${valid.join('|')}` }, { status: 400 });
     }
@@ -60,6 +60,11 @@ export async function GET(request) {
     const cacheKey = `${window}|${target}|${quotaEurPerQuarter}`;
     const cachedResp = _respGet(cacheKey);
     if (cachedResp) return NextResponse.json(cachedResp);
+
+    // Structural funnel/conversion metrics don't make sense over a single
+    // day, so today/yesterday fall back to the month; every other window
+    // (week/month/quarter/ytd/30d/90d/all) passes straight through.
+    const funnelWindow = (window === 'today' || window === 'yesterday') ? 'month' : window;
 
     // Run all aggregations in parallel.
     const [
@@ -96,18 +101,18 @@ export async function GET(request) {
       // but the cron uses windowKey='yesterday' to look at the EOD).
       window === 'today'     ? getDailyScoreboard({ target })                              :
       window === 'yesterday' ? getDailyScoreboard({ target, windowKey: 'yesterday' })      : null,
-      getFunnels(),
+      getFunnels(null, { window: funnelWindow }),
       // Team-wide sales funnel (windowed) + stage-to-stage timing (all-time).
       // Both derived from the Kanban timestamps — no manual entry.
       getTeamFunnel({ window: window === 'today' || window === 'yesterday' ? 'month' : window }),
-      getFunnelTiming(),
+      getFunnelTiming({ window: funnelWindow }),
       // Full-pipeline stage analytics (all-time): step conversion + median
       // time-in-stage across every volume-model stage. Team-wide.
-      getStageAnalytics(),
+      getStageAnalytics({ window: funnelWindow }),
       getStreaks({ target }),
       getPipelineHealth(),
-      getVelocity(),
-      getQualityBreakdowns(),
+      getVelocity({ window: funnelWindow }),
+      getQualityBreakdowns({ window: funnelWindow }),
       getMonthlyTally({ target }),
       getNeedsAttention({ dailyTarget: target }),
       // getDeltas only supports 'week' or 'month'. For today we compare to
@@ -123,12 +128,12 @@ export async function GET(request) {
       getRecentActivity({ limit: 12 }),
       getPacing({ target }),
       getPipelineCoverage({ quotaEurPerQuarter }),
-      getCAC(),
-      getTouchpointsPerClose(),
-      getShowUpRate(),
-      getLossReasons(),
-      getFollowUpEffectiveness(),
-      getPipelineVelocity(),
+      getCAC({ window: funnelWindow }),
+      getTouchpointsPerClose({ window: funnelWindow }),
+      getShowUpRate({ window: funnelWindow }),
+      getLossReasons({ window: funnelWindow }),
+      getFollowUpEffectiveness({ window: funnelWindow }),
+      getPipelineVelocity({ window: funnelWindow }),
       getWinRateTrajectory({ weeks: 8 }),
     ]);
 

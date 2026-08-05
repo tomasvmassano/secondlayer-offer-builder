@@ -51,6 +51,10 @@ const WINDOWS = [
   { key: 'yesterday', label: 'Ontem' },
   { key: 'week',      label: 'Semana' },
   { key: 'month',     label: 'Mês' },
+  { key: 'quarter',   label: 'Trimestre' },
+  { key: 'ytd',       label: 'YTD' },
+  { key: '30d',       label: '30 dias' },
+  { key: '90d',       label: '90 dias' },
   { key: 'all',       label: 'Sempre' },
 ];
 
@@ -63,6 +67,7 @@ export default function EquipaPage() {
   const [windowKey, setWindowKey] = useState('today');
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(null);
   // Strategic block (CAC, show-up, touchpoints, pipeline velocity, loss
   // reasons, follow-up effectiveness, win rate trajectory) is hidden by
@@ -73,12 +78,15 @@ export default function EquipaPage() {
 
   useEffect(() => {
     let cancelled = false;
-    setLoading(true);
     setError(null);
+    // Stale-while-revalidate: keep the previous window's data on screen while
+    // the new one loads. Only the very first load (no data yet) shows the
+    // skeleton; window switches just dim + show a subtle refreshing bar.
+    setRefreshing(true);
     fetch(`/api/team-stats?window=${windowKey}&target=30`)
       .then(r => r.json())
-      .then(d => { if (!cancelled) { setData(d); setLoading(false); } })
-      .catch(e => { if (!cancelled) { setError(e.message); setLoading(false); } });
+      .then(d => { if (!cancelled) { setData(d); setLoading(false); setRefreshing(false); } })
+      .catch(e => { if (!cancelled) { setError(e.message); setLoading(false); setRefreshing(false); } });
     return () => { cancelled = true; };
   }, [windowKey]);
 
@@ -163,6 +171,8 @@ export default function EquipaPage() {
         .eq-card { transition: transform 200ms cubic-bezier(.2,.7,.2,1), border-color 200ms; }
         .eq-card:hover { transform: translateY(-2px); border-color: ${BORDER_HI}; }
         .eq-fade { animation: fadeUp 320ms cubic-bezier(.2,.7,.2,1) both; }
+        @keyframes eqShimmer { 0%, 100% { opacity: 0.35; } 50% { opacity: 0.7; } }
+        .eq-skel { background: color-mix(in srgb, var(--sl-text) 8%, transparent); border-radius: 16px; animation: eqShimmer 1.3s ease-in-out infinite; }
       `}</style>
 
       {/* Sticky top bar — slimmer, hairline border, smaller window chips. */}
@@ -199,10 +209,28 @@ export default function EquipaPage() {
 
       <div className="sl-page" style={{ maxWidth: 1400, margin: "0 auto", padding: "28px 28px 80px" }}>
 
-        {loading && <div style={{ color: TEXT_DIM, fontSize: 13, padding: 40, textAlign: "center" }}>A carregar…</div>}
-        {error && <div style={{ color: RED, fontSize: 13 }}>Erro: {error}</div>}
+        {!data && !error && (
+          <div style={{ display: "grid", gap: 18 }} aria-busy="true" aria-label="A carregar dados da equipa">
+            <div className="eq-skel" style={{ height: 56 }} />
+            <div className="sl-grid-2" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 18 }}>
+              <div className="eq-skel" style={{ height: 150 }} />
+              <div className="eq-skel" style={{ height: 150 }} />
+            </div>
+            <div className="eq-skel" style={{ height: 260 }} />
+            <div className="sl-grid-3" style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 18 }}>
+              <div className="eq-skel" style={{ height: 120 }} />
+              <div className="eq-skel" style={{ height: 120 }} />
+              <div className="eq-skel" style={{ height: 120 }} />
+            </div>
+          </div>
+        )}
+        {error && <div style={{ color: RED, fontSize: 13, padding: 40, textAlign: "center" }}>Erro: {error}</div>}
 
-        {!loading && !error && data && heroStats && (
+        {refreshing && data && (
+          <div style={{ height: 2, background: "linear-gradient(90deg, transparent, var(--sl-primary), transparent)", animation: "eqShimmer 1s ease-in-out infinite", marginBottom: 16, borderRadius: 2 }} />
+        )}
+
+        {!error && data && heroStats && (
           <>
             {/* Needs attention strip */}
             {data.needsAttention?.length > 0 && (

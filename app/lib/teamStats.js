@@ -80,6 +80,19 @@ function windowStart(windowKey, now = new Date()) {
   if (windowKey === 'month') {
     return Date.UTC(y, m - 1, 1) - lisbonOffsetMs(now);
   }
+  if (windowKey === 'quarter') {
+    // Start of the current calendar quarter (QTD). m is 1-12.
+    const qStartMonth = m - ((m - 1) % 3); // 1,4,7,10
+    return Date.UTC(y, qStartMonth - 1, 1) - lisbonOffsetMs(now);
+  }
+  if (windowKey === 'ytd') {
+    return Date.UTC(y, 0, 1) - lisbonOffsetMs(now); // Jan 1, Lisbon
+  }
+  if (windowKey === '30d' || windowKey === '90d') {
+    // Rolling window: N days back from now (not calendar-anchored).
+    const days = windowKey === '30d' ? 30 : 90;
+    return now.getTime() - days * 86_400_000;
+  }
   return 0;
 }
 
@@ -184,12 +197,9 @@ export async function getTeamStats({ window = 'today', now = new Date() } = {}) 
   // All other windows are open-ended (today/week/month run to "now",
   // 'all' has no bound).
   const endMs = window === 'yesterday' ? windowStart('today', now) : null;
-  const summaries = await listCreators();
-  // We need the FULL creator to access outreach + addedBy. Summaries don't
-  // carry those fields, so fetch each one. This is O(N) reads but for a
-  // small team CRM (hundreds of creators) it's fine. If the index grows
-  // past ~2K creators, denormalise into the summary index.
-  const fulls = await Promise.all(summaries.map(s => getCreator(s.id)));
+  // Shared, memoised load — one read of all records per request, reused by
+  // every aggregation in the /equipa fan-out.
+  const fulls = await loadAllCreators();
   const rows = new Map();
 
   for (const c of fulls) {
@@ -343,10 +353,27 @@ const DAY_MS = 24 * HOUR_MS;
 // Convenience accessor: pull every full creator record. Used by the
 // dashboard endpoint which needs the entire dataset to compute multiple
 // views in one pass. ~hundreds of records for a small CRM = single sweep.
+// Load every full creator record. Memoised for a short TTL so that ONE
+// /equipa request — which fans out ~24 aggregations that each need the full
+// set — reads the 1,376 records ONCE instead of ~24 times. The window a caller
+// asks for doesn't change the underlying records (only how they're filtered),
+// so the same load safely serves every window computed in the same burst.
+// Bounded staleness (15s) is irrelevant next to the 5-min response cache.
+let _loadMemo = null; // { at: ms, promise: Promise<creators[]> }
+const LOAD_MEMO_TTL_MS = 15_000;
 async function loadAllCreators() {
-  const summaries = await listCreators();
-  const fulls = await Promise.all(summaries.map(s => getCreator(s.id)));
-  return fulls.filter(Boolean);
+  if (_loadMemo && (Date.now() - _loadMemo.at) < LOAD_MEMO_TTL_MS) {
+    return _loadMemo.promise;
+  }
+  const promise = (async () => {
+    const summaries = await listCreators();
+    const fulls = await Promise.all(summaries.map(s => getCreator(s.id)));
+    return fulls.filter(Boolean);
+  })();
+  _loadMemo = { at: Date.now(), promise };
+  // On failure, drop the memo so the next request retries instead of caching a rejection.
+  promise.catch(() => { if (_loadMemo?.promise === promise) _loadMemo = null; });
+  return promise;
 }
 
 // Returns { startMs, endMs } for a single Europe/Lisbon calendar day.
@@ -367,7 +394,11 @@ function lisbonDayBounds(date) {
 // FUNNEL — added → DMs → replies → call agreed → call held → signed (all-time,
 // attributable to the original adder). Conversion percentages between each step.
 // Call stages added 2026-05-19 to make show-up rate visible at the funnel level.
-export async function getFunnels(creators) {
+export async function getFunnels(creators, { window = 'all', now = new Date() } = {}) {
+  // Window-aware: shadow the module postReset so every event filter in this
+  // function honors the selected timeframe (window='all' == all-time).
+  const __startMs = windowStart(window, now);
+  const postReset = (iso) => inWindow(iso, __startMs);
   const all = creators || await loadAllCreators();
   const byUser = new Map();
   for (const c of all) {
@@ -451,7 +482,11 @@ export async function getTeamFunnel({ window = 'month', now = new Date() } = {})
 // (post-reset); a stage with no completed transitions returns null rather than
 // a fake zero. All-time (not windowed) — timing needs completed journeys and
 // a short window yields near-empty samples.
-export async function getFunnelTiming({ now = new Date() } = {}) {
+export async function getFunnelTiming({ window = 'all', now = new Date() } = {}) {
+  // Window-aware: shadow the module postReset so every event filter in this
+  // function honors the selected timeframe (window='all' == all-time).
+  const __startMs = windowStart(window, now);
+  const postReset = (iso) => inWindow(iso, __startMs);
   const all = await loadAllCreators();
   const b = { contactoConversa: [], conversaMarcada: [], marcadaRealizada: [], realizadaProposta: [], propostaNegocio: [], cicloTotal: [] };
   const days = (a, z) => (new Date(z).getTime() - new Date(a).getTime()) / DAY_MS;
@@ -500,7 +535,11 @@ export async function getFunnelTiming({ now = new Date() } = {}) {
 //      as "how long this stage takes to clear". Median, not mean — a couple of
 //      leads that sit for weeks would wreck an average. A stage nobody has
 //      cleared yet returns null (shown as "—"), never a fake zero.
-export async function getStageAnalytics({ now = new Date() } = {}) {
+export async function getStageAnalytics({ window = 'all', now = new Date() } = {}) {
+  // Window-aware: shadow the module postReset so every event filter in this
+  // function honors the selected timeframe (window='all' == all-time).
+  const __startMs = windowStart(window, now);
+  const postReset = (iso) => inWindow(iso, __startMs);
   const all = await loadAllCreators();
 
   // ── 1. Rate funnel (milestones) ──
@@ -654,7 +693,11 @@ export async function getPipelineHealth({ now = new Date() } = {}) {
 //   added → dm (hours): how fast they DM after adding
 //   replied → followUp (hours): how fast they follow up after a reply
 //   firstDm → signed (days): full cycle time
-export async function getVelocity() {
+export async function getVelocity({ window = 'all', now = new Date() } = {}) {
+  // Window-aware: shadow the module postReset so every event filter in this
+  // function honors the selected timeframe (window='all' == all-time).
+  const __startMs = windowStart(window, now);
+  const postReset = (iso) => inWindow(iso, __startMs);
   const all = await loadAllCreators();
   const byUser = new Map();
   for (const c of all) {
@@ -685,7 +728,11 @@ export async function getVelocity() {
 
 // REPLY-RATE BREAKDOWNS — by DM template (A vs B), by creator language,
 // and by creator pricing tier. Helps each person see what's working.
-export async function getQualityBreakdowns() {
+export async function getQualityBreakdowns({ window = 'all', now = new Date() } = {}) {
+  // Window-aware: shadow the module postReset so every event filter in this
+  // function honors the selected timeframe (window='all' == all-time).
+  const __startMs = windowStart(window, now);
+  const postReset = (iso) => inWindow(iso, __startMs);
   const all = await loadAllCreators();
   const byUser = new Map();
   function bucket(user, dim, value, isReply) {
@@ -1109,7 +1156,11 @@ export async function getPipelineCoverage({ quotaEurPerQuarter = 50000 } = {}) {
 //    Calls are heavy because they consume actual sales hours. Numbers are
 //    deliberately conservative — directional, not accounting.
 const TOUCH_COST_EUR = { dm: 0.5, email: 1.0, followUp: 0.75, call: 15 };
-export async function getCAC() {
+export async function getCAC({ window = 'all', now = new Date() } = {}) {
+  // Window-aware: shadow the module postReset so every event filter in this
+  // function honors the selected timeframe (window='all' == all-time).
+  const __startMs = windowStart(window, now);
+  const postReset = (iso) => inWindow(iso, __startMs);
   const all = await loadAllCreators();
   const byUser = new Map();
   for (const c of all) {
@@ -1142,7 +1193,11 @@ export async function getCAC() {
 //    Counts DM + email + every follow-up + every call held. Lower = more
 //    efficient. Team-wide average so we can benchmark each person against
 //    the house number.
-export async function getTouchpointsPerClose() {
+export async function getTouchpointsPerClose({ window = 'all', now = new Date() } = {}) {
+  // Window-aware: shadow the module postReset so every event filter in this
+  // function honors the selected timeframe (window='all' == all-time).
+  const __startMs = windowStart(window, now);
+  const postReset = (iso) => inWindow(iso, __startMs);
   const all = await loadAllCreators();
   const byUser = new Map();
   let teamTouches = 0, teamSigned = 0;
@@ -1179,7 +1234,11 @@ export async function getTouchpointsPerClose() {
 // 4. SHOW-UP RATE — % of agreed calls that actually happen. Per-user +
 //    team-wide. A drop below ~70% usually means scheduling friction or
 //    weak booking confirmation flow.
-export async function getShowUpRate() {
+export async function getShowUpRate({ window = 'all', now = new Date() } = {}) {
+  // Window-aware: shadow the module postReset so every event filter in this
+  // function honors the selected timeframe (window='all' == all-time).
+  const __startMs = windowStart(window, now);
+  const postReset = (iso) => inWindow(iso, __startMs);
   const all = await loadAllCreators();
   const byUser = new Map();
   let teamAgreed = 0, teamHeld = 0;
@@ -1221,7 +1280,11 @@ const LOSS_REASON_LABELS = {
   competitor: 'Concorrente',
   other:      'Outro',
 };
-export async function getLossReasons() {
+export async function getLossReasons({ window = 'all', now = new Date() } = {}) {
+  // Window-aware: shadow the module postReset so every event filter in this
+  // function honors the selected timeframe (window='all' == all-time).
+  const __startMs = windowStart(window, now);
+  const postReset = (iso) => inWindow(iso, __startMs);
   const all = await loadAllCreators();
   const counts = new Map();
   let total = 0;
@@ -1252,7 +1315,11 @@ export async function getLossReasons() {
 //    Heuristic: bucket by (followUpsDone at the time of the reply). We only
 //    have the latest followUpsDone counter, so this assumes the count grew
 //    monotonically — it's directional, not exact.
-export async function getFollowUpEffectiveness() {
+export async function getFollowUpEffectiveness({ window = 'all', now = new Date() } = {}) {
+  // Window-aware: shadow the module postReset so every event filter in this
+  // function honors the selected timeframe (window='all' == all-time).
+  const __startMs = windowStart(window, now);
+  const postReset = (iso) => inWindow(iso, __startMs);
   const all = await loadAllCreators();
   const buckets = { cold: { sent: 0, replied: 0 }, fu1: { sent: 0, replied: 0 }, fu2: { sent: 0, replied: 0 }, fu3: { sent: 0, replied: 0 } };
   for (const c of all) {
@@ -1289,7 +1356,11 @@ export async function getFollowUpEffectiveness() {
 //    Result is € of pipeline value flowing per day per user. Useful for
 //    spotting whether someone with high volume is actually moving money or
 //    just stirring activity.
-export async function getPipelineVelocity() {
+export async function getPipelineVelocity({ window = 'all', now = new Date() } = {}) {
+  // Window-aware: shadow the module postReset so every event filter in this
+  // function honors the selected timeframe (window='all' == all-time).
+  const __startMs = windowStart(window, now);
+  const postReset = (iso) => inWindow(iso, __startMs);
   const all = await loadAllCreators();
   const byUser = new Map();
   for (const c of all) {
