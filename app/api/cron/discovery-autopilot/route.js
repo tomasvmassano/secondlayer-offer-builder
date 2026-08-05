@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getCurrentUser } from '../../../lib/auth';
-import { runDiscoveryAutopilot } from '../../../lib/discovery';
+import { harvestDiscoveryRun, startDiscoveryRun, getAutopilotStatus } from '../../../lib/discovery';
 import { recordCronRun } from '../../../lib/adminInfra';
 
 export const maxDuration = 60;
@@ -8,16 +8,13 @@ export const maxDuration = 60;
 // ─────────────────────────────────────────────────────────────────
 // Discovery autopilot — weekday creator-feed filler.
 //
-// One budget-capped discovery batch per invocation (seed → related profiles →
-// GO/NO GO → Discovery queue), then a best-effort self-chain to keep filling
-// until the daily GO target or the monthly $ cap. Vercel's 60s cap means one
-// invocation only clears a small batch, so the self-chain fans out follow-up
-// runs; every firing is bounded by THREE independent guards inside
-// runDiscoveryAutopilot (monthly cap · per-run scrape cap · daily target), so
-// it can never overspend no matter how many times it fires.
-//
-// Stays inert until the autopilot flag is ON (Discovery tab / /admin), so it
-// never spends by accident.
+// A keyword search + details scrape takes ~90s (Instagram throttles the actor
+// to ~11s/profile), which can't fit one 60s invocation. So discovery is async:
+// each firing HARVESTS the run started last time (evaluate → GO/NO GO →
+// Discovery queue) and then STARTS the next keyword's run for the following
+// firing to harvest. One keyword rotates in per weekday; the matrix cycles on
+// its own. Every start is bounded by the monthly $ cap + daily GO target, so it
+// can never overspend, and it stays inert until the autopilot flag is ON.
 // ─────────────────────────────────────────────────────────────────
 export async function GET(request) {
   const authHeader = request.headers.get('authorization');
@@ -33,41 +30,28 @@ export async function GET(request) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const { searchParams } = new URL(request.url);
-  const chain = Number(searchParams.get('chain')) || 0;
-  const MAX_CHAINS = Number(process.env.DISCOVERY_MAX_CHAINS) || 12;
-
-  let res;
+  let harvest, start;
   try {
-    res = await runDiscoveryAutopilot({ maxScrapesPerRun: 12 });
+    // 1. Harvest whatever the previous firing started (no-op if idle/running).
+    harvest = await harvestDiscoveryRun();
+    // 2. Start the next keyword's run (respects the enabled flag + budget).
+    start = await startDiscoveryRun({ force: false });
   } catch (err) {
     await recordCronRun('discovery-autopilot', { ok: false, summary: err.message }).catch(() => {});
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
 
-  // Best-effort self-chain while there's work + budget. Fire-and-forget: on a
-  // frozen serverless instance it may not always fire, and that's fine — the
-  // next scheduled/manual run resumes exactly where this left off (queued and
-  // dismissed handles are skipped on the next pass), and the guards keep every
-  // firing safe. Only chains on the trusted secret path, never a team session.
-  let chained = false;
-  if (res.ok && !res.done && chain < MAX_CHAINS && bySecret) {
-    try {
-      const next = new URL(request.url);
-      next.searchParams.set('chain', String(chain + 1));
-      fetch(next.toString(), { headers: { Authorization: `Bearer ${cronSecret}` } }).catch(() => {});
-      chained = true;
-    } catch { /* self-chain is best-effort */ }
-  }
+  const b = await getAutopilotStatus().catch(() => ({}));
+  const harvestPart = harvest.status === 'done'
+    ? `harvest: ${harvest.queued ?? 0} GO de ${harvest.scanned ?? 0} ("${harvest.keyword}")`
+    : `harvest: ${harvest.status}`;
+  const startPart = start.started
+    ? `start: "${start.keyword}"`
+    : `start: ${start.reason || (start.alreadyRunning ? 'já a correr' : 'nenhum')}`;
+  await recordCronRun('discovery-autopilot', {
+    ok: harvest.status !== 'failed',
+    summary: `${harvestPart} · ${startPart} · ${b.goToday ?? '?'}/${b.dailyTarget ?? '?'} hoje · $${b.spent ?? '?'}/${b.cap ?? '?'}`,
+  }).catch(() => {});
 
-  // Record the run once per chain (on the first link), so /admin shows one row.
-  if (chain === 0) {
-    const b = res.budget || {};
-    await recordCronRun('discovery-autopilot', {
-      ok: res.ok !== false,
-      summary: `${res.queued ?? 0} GO · ${b.goToday ?? '?'}/${b.dailyTarget ?? '?'} hoje · $${b.spent ?? '?'}/${b.cap ?? '?'}${res.reason ? ` · ${res.reason}` : ''}`,
-    }).catch(() => {});
-  }
-
-  return NextResponse.json({ ...res, chain, chained });
+  return NextResponse.json({ harvest, start });
 }

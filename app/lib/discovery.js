@@ -10,7 +10,7 @@
 
 import { Redis } from '@upstash/redis';
 import { nanoid } from 'nanoid';
-import { scrapeInstagramBasic, scrapeInstagram, searchInstagram } from './apify';
+import { scrapeInstagramBasic, scrapeInstagram, searchInstagram, startInstagramSearch, getInstagramRunStatus, fetchInstagramSearchResults } from './apify';
 import { listCreators, getCreator, getAllCrmHandles } from './creators';
 import { calculateDealScore, qualifyCreator } from './dealScore';
 
@@ -495,67 +495,11 @@ async function nextSeedWindow(seeds, size) {
   return out;
 }
 
-/**
- * ONE budget-capped autopilot pass. Bounded by THREE independent guards so it
- * can never runaway: the monthly $ cap, a per-run scrape cap (60s fit), and the
- * caller's daily GO target. The weekday cron calls this repeatedly (self-chain).
- * Returns { ok, queued, scanned, scrapes, spentThisRun, budget, done, reason }.
- */
-export async function runDiscoveryAutopilot({ maxScrapesPerRun = 12, force = false } = {}) {
-  // `force` = operator clicked "Correr agora": skip the enabled gate (that
-  // gate is for the automated daily cron), but keep every budget guard below.
-  if (!force && !(await getAutopilotEnabled())) return { ok: false, done: true, reason: 'autopilot_disabled' };
-
-  const spent = await getMonthSpend();
-  const remaining = Math.max(0, DISCOVERY_MONTHLY_CAP - spent);
-  if (remaining < DISCOVERY_COST_PER_SCRAPE * 2) {
-    await logRun({ status: 'skipped', reason: 'monthly_budget_exhausted' });
-    return { ok: false, done: true, reason: 'monthly_budget_exhausted', budget: await getAutopilotStatus() };
-  }
-  if ((await getDailyGo()) >= DISCOVERY_DAILY_TARGET) {
-    await logRun({ status: 'skipped', reason: 'daily_target_reached' });
-    return { ok: false, done: true, reason: 'daily_target_reached', budget: await getAutopilotStatus() };
-  }
-
-  if (!KEYWORD_MATRIX.length) {
-    await logRun({ status: 'skipped', reason: 'no_keywords' });
-    return { ok: false, done: true, reason: 'no_keywords', budget: await getAutopilotStatus() };
-  }
-
-  // ONE keyword search per pass. A searchType 'user' + details lookup of ~8
-  // profiles already fills most of the 60s Hobby cap, so we do a single
-  // keyword and let the weekday cron self-chain to rotate through the whole
-  // matrix (nextSeedWindow advances the rotating offset across runs).
-  const resultsPerKeyword = 8;
-  const sample = await nextSeedWindow(KEYWORD_MATRIX, 1);
-
-  const res = await runDiscoveryFromKeywords(sample, resultsPerKeyword);
-  // Billed items = the profiles the search actually returned.
-  const scrapes = res.totalFound || sample.length * resultsPerKeyword;
-  const spentNow = scrapes * DISCOVERY_COST_PER_SCRAPE;
-  await addSpend(spentNow);
-  await addDailyGo(res.queued || 0);
-
-  const budget = await getAutopilotStatus();
-  const done = budget.remaining < DISCOVERY_COST_PER_SCRAPE * 2 || budget.goToday >= DISCOVERY_DAILY_TARGET;
-  await logRun({
-    status: 'ok', queued: res.queued || 0, scanned: res.scanned || 0,
-    keyword: sample[0]?.query || null, scrapes,
-    spentThisRun: Math.round(spentNow * 1000) / 1000,
-  });
-  return {
-    ok: true, done, queued: res.queued || 0, scanned: res.scanned || 0,
-    keywords: sample.length, keyword: sample[0]?.query || null,
-    scrapes, spentThisRun: Math.round(spentNow * 1000) / 1000, budget,
-    // drops explains "0 scanned": totalFound (profiles the search returned)
-    // vs. how many were already known (inCRM/inQueue/dismissed). totalRelated
-    // aliases totalFound for the existing UI diagnostic.
-    drops: { ...(res.drops || {}), totalRelated: res.drops?.totalFound || 0 },
-    keywordResults: res.keywordResults || [],
-    // Back-compat for the UI diagnostic, which reads seedResults[].
-    seedResults: (res.keywordResults || []).map(k => ({ handle: k.query, status: k.status, relatedCount: k.found ?? 0 })),
-  };
-}
+// The autopilot pass is now split into startDiscoveryRun() (kick off one
+// keyword search, returns immediately) and harvestDiscoveryRun() (evaluate the
+// results on a later poll) — a single synchronous pass can't fit Vercel's 60s
+// cap because Instagram throttles the details scrape to ~11s/profile (~90s for
+// 8). Those two live further down the file, next to runDiscoveryFromKeywords.
 
 // ─────────────────────────────────────────────
 // Run history log
@@ -806,21 +750,26 @@ async function processCandidate(candidate) {
 // Instagram (searchType 'user'); each match is a full profile scored through
 // the same GO/NO GO gate. Focused on the Very-high / High ROI niches from
 // NICHE_TIER, in the language of each geography.
+// Queries deliberately carry a CREATOR signal (coach / mentor / trainer /
+// consultor …), because Instagram user-search on a bare industry term
+// ("dubai finance") returns institutions — banks, dealerships, exchanges — not
+// the individual creators/educators we sell to. The role word biases the
+// results toward people, which is what passes the GO/NO GO gate.
 const KEYWORD_MATRIX = [
   // Portugal (PT terms)
-  { query: 'investimento portugal',     niche: 'investimento',     geo: 'PT' },
-  { query: 'financas pessoais portugal', niche: 'financas',        geo: 'PT' },
-  { query: 'imobiliario portugal',      niche: 'imobiliario',      geo: 'PT' },
-  { query: 'empreendedorismo portugal', niche: 'empreendedorismo', geo: 'PT' },
-  { query: 'fitness portugal',          niche: 'fitness',          geo: 'PT' },
-  { query: 'nutricao portugal',         niche: 'nutricao',         geo: 'PT' },
-  { query: 'fotografia portugal',       niche: 'fotografia',       geo: 'PT' },
+  { query: 'coach financeiro portugal',      niche: 'financas',        geo: 'PT' },
+  { query: 'mentor investimentos portugal',  niche: 'investimento',    geo: 'PT' },
+  { query: 'consultor imobiliario portugal', niche: 'imobiliario',     geo: 'PT' },
+  { query: 'mentor de negocios portugal',    niche: 'empreendedorismo', geo: 'PT' },
+  { query: 'personal trainer portugal',      niche: 'fitness',         geo: 'PT' },
+  { query: 'nutricionista portugal',         niche: 'nutricao',        geo: 'PT' },
+  { query: 'fotografo portugal',             niche: 'fotografia',      geo: 'PT' },
   // Dubai / UAE (EN terms)
-  { query: 'dubai finance',             niche: 'financas',         geo: 'AE' },
-  { query: 'dubai real estate',         niche: 'imobiliario',      geo: 'AE' },
-  { query: 'dubai business coach',      niche: 'business',         geo: 'AE' },
-  { query: 'dubai fitness coach',       niche: 'fitness',          geo: 'AE' },
-  { query: 'dubai entrepreneur',        niche: 'empreendedorismo', geo: 'AE' },
+  { query: 'dubai finance coach',            niche: 'financas',        geo: 'AE' },
+  { query: 'dubai real estate agent',        niche: 'imobiliario',     geo: 'AE' },
+  { query: 'dubai business coach',           niche: 'business',        geo: 'AE' },
+  { query: 'dubai fitness coach',            niche: 'fitness',         geo: 'AE' },
+  { query: 'dubai entrepreneur mentor',      niche: 'empreendedorismo', geo: 'AE' },
 ];
 
 /**
@@ -859,6 +808,18 @@ export async function runDiscoveryFromKeywords(keywords, resultsPerKeyword = 10)
     }
   }
 
+  const tally = tallyOutcomes(outcomes);
+  return {
+    scanned: outcomes.length,
+    ...tally,
+    totalFound: drops.totalFound,
+    drops, keywordResults,
+  };
+}
+
+// Roll a list of evaluateProfile() outcomes up into the count shape every
+// discovery caller returns. Shared by the sync keyword pass and async harvest.
+function tallyOutcomes(outcomes) {
   let queued = 0, dismissedLowTier = 0, dismissedOutOfRange = 0, failed = 0;
   let dismissedLanguage = 0, dismissedNiche = 0, dismissedNoBusiness = 0, tooSmall = 0, tooBig = 0;
   for (const r of outcomes) {
@@ -870,13 +831,129 @@ export async function runDiscoveryFromKeywords(keywords, resultsPerKeyword = 10)
     else if (r.status === 'dismissed') dismissedLowTier++;
     else failed++;
   }
+  return { queued, dismissedLowTier, dismissedOutOfRange, dismissedLanguage, dismissedNiche, dismissedNoBusiness, tooSmall, tooBig, failed };
+}
 
+// ── Async run state (one in-flight keyword search at a time) ──────────
+// A user-search + details scrape overruns Vercel's 60s cap, so we START the
+// Apify run in one request and HARVEST its dataset in a later poll. The active
+// run lives in a single Redis key (memory-mode fallback for local/dev).
+let memActiveRun = null;
+async function getActiveRun() {
+  if (useMemory()) return memActiveRun;
+  const raw = await getRedis().get('discovery:active_run');
+  if (!raw) return null;
+  return typeof raw === 'string' ? JSON.parse(raw) : raw;
+}
+async function setActiveRun(obj) {
+  if (useMemory()) { memActiveRun = obj; return; }
+  await getRedis().set('discovery:active_run', JSON.stringify(obj));
+}
+async function clearActiveRun() {
+  if (useMemory()) { memActiveRun = null; return; }
+  await getRedis().del('discovery:active_run');
+}
+
+/**
+ * Start ONE keyword search asynchronously. Returns fast (no scraping happens
+ * in-request), so it always fits the serverless cap. The same budget guards as
+ * the old synchronous pass apply BEFORE a run is started. If a run is already
+ * in flight, we don't start a second — the caller should poll instead.
+ */
+export async function startDiscoveryRun({ force = false, searchLimit = 10 } = {}) {
+  if (!force && !(await getAutopilotEnabled())) return { ok: false, reason: 'autopilot_disabled' };
+
+  const spent = await getMonthSpend();
+  if (Math.max(0, DISCOVERY_MONTHLY_CAP - spent) < DISCOVERY_COST_PER_SCRAPE * 2)
+    return { ok: false, reason: 'monthly_budget_exhausted', budget: await getAutopilotStatus() };
+  if ((await getDailyGo()) >= DISCOVERY_DAILY_TARGET)
+    return { ok: false, reason: 'daily_target_reached', budget: await getAutopilotStatus() };
+  if (!KEYWORD_MATRIX.length) return { ok: false, reason: 'no_keywords' };
+
+  // Don't double-start: if the tracked run is still going, report it so the
+  // caller polls. If it's terminal but never harvested (operator closed the
+  // tab mid-poll), drain it first — harvestDiscoveryRun queues the results or
+  // clears a failure — so we never discard a finished scrape.
+  const active = await getActiveRun();
+  if (active?.runId) {
+    const st = await getInstagramRunStatus(active.runId).catch(() => null);
+    if (st && (st.status === 'READY' || st.status === 'RUNNING')) {
+      return { ok: true, started: false, alreadyRunning: true, runId: active.runId, keyword: active.keyword };
+    }
+    await harvestDiscoveryRun();
+  }
+
+  const [kw] = await nextSeedWindow(KEYWORD_MATRIX, 1);
+  let started;
+  try {
+    started = await startInstagramSearch(kw.query, { searchLimit });
+  } catch (err) {
+    return { ok: false, reason: 'start_failed', error: err.message, keyword: kw.query };
+  }
+  if (!started?.runId) return { ok: false, reason: 'start_failed', keyword: kw.query };
+  await setActiveRun({
+    runId: started.runId, datasetId: started.datasetId,
+    keyword: kw.query, niche: kw.niche, geo: kw.geo,
+    startedAt: Date.now(), searchLimit,
+  });
+  return { ok: true, started: true, runId: started.runId, keyword: kw.query, niche: kw.niche };
+}
+
+/**
+ * Check the in-flight run. While it's still going, report progress. Once it
+ * SUCCEEDS, evaluate every profile it returned (dedup → filter → score →
+ * queue/dismiss), bill the spend, log the run, and free the slot. Terminal
+ * failures are logged and cleared. Idempotent once the slot is empty.
+ */
+export async function harvestDiscoveryRun() {
+  const active = await getActiveRun();
+  if (!active?.runId) return { status: 'idle' };
+  const elapsedSec = Math.round((Date.now() - (active.startedAt || Date.now())) / 1000);
+
+  const st = await getInstagramRunStatus(active.runId).catch(() => null);
+  if (!st || st.status === 'READY' || st.status === 'RUNNING') {
+    return { status: 'running', keyword: active.keyword, elapsedSec };
+  }
+  if (st.status !== 'SUCCEEDED') {
+    await clearActiveRun();
+    await logRun({ status: 'skipped', reason: `run_${String(st.status).toLowerCase()}`, keyword: active.keyword });
+    return { status: 'failed', reason: st.status, keyword: active.keyword };
+  }
+
+  const hits = await fetchInstagramSearchResults(st.datasetId || active.datasetId);
+  const crmHandles = await getAllCrmHandles();
+  const drops = { totalFound: hits.length, noHandle: 0, inCRM: 0, dismissed: 0, inQueue: 0, outOfRange: 0 };
+  const outcomes = [];
+  for (const scraped of hits) {
+    const handle = (scraped.username || '').toLowerCase();
+    if (!handle) { drops.noHandle++; continue; }
+    if (isInCRM(handle, crmHandles)) { drops.inCRM++; continue; }
+    if (await isDismissed(handle)) { drops.dismissed++; continue; }
+    if (await isOutOfRange(handle)) { drops.outOfRange++; continue; }
+    if (await isInQueue(handle)) { drops.inQueue++; continue; }
+    outcomes.push(await evaluateProfile(scraped, {
+      handle, niche: active.niche, sourceLabel: `Pesquisa: ${active.keyword}`,
+    }));
+  }
+  const tally = tallyOutcomes(outcomes);
+
+  const spentNow = hits.length * DISCOVERY_COST_PER_SCRAPE;
+  await addSpend(spentNow);
+  await addDailyGo(tally.queued);
+  await clearActiveRun();
+  await logRun({
+    status: 'ok', keyword: active.keyword, scanned: outcomes.length,
+    queued: tally.queued, scrapes: hits.length,
+    spentThisRun: Math.round(spentNow * 1000) / 1000,
+  });
+
+  const budget = await getAutopilotStatus();
   return {
-    scanned: outcomes.length,
-    queued, dismissedLowTier, dismissedOutOfRange, dismissedLanguage, dismissedNiche, dismissedNoBusiness,
-    tooSmall, tooBig, failed,
-    totalFound: drops.totalFound,
-    drops, keywordResults,
+    status: 'done', keyword: active.keyword, scanned: outcomes.length,
+    ...tally, totalFound: hits.length, elapsedSec,
+    spentThisRun: Math.round(spentNow * 1000) / 1000,
+    drops: { ...drops, totalRelated: drops.totalFound },
+    budget,
   };
 }
 

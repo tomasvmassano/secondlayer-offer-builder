@@ -260,64 +260,93 @@ export default function CreatorsPage() {
     } catch {}
   };
 
-  // "Correr agora" — one budget-capped autopilot pass on demand. Each pass
-  // searches ONE keyword (nicho × geo) from the matrix and evaluates ~8 real
-  // profiles the search returns. Works regardless of the daily enabled flag;
-  // bounded by the monthly cap. The weekday cron rotates through the matrix.
+  // "Correr agora" — one keyword-search pass on demand. The scrape (~90s) can't
+  // fit the 60s serverless cap, so it runs in two steps: START the Apify run
+  // (returns instantly), then POLL until the profiles are back and evaluated.
+  // Ignores the daily enabled flag; bounded by the monthly cap. The weekday
+  // cron rotates through the matrix on its own.
+  const pollDiscoveryRun = async () => {
+    const res = await fetch("/api/discovery/autopilot", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "poll" }),
+    });
+    const raw = await res.text();
+    try { return JSON.parse(raw); }
+    catch { return { status: "running" }; } // transient 5xx/HTML — keep polling
+  };
+
   const runAutopilotNow = async () => {
     if (runningAutopilot) return;
-    const kw = autopilotStatus.keywords || 0;
-    if (kw === 0) {
+    if ((autopilotStatus.keywords || 0) === 0) {
       setDiscoveryStatus("Sem keywords configuradas na matriz de discovery.");
       setTimeout(() => setDiscoveryStatus(""), 6000);
       return;
     }
-    if (!confirm(`Correr uma passagem de discovery agora?\n\nPesquisa 1 keyword (nicho × geo) e avalia ~8 perfis reais.\nCusto limitado pelo cap mensal (~$${autopilotStatus.remaining ?? '?'} restante).`)) return;
+    if (!confirm(`Correr uma passagem de discovery agora?\n\nPesquisa 1 keyword (nicho × geo) e avalia ~10 perfis reais. Demora ~1-2 min (a pesquisa corre em segundo plano).\nCusto limitado pelo cap mensal (~$${autopilotStatus.remaining ?? '?'} restante).`)) return;
     setRunningAutopilot(true);
-    setDiscoveryStatus("A correr autopilot (pesquisa por keyword)…");
+    setDiscoveryStatus("A iniciar pesquisa…");
     try {
-      const res = await fetch("/api/discovery/autopilot", {
+      // Step 1 — start (or attach to) the async run.
+      const startRes = await fetch("/api/discovery/autopilot", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "run" }),
       });
-      const raw = await res.text();
-      let data;
-      try { data = JSON.parse(raw); }
-      catch {
-        // Non-JSON body = a Vercel timeout/500 page (the pass overran the 60s
-        // cap). Part may already be queued — refresh and let them retry.
-        fetchDiscoveryQueue();
+      const start = await startRes.json().catch(() => ({}));
+      if (!startRes.ok) throw new Error(start.error || "Erro ao iniciar");
+      if (start.ok === false) {
+        const reasons = { no_keywords: "sem keywords", monthly_budget_exhausted: "cap mensal esgotado", daily_target_reached: "alvo diário atingido", autopilot_disabled: "autopilot desligado", start_failed: "falha ao iniciar a pesquisa" };
+        setDiscoveryStatus(`Autopilot parou: ${reasons[start.reason] || start.reason}`);
         fetchAutopilotData();
-        setDiscoveryStatus("O run excedeu o limite de 60s (ou falhou no servidor). Parte pode ter ficado na queue — recarrega. Clica outra vez para continuar.");
+        setTimeout(() => setDiscoveryStatus(""), 12000);
+        return;
+      }
+      const keyword = start.keyword || "?";
+      setDiscoveryStatus(`A pesquisar "${keyword}"… (corre em segundo plano, ~1-2 min)`);
+
+      // Step 2 — poll until the run finishes and its profiles are evaluated.
+      // ~20 polls × 8s ≈ up to ~2.5 min, comfortably past the ~90s scrape.
+      let done = null;
+      for (let i = 0; i < 20; i++) {
+        await new Promise(r => setTimeout(r, 8000));
+        const p = await pollDiscoveryRun();
+        if (p.status === "running") {
+          setDiscoveryStatus(`A pesquisar "${p.keyword || keyword}"… ${p.elapsedSec ? p.elapsedSec + "s" : ""}`);
+          continue;
+        }
+        done = p;
+        break;
+      }
+
+      if (!done || done.status === "idle") {
+        setDiscoveryStatus(`A pesquisa "${keyword}" ainda corre. Os resultados aparecem quando terminar — volta a clicar "Correr agora" daqui a pouco para os recolher.`);
         setTimeout(() => setDiscoveryStatus(""), 20000);
         return;
       }
-      if (!res.ok) throw new Error(data.error || "Erro");
-      if (data.ok === false && data.reason) {
-        const reasons = { no_keywords: "sem keywords", no_seeds: "sem seeds", monthly_budget_exhausted: "cap mensal esgotado", daily_target_reached: "alvo diário atingido", autopilot_disabled: "autopilot desligado" };
-        setDiscoveryStatus(`Autopilot parou: ${reasons[data.reason] || data.reason}`);
-      } else {
-        let msg = `${data.queued || 0} qualificados de ${data.scanned || 0} avaliados · keyword "${data.keyword || "?"}" · $${data.spentThisRun ?? 0}`;
-        const d = data.drops || {};
-        const sr = data.seedResults || [];
-        // Per-keyword status: scrape_failed / no results surface the real cause.
-        const bad = sr.filter(s => s.status && s.status !== "ok");
-        if (bad.length) msg += ` | Keywords falhadas: ${bad.map(s => `"${s.handle || "?"}" (${s.status})`).join(", ")}`;
-        const okKw = sr.filter(s => s.status === "ok");
-        if (okKw.length) msg += ` | ${okKw.map(s => `"${s.handle}": ${s.relatedCount} perfis`).join(", ")}`;
-        // Related profiles existed but nothing new scanned → show where they went.
-        if ((d.totalRelated || 0) > 0 && (data.scanned || 0) === 0) {
-          const parts = [];
-          if (d.inCRM) parts.push(`${d.inCRM} já no CRM`);
-          if (d.inQueue) parts.push(`${d.inQueue} já na queue`);
-          if (d.dismissed) parts.push(`${d.dismissed} dismissed`);
-          if (d.outOfRange) parts.push(`${d.outOfRange} fora do range`);
-          if (d.noHandle) parts.push(`${d.noHandle} sem handle`);
-          if (parts.length) msg += ` → ${parts.join(", ")} (0 novos)`;
-        }
-        setDiscoveryStatus(msg);
+      if (done.status === "failed") {
+        setDiscoveryStatus(`A pesquisa "${done.keyword || keyword}" falhou (${done.reason || "erro"}). Tenta novamente.`);
+        fetchAutopilotData();
+        setTimeout(() => setDiscoveryStatus(""), 20000);
+        return;
       }
+
+      // status === "done"
+      let msg = `${done.queued || 0} qualificados de ${done.scanned || 0} avaliados · keyword "${done.keyword || keyword}" · $${done.spentThisRun ?? 0}`;
+      const d = done.drops || {};
+      // Profiles came back but none were new → show where they went.
+      if ((d.totalFound || 0) > 0 && (done.scanned || 0) === 0) {
+        const parts = [];
+        if (d.inCRM) parts.push(`${d.inCRM} já no CRM`);
+        if (d.inQueue) parts.push(`${d.inQueue} já na queue`);
+        if (d.dismissed) parts.push(`${d.dismissed} dismissed`);
+        if (d.outOfRange) parts.push(`${d.outOfRange} fora do range`);
+        if (d.noHandle) parts.push(`${d.noHandle} sem handle`);
+        if (parts.length) msg += ` → ${parts.join(", ")} (0 novos)`;
+      } else if ((d.totalFound || 0) === 0) {
+        msg += " → a pesquisa não devolveu perfis";
+      }
+      setDiscoveryStatus(msg);
       fetchDiscoveryQueue();
       fetchAutopilotData();
       setTimeout(() => setDiscoveryStatus(""), 30000);

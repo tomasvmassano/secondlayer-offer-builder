@@ -248,43 +248,94 @@ export async function searchInstagram(query, { searchLimit = 10, timeoutMs = 450
     resultsLimit: 1,
   }, { timeoutMs, apifyTimeoutSec });
   if (!Array.isArray(items)) return [];
-  return items.map(p => {
-    const posts = p.latestPosts || p.recentPosts || [];
-    let avgLikes = 0, avgComments = 0;
-    if (posts.length > 0) {
-      avgLikes = Math.round(posts.reduce((s, post) => s + (post.likesCount || post.likes || 0), 0) / posts.length);
-      avgComments = Math.round(posts.reduce((s, post) => s + (post.commentsCount || post.comments || 0), 0) / posts.length);
+  return items.map(mapInstagramProfile).filter(r => r.username);
+}
+
+// Map one raw Apify search/details item into the shape the discovery pipeline
+// expects (same fields as scrapeInstagramBasic). Shared by the sync path and
+// the async harvest so both produce identical records.
+export function mapInstagramProfile(p) {
+  const posts = p.latestPosts || p.recentPosts || [];
+  let avgLikes = 0, avgComments = 0;
+  if (posts.length > 0) {
+    avgLikes = Math.round(posts.reduce((s, post) => s + (post.likesCount || post.likes || 0), 0) / posts.length);
+    avgComments = Math.round(posts.reduce((s, post) => s + (post.commentsCount || post.comments || 0), 0) / posts.length);
+  }
+  const followers = p.followersCount || p.followers || 0;
+  const following = p.followsCount || p.followingCount || p.following || 0;
+  const engagementRate = followers > 0 ? (((avgLikes + avgComments) / followers) * 100).toFixed(2) + '%' : '0%';
+  return {
+    username: (p.username || '').toLowerCase(),
+    name: p.fullName || p.name || p.username || '',
+    bio: p.biography || p.bio || '',
+    publicEmail: p.publicEmail || p.public_email || p.email || null,
+    businessEmail: p.businessEmail || p.business_email || p.businessContactEmail || null,
+    followers,
+    following,
+    postCount: p.postsCount || p.mediaCount || p.postCount || 0,
+    isVerified: p.verified || p.isVerified || false,
+    isBusinessAccount: p.isBusinessAccount || p.isBusiness || false,
+    businessCategoryName: p.businessCategoryName || '',
+    externalUrl: p.externalUrl || p.externalUrlShimmed || p.website || '',
+    igBioLinks: extractIgBioLinks(p),
+    profilePicUrl: p.profilePicUrlHD || p.profilePicUrl || p.profilePic || '',
+    engagementRate,
+    avgLikes,
+    avgComments,
+    followerFollowingRatio: following > 0 ? (followers / following).toFixed(1) : '0',
+    recentPosts: posts.slice(0, 6).map(post => ({
+      caption: (post.caption || '').slice(0, 200),
+      likes: post.likesCount || post.likes || 0,
+      comments: post.commentsCount || post.comments || 0,
+      type: post.type || 'image',
+    })),
+  };
+}
+
+// ── Async run primitives ──────────────────────────────────────────────
+// A search + details scrape of ~8-10 profiles takes ~90s (Instagram throttles
+// the actor to roughly serial ~11s/profile), which blows Vercel's 60s cap. So
+// discovery starts the run WITHOUT waiting and harvests the dataset on a later
+// poll. These three helpers are the plumbing for that.
+
+// Kick off a user-search run and return immediately with its ids.
+export async function startInstagramSearch(query, { searchLimit = 10 } = {}) {
+  if (!APIFY_TOKEN) return null;
+  const res = await fetch(
+    `https://api.apify.com/v2/acts/apify~instagram-scraper/runs?token=${APIFY_TOKEN}`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ search: query, searchType: 'user', searchLimit, resultsType: 'details', resultsLimit: 1 }),
     }
-    const followers = p.followersCount || p.followers || 0;
-    const following = p.followsCount || p.followingCount || p.following || 0;
-    const engagementRate = followers > 0 ? (((avgLikes + avgComments) / followers) * 100).toFixed(2) + '%' : '0%';
-    return {
-      username: (p.username || '').toLowerCase(),
-      name: p.fullName || p.name || p.username || '',
-      bio: p.biography || p.bio || '',
-      publicEmail: p.publicEmail || p.public_email || p.email || null,
-      businessEmail: p.businessEmail || p.business_email || p.businessContactEmail || null,
-      followers,
-      following,
-      postCount: p.postsCount || p.mediaCount || p.postCount || 0,
-      isVerified: p.verified || p.isVerified || false,
-      isBusinessAccount: p.isBusinessAccount || p.isBusiness || false,
-      businessCategoryName: p.businessCategoryName || '',
-      externalUrl: p.externalUrl || p.externalUrlShimmed || p.website || '',
-      igBioLinks: extractIgBioLinks(p),
-      profilePicUrl: p.profilePicUrlHD || p.profilePicUrl || p.profilePic || '',
-      engagementRate,
-      avgLikes,
-      avgComments,
-      followerFollowingRatio: following > 0 ? (followers / following).toFixed(1) : '0',
-      recentPosts: posts.slice(0, 6).map(post => ({
-        caption: (post.caption || '').slice(0, 200),
-        likes: post.likesCount || post.likes || 0,
-        comments: post.commentsCount || post.comments || 0,
-        type: post.type || 'image',
-      })),
-    };
-  }).filter(r => r.username);
+  );
+  if (!res.ok) {
+    const err = await res.text().catch(() => '');
+    throw new Error(`Apify start error ${res.status}: ${err.slice(0, 200)}`);
+  }
+  const body = await res.json();
+  const d = body?.data || {};
+  return { runId: d.id, datasetId: d.defaultDatasetId, status: d.status };
+}
+
+// Poll a run's status. Returns { status, datasetId, runTimeSecs } or null on error.
+export async function getInstagramRunStatus(runId) {
+  if (!APIFY_TOKEN || !runId) return null;
+  const res = await fetch(`https://api.apify.com/v2/actor-runs/${runId}?token=${APIFY_TOKEN}`);
+  if (!res.ok) return null;
+  const body = await res.json();
+  const d = body?.data || {};
+  return { status: d.status, datasetId: d.defaultDatasetId, runTimeSecs: d.stats?.runTimeSecs || 0 };
+}
+
+// Read a finished run's dataset and map it to profile records.
+export async function fetchInstagramSearchResults(datasetId) {
+  if (!APIFY_TOKEN || !datasetId) return [];
+  const res = await fetch(`https://api.apify.com/v2/datasets/${datasetId}/items?token=${APIFY_TOKEN}&clean=true`);
+  if (!res.ok) return [];
+  const items = await res.json();
+  if (!Array.isArray(items)) return [];
+  return items.map(mapInstagramProfile).filter(r => r.username);
 }
 
 /**
