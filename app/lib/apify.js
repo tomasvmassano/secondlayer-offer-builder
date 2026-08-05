@@ -232,6 +232,61 @@ export async function scrapeInstagramBasic(username) {
   };
 }
 
+// Keyword/niche SEARCH → full creator profiles. This is how discovery finds
+// NEW creators now that Instagram's "related profiles" data is gone from the
+// single-profile scrape (confirmed dead — see /api/discovery/test-seed). The
+// search path returns each matching profile WITH full details, so results are
+// scored directly (no second per-candidate scrape). Returns an array in the
+// same shape as scrapeInstagramBasic so the discovery pipeline is unchanged.
+export async function searchInstagram(query, { searchLimit = 10, timeoutMs = 45000, apifyTimeoutSec = 42 } = {}) {
+  if (!APIFY_TOKEN) return [];
+  const items = await runApifyActor('apify~instagram-scraper', {
+    search: query,
+    searchType: 'user',
+    searchLimit,
+    resultsType: 'details',
+    resultsLimit: 1,
+  }, { timeoutMs, apifyTimeoutSec });
+  if (!Array.isArray(items)) return [];
+  return items.map(p => {
+    const posts = p.latestPosts || p.recentPosts || [];
+    let avgLikes = 0, avgComments = 0;
+    if (posts.length > 0) {
+      avgLikes = Math.round(posts.reduce((s, post) => s + (post.likesCount || post.likes || 0), 0) / posts.length);
+      avgComments = Math.round(posts.reduce((s, post) => s + (post.commentsCount || post.comments || 0), 0) / posts.length);
+    }
+    const followers = p.followersCount || p.followers || 0;
+    const following = p.followsCount || p.followingCount || p.following || 0;
+    const engagementRate = followers > 0 ? (((avgLikes + avgComments) / followers) * 100).toFixed(2) + '%' : '0%';
+    return {
+      username: (p.username || '').toLowerCase(),
+      name: p.fullName || p.name || p.username || '',
+      bio: p.biography || p.bio || '',
+      publicEmail: p.publicEmail || p.public_email || p.email || null,
+      businessEmail: p.businessEmail || p.business_email || p.businessContactEmail || null,
+      followers,
+      following,
+      postCount: p.postsCount || p.mediaCount || p.postCount || 0,
+      isVerified: p.verified || p.isVerified || false,
+      isBusinessAccount: p.isBusinessAccount || p.isBusiness || false,
+      businessCategoryName: p.businessCategoryName || '',
+      externalUrl: p.externalUrl || p.externalUrlShimmed || p.website || '',
+      igBioLinks: extractIgBioLinks(p),
+      profilePicUrl: p.profilePicUrlHD || p.profilePicUrl || p.profilePic || '',
+      engagementRate,
+      avgLikes,
+      avgComments,
+      followerFollowingRatio: following > 0 ? (followers / following).toFixed(1) : '0',
+      recentPosts: posts.slice(0, 6).map(post => ({
+        caption: (post.caption || '').slice(0, 200),
+        likes: post.likesCount || post.likes || 0,
+        comments: post.commentsCount || post.comments || 0,
+        type: post.type || 'image',
+      })),
+    };
+  }).filter(r => r.username);
+}
+
 /**
  * Scrape Linktree / bio link pages for product URLs
  */

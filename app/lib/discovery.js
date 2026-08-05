@@ -10,7 +10,7 @@
 
 import { Redis } from '@upstash/redis';
 import { nanoid } from 'nanoid';
-import { scrapeInstagramBasic, scrapeInstagram } from './apify';
+import { scrapeInstagramBasic, scrapeInstagram, searchInstagram } from './apify';
 import { listCreators, getCreator, getAllCrmHandles } from './creators';
 import { calculateDealScore, qualifyCreator } from './dealScore';
 
@@ -439,12 +439,6 @@ async function addDailyGo(n, now = new Date()) {
 
 export async function getAutopilotStatus(now = new Date()) {
   const spent = await getMonthSpend(now);
-  // Cheap seed-pool counts (summaries only, no full-record loads).
-  let intentSeeds = 0;
-  try {
-    const summaries = await listCreators();
-    intentSeeds = summaries.filter(s => s.videoRequestedAt || s.pipelineStatus === 'signed').length;
-  } catch { /* status is best-effort */ }
   return {
     enabled: await getAutopilotEnabled(),
     cap: DISCOVERY_MONTHLY_CAP,
@@ -454,8 +448,12 @@ export async function getAutopilotStatus(now = new Date()) {
     dailyTarget: DISCOVERY_DAILY_TARGET,
     goToday: await getDailyGo(now),
     costPerScrape: DISCOVERY_COST_PER_SCRAPE,
-    manualSeeds: (await listSeedUrls()).length,
-    intentSeeds,
+    // Discovery now searches a niche×geo keyword matrix (related-profiles data
+    // is dead). intentSeeds kept as an alias so older UI reads don't break.
+    keywords: KEYWORD_MATRIX.length,
+    keywordList: KEYWORD_MATRIX.map(k => k.query),
+    intentSeeds: KEYWORD_MATRIX.length,
+    manualSeeds: 0,
   };
 }
 
@@ -511,41 +509,51 @@ export async function runDiscoveryAutopilot({ maxScrapesPerRun = 12, force = fal
   const spent = await getMonthSpend();
   const remaining = Math.max(0, DISCOVERY_MONTHLY_CAP - spent);
   if (remaining < DISCOVERY_COST_PER_SCRAPE * 2) {
+    await logRun({ status: 'skipped', reason: 'monthly_budget_exhausted' });
     return { ok: false, done: true, reason: 'monthly_budget_exhausted', budget: await getAutopilotStatus() };
   }
   if ((await getDailyGo()) >= DISCOVERY_DAILY_TARGET) {
+    await logRun({ status: 'skipped', reason: 'daily_target_reached' });
     return { ok: false, done: true, reason: 'daily_target_reached', budget: await getAutopilotStatus() };
   }
 
-  // Seed pool: warm CRM leads ("Pediu vídeo" + signed) FIRST — highest signal,
-  // grows on its own — then the hand-curated seed list. Deduped.
-  const intent = await getIntentSeedUrls();
-  const manual = await listSeedUrls();
-  const seeds = [...new Set([...intent, ...manual])];
-  if (!seeds.length) return { ok: false, done: true, reason: 'no_seeds', budget: await getAutopilotStatus() };
+  if (!KEYWORD_MATRIX.length) {
+    await logRun({ status: 'skipped', reason: 'no_keywords' });
+    return { ok: false, done: true, reason: 'no_keywords', budget: await getAutopilotStatus() };
+  }
 
-  // Scrapes we can afford this run = min(per-run cap, budget remaining).
-  const affordable = Math.min(maxScrapesPerRun, Math.floor(remaining / DISCOVERY_COST_PER_SCRAPE));
-  const seedCount = Math.max(1, Math.min(3, Math.floor(affordable / 4)));   // ~1-3 seeds/run
-  const sample = await nextSeedWindow(seeds, seedCount);
-  const candidateCap = Math.max(1, affordable - sample.length);
+  // ONE keyword search per pass. A searchType 'user' + details lookup of ~8
+  // profiles already fills most of the 60s Hobby cap, so we do a single
+  // keyword and let the weekday cron self-chain to rotate through the whole
+  // matrix (nextSeedWindow advances the rotating offset across runs).
+  const resultsPerKeyword = 8;
+  const sample = await nextSeedWindow(KEYWORD_MATRIX, 1);
 
-  const res = await runDiscoveryFromSeeds(sample, candidateCap);
-  const scrapes = (res.seedsProcessed || sample.length) + (res.scanned || 0);
+  const res = await runDiscoveryFromKeywords(sample, resultsPerKeyword);
+  // Billed items = the profiles the search actually returned.
+  const scrapes = res.totalFound || sample.length * resultsPerKeyword;
   const spentNow = scrapes * DISCOVERY_COST_PER_SCRAPE;
   await addSpend(spentNow);
   await addDailyGo(res.queued || 0);
 
   const budget = await getAutopilotStatus();
   const done = budget.remaining < DISCOVERY_COST_PER_SCRAPE * 2 || budget.goToday >= DISCOVERY_DAILY_TARGET;
+  await logRun({
+    status: 'ok', queued: res.queued || 0, scanned: res.scanned || 0,
+    keyword: sample[0]?.query || null, scrapes,
+    spentThisRun: Math.round(spentNow * 1000) / 1000,
+  });
   return {
-    ok: true, done, queued: res.queued || 0, scanned: res.scanned || 0, seeds: sample.length,
+    ok: true, done, queued: res.queued || 0, scanned: res.scanned || 0,
+    keywords: sample.length, keyword: sample[0]?.query || null,
     scrapes, spentThisRun: Math.round(spentNow * 1000) / 1000, budget,
-    // Diagnostics so "0 scanned" is explainable: drops shows whether the seed
-    // had NO related profiles vs. all of them already known (inCRM/queue/
-    // dismissed); seedResults shows each seed's scrape status + related count.
-    drops: res.drops || {},
-    seedResults: (res.seedResults || []).map(s => ({ handle: s.handle, status: s.status, relatedCount: s.relatedCount ?? 0 })),
+    // drops explains "0 scanned": totalFound (profiles the search returned)
+    // vs. how many were already known (inCRM/inQueue/dismissed). totalRelated
+    // aliases totalFound for the existing UI diagnostic.
+    drops: { ...(res.drops || {}), totalRelated: res.drops?.totalFound || 0 },
+    keywordResults: res.keywordResults || [],
+    // Back-compat for the UI diagnostic, which reads seedResults[].
+    seedResults: (res.keywordResults || []).map(k => ({ handle: k.query, status: k.status, relatedCount: k.found ?? 0 })),
   };
 }
 
@@ -683,119 +691,193 @@ async function stage1Filter(sourceCreator, maxCandidates, crmHandles = null, dro
 }
 
 /**
- * Stage 2 + 3: scrape candidate, compute deal score, add to queue or dismiss.
- * Returns one of: { status: 'queued' | 'dismissed' | 'failed', candidate? }
+ * Score + filter + queue an ALREADY-SCRAPED profile. Shared by the (legacy)
+ * seed path (via processCandidate) and the keyword-search path, which gets full
+ * profiles straight from the search actor and skips the second per-candidate
+ * scrape. `meta`: { handle?, niche?, sourceLabel?, sourceCreatorId?,
+ * sourceCreatorName?, sourceCreatorHandle? }.
+ * Returns { status: 'queued' | 'dismissed' | 'out_of_range' | ... , candidate? }.
  */
+async function evaluateProfile(scraped, meta = {}) {
+  const handle = (scraped?.username || meta.handle || '').toLowerCase();
+  if (!scraped || !handle) return { status: 'failed', handle, reason: 'no_profile' };
+
+  // Filter 1: Follower range (ICP)
+  if (scraped.followers > 0 && (scraped.followers < ICP.minFollowers || scraped.followers > ICP.maxFollowers)) {
+    await addToOutOfRange(handle);
+    return {
+      status: 'out_of_range', handle, followers: scraped.followers,
+      tooSmall: scraped.followers < ICP.minFollowers, tooBig: scraped.followers > ICP.maxFollowers,
+    };
+  }
+  // Filter 2: Language (PT or EN only)
+  if (detectLanguage(scraped.bio) === 'other') {
+    await addToDismissed(handle);
+    return { status: 'dismissed_language', handle };
+  }
+  // Filter 3: Niche match (must be in a target niche)
+  if (!matchesTargetNiche(scraped.bio)) {
+    await addToDismissed(handle);
+    return { status: 'dismissed_niche', handle };
+  }
+  // Filter 4: Business signals (must be monetizing)
+  if (!hasBusinessSignals(scraped)) {
+    await addToDismissed(handle);
+    return { status: 'dismissed_no_business', handle };
+  }
+
+  const creatorShape = {
+    name: scraped.name,
+    niche: scraped.bio || '', // matchNiche reads PT + EN aliases from the bio
+    platforms: {
+      instagram: {
+        followers: scraped.followers,
+        following: scraped.following,
+        postCount: scraped.postCount,
+        avgLikes: scraped.avgLikes,
+        avgComments: scraped.avgComments,
+        engagementRate: scraped.engagementRate,
+        followerFollowingRatio: scraped.followerFollowingRatio,
+        recentPosts: scraped.recentPosts,
+      },
+    },
+    externalUrl: scraped.externalUrl,
+    isBusinessAccount: scraped.isBusinessAccount,
+    bio: scraped.bio,
+  };
+
+  const score = calculateDealScore(creatorShape);
+  // GO / NO GO — ROI reach+engagement bar OR A/B/C deal score.
+  const q = qualifyCreator(creatorShape);
+  const detectedNiche = meta.niche || (score.nicheData ? (scraped.bio || '').split('\n')[0].slice(0, 60) : '');
+
+  const queueEntry = {
+    id: nanoid(9),
+    handle,
+    name: scraped.name,
+    profilePicUrl: scraped.profilePicUrl,
+    url: `https://instagram.com/${handle}`,
+    followers: scraped.followers,
+    engagement: scraped.engagementRate,
+    bio: scraped.bio,
+    externalUrl: scraped.externalUrl,
+    isVerified: scraped.isVerified,
+    isBusinessAccount: scraped.isBusinessAccount,
+    avgLikes: scraped.avgLikes,
+    avgComments: scraped.avgComments,
+    followerFollowingRatio: scraped.followerFollowingRatio,
+    recentPosts: scraped.recentPosts,
+    niche: detectedNiche,
+    dealScoreGrade: score.grade,
+    dealScore: score.score,
+    go: q.go,
+    goReason: q.reason,
+    roiTier: q.roiTier,
+    sourceCreatorId: meta.sourceCreatorId || null,
+    sourceCreatorName: meta.sourceCreatorName || meta.sourceLabel || null,
+    sourceCreatorHandle: meta.sourceCreatorHandle || null,
+  };
+
+  if (q.go) {
+    const entry = await addToQueue(queueEntry);
+    return { status: 'queued', candidate: entry };
+  }
+  await addToDismissed(handle);
+  return { status: 'dismissed', handle, grade: score.grade, reason: q.reason };
+}
+
+// Legacy seed path: scrape one candidate handle, then evaluate.
 async function processCandidate(candidate) {
   try {
     const scraped = await scrapeInstagramBasic(candidate.handle);
-    if (!scraped) {
-      return { status: 'failed', handle: candidate.handle, reason: 'scrape_failed' };
-    }
-
-    // Filter 1: Follower range (ICP)
-    if (scraped.followers > 0 && (scraped.followers < ICP.minFollowers || scraped.followers > ICP.maxFollowers)) {
-      await addToOutOfRange(candidate.handle);
-      return {
-        status: 'out_of_range',
-        handle: candidate.handle,
-        followers: scraped.followers,
-        tooSmall: scraped.followers < ICP.minFollowers,
-        tooBig: scraped.followers > ICP.maxFollowers,
-      };
-    }
-
-    // Filter 2: Language (PT or EN only)
-    const lang = detectLanguage(scraped.bio);
-    if (lang === 'other') {
-      await addToDismissed(candidate.handle);
-      return { status: 'dismissed_language', handle: candidate.handle };
-    }
-
-    // Filter 3: Niche match (must be in Second Layer's 7 target niches)
-    const nicheMatch = matchesTargetNiche(scraped.bio);
-    if (!nicheMatch) {
-      await addToDismissed(candidate.handle);
-      return { status: 'dismissed_niche', handle: candidate.handle };
-    }
-
-    // Filter 4: Business signals (must be monetizing)
-    if (!hasBusinessSignals(scraped)) {
-      await addToDismissed(candidate.handle);
-      return { status: 'dismissed_no_business', handle: candidate.handle };
-    }
-
-    // Build creator-shaped object for dealScore
-    const creatorShape = {
-      name: scraped.name,
-      niche: '', // niche will be extracted below via matchNiche in bio
-      platforms: {
-        instagram: {
-          followers: scraped.followers,
-          following: scraped.following,
-          postCount: scraped.postCount,
-          avgLikes: scraped.avgLikes,
-          avgComments: scraped.avgComments,
-          engagementRate: scraped.engagementRate,
-          followerFollowingRatio: scraped.followerFollowingRatio,
-          recentPosts: scraped.recentPosts,
-        },
-      },
-      externalUrl: scraped.externalUrl,
-      isBusinessAccount: scraped.isBusinessAccount,
-      bio: scraped.bio,
-    };
-
-    // Try to detect niche from bio (feeds into deal score)
-    // Uses matchNiche which handles PT + EN aliases
-    creatorShape.niche = scraped.bio || '';
-
-    const score = calculateDealScore(creatorShape);
-    // GO / NO GO — the team's real qualification (ROI reach+engagement bar OR
-    // A/B/C score). Replaces the old A/B-only gate that discarded every C.
-    const q = qualifyCreator(creatorShape);
-
-    // Override niche with the detected one (if matched) for display
-    const detectedNiche = score.nicheData ? (scraped.bio.split('\n')[0].slice(0, 60)) : '';
-
-    const queueEntry = {
-      id: nanoid(9),
+    if (!scraped) return { status: 'failed', handle: candidate.handle, reason: 'scrape_failed' };
+    return await evaluateProfile(scraped, {
       handle: candidate.handle,
-      name: scraped.name,
-      profilePicUrl: scraped.profilePicUrl,
-      url: `https://instagram.com/${candidate.handle}`,
-      followers: scraped.followers,
-      engagement: scraped.engagementRate,
-      bio: scraped.bio,
-      externalUrl: scraped.externalUrl,
-      isVerified: scraped.isVerified,
-      isBusinessAccount: scraped.isBusinessAccount,
-      avgLikes: scraped.avgLikes,
-      avgComments: scraped.avgComments,
-      followerFollowingRatio: scraped.followerFollowingRatio,
-      recentPosts: scraped.recentPosts,
-      niche: detectedNiche,
-      dealScoreGrade: score.grade,
-      dealScore: score.score,
-      go: q.go,
-      goReason: q.reason,      // 'roi_bar' | 'deal_score'
-      roiTier: q.roiTier,      // 'Very high' | 'High' | 'Medium' | 'Low'
       sourceCreatorId: candidate.sourceCreatorId,
       sourceCreatorName: candidate.sourceCreatorName,
       sourceCreatorHandle: candidate.sourceCreatorHandle,
-    };
-
-    // GO → Discovery queue. NO GO (a D that also misses the ROI bar) → dismiss.
-    if (q.go) {
-      const entry = await addToQueue(queueEntry);
-      return { status: 'queued', candidate: entry };
-    } else {
-      await addToDismissed(candidate.handle);
-      return { status: 'dismissed', handle: candidate.handle, grade: score.grade, reason: q.reason };
-    }
+    });
   } catch (err) {
     return { status: 'failed', handle: candidate.handle, reason: err.message };
   }
+}
+
+// The target niche × geography keyword matrix. Discovery searches these on
+// Instagram (searchType 'user'); each match is a full profile scored through
+// the same GO/NO GO gate. Focused on the Very-high / High ROI niches from
+// NICHE_TIER, in the language of each geography.
+const KEYWORD_MATRIX = [
+  // Portugal (PT terms)
+  { query: 'investimento portugal',     niche: 'investimento',     geo: 'PT' },
+  { query: 'financas pessoais portugal', niche: 'financas',        geo: 'PT' },
+  { query: 'imobiliario portugal',      niche: 'imobiliario',      geo: 'PT' },
+  { query: 'empreendedorismo portugal', niche: 'empreendedorismo', geo: 'PT' },
+  { query: 'fitness portugal',          niche: 'fitness',          geo: 'PT' },
+  { query: 'nutricao portugal',         niche: 'nutricao',         geo: 'PT' },
+  { query: 'fotografia portugal',       niche: 'fotografia',       geo: 'PT' },
+  // Dubai / UAE (EN terms)
+  { query: 'dubai finance',             niche: 'financas',         geo: 'AE' },
+  { query: 'dubai real estate',         niche: 'imobiliario',      geo: 'AE' },
+  { query: 'dubai business coach',      niche: 'business',         geo: 'AE' },
+  { query: 'dubai fitness coach',       niche: 'fitness',          geo: 'AE' },
+  { query: 'dubai entrepreneur',        niche: 'empreendedorismo', geo: 'AE' },
+];
+
+/**
+ * Keyword/niche search discovery. For each keyword, search Instagram, dedup
+ * the matches against CRM / queue / dismissed, then score the fresh ones
+ * through the shared gate. Search results carry full profile data, so there's
+ * no second scrape. Returns the same stat shape as runDiscoveryFromSeeds.
+ */
+export async function runDiscoveryFromKeywords(keywords, resultsPerKeyword = 10) {
+  const crmHandles = await getAllCrmHandles();
+  const drops = { totalFound: 0, noHandle: 0, inCRM: 0, dismissed: 0, inQueue: 0, outOfRange: 0 };
+  const keywordResults = [];
+  const outcomes = [];
+
+  for (const kw of (keywords || [])) {
+    let hits;
+    try {
+      hits = await searchInstagram(kw.query, { searchLimit: resultsPerKeyword });
+    } catch (err) {
+      keywordResults.push({ query: kw.query, status: 'search_failed', error: err.message, found: 0 });
+      continue;
+    }
+    drops.totalFound += hits.length;
+    keywordResults.push({ query: kw.query, status: 'ok', found: hits.length });
+
+    for (const scraped of hits) {
+      const handle = (scraped.username || '').toLowerCase();
+      if (!handle) { drops.noHandle++; continue; }
+      if (isInCRM(handle, crmHandles)) { drops.inCRM++; continue; }
+      if (await isDismissed(handle)) { drops.dismissed++; continue; }
+      if (await isOutOfRange(handle)) { drops.outOfRange++; continue; }
+      if (await isInQueue(handle)) { drops.inQueue++; continue; }
+      outcomes.push(await evaluateProfile(scraped, {
+        handle, niche: kw.niche, sourceLabel: `Pesquisa: ${kw.query}`,
+      }));
+    }
+  }
+
+  let queued = 0, dismissedLowTier = 0, dismissedOutOfRange = 0, failed = 0;
+  let dismissedLanguage = 0, dismissedNiche = 0, dismissedNoBusiness = 0, tooSmall = 0, tooBig = 0;
+  for (const r of outcomes) {
+    if (r.status === 'queued') queued++;
+    else if (r.status === 'out_of_range') { dismissedOutOfRange++; if (r.tooSmall) tooSmall++; if (r.tooBig) tooBig++; }
+    else if (r.status === 'dismissed_language') dismissedLanguage++;
+    else if (r.status === 'dismissed_niche') dismissedNiche++;
+    else if (r.status === 'dismissed_no_business') dismissedNoBusiness++;
+    else if (r.status === 'dismissed') dismissedLowTier++;
+    else failed++;
+  }
+
+  return {
+    scanned: outcomes.length,
+    queued, dismissedLowTier, dismissedOutOfRange, dismissedLanguage, dismissedNiche, dismissedNoBusiness,
+    tooSmall, tooBig, failed,
+    totalFound: drops.totalFound,
+    drops, keywordResults,
+  };
 }
 
 /**

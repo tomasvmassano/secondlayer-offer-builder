@@ -1,13 +1,13 @@
 import { NextResponse } from 'next/server';
 import { getAutopilotStatus, setAutopilotEnabled, runDiscoveryAutopilot } from '../../../lib/discovery';
 
-// One manual pass can scrape for a while (seed + candidates). Give it room.
+// One manual pass runs a keyword search + details lookup of ~8 profiles,
+// which can eat most of the 60s cap. Give it room.
 export const maxDuration = 60;
 
-// Full status: enabled flag + seed pool counts (intentSeeds = warm "Pediu
-// vídeo"/signed leads, manualSeeds = hand-curated) + budget. The UI needs
-// intentSeeds to show that discovery seeds itself from the warm leads and to
-// let the toggle enable on warm leads alone.
+// Full status: enabled flag + keyword-matrix count (nicho × geo) + budget.
+// The UI reads `keywords` to show what the autopilot searches and to gate the
+// on/off toggle. `intentSeeds` remains as a back-compat alias for older reads.
 export async function GET() {
   try {
     return NextResponse.json(await getAutopilotStatus());

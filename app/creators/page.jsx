@@ -260,21 +260,21 @@ export default function CreatorsPage() {
     } catch {}
   };
 
-  // "Correr agora" — one budget-capped autopilot pass on demand, seeded from
-  // the warm "Pediu vídeo" (+ signed) leads. Works regardless of the daily
-  // enabled flag; bounded by the monthly cap.
+  // "Correr agora" — one budget-capped autopilot pass on demand. Each pass
+  // searches ONE keyword (nicho × geo) from the matrix and evaluates ~8 real
+  // profiles the search returns. Works regardless of the daily enabled flag;
+  // bounded by the monthly cap. The weekday cron rotates through the matrix.
   const runAutopilotNow = async () => {
     if (runningAutopilot) return;
-    const intent = autopilotStatus.intentSeeds || 0;
-    const manual = autopilotStatus.manualSeeds || 0;
-    if (intent + manual === 0) {
-      setDiscoveryStatus("Sem seeds: precisas de leads em 'Pediu vídeo' (ou adiciona seeds manuais).");
+    const kw = autopilotStatus.keywords || 0;
+    if (kw === 0) {
+      setDiscoveryStatus("Sem keywords configuradas na matriz de discovery.");
       setTimeout(() => setDiscoveryStatus(""), 6000);
       return;
     }
-    if (!confirm(`Correr uma passagem de discovery agora?\n\nSeeds: ${intent} leads que pediram vídeo + ${manual} manuais.\nCusto limitado pelo cap mensal (~$${autopilotStatus.remaining ?? '?'} restante).`)) return;
+    if (!confirm(`Correr uma passagem de discovery agora?\n\nPesquisa 1 keyword (nicho × geo) e avalia ~8 perfis reais.\nCusto limitado pelo cap mensal (~$${autopilotStatus.remaining ?? '?'} restante).`)) return;
     setRunningAutopilot(true);
-    setDiscoveryStatus("A correr autopilot (seeds dos leads que pediram vídeo)…");
+    setDiscoveryStatus("A correr autopilot (pesquisa por keyword)…");
     try {
       const res = await fetch("/api/discovery/autopilot", {
         method: "POST",
@@ -295,17 +295,17 @@ export default function CreatorsPage() {
       }
       if (!res.ok) throw new Error(data.error || "Erro");
       if (data.ok === false && data.reason) {
-        const reasons = { no_seeds: "sem seeds", monthly_budget_exhausted: "cap mensal esgotado", daily_target_reached: "alvo diário atingido", autopilot_disabled: "autopilot desligado" };
+        const reasons = { no_keywords: "sem keywords", no_seeds: "sem seeds", monthly_budget_exhausted: "cap mensal esgotado", daily_target_reached: "alvo diário atingido", autopilot_disabled: "autopilot desligado" };
         setDiscoveryStatus(`Autopilot parou: ${reasons[data.reason] || data.reason}`);
       } else {
-        let msg = `${data.queued || 0} qualificados de ${data.scanned || 0} scanned · ${data.seeds || 0} seeds · $${data.spentThisRun ?? 0}`;
+        let msg = `${data.queued || 0} qualificados de ${data.scanned || 0} avaliados · keyword "${data.keyword || "?"}" · $${data.spentThisRun ?? 0}`;
         const d = data.drops || {};
         const sr = data.seedResults || [];
-        // Per-seed status: no_related / scrape_failed surface the real cause.
+        // Per-keyword status: scrape_failed / no results surface the real cause.
         const bad = sr.filter(s => s.status && s.status !== "ok");
-        if (bad.length) msg += ` | Seeds falhados: ${bad.map(s => `@${s.handle || "?"} (${s.status})`).join(", ")}`;
-        const okSeeds = sr.filter(s => s.status === "ok");
-        if (okSeeds.length) msg += ` | ${okSeeds.map(s => `@${s.handle}: ${s.relatedCount} related`).join(", ")}`;
+        if (bad.length) msg += ` | Keywords falhadas: ${bad.map(s => `"${s.handle || "?"}" (${s.status})`).join(", ")}`;
+        const okKw = sr.filter(s => s.status === "ok");
+        if (okKw.length) msg += ` | ${okKw.map(s => `"${s.handle}": ${s.relatedCount} perfis`).join(", ")}`;
         // Related profiles existed but nothing new scanned → show where they went.
         if ((d.totalRelated || 0) > 0 && (data.scanned || 0) === 0) {
           const parts = [];
@@ -1004,7 +1004,7 @@ export default function CreatorsPage() {
                   <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "space-between", alignItems: "center", gap: 12, marginBottom: 20 }}>
                     <div style={{ flex: "1 1 200px", minWidth: 0 }}>
                       <p style={{ fontSize: 12, color: "var(--sl-text-muted)", margin: 0 }}>
-                        Creators similares descobertos automaticamente a partir dos leads que pediram vídeo (+ seeds manuais). Deal Score A, B ou C.
+                        Creators descobertos por pesquisa de keywords (nicho × geo) no Instagram. Deal Score A, B ou C.
                       </p>
                       {discoveryStatus && (
                         <p style={{ fontSize: 12, color: discoveryStatus.startsWith("Erro") ? "var(--sl-danger)" : "var(--sl-success)", margin: "6px 0 0" }}>{discoveryStatus}</p>
@@ -1167,22 +1167,22 @@ export default function CreatorsPage() {
                         <div>
                           <div style={{ fontSize: 12, fontWeight: 600, color: "var(--sl-text)" }}>Autopilot Discovery</div>
                           <div style={{ fontSize: 12, color: "var(--sl-text-faint)", marginTop: 2 }}>
-                            Corre automaticamente todos os dias às 6AM (Lisboa) · até 30 candidatos · notifica tom@ + raul@secondlayerhq.com
+                            Corre nos dias úteis às 6AM (Lisboa) · roda 1 keyword da matriz por passagem · notifica tom@ + raul@secondlayerhq.com
                           </div>
                         </div>
                         <button
                           onClick={toggleAutopilot}
-                          disabled={(autopilotStatus.intentSeeds || 0) === 0 && persistentSeeds.length === 0 && !autopilotEnabled}
-                          title={((autopilotStatus.intentSeeds || 0) === 0 && persistentSeeds.length === 0) ? "Precisas de leads em 'Pediu vídeo' ou 1 seed manual" : ""}
+                          disabled={(autopilotStatus.keywords || 0) === 0 && !autopilotEnabled}
+                          title={(autopilotStatus.keywords || 0) === 0 ? "Sem keywords na matriz de discovery" : ""}
                           style={{
                             padding: "8px 18px",
-                            background: autopilotEnabled ? "var(--sl-success)" : (persistentSeeds.length === 0 ? "var(--sl-surface-raised)" : "var(--sl-surface-raised)"),
+                            background: autopilotEnabled ? "var(--sl-success)" : "var(--sl-surface-raised)",
                             border: `1px solid ${autopilotEnabled ? "var(--sl-success)" : "color-mix(in srgb, var(--sl-text) 10%, transparent)"}`,
                             borderRadius: 8,
-                            color: autopilotEnabled ? "var(--sl-bg)" : (persistentSeeds.length === 0 ? "var(--sl-text-faint)" : "var(--sl-text-muted)"),
+                            color: autopilotEnabled ? "var(--sl-bg)" : "var(--sl-text-muted)",
                             fontSize: 12,
                             fontWeight: 700,
-                            cursor: (autopilotStatus.intentSeeds || 0) === 0 && persistentSeeds.length === 0 && !autopilotEnabled ? "not-allowed" : "pointer",
+                            cursor: (autopilotStatus.keywords || 0) === 0 && !autopilotEnabled ? "not-allowed" : "pointer",
                             fontFamily: "inherit",
                             whiteSpace: "nowrap",
                             textTransform: "uppercase",
@@ -1193,13 +1193,12 @@ export default function CreatorsPage() {
                         </button>
                       </div>
 
-                      {/* Seed pool + on-demand run. Discovery seeds itself from
-                          the warm "Pediu vídeo"/signed leads (intentSeeds); the
-                          persistent list below just supplements them. */}
+                      {/* Keyword matrix + on-demand run. Discovery searches a
+                          fixed nicho × geo keyword matrix; each pass runs one
+                          keyword and evaluates the real profiles it returns. */}
                       <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: 10, marginBottom: 16, padding: "10px 12px", background: "color-mix(in srgb, var(--sl-success) 5%, transparent)", border: "1px solid color-mix(in srgb, var(--sl-success) 15%, transparent)", borderRadius: 8 }}>
                         <div style={{ fontSize: 12, color: "var(--sl-text-muted)", lineHeight: 1.5 }}>
-                          Seeds automáticos: <strong style={{ color: "var(--sl-text)" }}>{autopilotStatus.intentSeeds ?? 0}</strong> leads que pediram vídeo
-                          {(autopilotStatus.manualSeeds ?? 0) > 0 && <> + <strong style={{ color: "var(--sl-text)" }}>{autopilotStatus.manualSeeds}</strong> manuais</>}
+                          Matriz de keywords: <strong style={{ color: "var(--sl-text)" }}>{autopilotStatus.keywords ?? 0}</strong> nichos × geos
                           <span style={{ color: "var(--sl-text-faint)" }}> · ${autopilotStatus.spent ?? 0}/{autopilotStatus.cap ?? "?"} este mês</span>
                         </div>
                         <button
@@ -1221,7 +1220,7 @@ export default function CreatorsPage() {
 
                         {persistentSeeds.length === 0 ? (
                           <div style={{ fontSize: 12, color: "var(--sl-text-faint)", padding: "8px 0 12px" }}>
-                            Opcional. O autopilot já usa os teus leads que pediram vídeo como seeds — adiciona aqui creators grandes nos teus nichos target para complementar.
+                            Opcional. Estes URLs alimentam o botão "Com seeds" (discovery manual a partir de creators específicos). O autopilot funciona à parte, por pesquisa de keywords.
                           </div>
                         ) : (
                           <div style={{ marginBottom: 12 }}>
@@ -1347,7 +1346,7 @@ export default function CreatorsPage() {
                                   <>
                                     <span style={{ fontSize: 12, fontWeight: 700, color: "var(--sl-success)" }}>{run.queued || 0}</span>
                                     <span style={{ fontSize: 12, color: "var(--sl-text-faint)" }}>qualificados</span>
-                                    <span style={{ fontSize: 12, color: "var(--sl-text-faint)" }}>· {run.scanned} scaneados · {run.seeds} seeds</span>
+                                    <span style={{ fontSize: 12, color: "var(--sl-text-faint)" }}>· {run.scanned} avaliados{run.keyword ? ` · "${run.keyword}"` : ""}</span>
                                   </>
                                 ) : (
                                   <span style={{ fontSize: 12, color: "var(--sl-warning)" }}>{run.status === 'skipped' ? `skipped (${run.reason})` : `error: ${run.error || 'unknown'}`}</span>
