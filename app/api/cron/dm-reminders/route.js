@@ -50,24 +50,25 @@ const AUTO_COLD_DAYS = 21;
 // days, then auto-cool at +7. Separate mechanism from the no-reply CADENCE
 // above (these creators already replied). Highest-day-first so we pick the
 // latest nudge the creator has reached but not yet received.
+// Video→booking cadence — ALL follow-ups now hang off videoSentAt (a lead is
+// only nudged AFTER they have the video, never while waiting for it). Text DM
+// nudges at days 2/4/9/14, then a manual voice note at day 45 (voice:true →
+// uses the voiceNote template + tray section, and the voiceNote45 dedup key so
+// it never double-fires with the cold-revive scan). Auto-cool at +52, a week
+// after the voice note gets its chance. Highest-day-first so we pick the latest
+// milestone reached-but-not-yet-sent.
 const VIDEO_CADENCE = [
-  { day: 4, reminderKey: 'videoNudge2', title: 'Vídeo · 2º toque' },
-  { day: 2, reminderKey: 'videoNudge1', title: 'Vídeo · 1º toque' },
+  { day: 45, reminderKey: 'voiceNote45', title: 'Vídeo · nota de voz (dia 45)', voice: true },
+  { day: 14, reminderKey: 'videoNudge4', title: 'Vídeo · 4º toque' },
+  { day: 9,  reminderKey: 'videoNudge3', title: 'Vídeo · 3º toque' },
+  { day: 4,  reminderKey: 'videoNudge2', title: 'Vídeo · 2º toque' },
+  { day: 2,  reminderKey: 'videoNudge1', title: 'Vídeo · 1º toque' },
 ];
-const VIDEO_COLD_DAYS = 7;
+const VIDEO_COLD_DAYS = 52;
 
-// Pediu-vídeo cadence (volume model). Creator showed interest / asked for the
-// video (outreach.videoRequestedAt) but went quiet before we sent it or before
-// they replied again. Nudge at days 2/4/9/14, then auto-cool at +16.
-// Highest-day-first so we pick the latest nudge reached-but-not-yet-sent.
-// The array is the single tuning knob. Reminder keys pv1..pv4 (in remindersSent).
-const PEDIU_VIDEO_CADENCE = [
-  { day: 14, reminderKey: 'pv4' },
-  { day: 9,  reminderKey: 'pv3' },
-  { day: 4,  reminderKey: 'pv2' },
-  { day: 2,  reminderKey: 'pv1' },
-];
-const PEDIU_VIDEO_COLD_DAYS = 16;
+// Pediu-vídeo cadence removed 2026-08: after a lead asks, we send the video
+// immediately, so nobody waits in that stage — no automated messages, no
+// auto-cold. See the (now deleted) videoRequestedAt block in the loop.
 
 // Day-45 voice note (manual, high-effort). One personal audio touch to REVIVE a
 // lead that went cold without ever converting. Works for both paths: pediu-vídeo
@@ -229,11 +230,14 @@ export async function GET(request) {
         const creatorFirstName = (c.name || '').split(/\s+/)[0] || 'pessoa';
         const igUrl = c.platforms?.instagram?.url
           || (c.platforms?.instagram?.handle ? `https://instagram.com/${c.platforms.instagram.handle.replace(/^@/, '')}` : null);
-        buckets.videoNudge.push({
+        // Day-45 is a manual voice note (voiceNote template + tray section);
+        // days 2/4/9/14 are text DM nudges.
+        const isVoice = !!vmatched.voice;
+        (isVoice ? buckets.voiceNote : buckets.videoNudge).push({
           id: c.id, name: c.name, niche: c.niche, followers: pickFollowers(c),
           daysSinceVideo: vdays, ownerEmail: vOwner, igUrl,
-          followUpDm: buildFollowUpDm('videoNudge', creatorFirstName, ownerFirstName, langCode),
-          milestoneKey: 'videoNudge',
+          followUpDm: buildFollowUpDm(isVoice ? 'voiceNote' : 'videoNudge', creatorFirstName, ownerFirstName, langCode),
+          milestoneKey: isVoice ? 'voiceNote' : 'videoNudge',
           hasContactEmail: !!(c.contactEmail || c.email),
         });
         if (!isCatchup) {
@@ -245,65 +249,12 @@ export async function GET(request) {
       continue;
     }
 
-    // ── Pediu-vídeo cadence (volume model) ──
-    // Creator showed interest / asked for the video (videoRequestedAt) but went
-    // quiet before we sent it — and it's genuinely not sent yet (videoSentAt is
-    // handled by the block above). These DID reply, so handle them here BEFORE
-    // the no-reply skip below. Nudge at 1/3/5/7/9/12/14, auto-cool at +16.
-    const videoRequestedAt = out.videoRequestedAt || null;
-    if (videoRequestedAt && !videoSentAt && !hasBooking && c.pipelineStatus !== 'cold' && c.pipelineStatus !== 'signed') {
-      const pdays = daysBetween(videoRequestedAt, now);
-      const rs = out.remindersSent || {};
-      const pOwner = FIRSTNAME_TO_EMAIL[canonicaliseName(
-        out.videoRequestedBy?.firstName || out.dmSentBy?.firstName || c.addedBy?.firstName || ''
-      )] || null;
-      if (pdays >= PEDIU_VIDEO_COLD_DAYS) {
-        cooled.push({ id: c.id, name: c.name, daysSinceDM: pdays });
-        if (!isCatchup) {
-          const fresh = await getCreator(c.id, { fresh: true }).catch(() => null);
-          const fo = fresh?.outreach || {};
-          if (!(fo.videoSentAt || fo.callBookedAt || fo.callAgreedAt || fo.callHeldAt)) {
-            await updateCreator(c.id, {
-              pipelineStatus: 'cold',
-              lostReason: 'ghost',
-              lostAt: now.toISOString(),
-              lostStage: computeOutreachStage(c),
-              outreach: { remindersSent: { autoCold: now.toISOString() } },
-            }).catch(() => null);
-          }
-        }
-        buckets.autoCold.push({ id: c.id, name: c.name, niche: c.niche, daysSinceDM: pdays, ownerEmail: pOwner });
-        continue;
-      }
-      let pmatched = null;
-      for (const pc of PEDIU_VIDEO_CADENCE) {
-        const already = !isCatchup && rs[pc.reminderKey];
-        if (pdays >= pc.day && !already) { pmatched = pc; break; }
-      }
-      if (pmatched) {
-        const ownerFirstName = out.videoRequestedBy?.firstName || c.addedBy?.firstName || 'Raul';
-        const lang = (c.primaryLanguage || 'pt').toLowerCase();
-        const langCode = lang === 'en' ? 'en' : lang === 'es' ? 'es' : 'pt';
-        const creatorFirstName = (c.name || '').split(/\s+/)[0] || 'pessoa';
-        const igUrl = c.platforms?.instagram?.url
-          || (c.platforms?.instagram?.handle ? `https://instagram.com/${c.platforms.instagram.handle.replace(/^@/, '')}` : null);
-        buckets.pediuVideo.push({
-          id: c.id, name: c.name, niche: c.niche, followers: pickFollowers(c),
-          daysSinceRequest: pdays, ownerEmail: pOwner, igUrl,
-          followUpDm: buildFollowUpDm('pediuVideo', creatorFirstName, ownerFirstName, langCode),
-          milestoneKey: 'pediuVideo',
-          hasContactEmail: !!(c.contactEmail || c.email),
-        });
-        if (!isCatchup) {
-          await updateCreator(c.id, {
-            outreach: { ...out, remindersSent: { ...rs, [pmatched.reminderKey]: now.toISOString() } },
-          }).catch(() => null);
-        }
-      }
-      continue;
-    }
+    // Pediu-vídeo stage sends NO automated messages and never auto-cools —
+    // after a lead asks, we send the video immediately, so nobody waits here.
+    // These leads replied (and/or have videoRequestedAt), so they're skipped
+    // just below; every follow-up now hangs off videoSentAt (block above).
 
-    if (out.repliedAt) continue;                                  // engaged → skip
+    if (out.repliedAt || out.videoRequestedAt) continue;          // engaged / asked for video → skip
 
     // Owner attribution — map addedBy.firstName to a known operator email.
     // addedBy shape is { userId, firstName, at }, no .email field. We try
@@ -699,7 +650,6 @@ async function sendDigest(operator, buckets, stats, opts = {}) {
   ${headlineCount === 0 ? '' : `
     <div style="margin: 4px 0 22px;">
       ${counterRow('#14b8a6', 'Nota de voz', buckets.voiceNote?.length || 0)}
-      ${counterRow('#a855f7', 'Pediu vídeo', buckets.pediuVideo?.length || 0)}
       ${counterRow('#8b5cf6', 'Vídeo',   buckets.videoNudge?.length || 0)}
       ${counterRow('#ea580c', 'Dia 14',  buckets.lastTouch.length)}
       ${counterRow('#f97316', 'Dia 7',   buckets.valueDrop.length)}
