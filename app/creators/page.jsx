@@ -334,7 +334,7 @@ export default function CreatorsPage() {
       // status === "done"
       let msg = `${done.queued || 0} qualificados de ${done.scanned || 0} avaliados · keyword "${done.keyword || keyword}" · $${done.spentThisRun ?? 0}`;
       const d = done.drops || {};
-      // Profiles came back but none were new → show where they went.
+      // Profiles came back but none reached evaluation → show pre-filter drops.
       if ((d.totalFound || 0) > 0 && (done.scanned || 0) === 0) {
         const parts = [];
         if (d.inCRM) parts.push(`${d.inCRM} já no CRM`);
@@ -345,6 +345,21 @@ export default function CreatorsPage() {
         if (parts.length) msg += ` → ${parts.join(", ")} (0 novos)`;
       } else if ((d.totalFound || 0) === 0) {
         msg += " → a pesquisa não devolveu perfis";
+      } else if ((done.queued || 0) < (done.scanned || 0)) {
+        // Evaluated but rejected — show WHY (the GO/NO GO filters).
+        const rej = [];
+        if (done.dismissedOutOfRange) {
+          const sz = [];
+          if (done.tooSmall) sz.push(`${done.tooSmall} < ${(50000).toLocaleString("pt-PT")} seg.`);
+          if (done.tooBig) sz.push(`${done.tooBig} grandes`);
+          rej.push(`${done.dismissedOutOfRange} fora do range${sz.length ? ` (${sz.join(", ")})` : ""}`);
+        }
+        if (done.dismissedNiche) rej.push(`${done.dismissedNiche} fora de nicho`);
+        if (done.dismissedLanguage) rej.push(`${done.dismissedLanguage} idioma`);
+        if (done.dismissedNoBusiness) rej.push(`${done.dismissedNoBusiness} sem sinais de negócio`);
+        if (done.dismissedLowTier) rej.push(`${done.dismissedLowTier} Deal Score baixo`);
+        if (done.failed) rej.push(`${done.failed} falha`);
+        if (rej.length) msg += ` — rejeitados: ${rej.join(", ")}`;
       }
       setDiscoveryStatus(msg);
       fetchDiscoveryQueue();
@@ -1375,7 +1390,7 @@ export default function CreatorsPage() {
                                   <>
                                     <span style={{ fontSize: 12, fontWeight: 700, color: "var(--sl-success)" }}>{run.queued || 0}</span>
                                     <span style={{ fontSize: 12, color: "var(--sl-text-faint)" }}>qualificados</span>
-                                    <span style={{ fontSize: 12, color: "var(--sl-text-faint)" }}>· {run.scanned} avaliados{run.keyword ? ` · "${run.keyword}"` : ""}</span>
+                                    <span style={{ fontSize: 12, color: "var(--sl-text-faint)" }}>· {run.scanned} avaliados{run.keyword ? ` · "${run.keyword}"` : ""}{run.scanned > 0 && (run.queued || 0) === 0 && (run.outOfRange || 0) > 0 ? ` · ${run.outOfRange} fora do range` : ""}</span>
                                   </>
                                 ) : (
                                   <span style={{ fontSize: 12, color: "var(--sl-warning)" }}>{run.status === 'skipped' ? `skipped (${run.reason})` : `error: ${run.error || 'unknown'}`}</span>

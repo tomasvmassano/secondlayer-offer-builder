@@ -945,6 +945,10 @@ export async function harvestDiscoveryRun() {
     status: 'ok', keyword: active.keyword, scanned: outcomes.length,
     queued: tally.queued, scrapes: hits.length,
     spentThisRun: Math.round(spentNow * 1000) / 1000,
+    // Rejection breakdown, so "0 qualificados" is never a mystery in history.
+    outOfRange: tally.dismissedOutOfRange, tooSmall: tally.tooSmall,
+    noNiche: tally.dismissedNiche, lang: tally.dismissedLanguage,
+    noBiz: tally.dismissedNoBusiness, lowScore: tally.dismissedLowTier,
   });
 
   const budget = await getAutopilotStatus();
