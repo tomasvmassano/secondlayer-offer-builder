@@ -52,19 +52,16 @@ const AUTO_COLD_DAYS = 21;
 // latest nudge the creator has reached but not yet received.
 // Video→booking cadence — ALL follow-ups now hang off videoSentAt (a lead is
 // only nudged AFTER they have the video, never while waiting for it). Text DM
-// nudges at days 2/4/9/14, then a manual voice note at day 45 (voice:true →
-// uses the voiceNote template + tray section, and the voiceNote45 dedup key so
-// it never double-fires with the cold-revive scan). Auto-cool at +52, a week
-// after the voice note gets its chance. Highest-day-first so we pick the latest
-// milestone reached-but-not-yet-sent.
+// nudges at days 2/4/9/14, then auto-cool at +21. (The day-45 voice note was
+// removed 2026-08 — non-repliers just go cold and get surfaced for unfollow.)
+// Highest-day-first so we pick the latest milestone reached-but-not-yet-sent.
 const VIDEO_CADENCE = [
-  { day: 45, reminderKey: 'voiceNote45', title: 'Vídeo · nota de voz (dia 45)', voice: true },
   { day: 14, reminderKey: 'videoNudge4', title: 'Vídeo · 4º toque' },
   { day: 9,  reminderKey: 'videoNudge3', title: 'Vídeo · 3º toque' },
   { day: 4,  reminderKey: 'videoNudge2', title: 'Vídeo · 2º toque' },
   { day: 2,  reminderKey: 'videoNudge1', title: 'Vídeo · 1º toque' },
 ];
-const VIDEO_COLD_DAYS = 52;
+const VIDEO_COLD_DAYS = 21;
 
 // Pediu-vídeo cadence removed 2026-08: after a lead asks, we send the video
 // immediately, so nobody waits in that stage — no automated messages, no
@@ -73,13 +70,7 @@ const VIDEO_COLD_DAYS = 52;
 // Day-45 voice note (manual, high-effort). One personal audio touch to REVIVE a
 // lead that went cold without ever converting. Works for both paths: pediu-vídeo
 // ghosts (measured from videoRequestedAt) and first-DM non-responders (measured
-// from dmSentAt). The operator records + sends it by hand — the system only
-// surfaces the reminder + the script (see buildFollowUpDm 'voiceNote'). Only
-// AUTO-cooled leads qualify; anyone who explicitly said no (notInterestedAt) is
-// left alone. Windowed (45..60d) so shipping doesn't surface a huge backlog of
-// ancient cold leads at once; deduped via remindersSent.voiceNote45 (fires once).
-const VOICE_NOTE_DAY = 45;
-const VOICE_NOTE_WINDOW_END = 60;
+// (day-45 voice note removed 2026-08)
 
 const DAY_MS = 86_400_000;
 const daysBetween = (a, b) => Math.floor((new Date(b).getTime() - new Date(a).getTime()) / DAY_MS);
@@ -377,55 +368,8 @@ export async function GET(request) {
     }
   }
 
-  // ── Day-45 voice-note revival (cold leads) ──
-  // The main loop only sees non-cold candidates. This separate scan targets
-  // leads that went cold WITHOUT converting and surfaces ONE manual voice-note
-  // task (with a script) ~45 days after their first DM / video request. Explicit
-  // "não interessado" leads (notInterestedAt) are excluded — they said no.
-  const voiceCandidates = summaries.filter(s => {
-    if ((s.pipelineStatus || 'prospect') !== 'cold') return false;
-    const anchor = s.videoRequestedAt || s.dmSentAt || null;
-    if (!anchor) return false;
-    const d = daysBetween(anchor, now);
-    return d >= VOICE_NOTE_DAY && d <= VOICE_NOTE_WINDOW_END;
-  });
-  const voiceFulls = [];
-  for (let i = 0; i < voiceCandidates.length; i += 25) {
-    const chunk = voiceCandidates.slice(i, i + 25);
-    voiceFulls.push(...await Promise.all(chunk.map(s => getCreator(s.id).catch(() => null))));
-  }
-  for (const c of voiceFulls) {
-    if (!c) continue;
-    const out = c.outreach || {};
-    if (out.notInterestedAt) continue;                                  // said no → leave alone
-    if (out.callBookedAt || out.callAgreedAt || out.callHeldAt || c.pitch?.sentAt) continue; // progressed → skip
-    const rs = out.remindersSent || {};
-    if (!isCatchup && rs.voiceNote45) continue;                         // already surfaced once
-    const anchor = out.videoRequestedAt || out.dmSentAt || c.dmSequence?.generatedAt || null;
-    if (!anchor) continue;
-    const vdays = daysBetween(anchor, now);
-    const owner = FIRSTNAME_TO_EMAIL[canonicaliseName(
-      out.videoRequestedBy?.firstName || out.dmSentBy?.firstName || c.addedBy?.firstName || ''
-    )] || null;
-    const ownerFirstName = out.videoRequestedBy?.firstName || out.dmSentBy?.firstName || c.addedBy?.firstName || 'Raul';
-    const lang = (c.primaryLanguage || 'pt').toLowerCase();
-    const langCode = lang === 'en' ? 'en' : lang === 'es' ? 'es' : 'pt';
-    const creatorFirstName = (c.name || '').split(/\s+/)[0] || 'pessoa';
-    const igUrl = c.platforms?.instagram?.url
-      || (c.platforms?.instagram?.handle ? `https://instagram.com/${c.platforms.instagram.handle.replace(/^@/, '')}` : null);
-    buckets.voiceNote.push({
-      id: c.id, name: c.name, niche: c.niche, followers: pickFollowers(c),
-      daysSinceRequest: vdays, ownerEmail: owner, igUrl,
-      followUpDm: buildFollowUpDm('voiceNote', creatorFirstName, ownerFirstName, langCode),
-      milestoneKey: 'voiceNote',
-      hasContactEmail: !!(c.contactEmail || c.email),
-    });
-    if (!isCatchup) {
-      await updateCreator(c.id, {
-        outreach: { ...out, remindersSent: { ...rs, voiceNote45: now.toISOString() } },
-      }).catch(() => null);
-    }
-  }
+  // (The day-45 voice-note revival for cold leads was removed 2026-08 — cold
+  // non-repliers now flow to the /unfollow cleanup instead.)
 
   const totalDue = buckets.lastTouch.length + buckets.valueDrop.length + buckets.softNudge.length + buckets.videoNudge.length + buckets.pediuVideo.length + buckets.voiceNote.length;
   const stats = {
@@ -649,7 +593,6 @@ async function sendDigest(operator, buckets, stats, opts = {}) {
 
   ${headlineCount === 0 ? '' : `
     <div style="margin: 4px 0 22px;">
-      ${counterRow('#14b8a6', 'Nota de voz', buckets.voiceNote?.length || 0)}
       ${counterRow('#8b5cf6', 'Vídeo',   buckets.videoNudge?.length || 0)}
       ${counterRow('#ea580c', 'Dia 14',  buckets.lastTouch.length)}
       ${counterRow('#f97316', 'Dia 7',   buckets.valueDrop.length)}

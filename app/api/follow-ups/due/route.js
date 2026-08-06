@@ -34,14 +34,11 @@ const CADENCE = {
   valueDrop: { day: 7,  followUpsDoneCap: 1, label: 'Dia 7'  },
   lastTouch: { day: 14, followUpsDoneCap: 2, label: 'Dia 14' },
 };
-// voiceNote (day-45 revival of a cold lead) is the rarest + most deliberate, so
-// it pins to the very top. pediuVideo (asked for the video, not sent yet) is the
-// warmest live lead — they asked and we owe the send — so it sorts next.
-const URGENCY = { voiceNote: 6, pediuVideo: 5, videoNudge: 4, lastTouch: 3, valueDrop: 2, softNudge: 1 };
+// pediuVideo (asked for the video, not sent yet) is the warmest live lead —
+// they asked and we owe the send — so it sorts to the top.
+const URGENCY = { pediuVideo: 5, videoNudge: 4, lastTouch: 3, valueDrop: 2, softNudge: 1 };
 const VIDEO_NUDGE_DAY = 2; // days after videoSentAt before the first nudge is due
 const PEDIU_VIDEO_NUDGE_DAY = 2; // days after videoRequestedAt before the first nudge is due
-const VOICE_NOTE_DAY = 45; // days after first DM / video request before the day-45 voice note
-const VOICE_NOTE_WINDOW_END = 60; // upper bound so old cold leads don't resurface in bulk
 
 export async function GET(request) {
   const user = await getCurrentUser(request);
@@ -238,62 +235,6 @@ export async function GET(request) {
     });
   }
 
-  // ── Day-45 voice-note revival (cold leads) ──
-  // Unlike every other pass, this one deliberately INCLUDES cold creators — the
-  // whole point is to revive a lead that went cold without converting, with a
-  // single manual voice note (script attached). Auto-declined leads
-  // (notInterestedAt) are excluded. Anchored on the video request if they asked,
-  // else the first DM. Windowed + deduped (voiceNotedAt) so it stays a one-off.
-  const voiceCandidates = summaries.filter(s => {
-    if ((s.pipelineStatus || 'prospect') !== 'cold') return false;
-    if (s.addedByUserId !== user.userId) return false;
-    const anchor = s.videoRequestedAt || s.dmSentAt || null;
-    if (!anchor) return false;
-    const d = daysBetween(anchor, now);
-    return d >= VOICE_NOTE_DAY && d <= VOICE_NOTE_WINDOW_END;
-  });
-  const voiceFulls = [];
-  for (let i = 0; i < voiceCandidates.length; i += 25) {
-    const chunk = voiceCandidates.slice(i, i + 25);
-    voiceFulls.push(...await Promise.all(chunk.map(s => getCreator(s.id).catch(() => null))));
-  }
-  for (const c of voiceFulls) {
-    if (!c) continue;
-    const out = c.outreach || {};
-    if (out.notInterestedAt) continue;                                   // said no → leave alone
-    if (out.callBookedAt || out.callAgreedAt || out.callHeldAt || c.pitch?.sentAt) continue; // progressed → skip
-    // Dedup ONLY on the operator-action field (voiceNotedAt), NOT the cron's
-    // remindersSent.voiceNote45 — the cron sets that just by emailing the count,
-    // and the tray must keep showing the task until it's actually done.
-    if (out.voiceNotedAt) continue;
-    const anchor = out.videoRequestedAt || out.dmSentAt || c.dmSequence?.generatedAt || null;
-    if (!anchor) continue;
-    const vdays = daysBetween(anchor, now);
-    if (vdays < VOICE_NOTE_DAY || vdays > VOICE_NOTE_WINDOW_END) continue;
-    const creatorFirstName = (c.name || '').split(/\s+/)[0] || 'pessoa';
-    const ownerFirstName = out.videoRequestedBy?.firstName || out.dmSentBy?.firstName || c.addedBy?.firstName || 'Raul';
-    const lang = (c.primaryLanguage || 'pt').toLowerCase();
-    const langCode = lang === 'en' ? 'en' : lang === 'es' ? 'es' : 'pt';
-    const igUrl = c.platforms?.instagram?.url
-      || (c.platforms?.instagram?.handle ? `https://instagram.com/${c.platforms.instagram.handle.replace(/^@/, '')}` : null);
-    items.push({
-      id: c.id,
-      name: c.name,
-      niche: c.niche,
-      profilePicUrl: c.profilePicUrl || null,
-      daysSinceDM: vdays, // reused for sort — here it's days-since-anchor
-      followUpsDone: 0,
-      milestone: 'voiceNote',
-      milestoneLabel: 'Nota de voz',
-      dmText: buildFollowUpDm('voiceNote', creatorFirstName, ownerFirstName, langCode),
-      igUrl,
-      hasContactEmail: !!(c.contactEmail || c.email),
-      contactEmail: c.contactEmail || c.email || null,
-      emailSubject: null,
-      emailBody: null,
-    });
-  }
-
   items.sort((a, b) => {
     const u = (URGENCY[b.milestone] || 0) - (URGENCY[a.milestone] || 0);
     if (u !== 0) return u;
@@ -304,7 +245,6 @@ export async function GET(request) {
     items,
     total: items.length,
     byMilestone: {
-      voiceNote: items.filter(i => i.milestone === 'voiceNote').length,
       pediuVideo: items.filter(i => i.milestone === 'pediuVideo').length,
       videoNudge: items.filter(i => i.milestone === 'videoNudge').length,
       lastTouch: items.filter(i => i.milestone === 'lastTouch').length,

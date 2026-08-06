@@ -90,6 +90,15 @@ export default function CreatorsPage() {
   useEffect(() => {
     try { localStorage.setItem('sl_crm_filters_v1', JSON.stringify(filters)); } catch {}
   }, [filters]);
+  // End-of-cycle unfollow count — badge on the header link, like the DM tray
+  // bubble. Cheap summary-only count (?count=1), fetched once on mount.
+  const [unfollowCount, setUnfollowCount] = useState(0);
+  useEffect(() => {
+    fetch('/api/unfollow/due?count=1')
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (d && typeof d.total === 'number') setUnfollowCount(d.total); })
+      .catch(() => {});
+  }, []);
   const [discoveryQueue, setDiscoveryQueue] = useState([]);
   const [discovering, setDiscovering] = useState(false);
   const [discoveryStatus, setDiscoveryStatus] = useState("");
@@ -750,6 +759,7 @@ export default function CreatorsPage() {
             href="/unfollow"
             title="Deixar de seguir os leads frios que nunca responderam (limpeza fim de ciclo). Fora do CRM para não distrair."
             style={{
+              position: "relative",
               padding: "14px 18px",
               background: "transparent",
               border: "1px solid var(--sl-border-strong)",
@@ -766,6 +776,28 @@ export default function CreatorsPage() {
             }}
           >
             ⊘ Deixar de seguir
+            {unfollowCount > 0 && (
+              <span style={{
+                position: "absolute",
+                top: -8,
+                right: -8,
+                minWidth: 22,
+                height: 22,
+                padding: "0 6px",
+                borderRadius: 11,
+                background: "var(--sl-primary)",
+                color: "var(--sl-primary-contrast, #fff)",
+                fontSize: 12,
+                fontWeight: 700,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                border: "2px solid var(--sl-bg)",
+                boxSizing: "border-box",
+              }}>
+                {unfollowCount}
+              </span>
+            )}
           </a>
         </div>
 

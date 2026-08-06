@@ -8,22 +8,24 @@ import { getCurrentUser } from '../../../lib/auth';
  * End-of-cycle unfollow cleanup. Returns the current operator's creators who:
  *   - went COLD (the outreach cadence auto-cold'd them),
  *   - NEVER replied,
- *   - are past the full cycle — i.e. past the day-45 voice-note revival window,
- *     so we don't unfollow someone still being worked,
+ *   - reached the end of the cadence (~day 21),
  *   - haven't been unfollowed yet.
  *
  * Each item carries the Instagram URL so the /unfollow page can open the
  * profile in a new tab (the operator unfollows manually there) — exactly the
  * "button to their profile" flow the DM tray uses, but kept OFF the CRM.
+ *
+ * ?count=1 returns just the summary-gated count (no full-record reads) for the
+ * badge on the /creators header link.
  */
 
 const DAY_MS = 86_400_000;
 const daysBetween = (a, b) => Math.floor((new Date(b).getTime() - new Date(a).getTime()) / DAY_MS);
 
-// Only surface once the WHOLE cycle is done: cadence (day 3/7/14) + auto-cold
-// + the day-45 voice-note revival window (ends day 60). Tune here to unfollow
-// sooner/later. Anchored on the first DM (or video request).
-const UNFOLLOW_AFTER_DAYS = 60;
+// Surface once the no-reply cadence has run its course and the lead is cold:
+// day 3/7/14 follow-ups + the auto-cold buffer land around day 21. Anchored on
+// the first DM (or video request). Tune here to unfollow sooner/later.
+const UNFOLLOW_AFTER_DAYS = 21;
 
 export async function GET(request) {
   const user = await getCurrentUser(request);
@@ -43,6 +45,12 @@ export async function GET(request) {
     if (!anchor) return false;                           // never actually reached out
     return daysBetween(anchor, now) >= UNFOLLOW_AFTER_DAYS;
   });
+
+  // Cheap badge count — summary-gated only, no full-record reads.
+  const { searchParams } = new URL(request.url);
+  if (searchParams.get('count') === '1') {
+    return NextResponse.json({ total: candidates.length });
+  }
 
   // Batch-load the (small) candidate set for the IG url + fresh guards.
   const fulls = [];
