@@ -196,6 +196,8 @@ function emptyRow(key, firstName) {
     // volume-model touchpoint that precedes booking.
     videosRequested: 0,
     videosSent: 0,
+    // Meetings booked (call agreed/booked) — the operator-table "Reuniões".
+    reunioesMarcadas: 0,
     signed: 0,
   };
 }
@@ -290,6 +292,11 @@ export async function getTeamStats({ window = 'today', now = new Date(), from = 
     // Video sent — the generic video actually delivered after the reply.
     if (o.videoSentAt && inWindow(o.videoSentAt, startMs, endMs)) {
       bumpRow(rows, o.videoSentBy || c.addedBy, 'videosSent');
+    }
+    // Meetings booked — attributed to whoever added the creator.
+    const marcadaAt = o.callBookedAt || o.callAgreedAt || null;
+    if (marcadaAt && inWindow(marcadaAt, startMs, endMs)) {
+      bumpRow(rows, c.addedBy, 'reunioesMarcadas');
     }
     // Signed — attributed to whoever added the creator (handoffs aren't tracked).
     if (c.pipelineStatus === 'signed' && c.signedAt && inWindow(c.signedAt, startMs, endMs)) {
@@ -431,51 +438,57 @@ function lisbonDayBounds(date) {
   return { startMs, endMs: startMs + DAY_MS };
 }
 
-// FUNNEL — added → DMs → replies → call agreed → call held → signed (all-time,
-// attributable to the original adder). Conversion percentages between each step.
-// Call stages added 2026-05-19 to make show-up rate visible at the funnel level.
+// PER-PERSON FUNNEL — same architecture as the team funnel, split by the
+// creator's owner (addedBy): Contactos → Respostas → Pediu vídeo → Reuniões
+// marcadas → Reuniões realizadas → Propostas → Negócios. Each stage counts a
+// creator when that stage's timestamp falls in the window; owners with zero
+// activity in the window are dropped.
 export async function getFunnels(creators, { window = 'all', now = new Date(), from = null, to = null } = {}) {
-  // Window-aware: shadow the module postReset so every event filter in this
-  // function honors the selected timeframe (window='all' == all-time).
-  const { startMs: __startMs, endMs: __endMs } = windowBounds(window, now, from, to);
-  const postReset = (iso) => inWindow(iso, __startMs, __endMs);
+  const { startMs, endMs } = windowBounds(window, now, from, to);
+  const inWin = (iso) => inWindow(iso, startMs, endMs);
   const all = creators || await loadAllCreators();
   const byUser = new Map();
   for (const c of all) {
-    if (!c.addedBy) continue;
-    // Skip creators added before the stats reset — funnel is competition view.
-    if (!postReset(c.addedBy.at)) continue;
-    const key = canonicalKey(c.addedBy.firstName);
-    if (!byUser.has(key)) byUser.set(key, { firstName: c.addedBy.firstName, added: 0, dmd: 0, replied: 0, videoRequested: 0, videoSent: 0, callAgreed: 0, callHeld: 0, signed: 0 });
+    const owner = c.addedBy;
+    if (!owner?.firstName) continue;
+    const key = canonicalKey(owner.firstName);
+    if (!byUser.has(key)) byUser.set(key, { firstName: owner.firstName, contactos: 0, respostas: 0, pediuVideo: 0, reunioesMarcadas: 0, reunioesRealizadas: 0, propostas: 0, negocios: 0 });
     const row = byUser.get(key);
-    row.added += 1;
-    if (postReset(c.outreach?.dmSentAt)) row.dmd += 1;
-    if (postReset(c.outreach?.repliedAt)) row.replied += 1;
-    if (postReset(c.outreach?.videoRequestedAt)) row.videoRequested += 1;
-    if (postReset(c.outreach?.videoSentAt)) row.videoSent += 1;
-    if (postReset(c.outreach?.callAgreedAt)) row.callAgreed += 1;
-    if (postReset(c.outreach?.callHeldAt)) row.callHeld += 1;
-    if (c.pipelineStatus === 'signed' && postReset(c.signedAt)) row.signed += 1;
+    const o = c.outreach || {};
+    const contactoAt = o.dmSentAt || o.emailSentAt || null;
+    const marcadaAt  = o.callBookedAt || o.callAgreedAt || null;
+    const propostaAt = c.pitch?.sentAt || null;
+    if (inWin(contactoAt))        row.contactos += 1;
+    if (inWin(o.repliedAt))       row.respostas += 1;
+    if (inWin(o.videoRequestedAt)) row.pediuVideo += 1;
+    if (inWin(marcadaAt))         row.reunioesMarcadas += 1;
+    if (inWin(o.callHeldAt))      row.reunioesRealizadas += 1;
+    if (inWin(propostaAt))        row.propostas += 1;
+    if (c.pipelineStatus === 'signed' && inWin(c.signedAt)) row.negocios += 1;
   }
-  return Array.from(byUser.entries()).map(([key, r]) => ({
-    userId: key,
-    firstName: r.firstName,
-    added: r.added,
-    dmd: r.dmd,
-    replied: r.replied,
-    videoRequested: r.videoRequested,
-    videoSent: r.videoSent,
-    callAgreed: r.callAgreed,
-    callHeld: r.callHeld,
-    signed: r.signed,
-    addedToDmRate: r.added > 0 ? Math.round((r.dmd / r.added) * 100) : 0,
-    dmToReplyRate: r.dmd > 0 ? Math.round((r.replied / r.dmd) * 100) : 0,
-    replyToCallRate: r.replied > 0 ? Math.round((r.callAgreed / r.replied) * 100) : 0,
-    showUpRate: r.callAgreed > 0 ? Math.round((r.callHeld / r.callAgreed) * 100) : 0,
-    callToSignedRate: r.callHeld > 0 ? Math.round((r.signed / r.callHeld) * 100) : 0,
-    replyToSignedRate: r.replied > 0 ? Math.round((r.signed / r.replied) * 100) : 0,
-    overallRate: r.added > 0 ? Math.round((r.signed / r.added) * 100) : 0,
-  }));
+  const pct = (num, den) => den > 0 ? Math.round((num / den) * 100) : 0;
+  return Array.from(byUser.entries())
+    .map(([key, r]) => ({
+      userId: key,
+      firstName: r.firstName,
+      contactos: r.contactos,
+      respostas: r.respostas,
+      pediuVideo: r.pediuVideo,
+      reunioesMarcadas: r.reunioesMarcadas,
+      reunioesRealizadas: r.reunioesRealizadas,
+      propostas: r.propostas,
+      negocios: r.negocios,
+      rates: {
+        contactoToResposta:  pct(r.respostas, r.contactos),
+        respostaToVideo:     pct(r.pediuVideo, r.respostas),
+        videoToMarcada:      pct(r.reunioesMarcadas, r.pediuVideo),
+        marcadaToRealizada:  pct(r.reunioesRealizadas, r.reunioesMarcadas),
+        realizadaToProposta: pct(r.propostas, r.reunioesRealizadas),
+        propostaToNegocio:   pct(r.negocios, r.propostas),
+      },
+      overallRate: pct(r.negocios, r.contactos),
+    }))
+    .filter(r => (r.contactos + r.respostas + r.pediuVideo + r.reunioesMarcadas + r.reunioesRealizadas + r.propostas + r.negocios) > 0);
 }
 
 // TEAM FUNNEL — the full sales funnel, aggregated across the whole team
@@ -492,7 +505,7 @@ export async function getFunnels(creators, { window = 'all', now = new Date(), f
 export async function getTeamFunnel({ window = 'month', now = new Date(), from = null, to = null } = {}) {
   const { startMs, endMs } = windowBounds(window, now, from, to);
   const all = await loadAllCreators();
-  const f = { contactos: 0, conversas: 0, reunioesMarcadas: 0, reunioesRealizadas: 0, propostas: 0, negocios: 0 };
+  const f = { contactos: 0, conversas: 0, pediuVideo: 0, reunioesMarcadas: 0, reunioesRealizadas: 0, propostas: 0, negocios: 0 };
   for (const c of all) {
     const o = c.outreach || {};
     const contactoAt = o.dmSentAt || o.emailSentAt || null;
@@ -500,6 +513,7 @@ export async function getTeamFunnel({ window = 'month', now = new Date(), from =
     const propostaAt = c.pitch?.sentAt || null;
     if (inWindow(contactoAt, startMs, endMs))       f.contactos += 1;
     if (inWindow(o.repliedAt, startMs, endMs))      f.conversas += 1;
+    if (inWindow(o.videoRequestedAt, startMs, endMs)) f.pediuVideo += 1;
     if (inWindow(marcadaAt, startMs, endMs))        f.reunioesMarcadas += 1;
     if (inWindow(o.callHeldAt, startMs, endMs))     f.reunioesRealizadas += 1;
     if (inWindow(propostaAt, startMs, endMs))       f.propostas += 1;
@@ -510,6 +524,10 @@ export async function getTeamFunnel({ window = 'month', now = new Date(), from =
     ...f,
     rates: {
       contactoToConversa:  pct(f.conversas, f.contactos),
+      conversaToVideo:     pct(f.pediuVideo, f.conversas),
+      videoToMarcada:      pct(f.reunioesMarcadas, f.pediuVideo),
+      // Kept for the TargetCalculator reverse-funnel (reply→meeting), which
+      // doesn't model the video step.
       conversaToMarcada:   pct(f.reunioesMarcadas, f.conversas),
       marcadaToRealizada:  pct(f.reunioesRealizadas, f.reunioesMarcadas),
       realizadaToProposta: pct(f.propostas, f.reunioesRealizadas),

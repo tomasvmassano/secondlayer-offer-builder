@@ -330,24 +330,6 @@ export default function EquipaPage() {
 
         {!error && data && heroStats && !(windowKey === 'custom' && !appliedRange) && (
           <>
-            {/* Needs attention strip */}
-            {data.needsAttention?.length > 0 && (
-              <div className="eq-fade" style={{ marginBottom: 24, padding: "14px 22px", background: "linear-gradient(135deg, color-mix(in srgb, var(--sl-warning) 6%, transparent), color-mix(in srgb, var(--sl-warning) 2%, transparent))", border: "1px solid color-mix(in srgb, var(--sl-warning) 20%, transparent)", borderRadius: 24, display: "flex", alignItems: "center", gap: 18 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <span style={{ width: 6, height: 6, borderRadius: '50%', background: AMBER, animation: 'pulseRing 2s infinite' }} />
-                  <span style={{ fontSize: 12, fontWeight: 700, color: AMBER, letterSpacing: "0.14em", textTransform: "uppercase" }}>Precisa de atenção</span>
-                </div>
-                <div style={{ flex: 1, display: "flex", flexWrap: "wrap", gap: 18, fontSize: 12, color: "var(--sl-text)" }}>
-                  {data.needsAttention.map((item, i) => (
-                    <span key={i} style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
-                      <span style={{ width: 4, height: 4, borderRadius: '50%', background: item.severity === 'danger' ? RED : item.severity === 'warn' ? AMBER : TEXT_LO }} />
-                      {item.text}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            )}
-
             {/* HERO STRIP — 2 wide cards (Outreach + Taxa de resposta).
                 Dropped from 3 to 2 (2026-06-18) after removing the
                 "Receita projetada" forecast. Wider cards = bigger
@@ -1041,7 +1023,7 @@ function PersonCard({ row, sbRow, streak, pipe, vel, delta, yesterdayRow, monthl
 // Order: Operador · Streak · Touches · DMs · Emails · Reply % · Respostas · Fechados · Criadores · F-up · 7-day spark · Goal ring
 // Criadores (creators added) + F-up (follow-ups done) sit together at the
 // end — the two daily-input metrics the team tracks alongside outreach.
-const PERSON_ROW_COLS = "180px 80px 90px 70px 70px 100px 80px 80px 70px 70px 110px 50px";
+const PERSON_ROW_COLS = "180px 70px 70px 100px 80px 70px 80px 70px 70px 110px 50px";
 function PersonRow({ row, sbRow, streak, delta, yesterdayRow, activity, isLeader, isLoser, goalPct, windowKey, last }) {
   const series = activity?.days || [];
   const replyRate = row.replyRate;
@@ -1081,23 +1063,6 @@ function PersonRow({ row, sbRow, streak, delta, yesterdayRow, activity, isLeader
         </div>
       </div>
 
-      {/* Streak — text-only, no emoji. Active days under 30 only mention
-          when there's a real streak; renders dimly otherwise so the
-          column still aligns. */}
-      <div style={{ textAlign: "left" }}>
-        {streak?.streak > 0 ? (
-          <div>
-            <div style={{ ...monoNum, fontSize: 15, fontWeight: 600, color: AMBER, lineHeight: 1 }}>{streak.streak}d</div>
-            <div style={{ fontSize: 12, color: TEXT_LO, letterSpacing: "0.12em", textTransform: "uppercase", marginTop: 3 }}>Streak</div>
-          </div>
-        ) : (
-          <div style={{ fontSize: 12, color: TEXT_DIM, letterSpacing: "0.12em", textTransform: "uppercase" }}>Sem streak</div>
-        )}
-      </div>
-
-      {/* Touches — primary metric (unique creators reached today) */}
-      <PersonRowCell label="Touches" value={row.touchesSent} accent={TEXT_HI} delta={showVsYesterday ? (row.touchesSent - (yesterdayRow.touchesSent || 0)) : null} />
-
       {/* DMs — channel-specific send count */}
       <PersonRowCell label="DMs" value={row.dmsSent} accent={TEXT_MID} delta={showVsYesterday ? (row.dmsSent - (yesterdayRow.dmsSent || 0)) : null} />
 
@@ -1110,8 +1075,11 @@ function PersonRow({ row, sbRow, streak, delta, yesterdayRow, activity, isLeader
       {/* Respostas absolutas */}
       <PersonRowCell label="Respostas" value={row.repliesReceived} accent={TEXT_HI} delta={showVsYesterday ? (row.repliesReceived - (yesterdayRow.repliesReceived || 0)) : null} />
 
-      {/* Fechados */}
-      <PersonRowCell label="Fechados" value={row.signed} accent={signedAccent} delta={delta?.deltaSigned} />
+      {/* Vídeos enviados */}
+      <PersonRowCell label="Vídeos" value={row.videosSent || 0} accent={GREEN} delta={showVsYesterday ? ((row.videosSent || 0) - (yesterdayRow.videosSent || 0)) : null} />
+
+      {/* Reuniões marcadas */}
+      <PersonRowCell label="Reuniões" value={row.reunioesMarcadas || 0} accent={TEXT_HI} delta={showVsYesterday ? ((row.reunioesMarcadas || 0) - (yesterdayRow.reunioesMarcadas || 0)) : null} />
 
       {/* Criadores adicionados */}
       <PersonRowCell label="Criadores" value={row.creatorsAdded} accent={TEXT_MID} delta={showVsYesterday ? (row.creatorsAdded - (yesterdayRow.creatorsAdded || 0)) : null} />
@@ -1371,16 +1339,17 @@ function Sparkline({ days = [] }) {
 }
 
 function FunnelChart({ funnel }) {
+  const R = funnel.rates || {};
   const steps = [
-    { label: 'Adicionados', value: funnel.added },
-    { label: 'DMs', value: funnel.dmd, rate: funnel.addedToDmRate },
-    { label: 'Respostas', value: funnel.replied, rate: funnel.dmToReplyRate },
-    { label: 'Vídeo enviado', value: funnel.videoSent || 0, rate: funnel.replied > 0 ? Math.round(((funnel.videoSent || 0) / funnel.replied) * 100) : 0 },
-    { label: 'Calls agendadas', value: funnel.callAgreed || 0, rate: funnel.replyToCallRate },
-    { label: 'Calls realizadas', value: funnel.callHeld || 0, rate: funnel.showUpRate },
-    { label: 'Fechados', value: funnel.signed, rate: funnel.callToSignedRate, highlight: true },
+    { label: 'Contactos', value: funnel.contactos || 0 },
+    { label: 'Respostas', value: funnel.respostas || 0, rate: R.contactoToResposta },
+    { label: 'Pediu vídeo', value: funnel.pediuVideo || 0, rate: R.respostaToVideo },
+    { label: 'Reuniões marcadas', value: funnel.reunioesMarcadas || 0, rate: R.videoToMarcada },
+    { label: 'Reuniões realizadas', value: funnel.reunioesRealizadas || 0, rate: R.marcadaToRealizada },
+    { label: 'Propostas', value: funnel.propostas || 0, rate: R.realizadaToProposta },
+    { label: 'Negócios', value: funnel.negocios || 0, rate: R.propostaToNegocio, highlight: true },
   ];
-  const max = Math.max(1, funnel.added);
+  const max = Math.max(1, funnel.contactos || 1);
   return (
     <div style={{ padding: "8px 0" }}>
       <div style={{ fontSize: 12, fontWeight: 700, color: TEXT_HI, marginBottom: 10 }}>{funnel.firstName}</div>
@@ -1412,10 +1381,6 @@ function FunnelChart({ funnel }) {
         })}
       </div>
       <div style={{ marginTop: 10, paddingTop: 10, borderTop: `1px solid ${BORDER}`, fontSize: 12, color: TEXT_LO, display: "flex", justifyContent: "space-between" }}>
-        <span>Pediram vídeo</span>
-        <strong style={{ color: TEXT_HI }}>{funnel.videoRequested || 0}</strong>
-      </div>
-      <div style={{ marginTop: 6, fontSize: 12, color: TEXT_LO, display: "flex", justifyContent: "space-between" }}>
         <span>Taxa global</span>
         <strong style={{ color: TEXT_HI }}>{funnel.overallRate}%</strong>
       </div>
@@ -1436,8 +1401,9 @@ function TeamFunnel({ funnel, timing }) {
   const T = timing || {};
   const steps = [
     { label: "Contactos",            value: F.contactos || 0 },
-    { label: "Conversas reais",      value: F.conversas || 0,          rate: R.contactoToConversa,  gap: T.contactoConversa },
-    { label: "Reuniões marcadas",    value: F.reunioesMarcadas || 0,   rate: R.conversaToMarcada,   gap: T.conversaMarcada },
+    { label: "Respostas",            value: F.conversas || 0,          rate: R.contactoToConversa,  gap: T.contactoConversa },
+    { label: "Pediu vídeo",          value: F.pediuVideo || 0,         rate: R.conversaToVideo,     gap: null },
+    { label: "Reuniões marcadas",    value: F.reunioesMarcadas || 0,   rate: R.videoToMarcada,      gap: T.conversaMarcada },
     { label: "Reuniões realizadas",  value: F.reunioesRealizadas || 0, rate: R.marcadaToRealizada,  gap: T.marcadaRealizada },
     { label: "Propostas apresentadas", value: F.propostas || 0,        rate: R.realizadaToProposta, gap: T.realizadaProposta },
     { label: "Negócios",             value: F.negocios || 0,           rate: R.propostaToNegocio,   gap: T.propostaNegocio, highlight: true },
