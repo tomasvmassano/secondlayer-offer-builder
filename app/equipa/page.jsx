@@ -80,6 +80,32 @@ function weekdaysBetween(fromStr, toStr) {
   return count;
 }
 
+// Recent-activity event → PT label + dot color. Shared by the compact feed and
+// the full /equipa/atividade page.
+const ACTIVITY_LABELS = {
+  added:           { label: 'adicionou',                  color: TEXT_MID },
+  dm_sent:         { label: 'enviou DM a',                color: ACCENT },
+  follow_up:       { label: 'fez follow-up a',            color: AMBER },
+  replied:         { label: 'recebeu resposta de',        color: 'var(--sl-info)' },
+  video_requested: { label: 'recebeu pedido de vídeo de', color: 'var(--sl-info)' },
+  video_sent:      { label: 'enviou vídeo a',             color: GREEN },
+  signed:          { label: 'fechou',                     color: GREEN },
+};
+
+// Activity timestamps show the concrete Lisbon time, not a relative "2h ago",
+// so the team can see WHEN work happened.
+const fmtClock = (iso) => { try { return new Date(iso).toLocaleTimeString('pt-PT', { timeZone: 'Europe/Lisbon', hour: '2-digit', minute: '2-digit' }); } catch { return ''; } };
+const fmtDateTimePt = (iso) => { try { return new Date(iso).toLocaleString('pt-PT', { timeZone: 'Europe/Lisbon', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }); } catch { return ''; } };
+// HH:MM for today; "DD/MM HH:MM" for earlier days.
+const activityStamp = (iso) => {
+  const dPt = new Date(iso).toLocaleDateString('pt-PT', { timeZone: 'Europe/Lisbon' });
+  const nowPt = new Date().toLocaleDateString('pt-PT', { timeZone: 'Europe/Lisbon' });
+  const time = fmtClock(iso);
+  if (dPt === nowPt) return time;
+  const [dd, mm] = dPt.split('/');
+  return `${dd}/${mm} ${time}`;
+};
+
 export default function EquipaPage() {
   const [windowKey, setWindowKey] = useState('today');
   const [data, setData] = useState(null);
@@ -144,6 +170,8 @@ export default function EquipaPage() {
     const sumRepliesEmail = data.rows.reduce((s, r) => s + (r.repliesViaEmail || 0), 0);
     const sumCreators = data.rows.reduce((s, r) => s + (r.creatorsAdded || 0), 0);
     const sumSigned = data.rows.reduce((s, r) => s + (r.signed || 0), 0);
+    const sumVideosSent = data.rows.reduce((s, r) => s + (r.videosSent || 0), 0);
+    const sumVideosRequested = data.rows.reduce((s, r) => s + (r.videosRequested || 0), 0);
     // Combined reply rate now uses touches (the activity unit). DM/email
     // per-channel rates ship alongside.
     const replyRate = sumTouches > 0 ? Math.round((sumReplies / sumTouches) * 100) : 0;
@@ -163,7 +191,7 @@ export default function EquipaPage() {
     }
     // Goal % now gates on touches (the new daily-rule unit) instead of DMs.
     const goalPct = totalTarget > 0 ? Math.min(100, Math.round((sumTouches / totalTarget) * 100)) : 0;
-    return { sumDms, sumEmails, sumTouches, sumReplies, sumRepliesDm, sumRepliesEmail, sumCreators, sumSigned, replyRate, dmReplyRate, emailReplyRate, totalTarget, goalPct };
+    return { sumDms, sumEmails, sumTouches, sumReplies, sumRepliesDm, sumRepliesEmail, sumCreators, sumSigned, sumVideosSent, sumVideosRequested, replyRate, dmReplyRate, emailReplyRate, totalTarget, goalPct };
   }, [data, windowKey]);
 
   // Yesterday totals — only populated when windowKey === 'today' AND the
@@ -369,6 +397,12 @@ export default function EquipaPage() {
                   <MicroStat label="DM reply rate" value={heroStats.sumDms > 0 ? `${heroStats.dmReplyRate}%` : '—'} accent={heroStats.dmReplyRate >= heroStats.emailReplyRate ? GREEN : null} />
                   <MicroStat label="Email reply rate" value={heroStats.sumEmails > 0 ? `${heroStats.emailReplyRate}%` : '—'} accent={heroStats.emailReplyRate > heroStats.dmReplyRate ? GREEN : null} />
                 </div>
+                {/* Video funnel — pediram vídeo (subset of replies) → vídeos
+                    enviados. Answers "how many replies asked for video". */}
+                <div className="sl-grid-2" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginTop: 10 }}>
+                  <MicroStat label="Pediram vídeo" value={fmtNum(heroStats.sumVideosRequested)} />
+                  <MicroStat label="Vídeos enviados" value={fmtNum(heroStats.sumVideosSent)} accent={GREEN} />
+                </div>
               </HeroCard>
             </div>
 
@@ -483,7 +517,11 @@ export default function EquipaPage() {
               <SectionBlock title="Padrão de atividade" subtitle="Onde a equipa concentra DMs · últimas 4 semanas">
                 <Heatmap data={data.heatmap} />
               </SectionBlock>
-              <SectionBlock title="Atividade recente" subtitle={`Últimos ${data.recentActivity?.length || 0} eventos`}>
+              <SectionBlock
+                title="Atividade recente"
+                subtitle={`Últimos ${data.recentActivity?.length || 0} eventos`}
+                action={<a href="/equipa/atividade" style={{ fontSize: 12, fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase", color: ACCENT, textDecoration: "none" }}>Ver tudo →</a>}
+              >
                 <RecentActivityFeed events={data.recentActivity || []} />
               </SectionBlock>
             </div>
@@ -1337,6 +1375,7 @@ function FunnelChart({ funnel }) {
     { label: 'Adicionados', value: funnel.added },
     { label: 'DMs', value: funnel.dmd, rate: funnel.addedToDmRate },
     { label: 'Respostas', value: funnel.replied, rate: funnel.dmToReplyRate },
+    { label: 'Vídeo enviado', value: funnel.videoSent || 0, rate: funnel.replied > 0 ? Math.round(((funnel.videoSent || 0) / funnel.replied) * 100) : 0 },
     { label: 'Calls agendadas', value: funnel.callAgreed || 0, rate: funnel.replyToCallRate },
     { label: 'Calls realizadas', value: funnel.callHeld || 0, rate: funnel.showUpRate },
     { label: 'Fechados', value: funnel.signed, rate: funnel.callToSignedRate, highlight: true },
@@ -1373,6 +1412,10 @@ function FunnelChart({ funnel }) {
         })}
       </div>
       <div style={{ marginTop: 10, paddingTop: 10, borderTop: `1px solid ${BORDER}`, fontSize: 12, color: TEXT_LO, display: "flex", justifyContent: "space-between" }}>
+        <span>Pediram vídeo</span>
+        <strong style={{ color: TEXT_HI }}>{funnel.videoRequested || 0}</strong>
+      </div>
+      <div style={{ marginTop: 6, fontSize: 12, color: TEXT_LO, display: "flex", justifyContent: "space-between" }}>
         <span>Taxa global</span>
         <strong style={{ color: TEXT_HI }}>{funnel.overallRate}%</strong>
       </div>
@@ -1775,24 +1818,10 @@ function Heatmap({ data }) {
 
 function RecentActivityFeed({ events }) {
   if (!events.length) return <div style={{ color: TEXT_DIM, fontSize: 12 }}>Sem atividade recente.</div>;
-  const typeLabel = {
-    added: { label: 'adicionou', color: TEXT_MID },
-    dm_sent: { label: 'enviou DM a', color: ACCENT },
-    follow_up: { label: 'fez follow-up a', color: AMBER },
-    replied: { label: 'recebeu resposta de', color: 'var(--sl-info)' },
-    signed: { label: 'fechou', color: GREEN },
-  };
-  const ago = (iso) => {
-    const sec = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
-    if (sec < 60) return `${sec}s`;
-    if (sec < 3600) return `${Math.floor(sec / 60)}m`;
-    if (sec < 86400) return `${Math.floor(sec / 3600)}h`;
-    return `${Math.floor(sec / 86400)}d`;
-  };
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
       {events.map((e, i) => {
-        const cfg = typeLabel[e.type] || { label: e.type, color: TEXT_MID };
+        const cfg = ACTIVITY_LABELS[e.type] || { label: e.type, color: TEXT_MID };
         return (
           <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 12px", background: SURFACE_0, border: `1px solid ${BORDER}`, borderRadius: 10 }}>
             <span style={{ width: 6, height: 6, borderRadius: '50%', background: cfg.color, flexShrink: 0 }} />
@@ -1801,7 +1830,7 @@ function RecentActivityFeed({ events }) {
               <span style={{ color: TEXT_LO, margin: "0 4px" }}>{cfg.label}</span>
               <a href={`/creators/${e.creatorId}`} style={{ color: TEXT_HI, textDecoration: 'none' }}>{e.creator || 'criador'}</a>
             </div>
-            <span style={{ fontSize: 12, color: TEXT_LO, flexShrink: 0 }}>{ago(e.at)}</span>
+            <span title={fmtDateTimePt(e.at)} style={{ fontSize: 12, color: TEXT_LO, flexShrink: 0, fontVariantNumeric: "tabular-nums" }}>{activityStamp(e.at)}</span>
           </div>
         );
       })}

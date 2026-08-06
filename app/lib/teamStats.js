@@ -191,6 +191,11 @@ function emptyRow(key, firstName) {
     // actually come from".
     repliesViaDm: 0,
     repliesViaEmail: 0,
+    // Videos: requests (a reply where the creator asked for/accepted the video)
+    // and sends (the generic video actually delivered). videosSent is the
+    // volume-model touchpoint that precedes booking.
+    videosRequested: 0,
+    videosSent: 0,
     signed: 0,
   };
 }
@@ -275,6 +280,16 @@ export async function getTeamStats({ window = 'today', now = new Date(), from = 
       bumpRow(rows, actor, 'repliesReceived');
       if (o.repliedChannel === 'dm') bumpRow(rows, actor, 'repliesViaDm');
       else if (o.repliedChannel === 'email') bumpRow(rows, actor, 'repliesViaEmail');
+    }
+    // Video requested — a reply where the creator asked for / accepted the
+    // generic video. Attributed to whoever marked it (falls back to the reply
+    // marker, then addedBy).
+    if (o.videoRequestedAt && inWindow(o.videoRequestedAt, startMs, endMs)) {
+      bumpRow(rows, o.videoRequestedBy || o.repliedMarkedBy || c.addedBy, 'videosRequested');
+    }
+    // Video sent — the generic video actually delivered after the reply.
+    if (o.videoSentAt && inWindow(o.videoSentAt, startMs, endMs)) {
+      bumpRow(rows, o.videoSentBy || c.addedBy, 'videosSent');
     }
     // Signed — attributed to whoever added the creator (handoffs aren't tracked).
     if (c.pipelineStatus === 'signed' && c.signedAt && inWindow(c.signedAt, startMs, endMs)) {
@@ -431,11 +446,13 @@ export async function getFunnels(creators, { window = 'all', now = new Date(), f
     // Skip creators added before the stats reset — funnel is competition view.
     if (!postReset(c.addedBy.at)) continue;
     const key = canonicalKey(c.addedBy.firstName);
-    if (!byUser.has(key)) byUser.set(key, { firstName: c.addedBy.firstName, added: 0, dmd: 0, replied: 0, callAgreed: 0, callHeld: 0, signed: 0 });
+    if (!byUser.has(key)) byUser.set(key, { firstName: c.addedBy.firstName, added: 0, dmd: 0, replied: 0, videoRequested: 0, videoSent: 0, callAgreed: 0, callHeld: 0, signed: 0 });
     const row = byUser.get(key);
     row.added += 1;
     if (postReset(c.outreach?.dmSentAt)) row.dmd += 1;
     if (postReset(c.outreach?.repliedAt)) row.replied += 1;
+    if (postReset(c.outreach?.videoRequestedAt)) row.videoRequested += 1;
+    if (postReset(c.outreach?.videoSentAt)) row.videoSent += 1;
     if (postReset(c.outreach?.callAgreedAt)) row.callAgreed += 1;
     if (postReset(c.outreach?.callHeldAt)) row.callHeld += 1;
     if (c.pipelineStatus === 'signed' && postReset(c.signedAt)) row.signed += 1;
@@ -446,6 +463,8 @@ export async function getFunnels(creators, { window = 'all', now = new Date(), f
     added: r.added,
     dmd: r.dmd,
     replied: r.replied,
+    videoRequested: r.videoRequested,
+    videoSent: r.videoSent,
     callAgreed: r.callAgreed,
     callHeld: r.callHeld,
     signed: r.signed,
@@ -958,6 +977,8 @@ export async function getRecentActivity({ limit = 8 } = {}) {
       events.push({ at: o.lastFollowUpAt, type: 'follow_up', firstName: (o.lastFollowUpBy || c.addedBy)?.firstName, creator: c.name, creatorId: c.id });
     }
     if (postReset(o.repliedAt)) events.push({ at: o.repliedAt, type: 'replied', firstName: (o.repliedMarkedBy || c.addedBy)?.firstName, creator: c.name, creatorId: c.id });
+    if (postReset(o.videoRequestedAt)) events.push({ at: o.videoRequestedAt, type: 'video_requested', firstName: (o.videoRequestedBy || o.repliedMarkedBy || c.addedBy)?.firstName, creator: c.name, creatorId: c.id });
+    if (postReset(o.videoSentAt)) events.push({ at: o.videoSentAt, type: 'video_sent', firstName: (o.videoSentBy || c.addedBy)?.firstName, creator: c.name, creatorId: c.id });
     if (postReset(c.signedAt)) events.push({ at: c.signedAt, type: 'signed', firstName: c.addedBy?.firstName, creator: c.name, creatorId: c.id });
   }
   events.sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime());
