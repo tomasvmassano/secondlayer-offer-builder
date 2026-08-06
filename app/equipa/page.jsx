@@ -467,8 +467,8 @@ export default function EquipaPage() {
                 Onde gastamos o tempo (mediana por fase) + conversão entre fases. */}
             <div style={{ marginBottom: 18 }}>
               <SectionBlock
-                title="Tempo e conversão por fase"
-                subtitle="Pipeline completo · mediana · só quem passou pela fase · sempre"
+                title="Tempo por fase"
+                subtitle="Mediana de dias em cada fase · só quem passou pela fase · sempre"
               >
                 <StageAnalytics data={data.stageAnalytics} />
               </SectionBlock>
@@ -1358,6 +1358,9 @@ function FunnelChart({ funnel }) {
           const w = (s.value / max) * 100;
           return (
             <div key={i}>
+              {s.rate != null && (
+                <div style={{ fontSize: 12, color: TEXT_DIM, marginLeft: 6, marginBottom: 2 }}>↓ {s.rate}%</div>
+              )}
               <div style={{ position: "relative", height: 30, borderRadius: 12, overflow: "hidden", background: SURFACE_0, border: `1px solid ${BORDER}` }}>
                 <div style={{
                   height: "100%",
@@ -1419,9 +1422,11 @@ function TeamFunnel({ funnel, timing }) {
           const w = (s.value / max) * 100;
           return (
             <div key={i}>
-              {s.gap != null && (
-                <div style={{ fontSize: 12, color: TEXT_DIM, marginLeft: 6, marginBottom: 3 }}>
-                  <span title="Tempo médio entre estas duas etapas">{fmtDays(s.gap)} em média</span>
+              {s.rate != null && (
+                <div style={{ fontSize: 12, color: TEXT_DIM, marginLeft: 6, marginBottom: 3, display: "flex", gap: 10 }}>
+                  <span>↓ {s.rate}%</span>
+                  {s.gap != null && <span style={{ color: "var(--sl-border-strong)" }}>·</span>}
+                  {s.gap != null && <span title="Tempo médio entre estas duas etapas">{fmtDays(s.gap)} em média</span>}
                 </div>
               )}
               <div style={{ position: "relative", height: 34, borderRadius: 10, overflow: "hidden", background: SURFACE_0, border: `1px solid ${BORDER}` }}>
@@ -1462,24 +1467,19 @@ function TeamFunnel({ funnel, timing }) {
 }
 
 // ─────────────────────────────────────────────────────────────────
-// StageAnalytics — the whole volume-model pipeline, two lenses side by side:
-//   • Tempo mediano por fase — where the team's time actually goes. Median
-//     days in each Kanban stage, counted only from leads that MOVED PAST it
-//     (a completed transition). Bars are scaled to the slowest stage so the
-//     bottleneck jumps out. n = sample size, so thin stages read as tentative.
-//   • Conversão entre fases — step conversion across the eight funnel
-//     milestones (incl. Pediu vídeo + Vídeo enviado, which the six-step
-//     "Funil de vendas" above doesn't split out). Cumulative "reached this or
-//     later", so leads that skip a stage still count as progressed.
-// All team-wide, all-time (post-reset), measured from the Kanban timestamps.
+// StageAnalytics — "Tempo por fase": where the team's time actually goes.
+// Median days in each Kanban stage, counted only from leads that MOVED PAST it
+// (a completed transition). Bars scale to the slowest stage so the bottleneck
+// jumps out; n = sample size, so thin stages read as tentative. Team-wide,
+// all-time (post-reset), measured from the Kanban timestamps. (The per-phase
+// conversion % lives on the "Funil de vendas" bars, not here.)
 // ─────────────────────────────────────────────────────────────────
 function StageAnalytics({ data }) {
   const time = data?.timeSteps || [];
-  const rate = data?.rateSteps || [];
   const maxMed = Math.max(1, ...time.map(t => t.medianDays || 0));
   const anyTime = time.some(t => t.medianDays != null);
   return (
-    <div className="sl-grid-2" style={{ display: "grid", gridTemplateColumns: "1.15fr 1fr", gap: 26 }}>
+    <div>
       {/* Tempo mediano por fase */}
       <div>
         <div style={{ fontSize: 12, fontWeight: 600, color: TEXT_LO, letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 12 }}>Tempo mediano por fase</div>
@@ -1505,32 +1505,6 @@ function StageAnalytics({ data }) {
                   <div style={{ height: 6, borderRadius: 4, background: SURFACE_0, border: `1px solid ${BORDER}`, overflow: "hidden" }}>
                     <div style={{ height: "100%", width: `${dim ? 0 : Math.max(3, w)}%`, background: t.accent, opacity: 0.55, borderRadius: 4, transition: "width 500ms cubic-bezier(.2,.7,.2,1)" }} />
                   </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </div>
-      {/* Conversão entre fases */}
-      <div>
-        <div style={{ fontSize: 12, fontWeight: 600, color: TEXT_LO, letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 12 }}>Conversão entre fases</div>
-        {(rate[0]?.reached || 0) === 0 ? (
-          <div style={{ fontSize: 12, color: TEXT_DIM }}>Sem contactos registados ainda.</div>
-        ) : (
-          <div style={{ display: "flex", flexDirection: "column" }}>
-            {rate.map((s, i) => {
-              const last = i === rate.length - 1;
-              return (
-                <div key={s.key}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "5px 0" }}>
-                    <span style={{ fontSize: 12, color: last ? "var(--sl-success)" : TEXT_MID, fontWeight: last ? 700 : 500 }}>{s.label}</span>
-                    <span style={{ ...monoNum, fontSize: 13, fontWeight: 700, color: TEXT_HI }}>{s.reached}</span>
-                  </div>
-                  {!last && (
-                    <div style={{ fontSize: 12, color: TEXT_DIM, paddingLeft: 8, marginLeft: 2, borderLeft: `1px solid ${BORDER}`, paddingTop: 1, paddingBottom: 1 }}>
-                      ↓ {s.toNextRate != null ? `${s.toNextRate}%` : "—"}
-                    </div>
-                  )}
                 </div>
               );
             })}
