@@ -746,6 +746,27 @@ export default function CreatorsPage() {
           >
             ⚙ Bulk Audit
           </a>
+          <a
+            href="/unfollow"
+            title="Deixar de seguir os leads frios que nunca responderam (limpeza fim de ciclo). Fora do CRM para não distrair."
+            style={{
+              padding: "14px 18px",
+              background: "transparent",
+              border: "1px solid var(--sl-border-strong)",
+              borderRadius: 10,
+              color: "var(--sl-text-muted)",
+              fontSize: 14,
+              fontWeight: 600,
+              cursor: "pointer",
+              fontFamily: "inherit",
+              whiteSpace: "nowrap",
+              textDecoration: "none",
+              display: "inline-flex",
+              alignItems: "center",
+            }}
+          >
+            ⊘ Deixar de seguir
+          </a>
         </div>
 
         {/* Visible error banner. Surfaces server-side failures (Upstash

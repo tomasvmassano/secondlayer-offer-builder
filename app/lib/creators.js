@@ -90,6 +90,9 @@ function buildSummary(creator, createdAt) {
     callBookedAt:    creator.outreach?.callBookedAt    || creator.outreach?.callAgreedAt || null,
     callHeldAt:      creator.outreach?.callHeldAt      || null,
     notInterestedAt: creator.outreach?.notInterestedAt || null,
+    // unfollowedAt — operator manually unfollowed this cold non-replier on IG
+    // (end-of-cycle cleanup). Set from the /unfollow page; drives its due list.
+    unfollowedAt:    creator.outreach?.unfollowedAt    || null,
     pitchSentAt:     creator.pitch?.sentAt             || null,
     profilePicUrl:   creator.profilePicUrl             || null,
     // Follow-up state — needed by the Kanban so cards land in the right
