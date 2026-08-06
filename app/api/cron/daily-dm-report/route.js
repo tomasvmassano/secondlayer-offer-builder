@@ -106,7 +106,7 @@ function zeroRow(firstName) {
     replyRate: 0,
     dmReplyRate: 0,
     emailReplyRate: 0,
-    target: 30,
+    target: 40,
     missedGoal: true,
     totalOwedEur: 0,
     totalEarnedEur: 0,
@@ -282,7 +282,7 @@ export async function GET(request) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
   try {
-    const target = Number(process.env.DAILY_DM_TARGET) || 30;
+    const target = Number(process.env.DAILY_DM_TARGET) || 40;
     // 'yesterday' window — the cron fires at 04:00 Lisbon and reports on
     // the previous day's outreach. Without this, late-night DMs (the
     // exact reason we moved the cron to 4am) would land in today's
@@ -291,7 +291,7 @@ export async function GET(request) {
 
     // Always make sure both operators appear on the scoreboard, even if
     // they did zero outreach today. Without this, an inactive operator
-    // doesn't get the "you missed by 30" reminder — which is the whole
+    // doesn't get the "you missed by 40" reminder — which is the whole
     // point of the email.
     const scoreboard = OPERATORS.map(op => {
       const found = findRowFor(scoreboardRaw, op.firstName);

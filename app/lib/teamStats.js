@@ -280,18 +280,18 @@ export async function getTeamStats({ window = 'today', now = new Date() } = {}) 
  * split evenly).
  *
  * Weekend exemption (added 2026-05-23): when the reported day is a Saturday
- * or Sunday in Lisbon time, the 30/day rule doesn't apply. Every row has
+ * or Sunday in Lisbon time, the 40/day rule doesn't apply. Every row has
  * missedGoal=false, €50 amounts zeroed, and a new `isWeekend` flag set.
  * Callers can read isWeekend to render a "weekend — no target" banner
- * instead of "0/30 falhou". The EOD cron schedule (Tue-Sat) already only
+ * instead of "0/40 falhou". The EOD cron schedule (Tue-Sat) already only
  * reports on Mon-Fri so this mostly matters for the team dashboard
  * showing "today" on Saturday/Sunday.
  *
- * @param {number} target     - DM goal per person (default 30)
+ * @param {number} target     - DM goal per person (default 40)
  * @param {Date}   now        - clock override
  * @param {string} windowKey  - 'today' (legacy default) or 'yesterday'.
  */
-export async function getDailyScoreboard({ target = 30, now = new Date(), windowKey = 'today' } = {}) {
+export async function getDailyScoreboard({ target = 40, now = new Date(), windowKey = 'today' } = {}) {
   const rows = await getTeamStats({ window: windowKey, now });
 
   // Compute the calendar day this scoreboard refers to in Lisbon timezone,
@@ -307,7 +307,7 @@ export async function getDailyScoreboard({ target = 30, now = new Date(), window
   const isWeekend = lisbonWeekday === 'Sat' || lisbonWeekday === 'Sun';
 
   if (isWeekend) {
-    // Weekend rest day — no 30/day rule, no €50, no "falhou" labels.
+    // Weekend rest day — no 40/day rule, no €50, no "falhou" labels.
     // touchesSent / dmsSent / etc. still flow through honestly so the
     // operator can see whatever activity happened, just without
     // accountability framing.
@@ -615,7 +615,7 @@ export async function getStageAnalytics({ window = 'all', now = new Date() } = {
 // person sent ≥ target DMs. Walks backwards from yesterday (or today
 // if hour ≥ 23 Lisbon, meaning the day is effectively done). Skips
 // weekends — they don't count toward or break the streak.
-export async function getStreaks({ target = 30, now = new Date() } = {}) {
+export async function getStreaks({ target = 40, now = new Date() } = {}) {
   const all = await loadAllCreators();
   // Build daily totals per user, keyed by Lisbon date (YYYY-MM-DD).
   const dailyByUser = new Map();
@@ -772,7 +772,7 @@ export async function getQualityBreakdowns({ window = 'all', now = new Date() } 
 
 // €50 MONTHLY TALLY — walks every weekday in the current month, computes
 // each day's scoreboard, sums per-user wins/losses. Settlement = net.
-export async function getMonthlyTally({ target = 30, now = new Date() } = {}) {
+export async function getMonthlyTally({ target = 40, now = new Date() } = {}) {
   const lisbonStart = windowStart('month', now);
   const totals = new Map(); // canonicalKey → { firstName, daysHit, daysMissed, earned, owed }
   const cursor = new Date(lisbonStart);
@@ -801,7 +801,7 @@ export async function getMonthlyTally({ target = 30, now = new Date() } = {}) {
 }
 
 // NEEDS ATTENTION — surface concrete to-dos for the team.
-export async function getNeedsAttention({ now = new Date(), dailyTarget = 30 } = {}) {
+export async function getNeedsAttention({ now = new Date(), dailyTarget = 40 } = {}) {
   const all = await loadAllCreators();
   const items = [];
   const nowMs = now.getTime();
@@ -941,9 +941,9 @@ export async function getRecentActivity({ limit = 8 } = {}) {
 }
 
 // PACING — projects current run rate forward to month-end. For the
-// monthly DM goal (30/day × ~22 working days = 660/month per person).
+// monthly DM goal (40/day × ~22 working days = 880/month per person).
 // Returns: { firstName, monthSoFar, monthGoal, projectedTotal, pacePct }
-export async function getPacing({ target = 30, now = new Date() } = {}) {
+export async function getPacing({ target = 40, now = new Date() } = {}) {
   const monthRows = await getTeamStats({ window: 'month', now });
   const startMs = windowStart('month', now);
   const elapsedMs = now.getTime() - startMs;
@@ -967,7 +967,7 @@ export async function getPacing({ target = 30, now = new Date() } = {}) {
   const monthGoal = target * workingDaysInMonth;
   return monthRows.map(r => {
     // Pace now tracks `touchesSent` (unique-creator outreach touches) since
-    // that's the new 30/day target unit. DMs still surface as a sub-stat
+    // that's the new 40/day target unit. DMs still surface as a sub-stat
     // on the dashboard, just not as the gate.
     const rate = workingDaysElapsed > 0 ? r.touchesSent / workingDaysElapsed : 0;
     const projectedTotal = Math.round(rate * workingDaysInMonth);
@@ -1053,7 +1053,7 @@ export async function getActivitySeries({ days = 7, now = new Date() } = {}) {
       dms: u.dms.get(d) || 0,
       emails: u.emails.get(d) || 0,
       // `touches` is unique-creator-touches per day — drives the new
-      // "Outreach hoje" headline + the 30/day target chart.
+      // "Outreach hoje" headline + the 40/day target chart.
       touches: u.touchesByDay.get(d)?.size || 0,
       replies: u.replies.get(d) || 0,
     })),

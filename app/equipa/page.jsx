@@ -83,7 +83,7 @@ export default function EquipaPage() {
     // the new one loads. Only the very first load (no data yet) shows the
     // skeleton; window switches just dim + show a subtle refreshing bar.
     setRefreshing(true);
-    fetch(`/api/team-stats?window=${windowKey}&target=30`)
+    fetch(`/api/team-stats?window=${windowKey}&target=40`)
       .then(r => r.json())
       .then(d => { if (!cancelled) { setData(d); setLoading(false); setRefreshing(false); } })
       .catch(e => { if (!cancelled) { setError(e.message); setLoading(false); setRefreshing(false); } });
@@ -120,7 +120,7 @@ export default function EquipaPage() {
     const dmReplyRate = sumDms > 0 ? Math.round((sumRepliesDm / sumDms) * 100) : 0;
     const emailReplyRate = sumEmails > 0 ? Math.round((sumRepliesEmail / sumEmails) * 100) : 0;
     const people = data.rows.length || 2;
-    const dailyTarget = data.target || 30;
+    const dailyTarget = data.target || 40;
     let totalTarget = 0;
     if (windowKey === 'today') totalTarget = dailyTarget * people;
     else if (windowKey === 'week') totalTarget = dailyTarget * people * 5;
@@ -273,7 +273,7 @@ export default function EquipaPage() {
                 <ActivityBarChart days={data.activity?.flatMap(u => u.days).reduce((acc, d) => {
                   const i = acc.findIndex(x => x.date === d.date);
                   // Bar chart now plots TOUCHES (touches per day across team)
-                  // since that's the metric the 30/day rule gates on.
+                  // since that's the metric the 40/day rule gates on.
                   if (i >= 0) acc[i].dms += (d.touches || d.dms); else acc.push({ date: d.date, dms: (d.touches || d.dms) });
                   return acc;
                 }, [])} target={heroStats.totalTarget} />
@@ -1155,7 +1155,7 @@ function ProgressRing({ value, size = 80, stroke = 8, color = ACCENT, centerLabe
 // Empty state: when every day is 0, render a single muted row + a
 // "Sem atividade ainda" caption instead of seven full-height empty
 // tracks (which read as a row of placeholders, not as "zero").
-function ActivityBarChart({ days = [], target = 30 }) {
+function ActivityBarChart({ days = [], target = 40 }) {
   if (!days?.length) return null;
   const maxVal = Math.max(...days.map(d => d.dms), 0);
   const isEmpty = maxVal === 0;

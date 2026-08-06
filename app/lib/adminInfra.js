@@ -27,7 +27,7 @@ const SALES_KEY = 'admin:config:sales';
 export const SALES_DEFAULTS = {
   monthlyGoal: 50000,
   ticket: 6000,
-  dailyTarget: Number(process.env.DAILY_DM_TARGET) || 30,
+  dailyTarget: Number(process.env.DAILY_DM_TARGET) || 40,
   workDays: 21,
   quarterlyQuota: Number(process.env.SALES_QUARTERLY_QUOTA_EUR) || 50000,
 };
