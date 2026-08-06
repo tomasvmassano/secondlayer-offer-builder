@@ -1358,9 +1358,6 @@ function FunnelChart({ funnel }) {
           const w = (s.value / max) * 100;
           return (
             <div key={i}>
-              {s.rate != null && (
-                <div style={{ fontSize: 12, color: TEXT_DIM, marginLeft: 6, marginBottom: 2 }}>↓ {s.rate}%</div>
-              )}
               <div style={{ position: "relative", height: 30, borderRadius: 12, overflow: "hidden", background: SURFACE_0, border: `1px solid ${BORDER}` }}>
                 <div style={{
                   height: "100%",
@@ -1422,10 +1419,8 @@ function TeamFunnel({ funnel, timing }) {
           const w = (s.value / max) * 100;
           return (
             <div key={i}>
-              {s.rate != null && (
-                <div style={{ fontSize: 12, color: TEXT_DIM, marginLeft: 6, marginBottom: 3, display: "flex", gap: 10 }}>
-                  <span>↓ {s.rate}%</span>
-                  <span style={{ color: "var(--sl-border-strong)" }}>·</span>
+              {s.gap != null && (
+                <div style={{ fontSize: 12, color: TEXT_DIM, marginLeft: 6, marginBottom: 3 }}>
                   <span title="Tempo médio entre estas duas etapas">{fmtDays(s.gap)} em média</span>
                 </div>
               )}
@@ -1568,6 +1563,18 @@ function TargetCalculator({ funnel, monthly = false }) {
   const [rMarc, setRMarc] = useState(seed(R.conversaToMarcada, 20));
   const [rConv, setRConv] = useState(seed(R.contactoToConversa, 21));
 
+  // Track the live metrics: whenever the measured funnel rates change (new
+  // timeframe, refresh, fresh data), reset the sliders to the current real
+  // rates. Manual what-if drags persist until the next data change.
+  useEffect(() => {
+    setRFecho(seed(R.propostaToNegocio, 30));
+    setRComp(seed(R.marcadaToRealizada, 75));
+    setRProp(seed(R.realizadaToProposta, 70));
+    setRMarc(seed(R.conversaToMarcada, 20));
+    setRConv(seed(R.contactoToConversa, 21));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [R.propostaToNegocio, R.marcadaToRealizada, R.realizadaToProposta, R.conversaToMarcada, R.contactoToConversa]);
+
   const div = (a, r) => (r > 0 ? a / (r / 100) : Infinity);
   const negocios  = ticket > 0 ? goal / ticket : Infinity;
   const propostas = div(negocios, rFecho);
@@ -1593,15 +1600,15 @@ function TargetCalculator({ funnel, monthly = false }) {
     { label: "Taxa de fecho (proposta → negócio)", val: rFecho, set: setRFecho },
     { label: "Taxa de comparência (marcada → realizada)", val: rComp, set: setRComp },
     { label: "Reunião → proposta apresentada", val: rProp, set: setRProp },
-    { label: "Conversa → reunião marcada", val: rMarc, set: setRMarc },
-    { label: "Contacto → conversa real (atendimento / resposta)", val: rConv, set: setRConv },
+    { label: "Resposta → reunião marcada", val: rMarc, set: setRMarc },
+    { label: "Contacto → resposta (atendimento)", val: rConv, set: setRConv },
   ];
   const OUT_TILES = [
     { label: "Negócios / mês", value: fmtDec(negocios) },
     { label: "Propostas", value: fmtInt(propostas) },
     { label: "Reuniões realizadas", value: fmtInt(realizadas) },
     { label: "Reuniões marcadas", value: fmtInt(marcadas) },
-    { label: "Conversas reais", value: fmtInt(conversas) },
+    { label: "Respostas", value: fmtInt(conversas) },
     { label: "Contactos / mês", value: fmtInt(contactos) },
   ];
 
