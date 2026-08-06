@@ -56,12 +56,29 @@ const WINDOWS = [
   { key: '30d',       label: '30 dias' },
   { key: '90d',       label: '90 dias' },
   { key: 'all',       label: 'Sempre' },
+  { key: 'custom',    label: 'Período' },
 ];
 
 const fmtEur = (n) => '€' + Math.round(n).toLocaleString();
 const fmtHours = (h) => h == null ? '—' : h < 24 ? `${h.toFixed(1)}h` : `${(h / 24).toFixed(1)}d`;
 const fmtNum = (n) => (n || 0).toLocaleString();
 const initials = (name) => (name || '?').split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
+// "2026-03-15" → "15/03" for compact range labels.
+const fmtDayPt = (iso) => { if (!iso) return ''; const [, m, d] = iso.split('-'); return `${d}/${m}`; };
+// Weekday count (Mon-Fri) inclusive between two YYYY-MM-DD dates — the unit the
+// daily target multiplies by, so a custom range's goal excludes weekends.
+function weekdaysBetween(fromStr, toStr) {
+  if (!fromStr || !toStr) return 0;
+  const [fy, fm, fd] = fromStr.split('-').map(Number);
+  const [ty, tm, td] = toStr.split('-').map(Number);
+  const end = Date.UTC(ty, tm - 1, td);
+  let count = 0;
+  for (let t = Date.UTC(fy, fm - 1, fd); t <= end; t += 86_400_000) {
+    const dow = new Date(t).getUTCDay();
+    if (dow !== 0 && dow !== 6) count++;
+  }
+  return count;
+}
 
 export default function EquipaPage() {
   const [windowKey, setWindowKey] = useState('today');
@@ -75,20 +92,33 @@ export default function EquipaPage() {
   // Tapping the section header expands it. State is page-local; not
   // worth persisting to localStorage for now.
   const [advancedOpen, setAdvancedOpen] = useState(false);
+  // Custom date range. `range` holds the picker inputs; `appliedRange` is the
+  // committed {from,to} that actually drives the fetch (set on "Aplicar"), so
+  // typing a date doesn't fire a request mid-edit.
+  const [range, setRange] = useState({ from: '', to: '' });
+  const [appliedRange, setAppliedRange] = useState(null);
+  const applyRange = () => {
+    if (range.from && range.to && range.from <= range.to) setAppliedRange({ from: range.from, to: range.to });
+  };
 
   useEffect(() => {
     let cancelled = false;
     setError(null);
+    // Custom mode waits for a committed range before hitting the API.
+    if (windowKey === 'custom' && !appliedRange) { setRefreshing(false); return; }
     // Stale-while-revalidate: keep the previous window's data on screen while
     // the new one loads. Only the very first load (no data yet) shows the
     // skeleton; window switches just dim + show a subtle refreshing bar.
     setRefreshing(true);
-    fetch(`/api/team-stats?window=${windowKey}&target=40`)
+    const url = windowKey === 'custom'
+      ? `/api/team-stats?window=custom&from=${appliedRange.from}&to=${appliedRange.to}&target=40`
+      : `/api/team-stats?window=${windowKey}&target=40`;
+    fetch(url)
       .then(r => r.json())
       .then(d => { if (!cancelled) { setData(d); setLoading(false); setRefreshing(false); } })
       .catch(e => { if (!cancelled) { setError(e.message); setLoading(false); setRefreshing(false); } });
     return () => { cancelled = true; };
-  }, [windowKey]);
+  }, [windowKey, appliedRange]);
 
   // Canonical user order across the entire dashboard. data.rows is already
   // sorted by dmsSent desc (leader first); we lock that order and every
@@ -127,6 +157,9 @@ export default function EquipaPage() {
     else if (windowKey === 'month') {
       const wd = data.pacing?.[0]?.workingDaysInMonth || 22;
       totalTarget = dailyTarget * people * wd;
+    }
+    else if (windowKey === 'custom' && data.from && data.to) {
+      totalTarget = dailyTarget * people * weekdaysBetween(data.from, data.to);
     }
     // Goal % now gates on touches (the new daily-rule unit) instead of DMs.
     const goalPct = totalTarget > 0 ? Math.min(100, Math.round((sumTouches / totalTarget) * 100)) : 0;
@@ -209,6 +242,43 @@ export default function EquipaPage() {
 
       <div className="sl-page" style={{ maxWidth: 1400, margin: "0 auto", padding: "28px 28px 80px" }}>
 
+        {windowKey === 'custom' && (
+          <div style={{ display: "flex", alignItems: "flex-end", gap: 12, flexWrap: "wrap", marginBottom: 20, padding: "14px 16px", background: "var(--sl-surface)", border: "1px solid var(--sl-border)", borderRadius: 12 }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+              <span style={{ fontSize: 12, fontWeight: 600, color: TEXT_LO, letterSpacing: "0.08em", textTransform: "uppercase" }}>De</span>
+              <input
+                type="date"
+                value={range.from}
+                max={range.to || undefined}
+                onChange={e => setRange(r => ({ ...r, from: e.target.value }))}
+                style={{ padding: "8px 10px", background: "var(--sl-surface-raised)", border: "1px solid var(--sl-border)", borderRadius: 8, color: "var(--sl-text)", fontSize: 13, fontFamily: "inherit", outline: "none" }}
+              />
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+              <span style={{ fontSize: 12, fontWeight: 600, color: TEXT_LO, letterSpacing: "0.08em", textTransform: "uppercase" }}>Até</span>
+              <input
+                type="date"
+                value={range.to}
+                min={range.from || undefined}
+                onChange={e => setRange(r => ({ ...r, to: e.target.value }))}
+                style={{ padding: "8px 10px", background: "var(--sl-surface-raised)", border: "1px solid var(--sl-border)", borderRadius: 8, color: "var(--sl-text)", fontSize: 13, fontFamily: "inherit", outline: "none" }}
+              />
+            </div>
+            <button
+              onClick={applyRange}
+              disabled={!range.from || !range.to || range.from > range.to}
+              className="sl-btn-primary"
+              data-sl-compact
+              style={{ padding: "9px 18px", fontSize: 12, opacity: (!range.from || !range.to || range.from > range.to) ? 0.5 : 1, cursor: (!range.from || !range.to || range.from > range.to) ? "not-allowed" : "pointer" }}
+            >
+              Aplicar
+            </button>
+            {appliedRange
+              ? <span style={{ fontSize: 12, color: TEXT_LO }}>A mostrar {fmtDayPt(appliedRange.from)} → {fmtDayPt(appliedRange.to)} · fins de semana fora do alvo</span>
+              : <span style={{ fontSize: 12, color: TEXT_DIM }}>Escolhe um período e clica Aplicar.</span>}
+          </div>
+        )}
+
         {!data && !error && (
           <div style={{ display: "grid", gap: 18 }} aria-busy="true" aria-label="A carregar dados da equipa">
             <div className="eq-skel" style={{ height: 56 }} />
@@ -230,7 +300,7 @@ export default function EquipaPage() {
           <div style={{ height: 2, background: "linear-gradient(90deg, transparent, var(--sl-primary), transparent)", animation: "eqShimmer 1s ease-in-out infinite", marginBottom: 16, borderRadius: 2 }} />
         )}
 
-        {!error && data && heroStats && (
+        {!error && data && heroStats && !(windowKey === 'custom' && !appliedRange) && (
           <>
             {/* Needs attention strip */}
             {data.needsAttention?.length > 0 && (
@@ -262,7 +332,8 @@ export default function EquipaPage() {
                   windowKey === 'today'     ? 'Outreach hoje'      :
                   windowKey === 'yesterday' ? 'Outreach ontem'     :
                   windowKey === 'week'      ? 'Outreach esta semana' :
-                  windowKey === 'month'     ? 'Outreach este mês'  : 'Outreach sempre'
+                  windowKey === 'month'     ? 'Outreach este mês'  :
+                  windowKey === 'custom'    ? 'Outreach no período' : 'Outreach sempre'
                 }
                 value={fmtNum(heroStats.sumTouches)}
                 hint={heroStats.totalTarget > 0 ? `${heroStats.totalTarget} alvo (${heroStats.goalPct}%) · DM+Email = 1 toque` : 'DM+Email mesmo creator = 1 toque'}
@@ -323,7 +394,8 @@ export default function EquipaPage() {
                       {windowKey === 'today' ? 'Hoje · vs ontem' :
                        windowKey === 'yesterday' ? 'Ontem · fechado' :
                        windowKey === 'week' ? 'Esta semana' :
-                       windowKey === 'month' ? 'Este mês' : 'Histórico completo'}
+                       windowKey === 'month' ? 'Este mês' :
+                       windowKey === 'custom' ? (data.from ? `${fmtDayPt(data.from)} – ${fmtDayPt(data.to)}` : 'Período') : 'Histórico completo'}
                     </div>
                   </div>
                   <div style={{ fontSize: 12, fontWeight: 600, color: TEXT_DIM, letterSpacing: "0.12em", textTransform: "uppercase" }}>
@@ -369,7 +441,7 @@ export default function EquipaPage() {
             <div style={{ marginBottom: 18 }}>
               <SectionBlock
                 title="Funil de vendas"
-                subtitle={`Equipa · ${windowKey === 'week' ? 'esta semana' : windowKey === 'all' ? 'sempre' : 'este mês'} · medido do Kanban`}
+                subtitle={`Equipa · ${windowKey === 'week' ? 'esta semana' : windowKey === 'all' ? 'sempre' : windowKey === 'custom' && data.from ? `${fmtDayPt(data.from)}–${fmtDayPt(data.to)}` : 'este mês'} · medido do Kanban`}
               >
                 <TeamFunnel funnel={data.teamFunnel} timing={data.funnelTiming} />
               </SectionBlock>
