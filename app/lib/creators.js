@@ -88,7 +88,10 @@ function buildSummary(creator, createdAt) {
     // video after the creator replied. Drives the video→booking follow-up.
     videoSentAt:     creator.outreach?.videoSentAt     || null,
     callBookedAt:    creator.outreach?.callBookedAt    || creator.outreach?.callAgreedAt || null,
-    callHeldAt:      creator.outreach?.callHeldAt      || null,
+    callHeldAt:      creator.outreach?.callHeldAt      || null,   // R1 (first meeting held)
+    r2At:            creator.outreach?.r2At            || null,   // R2 (second meeting)
+    qnaAt:           creator.outreach?.qnaAt           || null,   // Q&A session
+    nutricaoAt:      creator.outreach?.nutricaoAt      || null,   // long-term nurture
     notInterestedAt: creator.outreach?.notInterestedAt || null,
     // unfollowedAt — operator manually unfollowed this cold non-replier on IG
     // (end-of-cycle cleanup). Set from the /unfollow page; drives its due list.
@@ -471,7 +474,10 @@ export async function saveCreator(data) {
       // model). Drives the video→booking follow-up nudge.
       videoSentAt: null,
       callAgreedAt: null,
-      callHeldAt: null,
+      callHeldAt: null,   // R1 (first meeting held)
+      r2At: null,         // R2 (second meeting)
+      qnaAt: null,        // Q&A session
+      nutricaoAt: null,   // long-term nurture (replied, no immediate interest)
       remindersSent: { followUp1: null, followUp2: null, followUp3: null, autoCold: null },
     },
     createdAt: now,

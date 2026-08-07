@@ -1744,7 +1744,7 @@ function CrmKanban({ creators, setCreators, onDragChange }) {
       // present in patch.outreach gets applied (null included → clears).
       for (const k of ['dmSentAt', 'emailSentAt', 'repliedAt', 'repliedChannel',
                        'videoRequestedAt', 'videoSentAt', 'loomRequestedAt', 'proposalReadyAt', 'loomSentAt',
-                       'callBookedAt', 'callAgreedAt', 'callHeldAt',
+                       'callBookedAt', 'callAgreedAt', 'callHeldAt', 'r2At', 'qnaAt', 'nutricaoAt',
                        'notInterestedAt']) {
         if (k in o) updated[k] = o[k];
       }

@@ -37,13 +37,17 @@ export const STAGES = [
   // Replied. The operator sends the generic video here and the setter books —
   // both happen inside this column (tracked via outreach.videoSentAt).
   { key: 'contacto_feito',       label: 'Respondeu',          accent: '#3b82f6', description: 'Respondeu · sem pedir o vídeo ainda' },
-  // Showed interest / asked for the video. The card sits here while the
-  // automated reminders nudge those who go quiet (outreach.videoRequestedAt).
-  { key: 'video_pedido',         label: 'Pediu vídeo',        accent: '#a855f7', description: 'Mostrou interesse / pediu o vídeo · à espera' },
   { key: 'video_enviado',        label: 'Vídeo enviado',      accent: '#8b5cf6', description: 'Vídeo enviado · à espera de marcação' },
   { key: 'reuniao_marcada',      label: 'Reunião marcada',    accent: '#22c55e', description: 'Call de descoberta agendada' },
-  { key: 'reuniao_realizada',    label: 'Reunião realizada',  accent: '#16a34a', description: 'Call feita · preparar proposta' },
+  // Meeting sequence: R1 (first call held) → R2 → Q&A. R1 reuses callHeldAt so
+  // existing "meeting held" leads land here; R2/Q&A have their own timestamps.
+  { key: 'r1',                   label: 'R1',                 accent: '#16a34a', description: 'Reunião 1 realizada' },
+  { key: 'r2',                   label: 'R2',                 accent: '#15803d', description: 'Reunião 2 realizada' },
+  { key: 'qna',                  label: 'Q&A',                accent: '#0d9488', description: 'Sessão de Q&A' },
   { key: 'apresentacao_enviada', label: 'Proposta',           accent: '#7A0E18', description: 'Proposta / oferta enviada · à espera de decisão' },
+  // Replied but no immediate interest — long-term nurture instead of straight
+  // to Frio (outreach.nutricaoAt).
+  { key: 'nutricao',             label: 'Nutrição',           accent: '#0ea5e9', description: 'Respondeu mas sem interesse imediato · a nutrir' },
   { key: 'frio',                 label: 'Frio',               accent: '#444',    description: 'Não interessado ou parou', terminal: true },
 ];
 
@@ -61,11 +65,13 @@ export const STAGE_EVENT_LABELS = {
   followup_7:           'Follow-up 2',
   followup_14:          'Follow-up 3',
   contacto_feito:       'Respondeu',
-  video_pedido:         'Pediu vídeo',
   video_enviado:        'Vídeo enviado',
   reuniao_marcada:      'Reunião marcada',
-  reuniao_realizada:    'Reunião realizada',
+  r1:                   'R1',
+  r2:                   'R2',
+  qna:                  'Q&A',
   apresentacao_enviada: 'Proposta',
+  nutricao:             'Nutrição',
   signed:               'Fechado',
   frio:                 'Frio',
 };
@@ -75,8 +81,8 @@ export const STAGE_EVENT_LABELS = {
 // Deliberately excludes the no-reply follow-up windows (a branch) and Frio (a
 // failure outcome), which are handled separately.
 export const HAPPY_PATH = [
-  'por_contactar', 'em_outreach', 'contacto_feito', 'video_pedido', 'video_enviado',
-  'reuniao_marcada', 'reuniao_realizada', 'apresentacao_enviada', 'signed',
+  'por_contactar', 'em_outreach', 'contacto_feito', 'video_enviado',
+  'reuniao_marcada', 'r1', 'r2', 'qna', 'apresentacao_enviada', 'signed',
 ];
 
 // Follow-up stage ↔ cron-milestone mapping. Single source of truth so the
@@ -113,10 +119,12 @@ export function computeOutreachStage(creator) {
   const o = creator.outreach || {};
   const notInterestedAt = o.notInterestedAt || creator.notInterestedAt;
   const pitchSentAt     = creator.pitch?.sentAt || creator.pitchSentAt;
-  const callHeldAt      = o.callHeldAt    || creator.callHeldAt;
+  const qnaAt           = o.qnaAt         || creator.qnaAt;
+  const r2At            = o.r2At          || creator.r2At;
+  const callHeldAt      = o.callHeldAt    || creator.callHeldAt;   // R1 (first meeting held)
   const callBookedAt    = o.callBookedAt  || o.callAgreedAt || creator.callBookedAt;
+  const nutricaoAt      = o.nutricaoAt    || creator.nutricaoAt;
   const videoSentAt     = o.videoSentAt   || creator.videoSentAt;
-  const videoRequestedAt = o.videoRequestedAt || creator.videoRequestedAt;
   const repliedAt       = o.repliedAt     || creator.repliedAt;
   const dmSentAt        = o.dmSentAt      || creator.dmSentAt;
   const emailSentAt     = o.emailSentAt   || creator.emailSentAt;
@@ -125,10 +133,14 @@ export function computeOutreachStage(creator) {
 
   if (notInterestedAt)              return 'frio';
   if (pitchSentAt)                  return 'apresentacao_enviada'; // Proposta
-  if (callHeldAt)                   return 'reuniao_realizada';
+  if (qnaAt)                        return 'qna';
+  if (r2At)                         return 'r2';
+  if (callHeldAt)                   return 'r1';                   // first meeting held
   if (callBookedAt)                 return 'reuniao_marcada';
+  // Nutrição sits BELOW the meeting stages: a lead who booked/held a meeting
+  // has re-engaged and shows there; only a replied-but-stalled lead lands here.
+  if (nutricaoAt)                   return 'nutricao';
   if (videoSentAt)                  return 'video_enviado';        // generic video sent, no booking yet
-  if (videoRequestedAt)             return 'video_pedido';         // showed interest / asked for the video
   if (repliedAt)                    return 'contacto_feito';       // Respondeu (no video yet)
   // Day-14 follow-up sent + N days, no reply → Frio (silent auto-cold).
   if (followUpsDone >= 3 && lastFollowUpAt) {
@@ -164,6 +176,7 @@ export function stagePatch(creator, targetStage) {
           followUps: [], followUpsDone: 0, lastFollowUpAt: null,
           videoSentAt: null, videoRequestedAt: null,
           callBookedAt: null, callAgreedAt: null, callHeldAt: null,
+          r2At: null, qnaAt: null, nutricaoAt: null,
           notInterestedAt: null,
         },
         pitch: { sentAt: null },
@@ -178,6 +191,7 @@ export function stagePatch(creator, targetStage) {
           followUps: [], followUpsDone: 0, lastFollowUpAt: null,
           videoSentAt: null, videoRequestedAt: null,
           callBookedAt: null, callAgreedAt: null, callHeldAt: null,
+          r2At: null, qnaAt: null, nutricaoAt: null,
           notInterestedAt: null,
         },
         pitch: { sentAt: null },
@@ -204,6 +218,7 @@ export function stagePatch(creator, targetStage) {
           lastFollowUpAt: last?.at || now,
           videoSentAt: null, videoRequestedAt: null,
           callBookedAt: null, callAgreedAt: null, callHeldAt: null,
+          r2At: null, qnaAt: null, nutricaoAt: null,
           notInterestedAt: null,
         },
         pitch: { sentAt: null },
@@ -219,21 +234,7 @@ export function stagePatch(creator, targetStage) {
           repliedAt: getOutreach('repliedAt') || now,
           videoSentAt: null, videoRequestedAt: null,
           callBookedAt: null, callAgreedAt: null, callHeldAt: null,
-          notInterestedAt: null,
-        },
-        pitch: { sentAt: null },
-      };
-    case 'video_pedido':
-      // Showed interest / asked for the video, not sent yet. Automated
-      // reminders nudge from here; clear videoSentAt so it stays pre-send.
-      return {
-        pipelineStatus: 'prospect',
-        outreach: {
-          dmSentAt: getOutreach('dmSentAt') || now,
-          repliedAt: getOutreach('repliedAt') || now,
-          videoRequestedAt: getOutreach('videoRequestedAt') || now,
-          videoSentAt: null,
-          callBookedAt: null, callAgreedAt: null, callHeldAt: null,
+          r2At: null, qnaAt: null, nutricaoAt: null,
           notInterestedAt: null,
         },
         pitch: { sentAt: null },
@@ -248,6 +249,7 @@ export function stagePatch(creator, targetStage) {
           repliedAt: getOutreach('repliedAt') || now,
           videoSentAt: getOutreach('videoSentAt') || now,
           callBookedAt: null, callAgreedAt: null, callHeldAt: null,
+          r2At: null, qnaAt: null, nutricaoAt: null,
           notInterestedAt: null,
         },
         pitch: { sentAt: null },
@@ -259,12 +261,12 @@ export function stagePatch(creator, targetStage) {
           dmSentAt: getOutreach('dmSentAt') || now,
           repliedAt: getOutreach('repliedAt') || now,
           callBookedAt: getOutreach('callBookedAt') || getOutreach('callAgreedAt') || now,
-          callHeldAt: null,
+          callHeldAt: null, r2At: null, qnaAt: null, nutricaoAt: null,
           notInterestedAt: null,
         },
         pitch: { sentAt: null },
       };
-    case 'reuniao_realizada':
+    case 'r1': // Reunião 1 realizada (reuses callHeldAt)
       return {
         pipelineStatus: 'prospect',
         outreach: {
@@ -272,6 +274,36 @@ export function stagePatch(creator, targetStage) {
           repliedAt: getOutreach('repliedAt') || now,
           callBookedAt: getOutreach('callBookedAt') || getOutreach('callAgreedAt') || now,
           callHeldAt: getOutreach('callHeldAt') || now,
+          r2At: null, qnaAt: null, nutricaoAt: null,
+          notInterestedAt: null,
+        },
+        pitch: { sentAt: null },
+      };
+    case 'r2': // Reunião 2 realizada
+      return {
+        pipelineStatus: 'prospect',
+        outreach: {
+          dmSentAt: getOutreach('dmSentAt') || now,
+          repliedAt: getOutreach('repliedAt') || now,
+          callBookedAt: getOutreach('callBookedAt') || getOutreach('callAgreedAt') || now,
+          callHeldAt: getOutreach('callHeldAt') || now,
+          r2At: getOutreach('r2At') || now,
+          qnaAt: null, nutricaoAt: null,
+          notInterestedAt: null,
+        },
+        pitch: { sentAt: null },
+      };
+    case 'qna': // Sessão de Q&A
+      return {
+        pipelineStatus: 'prospect',
+        outreach: {
+          dmSentAt: getOutreach('dmSentAt') || now,
+          repliedAt: getOutreach('repliedAt') || now,
+          callBookedAt: getOutreach('callBookedAt') || getOutreach('callAgreedAt') || now,
+          callHeldAt: getOutreach('callHeldAt') || now,
+          r2At: getOutreach('r2At') || now,
+          qnaAt: getOutreach('qnaAt') || now,
+          nutricaoAt: null,
           notInterestedAt: null,
         },
         pitch: { sentAt: null },
@@ -284,9 +316,26 @@ export function stagePatch(creator, targetStage) {
           repliedAt: getOutreach('repliedAt') || now,
           callBookedAt: getOutreach('callBookedAt') || getOutreach('callAgreedAt') || now,
           callHeldAt: getOutreach('callHeldAt') || now,
+          nutricaoAt: null,
           notInterestedAt: null,
         },
         pitch: { sentAt: getPitchSent() || now },
+      };
+    case 'nutricao':
+      // Replied but no immediate interest — parked for long-term nurture. Clear
+      // the meeting/proposal fields so it derives to Nutrição; keep the reply
+      // (and any video) as history. Not cold — pipelineStatus stays 'prospect'.
+      return {
+        pipelineStatus: 'prospect',
+        outreach: {
+          dmSentAt: getOutreach('dmSentAt') || now,
+          repliedAt: getOutreach('repliedAt') || now,
+          nutricaoAt: getOutreach('nutricaoAt') || now,
+          callBookedAt: null, callAgreedAt: null, callHeldAt: null,
+          r2At: null, qnaAt: null,
+          notInterestedAt: null,
+        },
+        pitch: { sentAt: null },
       };
     case 'frio':
       return {
@@ -321,11 +370,13 @@ export function stageEntries(creator) {
     { key: 'followup_7',           at: followUps[1]?.at || null },
     { key: 'followup_14',          at: followUps[2]?.at || null },
     { key: 'contacto_feito',       at: pick('repliedAt') || null },
-    { key: 'video_pedido',         at: pick('videoRequestedAt') || null },
     { key: 'video_enviado',        at: pick('videoSentAt') || null },
     { key: 'reuniao_marcada',      at: pick('callBookedAt') || pick('callAgreedAt') || null },
-    { key: 'reuniao_realizada',    at: pick('callHeldAt') || null },
+    { key: 'r1',                   at: pick('callHeldAt') || null },
+    { key: 'r2',                   at: pick('r2At') || null },
+    { key: 'qna',                  at: pick('qnaAt') || null },
     { key: 'apresentacao_enviada', at: creator.pitch?.sentAt || pick('pitchSentAt') || null },
+    { key: 'nutricao',             at: pick('nutricaoAt') || null },
   ];
   const signedAt = creator.pipelineStatus === 'signed' ? (creator.signedAt || null) : null;
   const frioAt = pick('notInterestedAt') || o.remindersSent?.autoCold || null;
@@ -469,14 +520,6 @@ export function stageStaleness(creator) {
       if (d > 2) return { days: d, level: 'warn', stale: true };
       return { days: d, level: 'ok', stale: false };
     }
-    case 'video_pedido': {
-      // Asked for the video but went quiet. Warm lead — the automated
-      // reminders are chasing it, so warn early and cold near the cadence end.
-      const d = daysSince(o.videoRequestedAt || creator?.videoRequestedAt);
-      if (d > 14) return { days: d, level: 'cold', stale: true };
-      if (d > 3)  return { days: d, level: 'warn', stale: true };
-      return { days: d, level: 'ok', stale: false };
-    }
     case 'video_enviado': {
       // The video→booking gap — the warm-lead killer, so it colds faster.
       const d = daysSince(o.videoSentAt || creator?.videoSentAt);
@@ -490,15 +533,31 @@ export function stageStaleness(creator) {
       if (d > 3 && !o.callHeldAt) return { days: d, level: 'warn', stale: true };
       return { days: d, level: 'ok', stale: false };
     }
-    case 'reuniao_realizada': {
+    case 'r1': {
       const d = daysSince(o.callHeldAt);
-      if (d > 5) return { days: d, level: 'warn', stale: true };
+      if (d > 7) return { days: d, level: 'warn', stale: true };
+      return { days: d, level: 'ok', stale: false };
+    }
+    case 'r2': {
+      const d = daysSince(o.r2At);
+      if (d > 7) return { days: d, level: 'warn', stale: true };
+      return { days: d, level: 'ok', stale: false };
+    }
+    case 'qna': {
+      const d = daysSince(o.qnaAt);
+      if (d > 7) return { days: d, level: 'warn', stale: true };
       return { days: d, level: 'ok', stale: false };
     }
     case 'apresentacao_enviada': {
       const d = daysSince(creator?.pitch?.sentAt || o.callHeldAt);
       if (d > 10) return { days: d, level: 'cold', stale: true };
       if (d > 5)  return { days: d, level: 'warn', stale: true };
+      return { days: d, level: 'ok', stale: false };
+    }
+    case 'nutricao': {
+      // Long-term nurture — slow burn, so it only nudges after a long gap.
+      const d = daysSince(o.nutricaoAt);
+      if (d > 45) return { days: d, level: 'warn', stale: true };
       return { days: d, level: 'ok', stale: false };
     }
     case 'frio':
