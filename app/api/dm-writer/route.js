@@ -508,7 +508,7 @@ EXACTLY: "Fazemos isto como parceria, não como fornecedor: só ganho quando tu 
 Do not paraphrase. Do not extend. One line.
 
 **Block 5 — Video CTA (1-2 sentences)**
-EXACTLY: "Se {achares|for} interessante, gravo-te um vídeo de 3 a 4 min com uma proposta concreta para o teu caso: números, estrutura, timing. Zero compromisso."
+EXACTLY: "Se {achares|for} interessante, envio-te um vídeo curto a explicar melhor o que fazemos. Zero compromisso."
 Choose "achares" (tu) — always use tu in PT.
 
 **Block 6 — Soft close (1 line)**
@@ -564,7 +564,7 @@ Trabalho com criadores como tu a lançar comunidades. Não é mais um curso nem 
 
 Fazemos isto como parceria, não como fornecedor: só ganho quando tu ganhas.
 
-Se for interessante, gravo-te um vídeo de 3 a 4 min com uma proposta concreta para o teu caso: números, estrutura, timing. Zero compromisso.
+Se for interessante, envio-te um vídeo curto a explicar melhor o que fazemos. Zero compromisso.
 
 Faz sentido?
 
@@ -611,7 +611,7 @@ Compliment audience strength + name the monetization gap concretely + frame algo
 EXACTLY: "We do this as a partnership, not as a vendor: I only earn when you earn."
 
 **Block 5 — Video CTA (1-2 sentences)**
-EXACTLY: "If interesting, I'll record you a 3 to 4 minute video with a concrete proposal for your case: numbers, structure, timing. Zero commitment."
+EXACTLY: "If interesting, I'll send you a short video explaining what we do. Zero commitment."
 
 **Block 6 — Soft close**
 "Does it make sense?"
@@ -693,7 +693,7 @@ EXACTLY: "Lo hacemos como alianza, no como proveedor: solo gano cuando tú ganas
 Do not paraphrase. Do not extend. One line.
 
 **Block 5 — Video CTA (1-2 sentences)**
-EXACTLY: "Si te {parece|resulta} interesante, te grabo un vídeo de 3 a 4 min con una propuesta concreta para tu caso: números, estructura, timing. Cero compromiso."
+EXACTLY: "Si te {parece|resulta} interesante, te envío un vídeo corto explicando mejor lo que hacemos. Cero compromiso."
 Choose "parece" by default — natural with "tú".
 
 **Block 6 — Soft close (1 line)**
@@ -749,7 +749,7 @@ Trabajo con creadores como tú lanzando comunidades. No es otro curso ni un eboo
 
 Lo hacemos como alianza, no como proveedor: solo gano cuando tú ganas.
 
-Si te resulta interesante, te grabo un vídeo de 3 a 4 min con una propuesta concreta para tu caso: números, estructura, timing. Cero compromiso.
+Si te resulta interesante, te envío un vídeo corto explicando mejor lo que hacemos. Cero compromiso.
 
 ¿Tiene sentido?
 
@@ -792,11 +792,10 @@ export async function POST(request) {
   }
 
   const { template: rawTemplate, inputs, creatorProfile, notes, stage: rawStage, senderName: rawSender } = body;
-  // Volume model (2026-07): collapsed to ONE light template. The old B
-  // (partnership pitch that promised a custom video) is retired — the generic
-  // video does the selling now, so the cold DM only needs a genuine opener +
-  // the soft-ask close. rawTemplate is ignored; always the light template.
-  const template = 'A';
+  // Template B (partnership pitch) — the 7-block DM with a video CTA. The video
+  // is now the GENERIC explainer (not a custom per-creator video), matching
+  // what we actually send. rawTemplate is ignored; always B.
+  const template = 'B';
   // Signer name comes from the signed-in operator via /api/auth/me. Default
   // to "Raul" for back-compat with existing callers (the original prompt was
   // hardcoded to him). The client SHOULD pass senderName explicitly — this
