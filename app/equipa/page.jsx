@@ -245,6 +245,8 @@ export default function EquipaPage() {
             <div style={{ width: 6, height: 6, borderRadius: '50%', background: ACCENT }} />
             <span style={{ fontSize: 12, fontWeight: 600, letterSpacing: "0.02em", color: TEXT_HI }}>Quadro de equipa</span>
           </div>
+          <div className="sl-hide-mobile" style={{ width: 1, height: 12, background: BORDER_HI }} />
+          <a href="/equipa/respostas" style={{ fontSize: 12, fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase", color: TEXT_LO, textDecoration: "none" }}>Respostas →</a>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 2, flexWrap: "wrap" }}>
           {WINDOWS.map(w => (

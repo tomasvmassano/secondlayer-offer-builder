@@ -38,6 +38,8 @@ CATEGORY: <legacy label>
 BLAME: <circumstances|other-people|self|genuine-question|positive|disqualify>
 SUBTYPE: <time|money|spouse|self-doubt|price|tried-agencies|content-vs-monetize|how-do-i-know|need-to-think|null>
 CLOSE: <name of the named close used, or "none" if positive/genuine>
+SENTIMENT: <positive|neutral|negative>
+OFFER_REACTION: <liked|not-for-me|didnt-understand|na>
 RESPONSE:
 <the reply, ready to paste, max 4 short sentences (8 if signing as Raul)>
 
@@ -126,6 +128,8 @@ CATEGORY: <legacy label>
 BLAME: <circumstances|other-people|self|genuine-question|positive|disqualify>
 SUBTYPE: <time|money|spouse|self-doubt|price|tried-agencies|content-vs-monetize|how-do-i-know|need-to-think|null>
 CLOSE: <name of the named close used, or "none" if positive/genuine>
+SENTIMENT: <positive|neutral|negative>
+OFFER_REACTION: <liked|not-for-me|didnt-understand|na>
 RESPONSE:
 <the reply, ready to paste, max 4 short sentences (8 if signing as Raul)>
 
@@ -176,6 +180,8 @@ CATEGORY: <legacy label>
 BLAME: <circumstances|other-people|self|genuine-question|positive|disqualify>
 SUBTYPE: <time|money|spouse|self-doubt|price|tried-agencies|content-vs-monetize|how-do-i-know|need-to-think|null>
 CLOSE: <name of the named close used, or "none" if positive/genuine>
+SENTIMENT: <positive|neutral|negative>
+OFFER_REACTION: <liked|not-for-me|didnt-understand|na>
 RESPONSE:
 <la respuesta, lista para pegar, máximo 4 frases cortas (8 si firma como Raul)>
 
@@ -296,9 +302,11 @@ Creator's reply (verbatim):
 Instructions:
 1. Classify into one of the BLAME buckets (or positive/disqualify/genuine-question).
 2. Identify the subtype (time/money/spouse/self-doubt/...) if applicable.
-3. Pick the named close that matches.
-4. Compose the reply using Raul's brand voice — start with validate-then-transition, end with soft re-ask. Write in ${langLabel}.
-5. Output exactly per the OUTPUT FORMAT spec.`;
+3. Tag SENTIMENT = how the creator feels toward our message and offer: positive, neutral, or negative.
+4. Tag OFFER_REACTION = liked (understood the offer and is interested), not-for-me (understood but declines), didnt-understand (confused about the offer or the video ask), or na (not applicable, e.g. a pure logistics question).
+5. Pick the named close that matches.
+6. Compose the reply using Raul's brand voice — start with validate-then-transition, end with soft re-ask. Write in ${langLabel}.
+7. Output exactly per the OUTPUT FORMAT spec.`;
 
   try {
     const response = await fetch('https://api.anthropic.com/v1/messages', {
@@ -332,11 +340,15 @@ Instructions:
       return m ? m[1].trim() : '';
     };
 
-    const category = grab('CATEGORY', ['BLAME', 'SUBTYPE', 'CLOSE', 'RESPONSE']);
-    const blame = grab('BLAME', ['SUBTYPE', 'CLOSE', 'RESPONSE']);
-    const subtype = grab('SUBTYPE', ['CLOSE', 'RESPONSE']);
-    const close = grab('CLOSE', ['RESPONSE']);
+    const REST = ['BLAME', 'SUBTYPE', 'CLOSE', 'SENTIMENT', 'OFFER_REACTION', 'RESPONSE'];
+    const category = grab('CATEGORY', REST);
+    const blame = grab('BLAME', REST.slice(1));
+    const subtype = grab('SUBTYPE', REST.slice(2));
+    const close = grab('CLOSE', REST.slice(3));
+    const sentiment = grab('SENTIMENT', REST.slice(4));
+    const offerReaction = grab('OFFER_REACTION', REST.slice(5));
     const responseText = grab('RESPONSE', []);
+    const norm = (v, allowed) => { const s = (v || '').toLowerCase().trim(); return allowed.includes(s) ? s : null; };
 
     // Em-dash safety net (Raul brand rule).
     const stripDashes = (text) => (text || '')
@@ -348,9 +360,11 @@ Instructions:
 
     return NextResponse.json({
       category: category || 'Unknown',
-      detectedBlame: blame || null,
+      detectedBlame: norm(blame, ['circumstances', 'other-people', 'self', 'genuine-question', 'positive', 'disqualify']),
       subType: subtype && subtype !== 'null' ? subtype : null,
       closeUsed: close && close !== 'none' ? close : null,
+      sentiment: norm(sentiment, ['positive', 'neutral', 'negative']),
+      offerReaction: norm(offerReaction, ['liked', 'not-for-me', 'didnt-understand', 'na']),
       response: stripDashes(responseText) || stripDashes(rawText),
       raw: rawText,
     });

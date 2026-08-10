@@ -1034,7 +1034,7 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
       if (!r.ok) throw new Error(data.error || `HTTP ${r.status}`);
       await writeRows(rows => rows.map(m => m.id === id ? ({
         ...m,
-        ai: { category: data.category || 'Unknown', response: data.response || '', at: new Date().toISOString(), status: 'ready' },
+        ai: { category: data.category || 'Unknown', blame: data.detectedBlame || null, subtype: data.subType || null, sentiment: data.sentiment || null, offerReaction: data.offerReaction || null, response: data.response || '', at: new Date().toISOString(), status: 'ready' },
       }) : m));
     } catch (err) {
       await writeRows(rows => rows.map(m => m.id === id ? ({
@@ -1107,7 +1107,7 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
       if (!r.ok) throw new Error(data.error || `HTTP ${r.status}`);
       await writeRows(rows => rows.map(m => m.id === id ? ({
         ...m,
-        ai: { category: data.category || 'Unknown', response: data.response || '', at: new Date().toISOString(), status: 'ready' },
+        ai: { category: data.category || 'Unknown', blame: data.detectedBlame || null, subtype: data.subType || null, sentiment: data.sentiment || null, offerReaction: data.offerReaction || null, response: data.response || '', at: new Date().toISOString(), status: 'ready' },
       }) : m));
     } catch (err) {
       await writeRows(rows => rows.map(m => m.id === id ? ({

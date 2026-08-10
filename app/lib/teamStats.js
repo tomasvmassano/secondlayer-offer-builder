@@ -1003,6 +1003,94 @@ export async function getRecentActivity({ limit = 8 } = {}) {
   return events.slice(0, limit);
 }
 
+// ─────────────────────────────────────────────────────────────────
+// REPLY ANALYTICS — aggregate the classified creator replies
+// (outreach.replyMessages[].ai) so the team can read, at scale, how creators
+// feel about the message + offer and where the process leaks. Reply-level
+// counts drive the mix; a single representative blame per creator (their latest
+// in-window reply) drives the conversion view. Windowed on each reply's `at`.
+// ─────────────────────────────────────────────────────────────────
+function weekStartLabel(iso) {
+  const d = new Date(iso);
+  if (!Number.isFinite(d.getTime())) return null;
+  const dow = (d.getUTCDay() + 6) % 7; // Mon=0
+  return new Date(d.getTime() - dow * DAY_MS).toISOString().slice(0, 10);
+}
+
+export async function getReplyAnalytics({ window = 'all', now = new Date(), from = null, to = null } = {}) {
+  const { startMs, endMs } = windowBounds(window, now, from, to);
+  const inWin = (iso) => inWindow(iso, startMs, endMs);
+  const all = await loadAllCreators();
+
+  const bump = (obj, k) => { const key = k || 'por_classificar'; obj[key] = (obj[key] || 0) + 1; };
+  const byBlame = {}, bySubtype = {}, bySentiment = {}, byOfferReaction = {}, byNiche = {};
+  const byTemplate = {}; // 'A'|'B' → aggregate
+  const trend = {};      // weekStart → { total, positive, neutral, negative }
+  const quotes = {};     // blame → [{ text, creatorId, creatorName, template, sentiment, at }]
+  const convByBlame = {};// repBlame → { creators, video, meeting, signed }
+  let total = 0, tagged = 0;
+
+  const tmpl = (k) => (byTemplate[k] ||= { total: 0, creatorIds: new Set(), sentiment: {}, blame: {}, converted: { video: 0, meeting: 0, signed: 0 } });
+
+  for (const c of all) {
+    const msgs = Array.isArray(c.outreach?.replyMessages) ? c.outreach.replyMessages : [];
+    const inWinMsgs = msgs.filter(m => m?.at && inWin(m.at));
+    if (!inWinMsgs.length) continue;
+    const template = (c.dmSequence?.template === 'B') ? 'B' : 'A';
+    const niche = c.niche || '—';
+    const t = tmpl(template);
+    t.creatorIds.add(c.id);
+
+    for (const m of inWinMsgs) {
+      total++;
+      const blame = m.ai?.blame || null;
+      const sentiment = m.ai?.sentiment || null;
+      if (blame) tagged++;
+      bump(byBlame, blame);
+      if (m.ai?.subtype) bump(bySubtype, m.ai.subtype);
+      bump(bySentiment, sentiment);
+      bump(byOfferReaction, m.ai?.offerReaction || null);
+      bump(byNiche, niche);
+      t.total++;
+      bump(t.sentiment, sentiment);
+      bump(t.blame, blame);
+      const wk = weekStartLabel(m.at);
+      if (wk) { const w = (trend[wk] ||= { total: 0, positive: 0, neutral: 0, negative: 0 }); w.total++; if (sentiment && w[sentiment] != null) w[sentiment]++; }
+      const bkey = blame || 'por_classificar';
+      const q = (quotes[bkey] ||= []);
+      if (q.length < 5 && m.content) q.push({ text: String(m.content).slice(0, 240), creatorId: c.id, creatorName: c.name, template, sentiment, at: m.at });
+    }
+
+    // Creator-level conversion, keyed by the LATEST in-window reply's blame.
+    const latest = inWinMsgs.slice().sort((a, b) => new Date(b.at) - new Date(a.at))[0];
+    const repBlame = latest?.ai?.blame || 'por_classificar';
+    const gotVideo = !!c.outreach?.videoSentAt;
+    const gotMeeting = !!(c.outreach?.callBookedAt || c.outreach?.callAgreedAt || c.outreach?.callHeldAt);
+    const signed = c.pipelineStatus === 'signed';
+    const cb = (convByBlame[repBlame] ||= { creators: 0, video: 0, meeting: 0, signed: 0 });
+    cb.creators++; if (gotVideo) cb.video++; if (gotMeeting) cb.meeting++; if (signed) cb.signed++;
+    if (gotVideo) t.converted.video++; if (gotMeeting) t.converted.meeting++; if (signed) t.converted.signed++;
+  }
+
+  const sortEntries = (obj) => Object.entries(obj).map(([key, count]) => ({ key, count })).sort((a, b) => b.count - a.count);
+  const templateOut = {};
+  for (const [k, v] of Object.entries(byTemplate)) {
+    templateOut[k] = { total: v.total, creators: v.creatorIds.size, sentiment: v.sentiment, blame: sortEntries(v.blame), converted: v.converted };
+  }
+
+  return {
+    window, total, tagged, untagged: total - tagged,
+    byBlame: sortEntries(byBlame),
+    bySubtype: sortEntries(bySubtype).slice(0, 10),
+    bySentiment, byOfferReaction,
+    byNiche: sortEntries(byNiche).slice(0, 12),
+    byTemplate: templateOut,
+    trend: Object.entries(trend).map(([period, v]) => ({ period, ...v })).sort((a, b) => a.period.localeCompare(b.period)),
+    conversionByBlame: Object.entries(convByBlame).map(([key, v]) => ({ key, ...v })).sort((a, b) => b.creators - a.creators),
+    quotes,
+  };
+}
+
 // PACING — projects current run rate forward to month-end. For the
 // monthly DM goal (40/day × ~22 working days = 880/month per person).
 // Returns: { firstName, monthSoFar, monthGoal, projectedTotal, pacePct }
