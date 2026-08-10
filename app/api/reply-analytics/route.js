@@ -23,8 +23,9 @@ export async function GET(request) {
     }
 
     const key = `${window}|${from || ''}|${to || ''}`;
+    const fresh = searchParams.get('fresh') === '1'; // bypass cache after a backfill
     const hit = _cache.get(key);
-    if (hit && hit.expiresAt > Date.now()) return NextResponse.json(hit.val);
+    if (!fresh && hit && hit.expiresAt > Date.now()) return NextResponse.json(hit.val);
 
     const data = await getReplyAnalytics({ window, from: isCustom ? from : null, to: isCustom ? to : null });
     _cache.set(key, { val: data, expiresAt: Date.now() + TTL });

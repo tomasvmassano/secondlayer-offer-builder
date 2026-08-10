@@ -41,6 +41,12 @@ export default function RespostasPage() {
   const [data, setData] = useState(null);
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [backfill, setBackfill] = useState(null); // null | { running, done, total, finished, error }
+
+  const load = (fresh) => fetch(`/api/reply-analytics?window=${windowKey}${fresh ? "&fresh=1" : ""}`)
+    .then(r => r.json())
+    .then(d => { if (d.error) setError(d.error); else setData(d); })
+    .catch(e => setError(e.message));
 
   useEffect(() => {
     let cancelled = false;
@@ -51,6 +57,31 @@ export default function RespostasPage() {
       .catch(e => { if (!cancelled) { setError(e.message); setLoading(false); } });
     return () => { cancelled = true; };
   }, [windowKey]);
+
+  // Backfill — classify old, untagged replies (client-driven loop, one creator
+  // per call, like Bulk Audit) then refresh with a cache-bypass.
+  const runBackfill = async () => {
+    if (backfill?.running) return;
+    setBackfill({ running: true, done: 0, total: 0 });
+    try {
+      const list = await fetch("/api/reply-analytics/backfill").then(r => r.json());
+      const creators = list.creators || [];
+      const total = list.total || 0;
+      setBackfill({ running: true, done: 0, total });
+      let done = 0;
+      for (const c of creators) {
+        try {
+          const d = await fetch("/api/reply-analytics/backfill", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ creatorId: c.id }) }).then(r => r.json());
+          done += (d.classified || 0);
+        } catch { /* skip a failed creator, keep going */ }
+        setBackfill({ running: true, done, total });
+      }
+      await load(true);
+      setBackfill({ running: false, finished: true, done, total });
+    } catch (e) {
+      setBackfill({ running: false, error: e.message });
+    }
+  };
 
   const trendMax = useMemo(() => Math.max(1, ...(data?.trend || []).map(t => t.total)), [data]);
 
@@ -82,7 +113,23 @@ export default function RespostasPage() {
             <div style={{ display: "flex", alignItems: "baseline", gap: 14, marginBottom: 20, flexWrap: "wrap" }}>
               <span style={{ fontSize: 26, fontWeight: 700, color: TEXT_HI, letterSpacing: "-0.02em" }}>{data.total}</span>
               <span style={{ fontSize: 13, color: TEXT_MID }}>respostas analisadas</span>
-              {data.untagged > 0 && <span style={{ fontSize: 12, color: TEXT_LO }}>· {data.untagged} por classificar (respostas antigas, sem tags)</span>}
+              {data.untagged > 0 && <span style={{ fontSize: 12, color: TEXT_LO }}>· {data.untagged} por classificar</span>}
+              {(data.untagged > 0 || backfill) && (
+                <button
+                  onClick={runBackfill}
+                  disabled={backfill?.running}
+                  className="sl-btn-primary"
+                  data-sl-compact
+                  style={{ padding: "6px 12px", fontSize: 12, opacity: backfill?.running ? 0.7 : 1, cursor: backfill?.running ? "wait" : "pointer" }}
+                >
+                  {backfill?.running
+                    ? `A classificar… ${backfill.done}${backfill.total ? `/${backfill.total}` : ""}`
+                    : backfill?.finished
+                      ? `Classificadas ${backfill.done} ✓`
+                      : "Classificar respostas antigas"}
+                </button>
+              )}
+              {backfill?.error && <span style={{ fontSize: 12, color: RED }}>Erro: {backfill.error}</span>}
             </div>
 
             {data.total === 0 ? (

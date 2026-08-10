@@ -407,6 +407,9 @@ const DAY_MS = 24 * HOUR_MS;
 // so the same load safely serves every window computed in the same burst.
 // Bounded staleness (15s) is irrelevant next to the 5-min response cache.
 let _loadMemo = null; // { at: ms, promise: Promise<creators[]> }
+// Drop the cached snapshot so the next aggregation reloads fresh — used by the
+// reply backfill after it writes tags, so the dashboard reflects them at once.
+export function invalidateCreatorLoadCache() { _loadMemo = null; }
 const LOAD_MEMO_TTL_MS = 15_000;
 async function loadAllCreators() {
   if (_loadMemo && (Date.now() - _loadMemo.at) < LOAD_MEMO_TTL_MS) {
@@ -1015,6 +1018,19 @@ function weekStartLabel(iso) {
   if (!Number.isFinite(d.getTime())) return null;
   const dow = (d.getUTCDay() + 6) % 7; // Mon=0
   return new Date(d.getTime() - dow * DAY_MS).toISOString().slice(0, 10);
+}
+
+// Creators that have at least one classified-but-untagged reply (post-reset) —
+// i.e. a replyMessage with content but no ai.blame. Drives the backfill worker.
+export async function listUntaggedReplyCreators() {
+  const all = await loadAllCreators();
+  const out = [];
+  for (const c of all) {
+    const msgs = Array.isArray(c.outreach?.replyMessages) ? c.outreach.replyMessages : [];
+    const count = msgs.filter(m => m?.content && postReset(m.at) && !m.ai?.blame).length;
+    if (count > 0) out.push({ id: c.id, name: c.name, count });
+  }
+  return out;
 }
 
 export async function getReplyAnalytics({ window = 'all', now = new Date(), from = null, to = null } = {}) {
