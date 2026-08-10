@@ -803,9 +803,6 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
   // declared) to avoid a Temporal Dead Zone error — useCallback evaluates
   // its deps array on every render, and reading patchCreator before its
   // `const` declaration would throw ReferenceError, blanking the page.
-  const [replyLoading, setReplyLoading] = useState(false);
-  const [replyResult, setReplyResult] = useState(null);
-  const [replyError, setReplyError] = useState(null);
   const [revenuePrice, setRevenuePrice] = useState(null);
   const [revenueCommission, setRevenueCommission] = useState(30);
   const [engagementRate, setEngagementRate] = useState(null);
@@ -1021,20 +1018,16 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
     //    completed in step 1. If the API errors we patch ai.status='error'
     //    on the same row so the operator can retry from the AI card.
     try {
-      const r = await fetch("/api/dm-reply", {
+      const r = await fetch("/api/reply/classify", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          creatorReply: content,
-          dmSequence: creator?.dmSequence || null,
-          creator: { name: creator?.name, niche: creator?.niche, primaryPlatform: creator?.primaryPlatform },
-        }),
+        body: JSON.stringify({ creatorReply: content, creatorName: creator?.name, niche: creator?.niche }),
       });
       const data = await parseJsonSafe(r);
       if (!r.ok) throw new Error(data.error || `HTTP ${r.status}`);
       await writeRows(rows => rows.map(m => m.id === id ? ({
         ...m,
-        ai: { category: data.category || 'Unknown', blame: data.detectedBlame || null, subtype: data.subType || null, sentiment: data.sentiment || null, offerReaction: data.offerReaction || null, response: data.response || '', at: new Date().toISOString(), status: 'ready' },
+        ai: { blame: data.detectedBlame || null, subtype: data.subType || null, sentiment: data.sentiment || null, offerReaction: data.offerReaction || null, at: new Date().toISOString(), status: 'ready' },
       }) : m));
     } catch (err) {
       await writeRows(rows => rows.map(m => m.id === id ? ({
@@ -1094,20 +1087,16 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
     }) : m));
     // 2. Fire and patch on resolve.
     try {
-      const r = await fetch("/api/dm-reply", {
+      const r = await fetch("/api/reply/classify", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          creatorReply: target.content,
-          dmSequence: creator?.dmSequence || null,
-          creator: { name: creator?.name, niche: creator?.niche, primaryPlatform: creator?.primaryPlatform },
-        }),
+        body: JSON.stringify({ creatorReply: target.content, creatorName: creator?.name, niche: creator?.niche }),
       });
       const data = await parseJsonSafe(r);
       if (!r.ok) throw new Error(data.error || `HTTP ${r.status}`);
       await writeRows(rows => rows.map(m => m.id === id ? ({
         ...m,
-        ai: { category: data.category || 'Unknown', blame: data.detectedBlame || null, subtype: data.subType || null, sentiment: data.sentiment || null, offerReaction: data.offerReaction || null, response: data.response || '', at: new Date().toISOString(), status: 'ready' },
+        ai: { blame: data.detectedBlame || null, subtype: data.subType || null, sentiment: data.sentiment || null, offerReaction: data.offerReaction || null, at: new Date().toISOString(), status: 'ready' },
       }) : m));
     } catch (err) {
       await writeRows(rows => rows.map(m => m.id === id ? ({
@@ -1196,34 +1185,6 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
       if (data.inputs) setDmInputs({ _filled: true, ...data.inputs });
     } catch (e) { setDmError(e.message); } finally { setDmLoading(false); }
   }, [creator, dmTemplate, dmInputs, dmNotes, dmLanguage, senderName, patchCreator]);
-
-  // — DM Reply handler —
-  const handleReply = useCallback(async () => {
-    if (!replyText.trim() || !creator?.dmSequence) return;
-    setReplyLoading(true); setReplyError(null); setReplyResult(null);
-    try {
-      const r = await fetch("/api/dm-reply", {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          creatorReply: replyText,
-          originalDm: creator.dmSequence.dm || "",
-          creatorName: creator.name,
-          buraco: creator.dmSequence.inputs?.observacao_dor || creator.dmSequence.inputs?.buraco_identificado || "",
-          // Without this the route defaulted to PT, even for English creators
-          // — Raul ended up pasting Portuguese replies to English DMs.
-          language: creator.primaryLanguage || 'pt',
-        }),
-      });
-      if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || "Failed");
-      const data = await parseJsonSafe(r);
-      setReplyResult(data);
-      // Mark creator as replied — stops reminder digest from pinging them again.
-      // Defaults channel to 'dm' since this flow runs from the DM Writer's
-      // reply box (operator pastes the IG DM into the textarea). Operator
-      // can flip via the chip if it actually came in by email.
-      await patchCreator({ outreach: { ...(creator.outreach || {}), repliedAt: new Date().toISOString(), repliedChannel: 'dm' } });
-    } catch (e) { setReplyError(e.message); } finally { setReplyLoading(false); }
-  }, [replyText, creator, patchCreator]);
 
   // Outreach helpers — mark DM / email / follow-up as sent so the reminder cron
   // knows which milestone is next AND the dashboard can compute per-channel
@@ -2475,7 +2436,7 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
                     <span style={{ fontSize: 12, color: "var(--sl-text-faint)" }}>Gerado: {new Date(seq.generatedAt).toLocaleString("pt-PT")}</span>
                     <span style={{ fontSize: 8, padding: "1px 6px", borderRadius: 3, background: "color-mix(in srgb, var(--sl-primary) 10%, transparent)", color: "var(--sl-accent-text)", fontWeight: 600 }}>Template {seq.template || "A"}</span>
                   </div>
-                  <button onClick={() => { patchCreator({ dmSequence: null }); setReplyResult(null); setReplyText(""); }} style={{ padding: "6px 14px", borderRadius: 6, border: "1px solid var(--sl-border)", background: "transparent", color: "var(--sl-text-muted)", fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>Regenerar</button>
+                  <button onClick={() => { patchCreator({ dmSequence: null }); setReplyText(""); }} style={{ padding: "6px 14px", borderRadius: 6, border: "1px solid var(--sl-border)", background: "transparent", color: "var(--sl-text-muted)", fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>Regenerar</button>
                 </div>
 
                 {/* Outreach tracker — drives the daily reminder digest. Each chip
@@ -2743,8 +2704,8 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
                       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
                         <span style={{ fontSize: 12, color: "var(--sl-text-faint)" }}>
                           {messages.length === 0
-                            ? "Cola aqui o que o criador disse · ⌘+Enter guarda e sugere resposta"
-                            : "Nova resposta do criador · cola e ⌘+Enter para guardar + sugerir resposta"}
+                            ? "Cola aqui o que o criador disse · ⌘+Enter guarda"
+                            : "Nova resposta do criador · cola e ⌘+Enter para guardar"}
                         </span>
                         {replyText.trim() && (
                           <span style={{ fontSize: 12, color: "var(--sl-warning)", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase" }}>● Por guardar</span>
@@ -9285,20 +9246,17 @@ function PivotTierModal({ creator, onClose, onComplete, mode = 'tier', fromCpId 
 // collapse their AI sub-card to a single-line summary to compact long
 // threads.
 // ─────────────────────────────────────────────────────────────────
+const REPLY_SENT_LABEL = { positive: 'Positivo', neutral: 'Neutro', negative: 'Negativo' };
+const REPLY_SENT_COLOR = { positive: 'var(--sl-success)', neutral: 'var(--sl-text-muted)', negative: 'var(--sl-danger)' };
+const REPLY_SENT_BG = { positive: 'color-mix(in srgb, var(--sl-success) 12%, transparent)', neutral: 'color-mix(in srgb, var(--sl-text) 6%, transparent)', negative: 'color-mix(in srgb, var(--sl-danger) 12%, transparent)' };
+const REPLY_BLAME_LABEL = { positive: 'Interessado', 'genuine-question': 'Pergunta genuína', circumstances: 'Circunstâncias', 'other-people': 'Terceiros', self: 'Dúvida própria', disqualify: 'Não qualifica' };
+
 function ReplyThreadRow({ message, index, onDelete, onRegenerate, onMarkSent }) {
   const [hover, setHover] = useState(false);
-  const [copiedAt, setCopiedAt] = useState(0);
   const ai = message.ai;
   const isSent = !!message.sentAt;
   const aiPending = ai?.status === 'pending';
   const aiError   = ai?.status === 'error';
-  const hasAi     = ai?.response && !aiError && !aiPending;
-  const copyAi = async () => {
-    if (!ai?.response) return;
-    try { await navigator.clipboard.writeText(ai.response); } catch {}
-    setCopiedAt(Date.now());
-    setTimeout(() => setCopiedAt(0), 1500);
-  };
   return (
     <div
       onMouseEnter={() => setHover(true)}
@@ -9335,52 +9293,21 @@ function ReplyThreadRow({ message, index, onDelete, onRegenerate, onMarkSent }) 
       </div>
       <div style={{ fontSize: 13, color: "var(--sl-text)", lineHeight: 1.55, whiteSpace: "pre-wrap" }}>{message.content}</div>
 
-      {/* Anchored AI sub-card */}
-      {(aiPending || aiError || hasAi) && (
-        <div style={{ marginTop: 10, marginLeft: 16, paddingLeft: 12, paddingTop: 8, paddingBottom: 8, paddingRight: 12, background: "color-mix(in srgb, var(--sl-primary) 5%, transparent)", borderLeft: "2px solid var(--sl-primary)", borderRadius: 4 }}>
-          {aiPending && (
-            <div style={{ fontSize: 12, color: "var(--sl-text-muted)" }}>
-              <span style={{ animation: "pulse 1.4s ease-in-out infinite" }}>● A classificar resposta…</span>
-            </div>
-          )}
+      {/* Classification tags — feed the Respostas analysis. No reply draft. */}
+      {(aiPending || aiError || ai?.sentiment || ai?.blame) && (
+        <div style={{ marginTop: 8, display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+          {aiPending && <span style={{ fontSize: 12, color: "var(--sl-text-faint)" }}><span style={{ animation: "pulse 1.4s ease-in-out infinite" }}>● A classificar…</span></span>}
           {aiError && (
-            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-              <span style={{ fontSize: 12, color: "var(--sl-danger)" }}>Falhou: {ai?.errorMessage || 'erro desconhecido'}</span>
-              <button onClick={onRegenerate} style={{ padding: "3px 9px", background: "color-mix(in srgb, var(--sl-primary) 15%, transparent)", border: "1px solid color-mix(in srgb, var(--sl-primary) 40%, transparent)", borderRadius: 4, color: "var(--sl-accent-text)", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>Tentar de novo</button>
-            </div>
-          )}
-          {hasAi && !isSent && (
             <>
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <span style={{ fontSize: 12, fontWeight: 700, color: "var(--sl-accent-text)", letterSpacing: "0.1em", textTransform: "uppercase" }}>Sugestão Raul</span>
-                  {ai.category && (
-                    <span style={{ fontSize: 12, color: "var(--sl-text-muted)", fontFamily: "ui-monospace, monospace" }}>· {ai.category}</span>
-                  )}
-                </div>
-                <span style={{ fontSize: 12, color: "var(--sl-text-faint)", fontFamily: "ui-monospace, monospace" }}>{ai.at ? formatChatTimestamp(ai.at) : ''}</span>
-              </div>
-              <div style={{ fontSize: 13, color: "var(--sl-text-muted)", lineHeight: 1.65, whiteSpace: "pre-wrap", marginBottom: 8 }}>{ai.response}</div>
-              <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                <button onClick={copyAi} style={{ padding: "4px 10px", background: copiedAt ? "color-mix(in srgb, var(--sl-success) 15%, transparent)" : "color-mix(in srgb, var(--sl-text) 4%, transparent)", border: `1px solid ${copiedAt ? "color-mix(in srgb, var(--sl-success) 35%, transparent)" : "color-mix(in srgb, var(--sl-text) 8%, transparent)"}`, borderRadius: 4, color: copiedAt ? "var(--sl-success)" : "var(--sl-text-muted)", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>
-                  {copiedAt ? "Copiado ✓" : "Copiar"}
-                </button>
-                <button onClick={onRegenerate} style={{ padding: "4px 10px", background: "transparent", border: "1px solid var(--sl-border)", borderRadius: 4, color: "var(--sl-text-muted)", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>Regenerar</button>
-                <button onClick={onMarkSent} style={{ padding: "4px 10px", background: "transparent", border: "1px solid color-mix(in srgb, var(--sl-success) 25%, transparent)", borderRadius: 4, color: "var(--sl-success)", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>✓ Marcar enviada</button>
-                {(message.aiHistory?.length || 0) > 0 && (
-                  <span style={{ fontSize: 12, color: "var(--sl-text-faint)", alignSelf: "center" }}>{message.aiHistory.length} sugestão{message.aiHistory.length === 1 ? '' : 'ões'} anterior{message.aiHistory.length === 1 ? '' : 'es'}</span>
-                )}
-              </div>
+              <span style={{ fontSize: 12, color: "var(--sl-danger)" }}>Classificação falhou</span>
+              {onRegenerate && <button onClick={onRegenerate} style={{ padding: "2px 8px", background: "transparent", border: "1px solid var(--sl-border)", borderRadius: 4, color: "var(--sl-text-muted)", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>Tentar de novo</button>}
             </>
           )}
-          {hasAi && isSent && (
-            <div style={{ fontSize: 12, color: "var(--sl-text-faint)", display: "flex", alignItems: "center", gap: 8 }}>
-              <span style={{ color: "var(--sl-success)" }}>✓</span>
-              <span>Resposta enviada · {formatChatTimestamp(message.sentAt)}</span>
-              <button onClick={copyAi} style={{ marginLeft: "auto", padding: "2px 8px", background: "transparent", border: "1px solid var(--sl-border)", borderRadius: 3, color: "var(--sl-text-faint)", fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>
-                {copiedAt ? "Copiado ✓" : "Copiar texto"}
-              </button>
-            </div>
+          {!aiPending && !aiError && (ai?.sentiment || ai?.blame) && (
+            <span title="Classificação para a análise de respostas (/equipa/respostas)" style={{ fontSize: 12, color: "var(--sl-text-faint)", display: "inline-flex", alignItems: "center", gap: 6 }}>
+              {ai.sentiment && <span style={{ padding: "1px 7px", borderRadius: 3, background: REPLY_SENT_BG[ai.sentiment] || "color-mix(in srgb, var(--sl-text) 6%, transparent)", color: REPLY_SENT_COLOR[ai.sentiment] || "var(--sl-text-muted)", fontWeight: 700, letterSpacing: "0.04em", textTransform: "uppercase" }}>{REPLY_SENT_LABEL[ai.sentiment] || ai.sentiment}</span>}
+              {ai.blame && <span>{REPLY_BLAME_LABEL[ai.blame] || ai.blame}</span>}
+            </span>
           )}
         </div>
       )}
