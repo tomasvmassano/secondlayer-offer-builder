@@ -218,6 +218,23 @@ function bumpRow(rows, actor, metricKey, increment = 1) {
   rows.get(key)[metricKey] = (rows.get(key)[metricKey] || 0) + increment;
 }
 
+// Post-video follow-up touches. videoNudge = video already sent, chasing the
+// booking; pediuVideo = creator asked for the video, nudging to send it. These
+// are real operator follow-ups that deliberately live OUTSIDE the dia-3/7/14
+// cadence array (outreach.followUps) so they don't shift the Kanban stage — but
+// they must still be credited on the scoreboard + activity feed. Prefer the
+// per-touch nudges[] array; fall back to the legacy single *NudgedAt timestamps
+// for records written before the array existed. Each entry: { at, by, channel, kind }.
+function postVideoNudges(o) {
+  if (Array.isArray(o?.nudges) && o.nudges.length > 0) {
+    return o.nudges.filter(n => n && n.at);
+  }
+  const out = [];
+  if (o?.videoNudgedAt)     out.push({ at: o.videoNudgedAt,     by: o.videoNudgedBy     || null, channel: 'dm', kind: 'videoNudge' });
+  if (o?.pediuVideoNudgedAt) out.push({ at: o.pediuVideoNudgedAt, by: o.pediuVideoNudgedBy || null, channel: 'dm', kind: 'pediuVideo' });
+  return out;
+}
+
 /**
  * Compute per-user stats across all creators in the given time window.
  * @param {Object}  opts
@@ -275,6 +292,16 @@ export async function getTeamStats({ window = 'today', now = new Date(), from = 
       }
     } else if (o.lastFollowUpAt && inWindow(o.lastFollowUpAt, startMs, endMs)) {
       bumpRow(rows, o.lastFollowUpBy || c.addedBy, 'followUpsDone');
+    }
+    // Post-video follow-ups (videoNudge / pediuVideo) — credited as follow-ups
+    // so the booking chase after the video shows up on the scoreboard. Lives in
+    // its own array, so it never double-counts against outreach.followUps above.
+    for (const n of postVideoNudges(o)) {
+      if (!inWindow(n.at, startMs, endMs)) continue;
+      const actor = n.by || c.addedBy;
+      bumpRow(rows, actor, 'followUpsDone');
+      if (n.channel === 'email') bumpRow(rows, actor, 'followUpsEmail');
+      else bumpRow(rows, actor, 'followUpsDm');
     }
     // Replies received (operator-marked). Split by channel.
     if (o.repliedAt && inWindow(o.repliedAt, startMs, endMs)) {
@@ -996,6 +1023,12 @@ export async function getRecentActivity({ limit = 8 } = {}) {
       }
     } else if (postReset(o.lastFollowUpAt)) {
       events.push({ at: o.lastFollowUpAt, type: 'follow_up', firstName: (o.lastFollowUpBy || c.addedBy)?.firstName, creator: c.name, creatorId: c.id });
+    }
+    // Post-video follow-ups (videoNudge / pediuVideo) — same 'follow_up' event
+    // type so the booking chase shows up in Atividade recente.
+    for (const n of postVideoNudges(o)) {
+      if (!postReset(n.at)) continue;
+      events.push({ at: n.at, type: 'follow_up', firstName: (n.by || c.addedBy)?.firstName, creator: c.name, creatorId: c.id, channel: n.channel || null });
     }
     if (postReset(o.repliedAt)) events.push({ at: o.repliedAt, type: 'replied', firstName: (o.repliedMarkedBy || c.addedBy)?.firstName, creator: c.name, creatorId: c.id });
     if (postReset(o.videoRequestedAt)) events.push({ at: o.videoRequestedAt, type: 'video_requested', firstName: (o.videoRequestedBy || o.repliedMarkedBy || c.addedBy)?.firstName, creator: c.name, creatorId: c.id });

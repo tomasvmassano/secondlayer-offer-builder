@@ -2,6 +2,21 @@ import { NextResponse } from 'next/server';
 import { getCreator, updateCreator } from '../../../../lib/creators';
 import { getCurrentUser, displayFirstName } from '../../../../lib/auth';
 
+// Append one post-video nudge (videoNudge / pediuVideo) to outreach.nudges[].
+// This array is kept SEPARATE from outreach.followUps[] so it never shifts the
+// dia-3/7/14 Kanban stage — but the scoreboard counts it as a follow-up. The
+// first time we touch the array we migrate the legacy single *NudgedAt
+// timestamps in, so no historical touch is lost when teamStats switches to
+// reading nudges[].
+function appendNudge(outreach, entry) {
+  const existing = Array.isArray(outreach?.nudges) ? outreach.nudges : [];
+  if (existing.length > 0) return [...existing, entry];
+  const seed = [];
+  if (outreach?.videoNudgedAt)      seed.push({ at: outreach.videoNudgedAt,      by: outreach.videoNudgedBy      || null, channel: 'dm', kind: 'videoNudge', migrated: true });
+  if (outreach?.pediuVideoNudgedAt) seed.push({ at: outreach.pediuVideoNudgedAt, by: outreach.pediuVideoNudgedBy || null, channel: 'dm', kind: 'pediuVideo', migrated: true });
+  return [...seed, entry];
+}
+
 /**
  * POST /api/creators/:id/follow-up
  * Body: { channel?: 'dm' | 'email', milestone?: 'softNudge' | 'valueDrop' | 'lastTouch' }
@@ -56,8 +71,11 @@ export async function POST(request, { params }) {
   if (isVideoNudge) {
     const at = new Date().toISOString();
     const by = { userId: user.userId, firstName: displayFirstName(user), email: user.email };
+    // Append to nudges[] (counted as a follow-up on the scoreboard) AND keep the
+    // single videoNudgedAt/By for the tray's re-surface dedup cadence.
+    const nudges = appendNudge(creator.outreach, { at, by, channel, kind: 'videoNudge' });
     const updated = await updateCreator(id, {
-      outreach: { ...creator.outreach, videoNudgedAt: at, videoNudgedBy: by },
+      outreach: { ...creator.outreach, nudges, videoNudgedAt: at, videoNudgedBy: by },
     });
     return NextResponse.json({ ok: true, videoNudge: true, creator: updated });
   }
@@ -65,8 +83,9 @@ export async function POST(request, { params }) {
   if (isPediuVideo) {
     const at = new Date().toISOString();
     const by = { userId: user.userId, firstName: displayFirstName(user), email: user.email };
+    const nudges = appendNudge(creator.outreach, { at, by, channel, kind: 'pediuVideo' });
     const updated = await updateCreator(id, {
-      outreach: { ...creator.outreach, pediuVideoNudgedAt: at, pediuVideoNudgedBy: by },
+      outreach: { ...creator.outreach, nudges, pediuVideoNudgedAt: at, pediuVideoNudgedBy: by },
     });
     return NextResponse.json({ ok: true, pediuVideo: true, creator: updated });
   }
