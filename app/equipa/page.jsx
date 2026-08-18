@@ -87,8 +87,6 @@ const ACTIVITY_LABELS = {
   dm_sent:         { label: 'enviou DM a',                color: ACCENT },
   follow_up:       { label: 'fez follow-up a',            color: AMBER },
   replied:         { label: 'recebeu resposta de',        color: 'var(--sl-info)' },
-  video_requested: { label: 'recebeu pedido de vídeo de', color: 'var(--sl-info)' },
-  video_sent:      { label: 'enviou vídeo a',             color: GREEN },
   signed:          { label: 'fechou',                     color: GREEN },
 };
 
@@ -170,8 +168,6 @@ export default function EquipaPage() {
     const sumRepliesEmail = data.rows.reduce((s, r) => s + (r.repliesViaEmail || 0), 0);
     const sumCreators = data.rows.reduce((s, r) => s + (r.creatorsAdded || 0), 0);
     const sumSigned = data.rows.reduce((s, r) => s + (r.signed || 0), 0);
-    const sumVideosSent = data.rows.reduce((s, r) => s + (r.videosSent || 0), 0);
-    const sumVideosRequested = data.rows.reduce((s, r) => s + (r.videosRequested || 0), 0);
     // Combined reply rate now uses touches (the activity unit). DM/email
     // per-channel rates ship alongside.
     const replyRate = sumTouches > 0 ? Math.round((sumReplies / sumTouches) * 100) : 0;
@@ -191,7 +187,7 @@ export default function EquipaPage() {
     }
     // Goal % now gates on touches (the new daily-rule unit) instead of DMs.
     const goalPct = totalTarget > 0 ? Math.min(100, Math.round((sumTouches / totalTarget) * 100)) : 0;
-    return { sumDms, sumEmails, sumTouches, sumReplies, sumRepliesDm, sumRepliesEmail, sumCreators, sumSigned, sumVideosSent, sumVideosRequested, replyRate, dmReplyRate, emailReplyRate, totalTarget, goalPct };
+    return { sumDms, sumEmails, sumTouches, sumReplies, sumRepliesDm, sumRepliesEmail, sumCreators, sumSigned, replyRate, dmReplyRate, emailReplyRate, totalTarget, goalPct };
   }, [data, windowKey]);
 
   // Yesterday totals — only populated when windowKey === 'today' AND the
@@ -380,12 +376,6 @@ export default function EquipaPage() {
                 <div className="sl-grid-2" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginTop: 12 }}>
                   <MicroStat label="DM reply rate" value={heroStats.sumDms > 0 ? `${heroStats.dmReplyRate}%` : '—'} accent={heroStats.dmReplyRate >= heroStats.emailReplyRate ? GREEN : null} />
                   <MicroStat label="Email reply rate" value={heroStats.sumEmails > 0 ? `${heroStats.emailReplyRate}%` : '—'} accent={heroStats.emailReplyRate > heroStats.dmReplyRate ? GREEN : null} />
-                </div>
-                {/* Video funnel — pediram vídeo (subset of replies) → vídeos
-                    enviados. Answers "how many replies asked for video". */}
-                <div className="sl-grid-2" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginTop: 10 }}>
-                  <MicroStat label="Pediram vídeo" value={fmtNum(heroStats.sumVideosRequested)} />
-                  <MicroStat label="Vídeos enviados" value={fmtNum(heroStats.sumVideosSent)} accent={GREEN} />
                 </div>
               </HeroCard>
             </div>
@@ -1025,7 +1015,7 @@ function PersonCard({ row, sbRow, streak, pipe, vel, delta, yesterdayRow, monthl
 // Order: Operador · Streak · Touches · DMs · Emails · Reply % · Respostas · Fechados · Criadores · F-up · 7-day spark · Goal ring
 // Criadores (creators added) + F-up (follow-ups done) sit together at the
 // end — the two daily-input metrics the team tracks alongside outreach.
-const PERSON_ROW_COLS = "180px 70px 70px 100px 80px 70px 80px 70px 70px 110px 50px";
+const PERSON_ROW_COLS = "180px 70px 70px 100px 80px 80px 70px 70px 110px 50px";
 function PersonRow({ row, sbRow, streak, delta, yesterdayRow, activity, isLeader, isLoser, goalPct, windowKey, last }) {
   const series = activity?.days || [];
   const replyRate = row.replyRate;
@@ -1076,9 +1066,6 @@ function PersonRow({ row, sbRow, streak, delta, yesterdayRow, activity, isLeader
 
       {/* Respostas absolutas */}
       <PersonRowCell label="Respostas" value={row.repliesReceived} accent={TEXT_HI} delta={showVsYesterday ? (row.repliesReceived - (yesterdayRow.repliesReceived || 0)) : null} />
-
-      {/* Vídeos enviados */}
-      <PersonRowCell label="Vídeos" value={row.videosSent || 0} accent={GREEN} delta={showVsYesterday ? ((row.videosSent || 0) - (yesterdayRow.videosSent || 0)) : null} />
 
       {/* Reuniões marcadas */}
       <PersonRowCell label="Reuniões" value={row.reunioesMarcadas || 0} accent={TEXT_HI} delta={showVsYesterday ? ((row.reunioesMarcadas || 0) - (yesterdayRow.reunioesMarcadas || 0)) : null} />
@@ -1345,8 +1332,7 @@ function FunnelChart({ funnel }) {
   const steps = [
     { label: 'Contactos', value: funnel.contactos || 0 },
     { label: 'Respostas', value: funnel.respostas || 0, rate: R.contactoToResposta },
-    { label: 'Pediu vídeo', value: funnel.pediuVideo || 0, rate: R.respostaToVideo },
-    { label: 'Reuniões marcadas', value: funnel.reunioesMarcadas || 0, rate: R.videoToMarcada },
+    { label: 'Reuniões marcadas', value: funnel.reunioesMarcadas || 0, rate: R.respostaToMarcada },
     { label: 'Reuniões realizadas', value: funnel.reunioesRealizadas || 0, rate: R.marcadaToRealizada },
     { label: 'Propostas', value: funnel.propostas || 0, rate: R.realizadaToProposta },
     { label: 'Negócios', value: funnel.negocios || 0, rate: R.propostaToNegocio, highlight: true },
@@ -1404,8 +1390,7 @@ function TeamFunnel({ funnel, timing }) {
   const steps = [
     { label: "Contactos",            value: F.contactos || 0 },
     { label: "Respostas",            value: F.conversas || 0,          rate: R.contactoToConversa,  gap: T.contactoConversa },
-    { label: "Pediu vídeo",          value: F.pediuVideo || 0,         rate: R.conversaToVideo,     gap: null },
-    { label: "Reuniões marcadas",    value: F.reunioesMarcadas || 0,   rate: R.videoToMarcada,      gap: T.conversaMarcada },
+    { label: "Reuniões marcadas",    value: F.reunioesMarcadas || 0,   rate: R.conversaToMarcada,   gap: T.conversaMarcada },
     { label: "Reuniões realizadas",  value: F.reunioesRealizadas || 0, rate: R.marcadaToRealizada,  gap: T.marcadaRealizada },
     { label: "Propostas apresentadas", value: F.propostas || 0,        rate: R.realizadaToProposta, gap: T.realizadaProposta },
     { label: "Negócios",             value: F.negocios || 0,           rate: R.propostaToNegocio,   gap: T.propostaNegocio, highlight: true },

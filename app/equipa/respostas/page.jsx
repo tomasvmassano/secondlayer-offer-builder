@@ -193,7 +193,6 @@ export default function RespostasPage() {
                       <tr style={{ color: TEXT_LO, fontSize: 12, textTransform: "uppercase", letterSpacing: "0.08em" }}>
                         <th style={{ textAlign: "left", padding: "10px 8px" }}>Objeção (última resposta)</th>
                         <th style={{ textAlign: "right", padding: "10px 8px" }}>Criadores</th>
-                        <th style={{ textAlign: "right", padding: "10px 8px" }}>Vídeo</th>
                         <th style={{ textAlign: "right", padding: "10px 8px" }}>Reunião</th>
                         <th style={{ textAlign: "right", padding: "10px 8px" }}>Fechado</th>
                       </tr>
@@ -203,7 +202,6 @@ export default function RespostasPage() {
                         <tr key={r.key} style={{ borderTop: `1px solid ${BORDER}` }}>
                           <td style={{ padding: "10px 8px", color: TEXT_HI }}>{BLAME_LABELS[r.key] || r.key}</td>
                           <td style={{ padding: "10px 8px", textAlign: "right", color: TEXT_MID, fontVariantNumeric: "tabular-nums" }}>{r.creators}</td>
-                          <td style={{ padding: "10px 8px", textAlign: "right", color: TEXT_HI, fontVariantNumeric: "tabular-nums" }}>{pct(r.video, r.creators)}%</td>
                           <td style={{ padding: "10px 8px", textAlign: "right", color: TEXT_HI, fontVariantNumeric: "tabular-nums" }}>{pct(r.meeting, r.creators)}%</td>
                           <td style={{ padding: "10px 8px", textAlign: "right", fontWeight: 700, color: r.signed > 0 ? GREEN : TEXT_MID, fontVariantNumeric: "tabular-nums" }}>{pct(r.signed, r.creators)}%</td>
                         </tr>
@@ -319,8 +317,8 @@ function TemplateCard({ label, t }) {
         </div>
       )}
       {/* Conversion */}
-      <div className="sl-grid-2" style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginTop: 14 }}>
-        {[["Vídeo", t.converted.video], ["Reunião", t.converted.meeting], ["Fechado", t.converted.signed]].map(([lab, n]) => (
+      <div className="sl-grid-2" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginTop: 14 }}>
+        {[["Reunião", t.converted.meeting], ["Fechado", t.converted.signed]].map(([lab, n]) => (
           <div key={lab} style={{ padding: "8px 10px", background: SURFACE_0, border: `1px solid ${BORDER}`, borderRadius: 8, textAlign: "center" }}>
             <div style={{ fontSize: 17, fontWeight: 700, color: lab === "Fechado" && n > 0 ? GREEN : TEXT_HI, fontVariantNumeric: "tabular-nums" }}>{pct(n, t.creators)}%</div>
             <div style={{ fontSize: 12, color: TEXT_LO, marginTop: 2 }}>{lab}</div>

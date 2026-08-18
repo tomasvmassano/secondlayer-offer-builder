@@ -5,23 +5,19 @@
  * a card between columns; the drag handler maps each stage to the
  * field-set that needs to be patched to land in that stage.
  *
- * New volume playbook (no more per-creator Loom):
+ * Value-first playbook (no video, no Loom):
  *   1. Por contactar        — added, no DM/email sent yet
  *   2. Em outreach          — DM/email sent, no reply yet
- *   3. Follow-up dia 3/7/14 — no-reply nudge cadence
- *   4. Respondeu            — creator replied (interested), video not sent yet
- *   5. Vídeo enviado        — the ONE generic video was sent (outreach.videoSentAt);
- *                             awaiting a booking. The warm-lead column that the
- *                             automated video→booking follow-up watches.
- *   6. Reunião marcada      — discovery call booked (setter, manual)
- *   7. Reunião realizada    — call happened (callHeldAt)
- *   8. Proposta             — post-meeting offer / proposal sent (pitch.sentAt)
- *   9. Frio                 — cold (manual or auto-aged-out)
+ *   3. Follow-up dia 3/7/14 — no-reply nudge cadence (value-first)
+ *   4. Respondeu            — creator replied; operator keeps giving value
+ *   5. Reunião marcada      — discovery call booked (setter, manual)
+ *   6. Reunião realizada    — call happened (callHeldAt)
+ *   7. Proposta             — post-meeting offer / proposal sent (pitch.sentAt)
+ *   8. Frio                 — cold (manual or auto-aged-out)
  *
- * The per-creator Loom stages (pediu_loom / proposta_terminada / loom_enviado)
- * were removed in the volume pivot. Cards that sat in them re-bucket to
- * `contacto_feito` (Respondeu) automatically — they have repliedAt, so the
- * derivation lands them there with no data surgery.
+ * There is no video step: the flow jumps straight from a reply to a booking.
+ * Legacy leads that used to sit in "Vídeo enviado" (they have repliedAt) re-bucket
+ * to `contacto_feito` (Respondeu) automatically, with no data surgery.
  *
  * Signed creators jump out of this Kanban into the Delivery page.
  */
@@ -34,10 +30,9 @@ export const STAGES = [
   { key: 'followup_3',           label: 'Follow-up · dia 3',  accent: '#f59e0b', description: '1º follow-up enviado · à espera' },
   { key: 'followup_7',           label: 'Follow-up · dia 7',  accent: '#f97316', description: '2º follow-up enviado · à espera' },
   { key: 'followup_14',          label: 'Follow-up · dia 14', accent: '#ea580c', description: 'Último toque · 7 dias até Frio' },
-  // Replied. The operator sends the generic video here and the setter books —
-  // both happen inside this column (tracked via outreach.videoSentAt).
-  { key: 'contacto_feito',       label: 'Respondeu',          accent: '#3b82f6', description: 'Respondeu · sem pedir o vídeo ainda' },
-  { key: 'video_enviado',        label: 'Vídeo enviado',      accent: '#8b5cf6', description: 'Vídeo enviado · à espera de marcação' },
+  // Replied. The operator keeps giving value here until the meeting is booked —
+  // there is no video step; the flow jumps straight from a reply to a booking.
+  { key: 'contacto_feito',       label: 'Respondeu',          accent: '#3b82f6', description: 'Respondeu · a dar valor até marcar' },
   { key: 'reuniao_marcada',      label: 'Reunião marcada',    accent: '#22c55e', description: 'Call de descoberta agendada' },
   // Meeting sequence: R1 (first call held) → R2 → Q&A. R1 reuses callHeldAt so
   // existing "meeting held" leads land here; R2/Q&A have their own timestamps.
@@ -65,7 +60,6 @@ export const STAGE_EVENT_LABELS = {
   followup_7:           'Follow-up 2',
   followup_14:          'Follow-up 3',
   contacto_feito:       'Respondeu',
-  video_enviado:        'Vídeo enviado',
   reuniao_marcada:      'Reunião marcada',
   r1:                   'R1',
   r2:                   'R2',
@@ -81,7 +75,7 @@ export const STAGE_EVENT_LABELS = {
 // Deliberately excludes the no-reply follow-up windows (a branch) and Frio (a
 // failure outcome), which are handled separately.
 export const HAPPY_PATH = [
-  'por_contactar', 'em_outreach', 'contacto_feito', 'video_enviado',
+  'por_contactar', 'em_outreach', 'contacto_feito',
   'reuniao_marcada', 'r1', 'r2', 'qna', 'apresentacao_enviada', 'signed',
 ];
 
@@ -124,7 +118,6 @@ export function computeOutreachStage(creator) {
   const callHeldAt      = o.callHeldAt    || creator.callHeldAt;   // R1 (first meeting held)
   const callBookedAt    = o.callBookedAt  || o.callAgreedAt || creator.callBookedAt;
   const nutricaoAt      = o.nutricaoAt    || creator.nutricaoAt;
-  const videoSentAt     = o.videoSentAt   || creator.videoSentAt;
   const repliedAt       = o.repliedAt     || creator.repliedAt;
   const dmSentAt        = o.dmSentAt      || creator.dmSentAt;
   const emailSentAt     = o.emailSentAt   || creator.emailSentAt;
@@ -140,8 +133,7 @@ export function computeOutreachStage(creator) {
   // Nutrição sits BELOW the meeting stages: a lead who booked/held a meeting
   // has re-engaged and shows there; only a replied-but-stalled lead lands here.
   if (nutricaoAt)                   return 'nutricao';
-  if (videoSentAt)                  return 'video_enviado';        // generic video sent, no booking yet
-  if (repliedAt)                    return 'contacto_feito';       // Respondeu (no video yet)
+  if (repliedAt)                    return 'contacto_feito';       // Respondeu — warm, giving value until booked
   // Day-14 follow-up sent + N days, no reply → Frio (silent auto-cold).
   if (followUpsDone >= 3 && lastFollowUpAt) {
     const ms = Date.now() - new Date(lastFollowUpAt).getTime();
@@ -173,9 +165,7 @@ export function stagePatch(creator, targetStage) {
         outreach: {
           dmSentAt: null, emailSentAt: null,
           repliedAt: null, repliedChannel: null,
-          followUps: [], followUpsDone: 0, lastFollowUpAt: null,
-          videoSentAt: null, videoRequestedAt: null,
-          callBookedAt: null, callAgreedAt: null, callHeldAt: null,
+          followUps: [], followUpsDone: 0, lastFollowUpAt: null,          callBookedAt: null, callAgreedAt: null, callHeldAt: null,
           r2At: null, qnaAt: null, nutricaoAt: null,
           notInterestedAt: null,
         },
@@ -188,9 +178,7 @@ export function stagePatch(creator, targetStage) {
         outreach: {
           dmSentAt: getOutreach('dmSentAt') || now,
           repliedAt: null, repliedChannel: null,
-          followUps: [], followUpsDone: 0, lastFollowUpAt: null,
-          videoSentAt: null, videoRequestedAt: null,
-          callBookedAt: null, callAgreedAt: null, callHeldAt: null,
+          followUps: [], followUpsDone: 0, lastFollowUpAt: null,          callBookedAt: null, callAgreedAt: null, callHeldAt: null,
           r2At: null, qnaAt: null, nutricaoAt: null,
           notInterestedAt: null,
         },
@@ -215,9 +203,7 @@ export function stagePatch(creator, targetStage) {
           repliedAt: null, repliedChannel: null,
           followUps: trimmed,
           followUpsDone: trimmed.length,
-          lastFollowUpAt: last?.at || now,
-          videoSentAt: null, videoRequestedAt: null,
-          callBookedAt: null, callAgreedAt: null, callHeldAt: null,
+          lastFollowUpAt: last?.at || now,          callBookedAt: null, callAgreedAt: null, callHeldAt: null,
           r2At: null, qnaAt: null, nutricaoAt: null,
           notInterestedAt: null,
         },
@@ -225,29 +211,13 @@ export function stagePatch(creator, targetStage) {
       };
     }
     case 'contacto_feito':
-      // Replied, video not sent yet — clear videoSentAt so a drag back here
-      // truly means "still needs the video".
+      // Replied — warm, giving value until a meeting is booked. Clear the
+      // meeting/proposal fields so a drag back here means "still working the reply".
       return {
         pipelineStatus: 'prospect',
         outreach: {
           dmSentAt: getOutreach('dmSentAt') || now,
           repliedAt: getOutreach('repliedAt') || now,
-          videoSentAt: null, videoRequestedAt: null,
-          callBookedAt: null, callAgreedAt: null, callHeldAt: null,
-          r2At: null, qnaAt: null, nutricaoAt: null,
-          notInterestedAt: null,
-        },
-        pitch: { sentAt: null },
-      };
-    case 'video_enviado':
-      // Generic video sent — awaiting booking. This is the warm-lead column.
-      // Preserve videoRequestedAt (they did ask) by not mentioning it.
-      return {
-        pipelineStatus: 'prospect',
-        outreach: {
-          dmSentAt: getOutreach('dmSentAt') || now,
-          repliedAt: getOutreach('repliedAt') || now,
-          videoSentAt: getOutreach('videoSentAt') || now,
           callBookedAt: null, callAgreedAt: null, callHeldAt: null,
           r2At: null, qnaAt: null, nutricaoAt: null,
           notInterestedAt: null,
@@ -324,7 +294,7 @@ export function stagePatch(creator, targetStage) {
     case 'nutricao':
       // Replied but no immediate interest — parked for long-term nurture. Clear
       // the meeting/proposal fields so it derives to Nutrição; keep the reply
-      // (and any video) as history. Not cold — pipelineStatus stays 'prospect'.
+      // as history. Not cold — pipelineStatus stays 'prospect'.
       return {
         pipelineStatus: 'prospect',
         outreach: {
@@ -370,7 +340,6 @@ export function stageEntries(creator) {
     { key: 'followup_7',           at: followUps[1]?.at || null },
     { key: 'followup_14',          at: followUps[2]?.at || null },
     { key: 'contacto_feito',       at: pick('repliedAt') || null },
-    { key: 'video_enviado',        at: pick('videoSentAt') || null },
     { key: 'reuniao_marcada',      at: pick('callBookedAt') || pick('callAgreedAt') || null },
     { key: 'r1',                   at: pick('callHeldAt') || null },
     { key: 'r2',                   at: pick('r2At') || null },
@@ -515,15 +484,10 @@ export function stageStaleness(creator) {
       return { days: d, level: 'ok', stale: false };
     }
     case 'contacto_feito': {
-      // Replied, video not sent yet — the operator should send it fast.
+      // Replied — warm. Keep giving value and push for the booking; the
+      // reply→booking gap is the warm-lead killer, so it colds faster.
       const d = daysSince(o.repliedAt || creator?.repliedAt);
-      if (d > 2) return { days: d, level: 'warn', stale: true };
-      return { days: d, level: 'ok', stale: false };
-    }
-    case 'video_enviado': {
-      // The video→booking gap — the warm-lead killer, so it colds faster.
-      const d = daysSince(o.videoSentAt || creator?.videoSentAt);
-      if (d > 4) return { days: d, level: 'cold', stale: true };
+      if (d > 5) return { days: d, level: 'cold', stale: true };
       if (d > 2) return { days: d, level: 'warn', stale: true };
       return { days: d, level: 'ok', stale: false };
     }

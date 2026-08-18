@@ -21,8 +21,6 @@ const LABELS = {
   dm_sent:         { label: "enviou DM a",                color: ACCENT },
   follow_up:       { label: "fez follow-up a",            color: AMBER },
   replied:         { label: "recebeu resposta de",        color: "var(--sl-info)" },
-  video_requested: { label: "recebeu pedido de vídeo de", color: "var(--sl-info)" },
-  video_sent:      { label: "enviou vídeo a",             color: GREEN },
   signed:          { label: "fechou",                     color: GREEN },
 };
 

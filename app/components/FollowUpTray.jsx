@@ -27,8 +27,8 @@ import { useState, useEffect, useCallback, useRef } from "react";
 
 const MILESTONE_STYLES = {
   voiceNote: { label: "Nota de voz", color: "var(--sl-info)", bg: "color-mix(in srgb, var(--sl-info) 12%, transparent)", border: "color-mix(in srgb, var(--sl-info) 30%, transparent)" },
-  pediuVideo: { label: "Pediu vídeo", color: "var(--sl-info)", bg: "color-mix(in srgb, var(--sl-info) 12%, transparent)", border: "color-mix(in srgb, var(--sl-info) 30%, transparent)" },
-  videoNudge: { label: "Vídeo", color: "var(--sl-info)", bg: "color-mix(in srgb, var(--sl-info) 12%, transparent)", border: "color-mix(in srgb, var(--sl-info) 30%, transparent)" },
+  giveValue: { label: "Dar valor", color: "var(--sl-info)", bg: "color-mix(in srgb, var(--sl-info) 12%, transparent)", border: "color-mix(in srgb, var(--sl-info) 30%, transparent)" },
+  bookNudge: { label: "Marcar call", color: "var(--sl-info)", bg: "color-mix(in srgb, var(--sl-info) 12%, transparent)", border: "color-mix(in srgb, var(--sl-info) 30%, transparent)" },
   softNudge: { label: "Dia 3",  color: "var(--sl-warning)", bg: "color-mix(in srgb, var(--sl-warning) 12%, transparent)", border: "color-mix(in srgb, var(--sl-warning) 30%, transparent)" },
   valueDrop: { label: "Dia 7",  color: "var(--sl-warning)", bg: "color-mix(in srgb, var(--sl-warning) 12%, transparent)", border: "color-mix(in srgb, var(--sl-warning) 30%, transparent)" },
   lastTouch: { label: "Dia 14", color: "var(--sl-warning)", bg: "color-mix(in srgb, var(--sl-warning) 12%, transparent)",  border: "color-mix(in srgb, var(--sl-warning) 30%, transparent)" },
@@ -119,8 +119,8 @@ export default function FollowUpTray({ onAfterCopy }) {
   // Group counts for the expanded header.
   const counts = {
     voiceNote: items.filter(i => i.milestone === "voiceNote").length,
-    pediuVideo: items.filter(i => i.milestone === "pediuVideo").length,
-    videoNudge: items.filter(i => i.milestone === "videoNudge").length,
+    giveValue: items.filter(i => i.milestone === "giveValue").length,
+    bookNudge: items.filter(i => i.milestone === "bookNudge").length,
     lastTouch: items.filter(i => i.milestone === "lastTouch").length,
     valueDrop: items.filter(i => i.milestone === "valueDrop").length,
     softNudge: items.filter(i => i.milestone === "softNudge").length,

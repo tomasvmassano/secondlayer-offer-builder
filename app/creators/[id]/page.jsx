@@ -252,7 +252,7 @@ function DealPanel({ creator, patchCreator }) {
   return (
     <div>
       <p style={{ fontSize: 12, color: "var(--sl-text-faint)", margin: "0 0 28px", lineHeight: 1.6, maxWidth: 640 }}>
-        Tudo o que precisas antes de mandar a DM, num sítio só — quanto vamos fechar, o link do vídeo, e as notas do contacto.
+        Tudo o que precisas antes de mandar a DM, num sítio só — quanto vamos fechar e as notas do contacto.
       </p>
 
       {/* Percurso do lead — full-width band (spans the content area, like the tab divider) */}
@@ -274,31 +274,6 @@ function DealPanel({ creator, patchCreator }) {
             style={{ ...inputStyle, fontSize: 18, fontFamily: "ui-monospace, monospace", maxWidth: 260 }}
           />
           {valuePreview && <span style={{ fontSize: 13, color: "var(--sl-text-faint)" }}>{valuePreview}</span>}
-        </div>
-      </div>
-
-      {/* Link do vídeo (opcional, por-creator) */}
-      <div style={{ marginBottom: 30 }}>
-        <h3 style={sectionTitleStyle}>Vídeo (opcional)</h3>
-        <input
-          value={loomUrl}
-          onChange={e => setLoomUrl(e.target.value)}
-          onBlur={saveLoom}
-          placeholder="https://… (link do vídeo)"
-          style={inputStyle}
-        />
-        <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
-          <a
-            href={loomValid ? loomUrl.trim() : undefined}
-            target="_blank" rel="noopener noreferrer"
-            onClick={e => { if (!loomValid) e.preventDefault(); }}
-            style={{ padding: "8px 16px", borderRadius: 7, fontSize: 12, fontWeight: 600, textDecoration: "none", color: "var(--sl-text)", background: "color-mix(in srgb, var(--sl-primary) 25%, transparent)", border: "1px solid color-mix(in srgb, var(--sl-primary) 50%, transparent)", opacity: loomValid ? 1 : 0.4, pointerEvents: loomValid ? "auto" : "none" }}
-          >
-            Abrir vídeo
-          </a>
-          <button onClick={copyLoom} disabled={!loomValid} style={{ padding: "8px 16px", borderRadius: 7, fontSize: 12, fontWeight: 600, color: "var(--sl-text-muted)", background: "color-mix(in srgb, var(--sl-text) 4%, transparent)", border: "1px solid var(--sl-border-strong)", cursor: loomValid ? "pointer" : "not-allowed", opacity: loomValid ? 1 : 0.4, fontFamily: "inherit" }}>
-            {copied ? "Copiado ✓" : "Copiar link"}
-          </button>
         </div>
       </div>
 
@@ -2415,7 +2390,7 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
                   <input type="text" style={inputStyle} placeholder="Contexto extra..." value={dmNotes} onChange={e => setDmNotes(e.target.value)} />
                 </div>
               </div>
-              <div style={{ fontSize: 12, color: "var(--sl-text-faint)", marginBottom: 8, lineHeight: 1.4 }}>DM curto (modelo de volume) — abertura personalizada + oferta do vídeo. Assinado por <strong style={{ color: "var(--sl-text-muted)" }}>{senderName}</strong>.</div>
+              <div style={{ fontSize: 12, color: "var(--sl-text-faint)", marginBottom: 8, lineHeight: 1.4 }}>DM curto (modelo de volume) — abertura personalizada + uma ideia útil, sem pedir nada. Assinado por <strong style={{ color: "var(--sl-text-muted)" }}>{senderName}</strong>.</div>
               <button onClick={() => generateDM('initial')} style={{ padding: "12px 32px", borderRadius: 8, border: "none", background: "var(--sl-primary)", color: "var(--sl-primary-contrast)", fontSize: 14, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", width: "100%" }}>Gerar DM</button>
             </div>
             )
@@ -2437,10 +2412,10 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
             const isEn = creator?.primaryLanguage === 'en';
             const isEs = creator?.primaryLanguage === 'es';
             const followupT7 = isEn
-              ? `Hey ${firstName},\n\nNoticed I haven't heard back. Figured it's worth recording a 3-minute video with a concrete proposal for your case.\n\nIf it doesn't land, you close it and won't hear from me again. Sound fair?\n\nCheers,\nRaul`
+              ? `Hey ${firstName},\n\nNoticed I haven't heard back. I actually jotted down one concrete idea for your case that you could run with either way. Want me to send it over?\n\nCheers,\nRaul`
               : isEs
-              ? `Hola ${firstName},\n\nVi que aún no hemos hablado. Pensé que valía la pena grabarte un vídeo de 3 minutos con una propuesta concreta para tu caso.\n\nSi no encaja, lo cierras y no vuelves a oír de mí. ¿Tiene sentido?\n\nUn abrazo,\nRaul`
-              : `Olá ${firstName},\n\nVi que ainda não vimos um do outro. Achei que valia a pena gravar-te um vídeo de 3 minutos com uma proposta concreta para o teu caso.\n\nSe não fizer sentido, fechas e não voltas a ouvir de mim. Faz sentido?\n\nAbraço,\nRaul`;
+              ? `Hola ${firstName},\n\nVi que aún no hemos hablado. La verdad es que se me ocurrió una idea concreta para tu caso que podrías usar igualmente. ¿Quieres que te la mande?\n\nUn abrazo,\nRaul`
+              : `Olá ${firstName},\n\nVi que ainda não falámos. Na verdade ocorreu-me uma ideia concreta para o teu caso que podias usar de qualquer forma. Queres que ta mande?\n\nAbraço,\nRaul`;
             const breakupT14 = isEn
               ? `Hey ${firstName},\n\nI'll assume now isn't the moment. Closing the loop on my end.\n\nIf that changes, the door stays open.\n\nCheers,\nRaul`
               : isEs
@@ -2731,7 +2706,7 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
                       </div>
                       <textarea
                         placeholder={messages.length === 0
-                          ? "Ex: 'Olá! Já vi a tua DM. Estou ocupada esta semana mas adoraria saber mais. Podes mandar-me um vídeo a explicar?'"
+                          ? "Ex: 'Olá! Já vi a tua DM. Estou ocupada esta semana mas adoraria saber mais. Podes explicar-me melhor?'"
                           : "Cola a próxima resposta do criador..."}
                         value={replyText}
                         onChange={e => setReplyText(e.target.value)}

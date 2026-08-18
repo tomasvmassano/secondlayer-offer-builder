@@ -2,19 +2,12 @@ import { NextResponse } from 'next/server';
 import { getCreator, updateCreator } from '../../../../lib/creators';
 import { getCurrentUser, displayFirstName } from '../../../../lib/auth';
 
-// Append one post-video nudge (videoNudge / pediuVideo) to outreach.nudges[].
-// This array is kept SEPARATE from outreach.followUps[] so it never shifts the
-// dia-3/7/14 Kanban stage — but the scoreboard counts it as a follow-up. The
-// first time we touch the array we migrate the legacy single *NudgedAt
-// timestamps in, so no historical touch is lost when teamStats switches to
-// reading nudges[].
+// Append one post-reply nudge (value drop / booking nudge) to outreach.nudges[].
+// Kept SEPARATE from outreach.followUps[] so it never shifts the dia-3/7/14
+// Kanban stage, but the scoreboard still counts it as a follow-up.
 function appendNudge(outreach, entry) {
   const existing = Array.isArray(outreach?.nudges) ? outreach.nudges : [];
-  if (existing.length > 0) return [...existing, entry];
-  const seed = [];
-  if (outreach?.videoNudgedAt)      seed.push({ at: outreach.videoNudgedAt,      by: outreach.videoNudgedBy      || null, channel: 'dm', kind: 'videoNudge', migrated: true });
-  if (outreach?.pediuVideoNudgedAt) seed.push({ at: outreach.pediuVideoNudgedAt, by: outreach.pediuVideoNudgedBy || null, channel: 'dm', kind: 'pediuVideo', migrated: true });
-  return [...seed, entry];
+  return [...existing, entry];
 }
 
 /**
@@ -40,13 +33,13 @@ export async function POST(request, { params }) {
   let body = {};
   try { body = await request.json(); } catch { /* empty body is fine */ }
   const channel = body.channel === 'email' ? 'email' : 'dm';
-  // videoNudge (video sent → booking) and pediuVideo (asked for the video, not
-  // sent yet) are volume-model touches for creators who already replied. They
-  // must NOT increment the no-reply followUpsDone counter (that would corrupt
-  // the dia-3/7/14 cadence) and must NOT move the card out of its column — they
-  // record their own dedup timestamp and leave the derived stage intact.
-  const isVideoNudge = body.milestone === 'videoNudge';
-  const isPediuVideo = body.milestone === 'pediuVideo';
+  // giveValue (drop a tailored idea after they replied) and bookNudge (nudge
+  // toward the call) are post-reply touches for creators who already replied.
+  // They must NOT increment the no-reply followUpsDone counter (that would
+  // corrupt the dia-3/7/14 cadence) and must NOT move the card out of its
+  // column — they append to nudges[] and record their own dedup timestamp.
+  const isGiveValue = body.milestone === 'giveValue';
+  const isBookNudge = body.milestone === 'bookNudge';
   // voiceNote is the day-45 revival touch. It's fired against a COLD lead and
   // must not change pipelineStatus or the counter — it only records that the
   // voice note went out (dedup for both the tray and the cron digest).
@@ -68,26 +61,26 @@ export async function POST(request, { params }) {
     }, { status: 403 });
   }
 
-  if (isVideoNudge) {
+  if (isGiveValue) {
     const at = new Date().toISOString();
     const by = { userId: user.userId, firstName: displayFirstName(user), email: user.email };
-    // Append to nudges[] (counted as a follow-up on the scoreboard) AND keep the
-    // single videoNudgedAt/By for the tray's re-surface dedup cadence.
-    const nudges = appendNudge(creator.outreach, { at, by, channel, kind: 'videoNudge' });
+    // Append to nudges[] (counted as a follow-up on the scoreboard) AND stamp
+    // valueGivenAt so the tray switches this lead from "give value" to "book".
+    const nudges = appendNudge(creator.outreach, { at, by, channel, kind: 'giveValue' });
     const updated = await updateCreator(id, {
-      outreach: { ...creator.outreach, nudges, videoNudgedAt: at, videoNudgedBy: by },
+      outreach: { ...creator.outreach, nudges, valueGivenAt: at, valueGivenBy: by },
     });
-    return NextResponse.json({ ok: true, videoNudge: true, creator: updated });
+    return NextResponse.json({ ok: true, giveValue: true, creator: updated });
   }
 
-  if (isPediuVideo) {
+  if (isBookNudge) {
     const at = new Date().toISOString();
     const by = { userId: user.userId, firstName: displayFirstName(user), email: user.email };
-    const nudges = appendNudge(creator.outreach, { at, by, channel, kind: 'pediuVideo' });
+    const nudges = appendNudge(creator.outreach, { at, by, channel, kind: 'bookNudge' });
     const updated = await updateCreator(id, {
-      outreach: { ...creator.outreach, nudges, pediuVideoNudgedAt: at, pediuVideoNudgedBy: by },
+      outreach: { ...creator.outreach, nudges, bookNudgedAt: at, bookNudgedBy: by },
     });
-    return NextResponse.json({ ok: true, pediuVideo: true, creator: updated });
+    return NextResponse.json({ ok: true, bookNudge: true, creator: updated });
   }
 
   if (isVoiceNote) {

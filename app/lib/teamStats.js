@@ -191,11 +191,6 @@ function emptyRow(key, firstName) {
     // actually come from".
     repliesViaDm: 0,
     repliesViaEmail: 0,
-    // Videos: requests (a reply where the creator asked for/accepted the video)
-    // and sends (the generic video actually delivered). videosSent is the
-    // volume-model touchpoint that precedes booking.
-    videosRequested: 0,
-    videosSent: 0,
     // Meetings booked (call agreed/booked) — the operator-table "Reuniões".
     reunioesMarcadas: 0,
     signed: 0,
@@ -218,21 +213,13 @@ function bumpRow(rows, actor, metricKey, increment = 1) {
   rows.get(key)[metricKey] = (rows.get(key)[metricKey] || 0) + increment;
 }
 
-// Post-video follow-up touches. videoNudge = video already sent, chasing the
-// booking; pediuVideo = creator asked for the video, nudging to send it. These
-// are real operator follow-ups that deliberately live OUTSIDE the dia-3/7/14
-// cadence array (outreach.followUps) so they don't shift the Kanban stage — but
-// they must still be credited on the scoreboard + activity feed. Prefer the
-// per-touch nudges[] array; fall back to the legacy single *NudgedAt timestamps
-// for records written before the array existed. Each entry: { at, by, channel, kind }.
-function postVideoNudges(o) {
-  if (Array.isArray(o?.nudges) && o.nudges.length > 0) {
-    return o.nudges.filter(n => n && n.at);
-  }
-  const out = [];
-  if (o?.videoNudgedAt)     out.push({ at: o.videoNudgedAt,     by: o.videoNudgedBy     || null, channel: 'dm', kind: 'videoNudge' });
-  if (o?.pediuVideoNudgedAt) out.push({ at: o.pediuVideoNudgedAt, by: o.pediuVideoNudgedBy || null, channel: 'dm', kind: 'pediuVideo' });
-  return out;
+// Post-reply follow-up touches (value drops + booking nudges) logged from the
+// tray after a creator replies. They deliberately live OUTSIDE the dia-3/7/14
+// cadence array (outreach.followUps) so they don't shift the Kanban stage, but
+// they're still credited as follow-ups on the scoreboard + activity feed.
+// Each entry: { at, by, channel, kind }.
+function postReplyTouches(o) {
+  return Array.isArray(o?.nudges) ? o.nudges.filter(n => n && n.at) : [];
 }
 
 /**
@@ -293,10 +280,10 @@ export async function getTeamStats({ window = 'today', now = new Date(), from = 
     } else if (o.lastFollowUpAt && inWindow(o.lastFollowUpAt, startMs, endMs)) {
       bumpRow(rows, o.lastFollowUpBy || c.addedBy, 'followUpsDone');
     }
-    // Post-video follow-ups (videoNudge / pediuVideo) — credited as follow-ups
-    // so the booking chase after the video shows up on the scoreboard. Lives in
-    // its own array, so it never double-counts against outreach.followUps above.
-    for (const n of postVideoNudges(o)) {
+    // Post-reply follow-ups (value drops + booking nudges) — credited as
+    // follow-ups so the booking chase after a reply shows up on the scoreboard.
+    // Lives in its own array, so it never double-counts against followUps above.
+    for (const n of postReplyTouches(o)) {
       if (!inWindow(n.at, startMs, endMs)) continue;
       const actor = n.by || c.addedBy;
       bumpRow(rows, actor, 'followUpsDone');
@@ -309,16 +296,6 @@ export async function getTeamStats({ window = 'today', now = new Date(), from = 
       bumpRow(rows, actor, 'repliesReceived');
       if (o.repliedChannel === 'dm') bumpRow(rows, actor, 'repliesViaDm');
       else if (o.repliedChannel === 'email') bumpRow(rows, actor, 'repliesViaEmail');
-    }
-    // Video requested — a reply where the creator asked for / accepted the
-    // generic video. Attributed to whoever marked it (falls back to the reply
-    // marker, then addedBy).
-    if (o.videoRequestedAt && inWindow(o.videoRequestedAt, startMs, endMs)) {
-      bumpRow(rows, o.videoRequestedBy || o.repliedMarkedBy || c.addedBy, 'videosRequested');
-    }
-    // Video sent — the generic video actually delivered after the reply.
-    if (o.videoSentAt && inWindow(o.videoSentAt, startMs, endMs)) {
-      bumpRow(rows, o.videoSentBy || c.addedBy, 'videosSent');
     }
     // Meetings booked — attributed to whoever added the creator.
     const marcadaAt = o.callBookedAt || o.callAgreedAt || null;
@@ -469,7 +446,7 @@ function lisbonDayBounds(date) {
 }
 
 // PER-PERSON FUNNEL — same architecture as the team funnel, split by the
-// creator's owner (addedBy): Contactos → Respostas → Pediu vídeo → Reuniões
+// creator's owner (addedBy): Contactos → Respostas → Reuniões
 // marcadas → Reuniões realizadas → Propostas → Negócios. Each stage counts a
 // creator when that stage's timestamp falls in the window; owners with zero
 // activity in the window are dropped.
@@ -482,7 +459,7 @@ export async function getFunnels(creators, { window = 'all', now = new Date(), f
     const owner = c.addedBy;
     if (!owner?.firstName) continue;
     const key = canonicalKey(owner.firstName);
-    if (!byUser.has(key)) byUser.set(key, { firstName: owner.firstName, contactos: 0, respostas: 0, pediuVideo: 0, reunioesMarcadas: 0, reunioesRealizadas: 0, propostas: 0, negocios: 0 });
+    if (!byUser.has(key)) byUser.set(key, { firstName: owner.firstName, contactos: 0, respostas: 0, reunioesMarcadas: 0, reunioesRealizadas: 0, propostas: 0, negocios: 0 });
     const row = byUser.get(key);
     const o = c.outreach || {};
     const contactoAt = o.dmSentAt || o.emailSentAt || null;
@@ -490,7 +467,6 @@ export async function getFunnels(creators, { window = 'all', now = new Date(), f
     const propostaAt = c.pitch?.sentAt || null;
     if (inWin(contactoAt))        row.contactos += 1;
     if (inWin(o.repliedAt))       row.respostas += 1;
-    if (inWin(o.videoRequestedAt)) row.pediuVideo += 1;
     if (inWin(marcadaAt))         row.reunioesMarcadas += 1;
     if (inWin(o.callHeldAt))      row.reunioesRealizadas += 1;
     if (inWin(propostaAt))        row.propostas += 1;
@@ -503,22 +479,20 @@ export async function getFunnels(creators, { window = 'all', now = new Date(), f
       firstName: r.firstName,
       contactos: r.contactos,
       respostas: r.respostas,
-      pediuVideo: r.pediuVideo,
       reunioesMarcadas: r.reunioesMarcadas,
       reunioesRealizadas: r.reunioesRealizadas,
       propostas: r.propostas,
       negocios: r.negocios,
       rates: {
         contactoToResposta:  pct(r.respostas, r.contactos),
-        respostaToVideo:     pct(r.pediuVideo, r.respostas),
-        videoToMarcada:      pct(r.reunioesMarcadas, r.pediuVideo),
+        respostaToMarcada:   pct(r.reunioesMarcadas, r.respostas),
         marcadaToRealizada:  pct(r.reunioesRealizadas, r.reunioesMarcadas),
         realizadaToProposta: pct(r.propostas, r.reunioesRealizadas),
         propostaToNegocio:   pct(r.negocios, r.propostas),
       },
       overallRate: pct(r.negocios, r.contactos),
     }))
-    .filter(r => (r.contactos + r.respostas + r.pediuVideo + r.reunioesMarcadas + r.reunioesRealizadas + r.propostas + r.negocios) > 0);
+    .filter(r => (r.contactos + r.respostas + r.reunioesMarcadas + r.reunioesRealizadas + r.propostas + r.negocios) > 0);
 }
 
 // TEAM FUNNEL — the full sales funnel, aggregated across the whole team
@@ -535,7 +509,7 @@ export async function getFunnels(creators, { window = 'all', now = new Date(), f
 export async function getTeamFunnel({ window = 'month', now = new Date(), from = null, to = null } = {}) {
   const { startMs, endMs } = windowBounds(window, now, from, to);
   const all = await loadAllCreators();
-  const f = { contactos: 0, conversas: 0, pediuVideo: 0, reunioesMarcadas: 0, reunioesRealizadas: 0, propostas: 0, negocios: 0 };
+  const f = { contactos: 0, conversas: 0, reunioesMarcadas: 0, reunioesRealizadas: 0, propostas: 0, negocios: 0 };
   for (const c of all) {
     const o = c.outreach || {};
     const contactoAt = o.dmSentAt || o.emailSentAt || null;
@@ -543,7 +517,6 @@ export async function getTeamFunnel({ window = 'month', now = new Date(), from =
     const propostaAt = c.pitch?.sentAt || null;
     if (inWindow(contactoAt, startMs, endMs))       f.contactos += 1;
     if (inWindow(o.repliedAt, startMs, endMs))      f.conversas += 1;
-    if (inWindow(o.videoRequestedAt, startMs, endMs)) f.pediuVideo += 1;
     if (inWindow(marcadaAt, startMs, endMs))        f.reunioesMarcadas += 1;
     if (inWindow(o.callHeldAt, startMs, endMs))     f.reunioesRealizadas += 1;
     if (inWindow(propostaAt, startMs, endMs))       f.propostas += 1;
@@ -554,10 +527,6 @@ export async function getTeamFunnel({ window = 'month', now = new Date(), from =
     ...f,
     rates: {
       contactoToConversa:  pct(f.conversas, f.contactos),
-      conversaToVideo:     pct(f.pediuVideo, f.conversas),
-      videoToMarcada:      pct(f.reunioesMarcadas, f.pediuVideo),
-      // Kept for the TargetCalculator reverse-funnel (reply→meeting), which
-      // doesn't model the video step.
       conversaToMarcada:   pct(f.reunioesMarcadas, f.conversas),
       marcadaToRealizada:  pct(f.reunioesRealizadas, f.reunioesMarcadas),
       realizadaToProposta: pct(f.propostas, f.reunioesRealizadas),
@@ -612,12 +581,12 @@ export async function getFunnelTiming({ window = 'all', now = new Date(), from =
 // Kanban timestamps as the per-lead journey timeline (stageEntries), so the
 // card and the dashboard can never disagree:
 //
-//   1. rateSteps  — step conversion between the eight funnel MILESTONES
-//      (Contactado → Respondeu → Pediu vídeo → Vídeo enviado → Marcada →
-//      Realizada → Proposta → Assinado). Follow-ups are re-engagement, not
-//      funnel steps, so they're folded into "Contactado" here. Uses cumulative
-//      "reached this stage OR any later one" so leads that skip a stage (e.g.
-//      reply then book straight away, no video) still count as progressed —
+//   1. rateSteps  — step conversion between the funnel MILESTONES
+//      (Contactado → Respondeu → Marcada → Realizada → Proposta → Assinado).
+//      Follow-ups are re-engagement, not funnel steps, so they're folded into
+//      "Contactado" here. Uses cumulative "reached this stage OR any later one"
+//      so leads that skip a stage (e.g. reply then book straight away) still
+//      count as progressed —
 //      the counts stay monotonic and the % is honest.
 //
 //   2. timeSteps  — MEDIAN days spent in each Kanban stage (incl. the three
@@ -634,10 +603,10 @@ export async function getStageAnalytics({ window = 'all', now = new Date(), from
   const all = await loadAllCreators();
 
   // ── 1. Rate funnel (milestones) ──
-  const CHAIN = ['contactado', 'respondeu', 'pediu_video', 'video', 'marcada', 'realizada', 'proposta', 'assinado'];
+  const CHAIN = ['contactado', 'respondeu', 'marcada', 'realizada', 'proposta', 'assinado'];
   const CHAIN_LABELS = {
-    contactado: 'Contactado', respondeu: 'Respondeu', pediu_video: 'Pediu vídeo',
-    video: 'Vídeo enviado', marcada: 'Reunião marcada', realizada: 'Reunião realizada',
+    contactado: 'Contactado', respondeu: 'Respondeu',
+    marcada: 'Reunião marcada', realizada: 'Reunião realizada',
     proposta: 'Proposta', assinado: 'Assinado',
   };
   const milestoneAt = (c) => {
@@ -645,8 +614,6 @@ export async function getStageAnalytics({ window = 'all', now = new Date(), from
     const at = {
       contactado:  o.dmSentAt || o.emailSentAt || null,
       respondeu:   o.repliedAt || null,
-      pediu_video: o.videoRequestedAt || null,
-      video:       o.videoSentAt || null,
       marcada:     o.callBookedAt || o.callAgreedAt || null,
       realizada:   o.callHeldAt || null,
       proposta:    c.pitch?.sentAt || null,
@@ -1024,15 +991,13 @@ export async function getRecentActivity({ limit = 8 } = {}) {
     } else if (postReset(o.lastFollowUpAt)) {
       events.push({ at: o.lastFollowUpAt, type: 'follow_up', firstName: (o.lastFollowUpBy || c.addedBy)?.firstName, creator: c.name, creatorId: c.id });
     }
-    // Post-video follow-ups (videoNudge / pediuVideo) — same 'follow_up' event
-    // type so the booking chase shows up in Atividade recente.
-    for (const n of postVideoNudges(o)) {
+    // Post-reply follow-ups (value drops + booking nudges) — same 'follow_up'
+    // event type so the booking chase after a reply shows up in Atividade recente.
+    for (const n of postReplyTouches(o)) {
       if (!postReset(n.at)) continue;
       events.push({ at: n.at, type: 'follow_up', firstName: (n.by || c.addedBy)?.firstName, creator: c.name, creatorId: c.id, channel: n.channel || null });
     }
     if (postReset(o.repliedAt)) events.push({ at: o.repliedAt, type: 'replied', firstName: (o.repliedMarkedBy || c.addedBy)?.firstName, creator: c.name, creatorId: c.id });
-    if (postReset(o.videoRequestedAt)) events.push({ at: o.videoRequestedAt, type: 'video_requested', firstName: (o.videoRequestedBy || o.repliedMarkedBy || c.addedBy)?.firstName, creator: c.name, creatorId: c.id });
-    if (postReset(o.videoSentAt)) events.push({ at: o.videoSentAt, type: 'video_sent', firstName: (o.videoSentBy || c.addedBy)?.firstName, creator: c.name, creatorId: c.id });
     if (postReset(c.signedAt)) events.push({ at: c.signedAt, type: 'signed', firstName: c.addedBy?.firstName, creator: c.name, creatorId: c.id });
   }
   events.sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime());
@@ -1076,10 +1041,10 @@ export async function getReplyAnalytics({ window = 'all', now = new Date(), from
   const byTemplate = {}; // 'A'|'B' → aggregate
   const trend = {};      // weekStart → { total, positive, neutral, negative }
   const quotes = {};     // blame → [{ text, creatorId, creatorName, template, sentiment, at }]
-  const convByBlame = {};// repBlame → { creators, video, meeting, signed }
+  const convByBlame = {};// repBlame → { creators, meeting, signed }
   let total = 0, tagged = 0;
 
-  const tmpl = (k) => (byTemplate[k] ||= { total: 0, creatorIds: new Set(), sentiment: {}, blame: {}, converted: { video: 0, meeting: 0, signed: 0 } });
+  const tmpl = (k) => (byTemplate[k] ||= { total: 0, creatorIds: new Set(), sentiment: {}, blame: {}, converted: { meeting: 0, signed: 0 } });
 
   for (const c of all) {
     const msgs = Array.isArray(c.outreach?.replyMessages) ? c.outreach.replyMessages : [];
@@ -1113,12 +1078,11 @@ export async function getReplyAnalytics({ window = 'all', now = new Date(), from
     // Creator-level conversion, keyed by the LATEST in-window reply's blame.
     const latest = inWinMsgs.slice().sort((a, b) => new Date(b.at) - new Date(a.at))[0];
     const repBlame = latest?.ai?.blame || 'por_classificar';
-    const gotVideo = !!c.outreach?.videoSentAt;
     const gotMeeting = !!(c.outreach?.callBookedAt || c.outreach?.callAgreedAt || c.outreach?.callHeldAt);
     const signed = c.pipelineStatus === 'signed';
-    const cb = (convByBlame[repBlame] ||= { creators: 0, video: 0, meeting: 0, signed: 0 });
-    cb.creators++; if (gotVideo) cb.video++; if (gotMeeting) cb.meeting++; if (signed) cb.signed++;
-    if (gotVideo) t.converted.video++; if (gotMeeting) t.converted.meeting++; if (signed) t.converted.signed++;
+    const cb = (convByBlame[repBlame] ||= { creators: 0, meeting: 0, signed: 0 });
+    cb.creators++; if (gotMeeting) cb.meeting++; if (signed) cb.signed++;
+    if (gotMeeting) t.converted.meeting++; if (signed) t.converted.signed++;
   }
 
   const sortEntries = (obj) => Object.entries(obj).map(([key, count]) => ({ key, count })).sort((a, b) => b.count - a.count);

@@ -464,33 +464,32 @@ function pickFollowers(c) {
 // {sender} placeholders get substituted at build time.
 const DM_TEMPLATES = {
   pt: {
+    // No-reply cadence (dia 3 / 7 / 14) — value-first, never a video.
     softNudge:  `Olá {creator},\n\nNão quero ser persistente. Voltei a pensar no que te enviei e queria saber se fez algum sentido para o teu caso. Mesmo que não seja o momento certo, qualquer feedback ajuda.\n\nAbraço,\n{sender}`,
-    valueDrop:  `Olá {creator},\n\nA acompanhar. Trabalhei com alguém parecido contigo e o resultado deu-me uma ideia concreta para o teu caso. Se quiseres, mostro-te num vídeo curto como fizemos.\n\nAbraço,\n{sender}`,
+    valueDrop:  `Olá {creator},\n\nA acompanhar. Fiquei a pensar no teu caso e ocorreu-me uma ideia concreta que podias testar já. Se quiseres, partilho-ta aqui, é tua para usares.\n\nAbraço,\n{sender}`,
     lastTouch:  `Olá {creator},\n\nÚltimo toque do meu lado. Não vou voltar a mandar mensagem. Se um dia mudar de ideias, a porta fica aberta.\n\nAbraço,\n{sender}`,
-    // Video sent, no booking yet — nudge to the call.
-    videoNudge: `Olá {creator},\n\nSó a confirmar que viste o vídeo que te enviei. Se fez sentido, o próximo passo é uma conversa rápida de 15 min. Queres que te passe alguns horários?\n\nAbraço,\n{sender}`,
-    // Showed interest / asked for the video but went quiet before we sent it.
-    pediuVideo: `Olá {creator},\n\nDisseste que querias que te mandasse o vídeo a explicar melhor o que fazemos. Ainda faz sentido para ti? Se sim, mando-to já.\n\nAbraço,\n{sender}`,
+    // Post-reply — drop a tailored idea (giveValue), then invite the call (bookNudge).
+    giveValue:  `Olá {creator},\n\nFiquei a pensar no que me disseste e tenho uma ideia específica para o teu caso. Queres que ta mande aqui?\n\nAbraço,\n{sender}`,
+    bookNudge:  `Olá {creator},\n\nSe fizer sentido, o passo mais fácil é trocarmos duas ideias numa call rápida de 15 min. Sem venda, só para perceber melhor o teu caso e partilhar o resto. Queres que te passe uns horários?\n\nAbraço,\n{sender}`,
     // Day-45 voice-note SCRIPT (spoken, not pasted). The operator records this as
-    // an audio note in the DM and sends it by hand. Kept short, natural, and
-    // generic enough to work whether or not the creator ever replied.
-    voiceNote: `Olá {creator}, fala o {sender} da Second Layer, vou ser rápido. Já te tinha escrito há umas semanas mas sei que a caixa de entrada enche, por isso preferi gravar em vez de escrever. Nós ajudamos criadores como tu a transformar a audiência que já têm numa receita recorrente e mais previsível, com uma comunidade à volta do que já fazes, sem depender de marcas nem do algoritmo. Não sei se é o teu momento, mas se tiveres um bocadinho de curiosidade respondo-te aqui a qualquer pergunta, ou mando-te um vídeo curto a explicar como funciona. Diz-me só se queres. Um abraço.`,
+    // an audio note in the DM and sends it by hand.
+    voiceNote: `Olá {creator}, fala o {sender} da Second Layer, vou ser rápido. Já te tinha escrito há umas semanas mas sei que a caixa de entrada enche, por isso preferi gravar em vez de escrever. Nós ajudamos criadores como tu a transformar a audiência que já têm numa receita recorrente e mais previsível, com uma comunidade à volta do que já fazes, sem depender de marcas nem do algoritmo. Não sei se é o teu momento, mas se tiveres um bocadinho de curiosidade respondo-te aqui a qualquer pergunta, ou explico-te aqui mesmo como funciona. Diz-me só se queres. Um abraço.`,
   },
   en: {
     softNudge:  `Hey {creator},\n\nNot trying to be pushy. Just thinking about what I sent the other day and wondering if it landed for your case. Even a quick "not now" helps.\n\nCheers,\n{sender}`,
-    valueDrop:  `Hey {creator},\n\nFollowing up. I worked with someone close to your profile and the result gave me a concrete idea for your case. If you're up for it, I'll show you in a short video how we did it.\n\nCheers,\n{sender}`,
+    valueDrop:  `Hey {creator},\n\nFollowing up. I kept thinking about your case and a concrete idea came to mind that you could test right away. Happy to share it here, yours to run with.\n\nCheers,\n{sender}`,
     lastTouch:  `Hey {creator},\n\nLast message from my side. I won't reach out again. If anything changes down the line, the door stays open.\n\nCheers,\n{sender}`,
-    videoNudge: `Hey {creator},\n\nJust checking you saw the video I sent. If it made sense, the next step is a quick 15-min chat. Want me to share a few times?\n\nCheers,\n{sender}`,
-    pediuVideo: `Hey {creator},\n\nYou said you wanted me to send over the video explaining what we do in more detail. Still up for it? If so, I'll send it right now.\n\nCheers,\n{sender}`,
-    voiceNote: `Hey {creator}, it's {sender} from Second Layer, I'll keep this quick. I messaged you a few weeks back but I know the inbox gets buried, so I figured I'd just record this instead of writing. We help creators like you turn the audience you already have into recurring, more predictable revenue, by building a community around what you already do, without relying on brand deals or the algorithm. I don't know if the timing's right for you, but if you're even a bit curious I'm happy to answer anything here, or send you a short video explaining how it works. Just let me know. Cheers.`,
+    giveValue:  `Hey {creator},\n\nBeen thinking about what you said and I've got a specific idea for your case. Want me to send it over?\n\nCheers,\n{sender}`,
+    bookNudge:  `Hey {creator},\n\nIf it makes sense, the easiest next step is to trade a few ideas on a quick 15-min call. No pitch, just so I understand your case better and share the rest. Want me to send a few times?\n\nCheers,\n{sender}`,
+    voiceNote: `Hey {creator}, it's {sender} from Second Layer, I'll keep this quick. I messaged you a few weeks back but I know the inbox gets buried, so I figured I'd just record this instead of writing. We help creators like you turn the audience you already have into recurring, more predictable revenue, by building a community around what you already do, without relying on brand deals or the algorithm. I don't know if the timing's right for you, but if you're even a bit curious I'm happy to answer anything here, or walk you through how it works right here. Just let me know. Cheers.`,
   },
   es: {
     softNudge:  `Hola {creator},\n\nNo quiero ser pesado. Volví a pensar en lo que te escribí y quería saber si tuvo sentido para tu caso. Aunque no sea el momento, cualquier feedback ayuda.\n\nUn abrazo,\n{sender}`,
-    valueDrop:  `Hola {creator},\n\nAtento. Trabajé con alguien parecido a ti y el resultado me dio una idea concreta para tu caso. Si quieres, te enseño en un vídeo corto cómo lo hicimos.\n\nUn abrazo,\n{sender}`,
+    valueDrop:  `Hola {creator},\n\nAtento. Estuve pensando en tu caso y se me ocurrió una idea concreta que podrías probar ya. Si quieres, te la paso por aquí, es tuya para usarla.\n\nUn abrazo,\n{sender}`,
     lastTouch:  `Hola {creator},\n\nÚltimo mensaje de mi lado. No te volveré a escribir. Si algún día cambia, la puerta queda abierta.\n\nUn abrazo,\n{sender}`,
-    videoNudge: `Hola {creator},\n\nSolo confirmo que viste el vídeo que te envié. Si te encajó, el siguiente paso es una charla rápida de 15 min. ¿Te paso algunos horarios?\n\nUn abrazo,\n{sender}`,
-    pediuVideo: `Hola {creator},\n\nDijiste que querías que te mandara el vídeo explicando mejor lo que hacemos. ¿Todavía te encaja? Si es así, te lo mando ya.\n\nUn abrazo,\n{sender}`,
-    voiceNote: `Hola {creator}, soy {sender} de Second Layer, voy a ser rápido. Ya te había escrito hace unas semanas pero sé que la bandeja de entrada se llena, así que preferí grabarte esto en vez de escribir. Ayudamos a creadores como tú a convertir la audiencia que ya tienes en ingresos recurrentes y más previsibles, con una comunidad alrededor de lo que ya haces, sin depender de marcas ni del algoritmo. No sé si es tu momento, pero si tienes algo de curiosidad te respondo aquí a lo que quieras, o te mando un vídeo corto explicando cómo funciona. Dime y ya está. Un abrazo.`,
+    giveValue:  `Hola {creator},\n\nEstuve pensando en lo que me dijiste y tengo una idea específica para tu caso. ¿Quieres que te la mande?\n\nUn abrazo,\n{sender}`,
+    bookNudge:  `Hola {creator},\n\nSi te encaja, el paso más fácil es intercambiar un par de ideas en una llamada rápida de 15 min. Sin venta, solo para entender mejor tu caso y compartirte el resto. ¿Te paso algunos horarios?\n\nUn abrazo,\n{sender}`,
+    voiceNote: `Hola {creator}, soy {sender} de Second Layer, voy a ser rápido. Ya te había escrito hace unas semanas pero sé que la bandeja de entrada se llena, así que preferí grabarte esto en vez de escribir. Ayudamos a creadores como tú a convertir la audiencia que ya tienes en ingresos recurrentes y más previsibles, con una comunidad alrededor de lo que ya haces, sin depender de marcas ni del algoritmo. No sé si es tu momento, pero si tienes algo de curiosidad te respondo aquí a lo que quieras, o te explico aquí mismo cómo funciona. Dime y ya está. Un abrazo.`,
   },
 };
 
