@@ -125,6 +125,7 @@ If a sentence triggers ANY of these, rewrite it:
 
 - Short sentences. Then occasionally a longer one. Mix the rhythm. AI defaults to identical sentence lengths.
 - Use "I" when it fits. First person is honest, not unprofessional.
+- Frame every observation as YOUR reaction, never a verdict about them. "I liked how you...", "what stood out to me was...", "I keep going back to...", NEVER "You explained...", "You clearly...", "Your X is...". A reaction can't be argued with and reads like a person; a verdict presumes to judge their own work back to them.
 - Contractions are good. "you're", "I've", "isn't", "don't" / "estás", "não há".
 - CONFIDENT, never needy AND never arrogant. You reach out to HELP them and you clearly know this space. But you do NOT know their business better than they do, so never prescribe the whole plan and never claim what they would make. Observe the opportunity, back it with one proof point, and let the call do the rest.
 - Kill every needy tell (no "sorry to bother", "no pressure", "if you want", "sem stress", "não sei se faz sentido") AND every arrogant tell (no "the obvious play is", no "you would make more than X", no telling them how their own business works).
@@ -502,6 +503,7 @@ One SPECIFIC piece of their content + one honest, human reaction.
 - Name the exact post / vídeo / reel. NEVER "vi o teu perfil" / "acompanho o teu trabalho".
 - Pick the most specific, most humanising piece, not the newest, not the most-liked.
 - Real reaction. NEVER "adorei o teu conteúdo" or generic praise.
+- Frase a reação como TUA, não um veredicto sobre ela. "Gostei da forma como explicaste...", "o que me ficou foi...", NUNCA "Explicaste...", "Percebes claramente...", "O teu X é...". Uma reação não se discute; um veredicto presume julgar o trabalho dela.
 - Do NOT invent how {senderName} found them.
 
 **Block 2 — A oportunidade (2 frases)**
@@ -586,6 +588,7 @@ One SPECIFIC piece of their content + one honest, human reaction.
 - Name the exact post / video / reel. NEVER "I saw your profile" / "I follow your work".
 - Most specific, most humanising piece, not newest, not most-liked.
 - Real reaction. NEVER "love your content" or generic praise.
+- Phrase the reaction as YOURS, not a verdict about them. "I liked how you...", "what stood out to me was...", NEVER "You explained...", "You clearly...", "Your X is...". A reaction can't be argued with; a verdict presumes to judge their own work.
 - Do NOT invent how {senderName} found them.
 
 **Block 2 — The opportunity (2 sentences)**
@@ -670,6 +673,7 @@ One SPECIFIC piece of their content + one honest, human reaction.
 - Name the exact post / vídeo / reel. NEVER "vi tu perfil" / "sigo tu trabajo".
 - Most specific, most humanising piece, not newest, not most-liked.
 - Real reaction. NEVER "me encanta tu contenido" or generic praise.
+- Formula la reacción como TUYA, no un veredicto sobre ella. "Me gustó cómo explicaste...", "lo que me quedó fue...", NUNCA "Explicaste...", "Se nota que...", "Tu X es...". Una reacción no se discute; un veredicto presume juzgar su propio trabajo.
 - Do NOT invent how {senderName} found them.
 
 **Block 2 — La oportunidad (2 frases)**
@@ -1183,7 +1187,7 @@ ${TEMPLATE_FRAMING[template]}
 
 A short, credible cold DM. We reach out to HELP them, never to ask a favour, and we prove it fast. Parts, in order:
 1. Greeting on its own line, then a blank line.
-2. Hook: ONE genuine, specific observation about a real piece of their content plus one honest reaction. Name the exact post / reel / video, never "vi o teu perfil" / "I saw your profile". No generic compliments.
+2. Hook: ONE genuine, specific reaction to a real piece of their content, phrased as YOUR reaction and never a verdict about them. "I liked how you...", "what stood out to me was...", never "You explained...", "You clearly...", "Your X is...". Name the exact post / reel / video, never "vi o teu perfil" / "I saw your profile". No generic compliments.
 3. The opportunity (2 sentences): point at ONE real, specific gap or opportunity you see in what they do, based on the hook. Observe it, do NOT prescribe the full plan and do NOT invent numbers or claims about their revenue. Then say you have a specific idea for how you would approach it. Show you see it and make them curious, do not hand over the whole play. NO product names, NO invented numbers, NO "the obvious play is", NO "you would make X".
 4. Authority. Use this exact line, in the creator's language:
    ${AUTHORITY[language] || AUTHORITY.pt}
