@@ -45,32 +45,17 @@ const CADENCE = {
 };
 const AUTO_COLD_DAYS = 21;
 
-// Video→booking cadence (volume model). After the operator sends the generic
-// video (outreach.videoSentAt) and no meeting is booked, nudge at +2 and +4
-// days, then auto-cool at +7. Separate mechanism from the no-reply CADENCE
-// above (these creators already replied). Highest-day-first so we pick the
-// latest nudge the creator has reached but not yet received.
-// Video→booking cadence — ALL follow-ups now hang off videoSentAt (a lead is
-// only nudged AFTER they have the video, never while waiting for it). Text DM
-// nudges at days 2/4/9/14, then auto-cool at +21. (The day-45 voice note was
-// removed 2026-08 — non-repliers just go cold and get surfaced for unfollow.)
-// Highest-day-first so we pick the latest milestone reached-but-not-yet-sent.
-const VIDEO_CADENCE = [
-  { day: 14, reminderKey: 'videoNudge4', title: 'Vídeo · 4º toque' },
-  { day: 9,  reminderKey: 'videoNudge3', title: 'Vídeo · 3º toque' },
-  { day: 4,  reminderKey: 'videoNudge2', title: 'Vídeo · 2º toque' },
-  { day: 2,  reminderKey: 'videoNudge1', title: 'Vídeo · 1º toque' },
+// Post-reply booking cadence. After a creator replies (outreach.repliedAt) and
+// no meeting is booked, nudge toward the call at days 2/4/9/14, then auto-cool
+// at +21. Separate mechanism from the no-reply CADENCE above (these creators
+// replied). Highest-day-first so we pick the latest nudge reached-but-not-sent.
+const REPLY_CADENCE = [
+  { day: 14, reminderKey: 'bookNudge4', title: 'Booking · 4º toque' },
+  { day: 9,  reminderKey: 'bookNudge3', title: 'Booking · 3º toque' },
+  { day: 4,  reminderKey: 'bookNudge2', title: 'Booking · 2º toque' },
+  { day: 2,  reminderKey: 'bookNudge1', title: 'Booking · 1º toque' },
 ];
-const VIDEO_COLD_DAYS = 21;
-
-// Pediu-vídeo cadence removed 2026-08: after a lead asks, we send the video
-// immediately, so nobody waits in that stage — no automated messages, no
-// auto-cold. See the (now deleted) videoRequestedAt block in the loop.
-
-// Day-45 voice note (manual, high-effort). One personal audio touch to REVIVE a
-// lead that went cold without ever converting. Works for both paths: pediu-vídeo
-// ghosts (measured from videoRequestedAt) and first-DM non-responders (measured
-// (day-45 voice note removed 2026-08)
+const REPLY_COLD_DAYS = 21;
 
 const DAY_MS = 86_400_000;
 const daysBetween = (a, b) => Math.floor((new Date(b).getTime() - new Date(a).getTime()) / DAY_MS);
@@ -152,12 +137,10 @@ export async function GET(request) {
   const candidates = summaries.filter(s => {
     const st = s.pipelineStatus || 'prospect';
     if (st === 'signed' || st === 'cold') return false;
-    // Video-stage creators (Pediu vídeo / Vídeo enviado) have repliedAt set but
-    // still need their own nudge cadences — keep them despite the reply. The
-    // per-block !hasBooking guards inside the loop skip any that already booked.
-    if (s.videoRequestedAt || s.videoSentAt) return true;
-    // Everyone else: once they replied, the no-reply cadence stops.
-    return !s.repliedAt;
+    // Keep everyone not yet booked: no-reply leads for the dia-3/7/14 cadence,
+    // and replied-but-unbooked leads for the post-reply booking cadence. Booked
+    // leads need no nudge. The loop's per-block guards do the fine-grained gating.
+    return !(s.callBookedAt || s.callHeldAt || s.pitchSentAt);
   });
 
   // Batch-load full records in parallel chunks of 25 instead of the old
@@ -172,27 +155,27 @@ export async function GET(request) {
     fulls.push(...loaded);
   }
 
-  const buckets = { lastTouch: [], valueDrop: [], softNudge: [], videoNudge: [], pediuVideo: [], voiceNote: [], noDm: [], autoCold: [] };
+  const buckets = { lastTouch: [], valueDrop: [], softNudge: [], bookNudge: [], voiceNote: [], noDm: [], autoCold: [] };
   const cooled = []; // creators we auto-mark cold this run
 
   for (const c of fulls) {
     if (!c) continue;
     const out = c.outreach || {};
 
-    // ── Video→booking cadence (volume model) ──
-    // Creators who got the generic video but haven't booked. Handled BEFORE
-    // the no-reply skip below, because these DID reply. Nudge at +2/+4 days,
-    // auto-cool at +7 with no booking.
-    const videoSentAt = out.videoSentAt || null;
+    // ── Post-reply booking cadence ──
+    // Creators who replied but haven't booked. Handled BEFORE the no-reply skip
+    // below. Nudge toward the call at +2/+4/+9/+14 days, auto-cool at +21 with
+    // no booking.
+    const repliedAt = out.repliedAt || null;
     const hasBooking = !!(out.callBookedAt || out.callAgreedAt || out.callHeldAt || c.pitch?.sentAt);
-    if (videoSentAt && !hasBooking && c.pipelineStatus !== 'cold' && c.pipelineStatus !== 'signed') {
-      const vdays = daysBetween(videoSentAt, now);
+    if (repliedAt && !hasBooking && c.pipelineStatus !== 'cold' && c.pipelineStatus !== 'signed') {
+      const rdays = daysBetween(repliedAt, now);
       const rs = out.remindersSent || {};
-      const vOwner = FIRSTNAME_TO_EMAIL[canonicaliseName(
-        out.videoSentBy?.firstName || out.dmSentBy?.firstName || c.addedBy?.firstName || ''
+      const rOwner = FIRSTNAME_TO_EMAIL[canonicaliseName(
+        out.repliedMarkedBy?.firstName || out.dmSentBy?.firstName || c.addedBy?.firstName || ''
       )] || null;
-      if (vdays >= VIDEO_COLD_DAYS) {
-        cooled.push({ id: c.id, name: c.name, daysSinceDM: vdays });
+      if (rdays >= REPLY_COLD_DAYS) {
+        cooled.push({ id: c.id, name: c.name, daysSinceDM: rdays });
         if (!isCatchup) {
           const fresh = await getCreator(c.id, { fresh: true }).catch(() => null);
           const fo = fresh?.outreach || {};
@@ -206,46 +189,38 @@ export async function GET(request) {
             }).catch(() => null);
           }
         }
-        buckets.autoCold.push({ id: c.id, name: c.name, niche: c.niche, daysSinceDM: vdays, ownerEmail: vOwner });
+        buckets.autoCold.push({ id: c.id, name: c.name, niche: c.niche, daysSinceDM: rdays, ownerEmail: rOwner });
         continue;
       }
-      let vmatched = null;
-      for (const vc of VIDEO_CADENCE) {
-        const already = !isCatchup && rs[vc.reminderKey];
-        if (vdays >= vc.day && !already) { vmatched = vc; break; }
+      let rmatched = null;
+      for (const rc of REPLY_CADENCE) {
+        const already = !isCatchup && rs[rc.reminderKey];
+        if (rdays >= rc.day && !already) { rmatched = rc; break; }
       }
-      if (vmatched) {
-        const ownerFirstName = out.videoSentBy?.firstName || c.addedBy?.firstName || 'Raul';
+      if (rmatched) {
+        const ownerFirstName = out.repliedMarkedBy?.firstName || c.addedBy?.firstName || 'Raul';
         const lang = (c.primaryLanguage || 'pt').toLowerCase();
         const langCode = lang === 'en' ? 'en' : lang === 'es' ? 'es' : 'pt';
         const creatorFirstName = (c.name || '').split(/\s+/)[0] || 'pessoa';
         const igUrl = c.platforms?.instagram?.url
           || (c.platforms?.instagram?.handle ? `https://instagram.com/${c.platforms.instagram.handle.replace(/^@/, '')}` : null);
-        // Day-45 is a manual voice note (voiceNote template + tray section);
-        // days 2/4/9/14 are text DM nudges.
-        const isVoice = !!vmatched.voice;
-        (isVoice ? buckets.voiceNote : buckets.videoNudge).push({
+        buckets.bookNudge.push({
           id: c.id, name: c.name, niche: c.niche, followers: pickFollowers(c),
-          daysSinceVideo: vdays, ownerEmail: vOwner, igUrl,
-          followUpDm: buildFollowUpDm(isVoice ? 'voiceNote' : 'videoNudge', creatorFirstName, ownerFirstName, langCode),
-          milestoneKey: isVoice ? 'voiceNote' : 'videoNudge',
+          daysSinceReply: rdays, ownerEmail: rOwner, igUrl,
+          followUpDm: buildFollowUpDm('bookNudge', creatorFirstName, ownerFirstName, langCode),
+          milestoneKey: 'bookNudge',
           hasContactEmail: !!(c.contactEmail || c.email),
         });
         if (!isCatchup) {
           await updateCreator(c.id, {
-            outreach: { ...out, remindersSent: { ...rs, [vmatched.reminderKey]: now.toISOString() } },
+            outreach: { ...out, remindersSent: { ...rs, [rmatched.reminderKey]: now.toISOString() } },
           }).catch(() => null);
         }
       }
       continue;
     }
 
-    // Pediu-vídeo stage sends NO automated messages and never auto-cools —
-    // after a lead asks, we send the video immediately, so nobody waits here.
-    // These leads replied (and/or have videoRequestedAt), so they're skipped
-    // just below; every follow-up now hangs off videoSentAt (block above).
-
-    if (out.repliedAt || out.videoRequestedAt) continue;          // engaged / asked for video → skip
+    if (out.repliedAt) continue;          // engaged → skip the no-reply cadence
 
     // Owner attribution — map addedBy.firstName to a known operator email.
     // addedBy shape is { userId, firstName, at }, no .email field. We try
@@ -371,15 +346,14 @@ export async function GET(request) {
   // (The day-45 voice-note revival for cold leads was removed 2026-08 — cold
   // non-repliers now flow to the /unfollow cleanup instead.)
 
-  const totalDue = buckets.lastTouch.length + buckets.valueDrop.length + buckets.softNudge.length + buckets.videoNudge.length + buckets.pediuVideo.length + buckets.voiceNote.length;
+  const totalDue = buckets.lastTouch.length + buckets.valueDrop.length + buckets.softNudge.length + buckets.bookNudge.length + buckets.voiceNote.length;
   const stats = {
     type: 'dm-reminders',
     status: 'ok',
     lastTouch: buckets.lastTouch.length,
     valueDrop: buckets.valueDrop.length,
     softNudge: buckets.softNudge.length,
-    videoNudge: buckets.videoNudge.length,
-    pediuVideo: buckets.pediuVideo.length,
+    bookNudge: buckets.bookNudge.length,
     voiceNote: buckets.voiceNote.length,
     noDm: buckets.noDm.length,
     autoCold: buckets.autoCold.length,
@@ -402,7 +376,7 @@ export async function GET(request) {
   }
   for (const op of targetOps) {
     const view = filterForOperator(buckets, op.email);
-    const opTotalDue = view.lastTouch.length + view.valueDrop.length + view.softNudge.length + view.videoNudge.length + view.pediuVideo.length + view.voiceNote.length;
+    const opTotalDue = view.lastTouch.length + view.valueDrop.length + view.softNudge.length + view.bookNudge.length + view.voiceNote.length;
     const actionable = opTotalDue > 0 || view.noDm.length > 0 || view.autoCold.length > 0;
     if (!actionable) {
       perOperator.push({ email: op.email, sent: false, reason: 'nothing-due' });
@@ -441,8 +415,7 @@ function filterForOperator(buckets, operatorEmail) {
     lastTouch: buckets.lastTouch.filter(keep),
     valueDrop: buckets.valueDrop.filter(keep),
     softNudge: buckets.softNudge.filter(keep),
-    videoNudge: buckets.videoNudge.filter(keep),
-    pediuVideo: buckets.pediuVideo.filter(keep),
+    bookNudge: buckets.bookNudge.filter(keep),
     voiceNote:  buckets.voiceNote.filter(keep),
     noDm:      buckets.noDm.filter(keep),
     autoCold:  buckets.autoCold.filter(keep),
@@ -554,8 +527,7 @@ async function sendDigest(operator, buckets, stats, opts = {}) {
     ``,
   ];
   if (buckets.voiceNote?.length) lines.push(`• ${buckets.voiceNote.length} nota de voz dia 45 (reativar frios)`);
-  if (buckets.pediuVideo?.length) lines.push(`• ${buckets.pediuVideo.length} pediu vídeo (à espera do envio)`);
-  if (buckets.videoNudge?.length) lines.push(`• ${buckets.videoNudge.length} vídeo enviado (sem marcação)`);
+  if (buckets.bookNudge?.length) lines.push(`• ${buckets.bookNudge.length} respondeu, por marcar`);
   if (buckets.lastTouch.length) lines.push(`• ${buckets.lastTouch.length} dia 14 (último toque)`);
   if (buckets.valueDrop.length) lines.push(`• ${buckets.valueDrop.length} dia 7 (value drop)`);
   if (buckets.softNudge.length) lines.push(`• ${buckets.softNudge.length} dia 3 (soft nudge)`);
@@ -592,7 +564,7 @@ async function sendDigest(operator, buckets, stats, opts = {}) {
 
   ${headlineCount === 0 ? '' : `
     <div style="margin: 4px 0 22px;">
-      ${counterRow('#8b5cf6', 'Vídeo',   buckets.videoNudge?.length || 0)}
+      ${counterRow('#8b5cf6', 'Booking', buckets.bookNudge?.length || 0)}
       ${counterRow('#ea580c', 'Dia 14',  buckets.lastTouch.length)}
       ${counterRow('#f97316', 'Dia 7',   buckets.valueDrop.length)}
       ${counterRow('#f59e0b', 'Dia 3',   buckets.softNudge.length)}

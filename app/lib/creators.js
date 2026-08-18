@@ -81,12 +81,6 @@ function buildSummary(creator, createdAt) {
     loomRequestedAt: creator.outreach?.loomRequestedAt || null,
     proposalReadyAt: creator.outreach?.proposalReadyAt || null,
     loomSentAt:      creator.outreach?.loomSentAt      || null,
-    // videoRequestedAt — creator showed interest / asked for the video ("Pediu
-    // vídeo" stage). Drives the pediu-vídeo follow-up cadence.
-    videoRequestedAt: creator.outreach?.videoRequestedAt || null,
-    // videoSentAt — the volume model's touchpoint: operator sent the generic
-    // video after the creator replied. Drives the video→booking follow-up.
-    videoSentAt:     creator.outreach?.videoSentAt     || null,
     callBookedAt:    creator.outreach?.callBookedAt    || creator.outreach?.callAgreedAt || null,
     callHeldAt:      creator.outreach?.callHeldAt      || null,   // R1 (first meeting held)
     r2At:            creator.outreach?.r2At            || null,   // R2 (second meeting)
@@ -458,7 +452,7 @@ export async function saveCreator(data) {
       // reply first lands, derived from the pre-reply state (no operator work):
       //   repliedFromStage   — kanban stage the lead was in when it replied
       //   repliedAfterTouch  — which touch earned the reply (dm / followup_N /
-      //                        videoNudge / pediuVideo / voiceNote / unknown)
+      //                        voiceNote / unknown)
       //   repliedTouchAgeHrs — hours between that touch and the reply
       repliedFromStage: null,
       repliedAfterTouch: null,
@@ -468,11 +462,6 @@ export async function saveCreator(data) {
       // server-side (firstResponseAt − repliedAt). The warm-lead killer metric.
       firstResponseAt: null,
       firstResponseLatencyHrs: null,
-      // videoRequestedAt — creator asked for / accepted the video (Pediu vídeo).
-      videoRequestedAt: null,
-      // videoSentAt — operator sent the generic video after the reply (volume
-      // model). Drives the video→booking follow-up nudge.
-      videoSentAt: null,
       callAgreedAt: null,
       callHeldAt: null,   // R1 (first meeting held)
       r2At: null,         // R2 (second meeting)

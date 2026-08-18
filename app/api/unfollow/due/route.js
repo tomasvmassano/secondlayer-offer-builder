@@ -41,7 +41,7 @@ export async function GET(request) {
     if (s.repliedAt) return false;                       // only never-repliers
     if (s.unfollowedAt) return false;                    // already done
     if (s.addedByUserId !== user.userId) return false;   // only mine
-    const anchor = s.videoRequestedAt || s.dmSentAt || null;
+    const anchor = s.dmSentAt || null;
     if (!anchor) return false;                           // never actually reached out
     return daysBetween(anchor, now) >= UNFOLLOW_AFTER_DAYS;
   });
@@ -73,10 +73,10 @@ export async function GET(request) {
     const handle = c.platforms?.instagram?.handle
       ? c.platforms.instagram.handle.replace(/^@/, '')
       : null;
-    const anchor = out.videoRequestedAt || out.dmSentAt || null;
-    // Silence = days since the last thing we did (follow-up, voice note, video
-    // request, or the first DM), so the operator sees how long it's been quiet.
-    const lastTouch = out.voiceNotedAt || out.lastFollowUpAt || out.videoSentAt || out.videoRequestedAt || out.dmSentAt || null;
+    const anchor = out.dmSentAt || null;
+    // Silence = days since the last thing we did (follow-up, voice note, or the
+    // first DM), so the operator sees how long it's been quiet.
+    const lastTouch = out.voiceNotedAt || out.lastFollowUpAt || out.dmSentAt || null;
     items.push({
       id: c.id,
       name: c.name,

@@ -458,7 +458,7 @@ export async function getAutopilotStatus(now = new Date()) {
 }
 
 // Intent seeds — the pipeline seeds itself from its own warm leads. Creators
-// who reached "Pediu vídeo" (videoRequestedAt) or signed asked for / bought what
+// who replied (repliedAt) or signed asked for / bought what
 // we sell, so Instagram's "similar accounts" to them surface more of exactly the
 // right ICP — right niche, right geography, already-interested-shaped. The pool
 // grows on its own as more leads warm up, so discovery gets smarter over time.
@@ -467,7 +467,7 @@ export async function getAutopilotStatus(now = new Date()) {
 export async function getIntentSeedUrls() {
   const summaries = await listCreators();
   const warmIds = summaries
-    .filter(s => s.videoRequestedAt || s.pipelineStatus === 'signed')
+    .filter(s => s.repliedAt || s.pipelineStatus === 'signed')
     .map(s => s.id);
   if (!warmIds.length) return [];
   const fulls = await runInBatches(warmIds, id => getCreator(id).catch(() => null), 25);
