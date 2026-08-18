@@ -522,7 +522,7 @@ Uma linha de prova fixa, depois o convite claro para a call. Usa estas linhas ex
 
     Contexto rápido para não ser só mais um DM. Faço isto há 5 anos, mais de 50 clientes no último ano a transformar audiências em receita a sério.
 
-    Vale uma call rápida para te mostrar o que faria? 15 min, sem pitch, só as ideias. Diz-me um dia que te dê jeito e eu mando uma hora.
+    Vale uma call rápida para trocar umas ideias? Diz-me um dia que te dê jeito e eu mando uma hora.
 
 - A prova ganha o pedido, o CTA marca a call. NADA de "sem pressão", "se quiseres", "desculpa incomodar", nem presunção sobre o negócio dela.
 
@@ -607,7 +607,7 @@ One fixed proof line, then the clear call invite. Use these exact lines:
 
     Quick context so I'm not just a random DM. I've done this for 5 years, 50+ clients last year turning audiences into real revenue.
 
-    Worth a quick call to walk you through it? 15 min, no pitch, just the ideas. Tell me a day that works and I'll send a time.
+    Worth a quick call to toss some ideas around? Tell me a day that works and I'll send a time.
 
 - The proof earns the ask, the CTA books the call. NO "no pressure", NO "if you want", NO "sorry to bother", no presuming their business.
 
@@ -692,7 +692,7 @@ Una línea de prueba fija, luego la invitación clara a la call. Usa estas líne
 
     Contexto rápido para no ser solo otro DM. Llevo 5 años en esto, más de 50 clientes el último año convirtiendo audiencias en ingresos de verdad.
 
-    ¿Vale una llamada rápida para enseñarte lo que haría? 15 min, sin pitch, solo las ideas. Dime un día que te venga bien y te mando una hora.
+    ¿Vale una llamada rápida para intercambiar unas ideas? Dime un día que te venga bien y te mando una hora.
 
 - La prueba gana el pedido, el CTA agenda la call. NADA de "sin presión", "si quieres", "perdona que te escriba", ni presumir de su negocio.
 
@@ -1175,9 +1175,9 @@ ${TEMPLATE_FRAMING[template]}
   };
   // The meeting CTA — clear, low-pressure, asks for the call directly.
   const SOFT_ASK = {
-    pt: 'Vale uma call rápida para te mostrar o que faria? 15 min, sem pitch, só as ideias. Diz-me um dia que te dê jeito e eu mando uma hora.',
-    en: "Worth a quick call to walk you through it? 15 min, no pitch, just the ideas. Tell me a day that works and I'll send a time.",
-    es: '¿Vale una llamada rápida para enseñarte lo que haría? 15 min, sin pitch, solo las ideas. Dime un día que te venga bien y te mando una hora.',
+    pt: 'Vale uma call rápida para trocar umas ideias? Diz-me um dia que te dê jeito e eu mando uma hora.',
+    en: "Worth a quick call to toss some ideas around? Tell me a day that works and I'll send a time.",
+    es: '¿Vale una llamada rápida para intercambiar unas ideas? Dime un día que te venga bien y te mando una hora.',
   };
   const volumeOverride = `
 
