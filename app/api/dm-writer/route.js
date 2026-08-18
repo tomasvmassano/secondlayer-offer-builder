@@ -126,9 +126,9 @@ If a sentence triggers ANY of these, rewrite it:
 - Short sentences. Then occasionally a longer one. Mix the rhythm. AI defaults to identical sentence lengths.
 - Use "I" when it fits. First person is honest, not unprofessional.
 - Contractions are good. "you're", "I've", "isn't", "don't" / "estás", "não há".
-- CONFIDENT AND AGGRESSIVE, never needy. You reach out to HELP them, not to ask a favour. We are certain about what we do for creators, so write like the valuable one in the room, the operator they would be silly to ignore. The call is a no-brainer for THEM.
-- Kill every needy tell. No "sorry to bother", no "no pressure", no "if you want", no "hope you don't mind", no "sem stress", no "não sei se faz sentido". State it and mean it.
-- Confidence comes from the sharpness of the idea and the stance, never from résumé claims. No "trabalhei com X", no "tenho Y anos".
+- CONFIDENT, never needy AND never arrogant. You reach out to HELP them and you clearly know this space. But you do NOT know their business better than they do, so never prescribe the whole plan and never claim what they would make. Observe the opportunity, back it with one proof point, and let the call do the rest.
+- Kill every needy tell (no "sorry to bother", "no pressure", "if you want", "sem stress", "não sei se faz sentido") AND every arrogant tell (no "the obvious play is", no "you would make more than X", no telling them how their own business works).
+- Back the confidence with ONE understated proof point, the fixed authority line. Never a stack of stats, never a bare "trust me".
 - One specific detail beats three vague ones. A real product name beats "your offerings".
 - If a sentence could appear in a hundred other DMs, rewrite or cut it.`;
 
@@ -504,32 +504,34 @@ One SPECIFIC piece of their content + one honest, human reaction.
 - Real reaction. NEVER "adorei o teu conteúdo" or generic praise.
 - Do NOT invent how {senderName} found them.
 
-**Block 2 — A ideia (2-3 sentences)**
-Give ONE concrete, genuinely useful move this creator could act on this week to turn more of their audience into revenue. Say it with certainty, like you already see exactly what you would do in their place.
-- Lead into the idea as one flowing sentence. Model this shape, "No teu caso, a jogada mais óbvia é [a ideia]", confident and direct, and never use a colon.
+**Block 2 — A oportunidade (2 frases)**
+Aponta UMA oportunidade real e específica que vês no que ela faz, a partir do hook. Observa-a, NÃO prescrevas o plano todo e NÃO inventes números nem afirmações sobre a receita dela. Depois diz que tens uma ideia específica de como a abordarias.
+- Observa, não mandes. Model this shape, "Isso costuma ser sinal de que há uma oferta à espera de ser feita, e tenho uma ideia específica de como a montaria contigo", and never use a colon.
 - It MUST be specific to their niche and to what you named in Block 1. Adapta ao criador. Um criador de receitas não é um coach de fitness nem um criador de finanças.
 - Calibration patterns to adapt, never copy.
-  · receitas ou comida. "as receitas que as pessoas mais guardam já são uma lista de espera, e juntar as cinco mais guardadas num pequeno drop pago mostra logo quem está disposto a pagar."
-  · fitness. "as pessoas que te pedem o plano nos comentários já são a lista de espera de um programa simples de quatro semanas."
+  · receitas ou comida. "as receitas que as pessoas mais guardam já são uma lista de espera, e há aí uma oferta paga à espera de ser feita."
+  · fitness. "as pessoas que te pedem o plano nos comentários já são uma lista de espera para algo mais estruturado."
   · finanças ou educação. "as dúvidas que se repetem nos DMs são, na prática, o índice de um workshop pago."
-- Real e específica, algo que só um bom operador veria. NO product names, NO invented numbers, NO "nós", NO description of what we sell.
-- NEVER "estás a perder dinheiro" nem medo do algoritmo. Confiante e direto, mas a ideia é uma jogada concreta, não um chavão.
+- Mostra que vês a oportunidade, não entregues a jogada toda. NO product names, NO invented numbers, NO "a jogada óbvia é", NO "ias faturar X".
+- NEVER "estás a perder dinheiro" nem medo do algoritmo, nem dizer-lhe como funciona o negócio dela.
 
-**Block 3 — Convite para a call (1-2 frases)**
-Confident invite to a quick call, framed as trading ideas, never a sales call. This shape:
+**Block 3 — Autoridade + call (2-3 frases)**
+Uma linha de prova fixa, depois o convite claro para a call. Usa estas linhas exatas:
 
-    As melhores duas prefiro dizer-tas ao vivo, valem uma conversa. 15 min, só a trocar ideias, sem pitch. Esta semana dá-te jeito?
+    Contexto rápido para não ser só mais um DM. Ajudo criadores a transformar a audiência em receita a sério há 5 anos, mais de 50 só no último ano.
 
-- Confiante e assumptivo. NADA de "sem pressão", "se quiseres", "desculpa incomodar". A call é o passo óbvio para ELA.
+    Vale uma call rápida para te mostrar o que faria? 15 min, sem pitch, só as ideias. Diz-me um dia que te dê jeito e eu mando uma hora.
+
+- A prova ganha o pedido, o CTA marca a call. NADA de "sem pressão", "se quiseres", "desculpa incomodar", nem presunção sobre o negócio dela.
 
 ## Closing
 Blank line, "Abraço," (comma), blank line, "{senderName}". Nothing after. Under 800 chars.
 
 ## This DM is NOT
-- NOT a pitch. You give one real idea and invite a conversation, you never sell a product or say what you sell.
-- NOT a diagnosis. No "leaving money on the table", no algorithm scare.
-- NOT needy. Never apologise for messaging, never "sem pressão", never "se quiseres". You reached out to HELP them.
-- Confidence comes from the idea and the stance, not from résumé claims ("trabalhei com X", "tenho Y anos").
+- NOT a pitch. Dás uma observação e uma prova, convidas para uma conversa, nunca vendes um produto.
+- NOT presumptuous. Nunca "a jogada óbvia é", nunca digas o que ela ia faturar, nunca lhe expliques o negócio dela.
+- NOT needy. Nunca peças desculpa por escrever, nunca "sem pressão", nunca "se quiseres".
+- A autoridade é UMA linha de prova (a fixa), nunca um monte de números.
 
 ## PT rules
 - EUROPEAN Portuguese. "tu", nunca "você". Sem termos brasileiros (engajada->ativa, viralizar->ter alcance, galera->pessoal, legal->fixe).
@@ -586,32 +588,34 @@ One SPECIFIC piece of their content + one honest, human reaction.
 - Real reaction. NEVER "love your content" or generic praise.
 - Do NOT invent how {senderName} found them.
 
-**Block 2 — The idea (2-3 sentences)**
-Give ONE concrete, genuinely useful move they could act on this week to turn more of their audience into revenue. Say it with certainty, like you already see exactly what you would do in their place.
-- Lead into the idea as one flowing sentence. Model this shape, "In your case, the obvious play is [the idea]", confident and direct, and never use a colon.
+**Block 2 — The opportunity (2 sentences)**
+Point at ONE real, specific gap or opportunity you see in what they do, based on the hook. Observe it, do NOT prescribe the full plan and do NOT invent numbers or claims about their revenue. Then say you have a specific idea for how you would approach it.
+- Observe, don't instruct. Model this shape, "That clarity is usually a sign there's an offer hiding in plain sight, and I've got a specific idea for how I'd package it for you", and never use a colon.
 - MUST be specific to their niche and to Block 1. Adapt to the creator. A recipe creator is not a fitness coach or a finance creator.
 - Calibration patterns to adapt, never copy.
-  · recipes or food. "your most saved recipes are already a waitlist, and bundling the top five into a small paid drop shows you fast who is willing to pay."
-  · fitness. "the people asking for your plan in the comments are already the waitlist for a simple four week program."
+  · recipes or food. "your most saved recipes are already a waitlist, and there's a paid offer sitting in there waiting to be built."
+  · fitness. "the people asking for your plan in the comments are already a waitlist for something more structured."
   · finance or education. "the questions that keep repeating in your DMs are, in practice, the table of contents for a paid workshop."
-- Real and specific, something only a sharp operator would spot. NO product names, NO invented numbers, NO "we", NO describing what we sell.
-- NEVER "leaving money on the table" or an algorithm scare. Confident and direct, but the idea is a concrete play, not a platitude.
+- Show you see the opportunity, don't hand over the whole play. NO product names, NO invented numbers, NO "the obvious play is", NO "you would make X".
+- NEVER "leaving money on the table" or an algorithm scare, and never tell them how their own business works.
 
-**Block 3 — Confident call invite (1-2 sentences)**
-Confident invite to a quick call, framed as trading ideas, never a sales call. This shape:
+**Block 3 — Authority + call (2-3 sentences)**
+One fixed proof line, then the clear call invite. Use these exact lines:
 
-    The best two are worth saying out loud, not typing. 15 min, just trading ideas, no pitch. You around this week?
+    Quick context so I'm not just a random DM. I've spent 5 years helping creators turn their audience into real revenue, 50+ last year alone.
 
-- Confident and assumptive. NO "no pressure", NO "if you want", NO "sorry to bother". The call is the obvious next step for THEM.
+    Worth a quick call to walk you through it? 15 min, no pitch, just the ideas. Tell me a day that works and I'll send a time.
+
+- The proof earns the ask, the CTA books the call. NO "no pressure", NO "if you want", NO "sorry to bother", no presuming their business.
 
 ## Closing
 Blank line, "Cheers," (comma), blank line, "{senderName}". Nothing after. Under 800 chars.
 
 ## This DM is NOT
-- NOT a pitch. You give one real idea and invite a conversation, you never sell a product or say what you sell.
-- NOT a diagnosis. No "money on the table", no algorithm scare.
-- NOT needy. Never apologise for messaging, never "no pressure", never "if you want". You reached out to HELP them.
-- Confidence comes from the idea and the stance, not from résumé claims ("I've worked with X", "Y years in").
+- NOT a pitch. You give an observation and a proof point, invite a conversation, never sell a product.
+- NOT presumptuous. Never "the obvious play is", never tell them what they'd make, never explain their own business to them.
+- NOT needy. Never apologise for messaging, never "no pressure", never "if you want".
+- Authority is ONE proof line (the fixed one), never a stack of numbers.
 
 ## English rules
 - No "Hope you're well", no "I came across your profile", no pseudo-casual "Hey there!".
@@ -668,32 +672,34 @@ One SPECIFIC piece of their content + one honest, human reaction.
 - Real reaction. NEVER "me encanta tu contenido" or generic praise.
 - Do NOT invent how {senderName} found them.
 
-**Block 2 — La idea (2-3 sentences)**
-Give ONE concrete, genuinely useful move they could act on this week to turn more of their audience into revenue. Say it with certainty, like you already see exactly what you would do in their place.
-- Lead into the idea as one flowing sentence. Model this shape, "En tu caso, la jugada más obvia es [la idea]", confident and direct, and never use a colon.
+**Block 2 — La oportunidad (2 frases)**
+Señala UNA oportunidad real y específica que ves en lo que hace, a partir del hook. Obsérvala, NO prescribas el plan entero y NO inventes números ni afirmaciones sobre sus ingresos. Luego di que tienes una idea específica de cómo lo abordarías.
+- Observa, no ordenes. Model this shape, "Eso suele ser señal de que hay una oferta esperando a hacerse, y tengo una idea específica de cómo la montaría contigo", and never use a colon.
 - MUST be specific to their niche and to Block 1. Adapta al creador. Un creador de recetas no es un coach de fitness ni un creador de finanzas.
 - Calibration patterns to adapt, never copy.
-  · recetas o comida. "tus recetas más guardadas ya son una lista de espera, y juntar las cinco más guardadas en un pequeño pack de pago te muestra rápido quién está dispuesto a pagar."
-  · fitness. "la gente que te pide el plan en los comentarios ya es la lista de espera de un programa simple de cuatro semanas."
+  · recetas o comida. "tus recetas más guardadas ya son una lista de espera, y hay una oferta de pago esperando a hacerse."
+  · fitness. "la gente que te pide el plan en los comentarios ya es una lista de espera para algo más estructurado."
   · finanzas o educación. "las dudas que se repiten en tus DMs son, en la práctica, el índice de un taller de pago."
-- Real y específica, algo que solo un buen operador vería. NO product names, NO invented numbers, NO "nosotros", NO describir lo que vendemos.
-- NEVER "estás dejando dinero sobre la mesa" ni un miedo al algoritmo. Con seguridad y directo, pero la idea es una jugada concreta, no un tópico.
+- Muestra que ves la oportunidad, no entregues la jugada entera. NO product names, NO invented numbers, NO "la jugada obvia es", NO "ganarías X".
+- NEVER "estás dejando dinero sobre la mesa" ni un miedo al algoritmo, ni decirle cómo funciona su propio negocio.
 
-**Block 3 — Invitación a la call (1-2 frases)**
-Confident invite to a quick call, framed as trading ideas, never a sales call. This shape:
+**Block 3 — Autoridad + call (2-3 frases)**
+Una línea de prueba fija, luego la invitación clara a la call. Usa estas líneas exactas:
 
-    Las dos mejores prefiero decírtelas en directo, valen una conversación. 15 min, solo intercambiar ideas, sin pitch. ¿Te viene bien esta semana?
+    Contexto rápido para no ser solo otro DM. Llevo 5 años ayudando a creadores a convertir su audiencia en ingresos de verdad, más de 50 solo el último año.
 
-- Con seguridad y asumido. NADA de "sin presión", "si quieres", "perdona que te escriba". La call es el paso obvio para ELLA.
+    ¿Vale una llamada rápida para enseñarte lo que haría? 15 min, sin pitch, solo las ideas. Dime un día que te venga bien y te mando una hora.
+
+- La prueba gana el pedido, el CTA agenda la call. NADA de "sin presión", "si quieres", "perdona que te escriba", ni presumir de su negocio.
 
 ## Closing
 Blank line, "Un abrazo," (comma), blank line, "{senderName}". Nothing after. Under 800 chars.
 
 ## This DM is NOT
-- NOT a pitch. Das una idea real e invitas a una conversación, nunca vendes un producto ni dices qué vendes.
-- NOT a diagnosis. Nada de "dinero sobre la mesa", nada de miedo al algoritmo.
-- NOT needy. Nunca te disculpes por escribir, nunca "sin presión", nunca "si quieres". Escribes para ayudarles a ELLOS.
-- Confidence comes from the idea and the stance, not from résumé claims ("he trabajado con X", "Y años").
+- NOT a pitch. Das una observación y una prueba, invitas a una conversación, nunca vendes un producto.
+- NOT presumptuous. Nunca "la jugada obvia es", nunca digas lo que ganaría, nunca le expliques su propio negocio.
+- NOT needy. Nunca te disculpes por escribir, nunca "sin presión", nunca "si quieres".
+- La autoridad es UNA línea de prueba (la fija), nunca un montón de números.
 
 ## ES rules
 - Castilian (España), "tú" siempre. Nada de "usted". Nada de términos latinoamericanos.
@@ -1154,10 +1160,20 @@ ${TEMPLATE_FRAMING[template]}
   // Haiku model. The DM: genuine opener, one tight "what we do + why it matters"
   // paragraph, then a concrete video offer. No custom video, no meeting ask, no
   // audit data. The generic video (sent on interest) does the selling.
+  // The fixed authority line — one understated proof point, identical every send,
+  // so the DM carries credibility without a variable résumé dump. Real numbers
+  // from the deck (5 years, 50+ clients last year). Deliberately no ad-spend
+  // figure (it mis-signals "paid-ads agency" to a creator).
+  const AUTHORITY = {
+    pt: 'Contexto rápido para não ser só mais um DM. Ajudo criadores a transformar a audiência em receita a sério há 5 anos, mais de 50 só no último ano.',
+    en: "Quick context so I'm not just a random DM. I've spent 5 years helping creators turn their audience into real revenue, 50+ last year alone.",
+    es: 'Contexto rápido para no ser solo otro DM. Llevo 5 años ayudando a creadores a convertir su audiencia en ingresos de verdad, más de 50 solo el último año.',
+  };
+  // The meeting CTA — clear, low-pressure, asks for the call directly.
   const SOFT_ASK = {
-    pt: 'As melhores duas prefiro dizer-tas ao vivo, valem uma conversa. 15 min, só a trocar ideias, sem pitch. Esta semana dá-te jeito?',
-    en: "The best two are worth saying out loud, not typing. 15 min, just trading ideas, no pitch. You around this week?",
-    es: 'Las dos mejores prefiero decírtelas en directo, valen una conversación. 15 min, solo intercambiar ideas, sin pitch. ¿Te viene bien esta semana?',
+    pt: 'Vale uma call rápida para te mostrar o que faria? 15 min, sem pitch, só as ideias. Diz-me um dia que te dê jeito e eu mando uma hora.',
+    en: "Worth a quick call to walk you through it? 15 min, no pitch, just the ideas. Tell me a day that works and I'll send a time.",
+    es: '¿Vale una llamada rápida para enseñarte lo que haría? 15 min, sin pitch, solo las ideas. Dime un día que te venga bien y te mando una hora.',
   };
   const volumeOverride = `
 
@@ -1165,17 +1181,19 @@ ${TEMPLATE_FRAMING[template]}
 
 ## CONFIDENT COLD DM (reinforce this exact shape; overrides any other structure above)
 
-A short, high-status cold DM. We reach out to HELP them, never to ask a favour. Parts, in order:
+A short, credible cold DM. We reach out to HELP them, never to ask a favour, and we prove it fast. Parts, in order:
 1. Greeting on its own line, then a blank line.
 2. Hook: ONE genuine, specific observation about a real piece of their content plus one honest reaction. Name the exact post / reel / video, never "vi o teu perfil" / "I saw your profile". No generic compliments.
-3. The idea (2 to 3 sentences): ONE concrete, genuinely useful move THIS creator could act on this week to turn more of their audience into revenue. Give it with certainty, like you already see exactly what you would do for them. Specific to their niche and to the hook. NO product names, NO invented numbers, NO description of what we sell, NO "we".
-4. Confident call invite. Use this exact line, in the creator's language:
+3. The opportunity (2 sentences): point at ONE real, specific gap or opportunity you see in what they do, based on the hook. Observe it, do NOT prescribe the full plan and do NOT invent numbers or claims about their revenue. Then say you have a specific idea for how you would approach it. Show you see it and make them curious, do not hand over the whole play. NO product names, NO invented numbers, NO "the obvious play is", NO "you would make X".
+4. Authority. Use this exact line, in the creator's language:
+   ${AUTHORITY[language] || AUTHORITY.pt}
+5. Meeting CTA. Use this exact line, in the creator's language:
    ${SOFT_ASK[language] || SOFT_ASK.pt}
-5. Sign-off: blank line, "Abraço," / "Cheers," / "Un abrazo," blank line, then {senderName}.
+6. Sign-off: blank line, "Abraço," / "Cheers," / "Un abrazo," blank line, then {senderName}.
 
-The call is the goal, framed as a peer idea-exchange, not a sales call. NEVER use: a video offer, "faz sentido?" / "does it make sense?", "leaving money on the table" or any algorithm scare, a résumé claim, a needy or apologetic line ("no pressure", "if you want", "sorry to bother", "sem stress"), colons (":"), em dashes or "—", invented context, or internal audit data. The idea proves you know their world; the confidence makes the call an obvious yes for them. Around 4 to 5 lines, under 800 chars.
+The call is the goal, framed as a peer idea-exchange, not a sales call. NEVER use: a video offer, "faz sentido?" / "does it make sense?", "leaving money on the table" or any algorithm scare, a prescriptive or presumptuous line about their business, a needy or apologetic line ("no pressure", "if you want", "sorry to bother", "sem stress"), colons (":"), em dashes or "—", invented context, or internal audit data. The opportunity shows you see it, the authority line earns the ask, the CTA books the call. Around 5 to 6 lines, under 800 chars.
 
-Follow-up emails mirror this: confident, one more real idea each, always driving to the same 15-minute idea-exchange call. Never needy, never a video.`;
+Follow-up emails mirror this: one more specific idea each, one light proof point, always a clear call ask. Never needy, never presumptuous, never a video.`;
 
   const systemPrompt = layeredKnowledge + baseSystemPrompt + volumeOverride;
 
