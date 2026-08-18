@@ -309,7 +309,7 @@ function ConfigPanel({ ov, reload, toast }) {
   const s = ov.sales || {};
   const [form, setForm] = useState({
     monthlyGoal: s.monthlyGoal ?? 50000, ticket: s.ticket ?? 6000,
-    dailyTarget: s.dailyTarget ?? 40, workDays: s.workDays ?? 21, quarterlyQuota: s.quarterlyQuota ?? 50000,
+    dailyTarget: s.dailyTarget ?? 50, workDays: s.workDays ?? 21, quarterlyQuota: s.quarterlyQuota ?? 50000,
   });
   const [videoUrl, setVideoUrl] = useState(ov.videoUrl || "");
   const [busy, setBusy] = useState("");

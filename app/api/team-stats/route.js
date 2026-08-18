@@ -41,7 +41,7 @@ function _respSet(key, val) {
 export async function GET(request) {
   try {
     const { searchParams } = new URL(request.url);
-    const target = Number(searchParams.get('target')) || 40;
+    const target = Number(searchParams.get('target')) || 50;
     // Quarterly quota for pipeline-coverage math. Overridable per env so the
     // dashboard doesn't need a redeploy when targets shift.
     const quotaEurPerQuarter = Number(searchParams.get('quota'))

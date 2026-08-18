@@ -106,7 +106,7 @@ function zeroRow(firstName) {
     replyRate: 0,
     dmReplyRate: 0,
     emailReplyRate: 0,
-    target: 40,
+    target: 50,
     missedGoal: true,
     totalOwedEur: 0,
     totalEarnedEur: 0,
@@ -282,7 +282,7 @@ export async function GET(request) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
   try {
-    const target = Number(process.env.DAILY_DM_TARGET) || 40;
+    const target = Number(process.env.DAILY_DM_TARGET) || 50;
     // 'yesterday' window — the cron fires at 04:00 Lisbon and reports on
     // the previous day's outreach. Without this, late-night DMs (the
     // exact reason we moved the cron to 4am) would land in today's
