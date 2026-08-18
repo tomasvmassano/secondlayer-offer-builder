@@ -126,7 +126,9 @@ If a sentence triggers ANY of these, rewrite it:
 - Short sentences. Then occasionally a longer one. Mix the rhythm. AI defaults to identical sentence lengths.
 - Use "I" when it fits. First person is honest, not unprofessional.
 - Contractions are good. "you're", "I've", "isn't", "don't" / "estás", "não há".
-- Acknowledge uncertainty when it's honest. "Não sei se isto faz sentido para o teu caso, mas..." beats false confidence.
+- CONFIDENT AND AGGRESSIVE, never needy. You reach out to HELP them, not to ask a favour. We are certain about what we do for creators, so write like the valuable one in the room, the operator they would be silly to ignore. The call is a no-brainer for THEM.
+- Kill every needy tell. No "sorry to bother", no "no pressure", no "if you want", no "hope you don't mind", no "sem stress", no "não sei se faz sentido". State it and mean it.
+- Confidence comes from the sharpness of the idea and the stance, never from résumé claims. No "trabalhei com X", no "tenho Y anos".
 - One specific detail beats three vague ones. A real product name beats "your offerings".
 - If a sentence could appear in a hundred other DMs, rewrite or cut it.`;
 
@@ -502,32 +504,32 @@ One SPECIFIC piece of their content + one honest, human reaction.
 - Real reaction. NEVER "adorei o teu conteúdo" or generic praise.
 - Do NOT invent how {senderName} found them.
 
-**Block 2 — A ideia (o presente) (2-3 sentences)**
-Give ONE concrete, genuinely useful idea this creator could act on this week to turn more of their audience into revenue WITHOUT making more content. This is a gift, not a pitch.
-- Lead into the idea as one flowing sentence. Model this shape, "Uma coisa que costuma resultar mesmo bem com criadores como tu é [a ideia]", and never use a colon.
+**Block 2 — A ideia (2-3 sentences)**
+Give ONE concrete, genuinely useful move this creator could act on this week to turn more of their audience into revenue. Say it with certainty, like you already see exactly what you would do in their place.
+- Lead into the idea as one flowing sentence. Model this shape, "No teu caso, a jogada mais óbvia é [a ideia]", confident and direct, and never use a colon.
 - It MUST be specific to their niche and to what you named in Block 1. Adapta ao criador. Um criador de receitas não é um coach de fitness nem um criador de finanças.
 - Calibration patterns to adapt, never copy.
   · receitas ou comida. "as receitas que as pessoas mais guardam já são uma lista de espera, e juntar as cinco mais guardadas num pequeno drop pago mostra logo quem está disposto a pagar."
   · fitness. "as pessoas que te pedem o plano nos comentários já são a lista de espera de um programa simples de quatro semanas."
   · finanças ou educação. "as dúvidas que se repetem nos DMs são, na prática, o índice de um workshop pago."
-- Low-lift, realista, algo que um bom operador sugeriria a um amigo. NO product names, NO invented numbers, NO "nós", NO description of what we sell.
-- NEVER "estás a perder dinheiro" nem medo do algoritmo. Fica neutro e generoso, uma jogada que costuma resultar.
+- Real e específica, algo que só um bom operador veria. NO product names, NO invented numbers, NO "nós", NO description of what we sell.
+- NEVER "estás a perder dinheiro" nem medo do algoritmo. Confiante e direto, mas a ideia é uma jogada concreta, não um chavão.
 
-**Block 3 — Soft bridge (1 line)**
-Offer more, ask for nothing. This shape:
+**Block 3 — Convite para a call (1-2 frases)**
+Confident invite to a quick call, framed as trading ideas, never a sales call. This shape:
 
-    É tua para usares. Se te forem úteis, tenho mais duas ideias específicas para ti.
+    As melhores duas prefiro dizer-tas ao vivo, valem uma conversa. 15 min, só a trocar ideias, sem pitch. Esta semana dá-te jeito?
 
-- NO call, NO video, NO "queres marcar", NO "faz sentido?". Deixa a porta aberta, não empurres.
+- Confiante e assumptivo. NADA de "sem pressão", "se quiseres", "desculpa incomodar". A call é o passo óbvio para ELA.
 
 ## Closing
 Blank line, "Abraço," (comma), blank line, "{senderName}". Nothing after. Under 800 chars.
 
 ## This DM is NOT
-- NOT a pitch: never say what you sell.
-- NOT a diagnosis: no "leaving money on the table", no algorithm scare.
-- NOT an ask: no call, no video, no meeting, no "faz sentido?".
-- NO authority claims ("trabalhei com X", "tenho Y anos"). A ideia útil É a credibilidade.
+- NOT a pitch. You give one real idea and invite a conversation, you never sell a product or say what you sell.
+- NOT a diagnosis. No "leaving money on the table", no algorithm scare.
+- NOT needy. Never apologise for messaging, never "sem pressão", never "se quiseres". You reached out to HELP them.
+- Confidence comes from the idea and the stance, not from résumé claims ("trabalhei com X", "tenho Y anos").
 
 ## PT rules
 - EUROPEAN Portuguese. "tu", nunca "você". Sem termos brasileiros (engajada->ativa, viralizar->ter alcance, galera->pessoal, legal->fixe).
@@ -538,31 +540,31 @@ ${SHARED_RULES}
 ## T+3 comment
 1-2 frases, PT europeu. Observação genuína sobre um post recente. Zero emojis. Nada de "adorei!".
 
-## Follow-up emails (PT) — value-first, ask-free
+## Follow-up emails (PT) — confiante, a puxar para a call
 
 ### Day 1 — reforço da ideia, com mais profundidade
 """
 Olá {primeiro_nome}
 
-Mandei-te mensagem no Instagram, mas quis deixar isto por email também.
+Mandei-te mensagem no Instagram, mas quis pôr-te isto à frente por email também.
 
 {hook_curto_por_outras_palavras}
 
-{a_ideia_do_dm_desenvolvida: a mesma ideia, agora com 1-2 frases de como a pôr em prática. Continua a ser um presente, sem venda.}
+{a_ideia_do_dm_desenvolvida: a mesma ideia, agora com 1-2 frases de como a executar.}
 
-É tua para usares. Tenho mais duas ideias específicas para ti. Se te forem úteis, é só dizeres e mando-tas.
+Essa é a fácil. As duas que quero mesmo dar-te valem 15 min ao telefone, só a trocar ideias, sem pitch. Como tens a semana?
 
 Abraço,
 {senderName}
 """
 
-### Day 7 — uma SEGUNDA ideia (não é cobrança)
+### Day 7 — uma SEGUNDA ideia + a call
 Subject: específico, ex.: "outra ideia para [tema]".
-Body: abre com "Fico-me por aqui, mas esta é boa demais para não partilhar." Depois UMA nova ideia concreta e à medida (diferente da do Day 1). 4-5 frases. Fecha morno, sem pressão: "Se alguma te for útil e quiseres ir mais fundo, é só dizeres." "Abraço, {senderName}".
+Body: abre com "Mais uma, que esta é boa demais para guardar." Depois UMA nova ideia concreta e à medida (diferente da do Day 1). 4-5 frases. Fecha confiante, a puxar para a call: "Há mais de onde veio essa, e é uma conversa rápida, não um pitch. 15 min esta semana?" "Abraço, {senderName}".
 
-### Day 14 — saída generosa
+### Day 14 — a saída confiante
 Subject: direto, sobre o trabalho dela.
-Body: "Última nota minha." Uma ideia que vale a pena testar de qualquer forma (1 frase). Depois: sem pressão nenhuma, porta aberta, "sabes onde me encontrar". 3-4 frases. Sem CTA, sem pergunta.
+Body: "Última do meu lado." Uma ideia que vale a pena testar de qualquer forma (1 frase). Depois um fecho confiante, sem súplica: "Se o timing for bom, a call vale bem os teus 15 min. Se não, sabes onde me encontrar." 3-4 frases.
 
 ${OUTPUT_FORMAT}`;
 
@@ -584,32 +586,32 @@ One SPECIFIC piece of their content + one honest, human reaction.
 - Real reaction. NEVER "love your content" or generic praise.
 - Do NOT invent how {senderName} found them.
 
-**Block 2 — The idea (the gift) (2-3 sentences)**
-Give ONE concrete, genuinely useful idea they could act on this week to turn more of their audience into revenue WITHOUT making more content. A gift, not a pitch.
-- Lead into the idea as one flowing sentence. Model this shape, "One thing that tends to work really well for creators like you is [the idea]", and never use a colon.
+**Block 2 — The idea (2-3 sentences)**
+Give ONE concrete, genuinely useful move they could act on this week to turn more of their audience into revenue. Say it with certainty, like you already see exactly what you would do in their place.
+- Lead into the idea as one flowing sentence. Model this shape, "In your case, the obvious play is [the idea]", confident and direct, and never use a colon.
 - MUST be specific to their niche and to Block 1. Adapt to the creator. A recipe creator is not a fitness coach or a finance creator.
 - Calibration patterns to adapt, never copy.
   · recipes or food. "your most saved recipes are already a waitlist, and bundling the top five into a small paid drop shows you fast who is willing to pay."
   · fitness. "the people asking for your plan in the comments are already the waitlist for a simple four week program."
   · finance or education. "the questions that keep repeating in your DMs are, in practice, the table of contents for a paid workshop."
-- Low-lift, realistic, what a good operator would tell a friend. NO product names, NO invented numbers, NO "we", NO describing what we sell.
-- NEVER "leaving money on the table" or an algorithm scare. Stay neutral and generous, a move that tends to work.
+- Real and specific, something only a sharp operator would spot. NO product names, NO invented numbers, NO "we", NO describing what we sell.
+- NEVER "leaving money on the table" or an algorithm scare. Confident and direct, but the idea is a concrete play, not a platitude.
 
-**Block 3 — Soft bridge (1 line)**
-Offer more, ask for nothing. This shape:
+**Block 3 — Confident call invite (1-2 sentences)**
+Confident invite to a quick call, framed as trading ideas, never a sales call. This shape:
 
-    Yours to run with. If they're useful, I've got two more that are specific to you.
+    The best two are worth saying out loud, not typing. 15 min, just trading ideas, no pitch. You around this week?
 
-- NO call, NO video, NO "want to hop on", NO "does it make sense?". Leave the door open, don't push it.
+- Confident and assumptive. NO "no pressure", NO "if you want", NO "sorry to bother". The call is the obvious next step for THEM.
 
 ## Closing
 Blank line, "Cheers," (comma), blank line, "{senderName}". Nothing after. Under 800 chars.
 
 ## This DM is NOT
-- NOT a pitch: never say what you sell.
-- NOT a diagnosis: no "money on the table", no algorithm scare.
-- NOT an ask: no call, no video, no meeting, no "does it make sense?".
-- NO authority claims ("I've worked with X", "Y years in"). The useful idea IS the credibility.
+- NOT a pitch. You give one real idea and invite a conversation, you never sell a product or say what you sell.
+- NOT a diagnosis. No "money on the table", no algorithm scare.
+- NOT needy. Never apologise for messaging, never "no pressure", never "if you want". You reached out to HELP them.
+- Confidence comes from the idea and the stance, not from résumé claims ("I've worked with X", "Y years in").
 
 ## English rules
 - No "Hope you're well", no "I came across your profile", no pseudo-casual "Hey there!".
@@ -620,31 +622,31 @@ ${SHARED_RULES}
 ## T+3 comment
 1-2 sentences, English. Genuine observation on a recent post. Zero emojis. Not "love this!".
 
-## Follow-up emails (EN) — value-first, ask-free
+## Follow-up emails (EN) — confident, drive the call
 
 ### Day 1 — the idea, in more depth
 """
 Hey {primeiro_nome}
 
-I messaged you on Instagram, but wanted to drop this by email too.
+I messaged you on Instagram, but wanted to put this in front of you here too.
 
 {short_hook_reworded}
 
-{the_dm_idea_expanded: same idea, now with 1-2 sentences on how to put it into practice. Still a gift, no selling.}
+{the_dm_idea_expanded: same idea, now with 1-2 sentences on how to run it.}
 
-Yours to run with. I've got two more that are specific to you. Just say the word and I'll send them over.
+That is the easy one. The two I really want to give you are worth 15 minutes on a call, just trading ideas, no pitch. What does this week look like?
 
 Cheers,
 {senderName}
 """
 
-### Day 7 — a SECOND idea (not a chase)
+### Day 7 — a SECOND idea + the call
 Subject: specific, e.g. "another idea for [topic]".
-Body: open with "I'll leave the ideas here, but this one's too good not to share." Then ONE new concrete, tailored idea (different from Day 1). 4-5 sentences. Close warm, no pressure: "If any of them are useful and you want to go deeper, just say so." "Cheers, {senderName}".
+Body: open with "One more, because this one is too good to sit on." Then ONE new concrete, tailored idea (different from Day 1). 4-5 sentences. Close confident, driving the call: "There is more where that came from, and it is a quick conversation, not a pitch. Grab 15 minutes this week?" "Cheers, {senderName}".
 
-### Day 14 — a generous exit
+### Day 14 — the confident exit
 Subject: direct, about their work.
-Body: "Last note from me." One idea worth trying regardless (1 sentence). Then: genuinely no pressure, door open, "you know where to find me". 3-4 sentences. No CTA, no question.
+Body: "Last one from me." One idea worth trying regardless (1 sentence). Then a confident close, not needy: "If the timing is right, the call is genuinely worth your 15 minutes. If not, you know where I am." 3-4 sentences.
 
 ${OUTPUT_FORMAT}`;
 
@@ -666,32 +668,32 @@ One SPECIFIC piece of their content + one honest, human reaction.
 - Real reaction. NEVER "me encanta tu contenido" or generic praise.
 - Do NOT invent how {senderName} found them.
 
-**Block 2 — La idea (el regalo) (2-3 sentences)**
-Give ONE concrete, genuinely useful idea they could act on this week to turn more of their audience into revenue WITHOUT making more content. Un regalo, no un pitch.
-- Lead into the idea as one flowing sentence. Model this shape, "Una cosa que suele funcionar muy bien con creadores como tú es [la idea]", and never use a colon.
+**Block 2 — La idea (2-3 sentences)**
+Give ONE concrete, genuinely useful move they could act on this week to turn more of their audience into revenue. Say it with certainty, like you already see exactly what you would do in their place.
+- Lead into the idea as one flowing sentence. Model this shape, "En tu caso, la jugada más obvia es [la idea]", confident and direct, and never use a colon.
 - MUST be specific to their niche and to Block 1. Adapta al creador. Un creador de recetas no es un coach de fitness ni un creador de finanzas.
 - Calibration patterns to adapt, never copy.
   · recetas o comida. "tus recetas más guardadas ya son una lista de espera, y juntar las cinco más guardadas en un pequeño pack de pago te muestra rápido quién está dispuesto a pagar."
   · fitness. "la gente que te pide el plan en los comentarios ya es la lista de espera de un programa simple de cuatro semanas."
   · finanzas o educación. "las dudas que se repiten en tus DMs son, en la práctica, el índice de un taller de pago."
-- Low-lift, realista, lo que un buen operador le diría a un amigo. NO product names, NO invented numbers, NO "nosotros", NO describir lo que vendemos.
-- NEVER "estás dejando dinero sobre la mesa" ni un miedo al algoritmo. Quédate neutro y generoso, una jugada que suele funcionar.
+- Real y específica, algo que solo un buen operador vería. NO product names, NO invented numbers, NO "nosotros", NO describir lo que vendemos.
+- NEVER "estás dejando dinero sobre la mesa" ni un miedo al algoritmo. Con seguridad y directo, pero la idea es una jugada concreta, no un tópico.
 
-**Block 3 — Soft bridge (1 line)**
-Offer more, ask for nothing. This shape:
+**Block 3 — Invitación a la call (1-2 frases)**
+Confident invite to a quick call, framed as trading ideas, never a sales call. This shape:
 
-    Es tuya para usarla. Si te sirven, tengo dos más específicas para ti.
+    Las dos mejores prefiero decírtelas en directo, valen una conversación. 15 min, solo intercambiar ideas, sin pitch. ¿Te viene bien esta semana?
 
-- NO call, NO video, NO "¿nos llamamos?", NO "¿tiene sentido?". Deja la puerta abierta, no empujes.
+- Con seguridad y asumido. NADA de "sin presión", "si quieres", "perdona que te escriba". La call es el paso obvio para ELLA.
 
 ## Closing
 Blank line, "Un abrazo," (comma), blank line, "{senderName}". Nothing after. Under 800 chars.
 
 ## This DM is NOT
-- NOT a pitch: nunca digas qué vendes.
-- NOT a diagnosis: nada de "dinero sobre la mesa", nada de miedo al algoritmo.
-- NOT an ask: sin llamada, sin vídeo, sin reunión, sin "¿tiene sentido?".
-- NO authority claims ("he trabajado con X", "Y años"). La idea útil ES la credibilidad.
+- NOT a pitch. Das una idea real e invitas a una conversación, nunca vendes un producto ni dices qué vendes.
+- NOT a diagnosis. Nada de "dinero sobre la mesa", nada de miedo al algoritmo.
+- NOT needy. Nunca te disculpes por escribir, nunca "sin presión", nunca "si quieres". Escribes para ayudarles a ELLOS.
+- Confidence comes from the idea and the stance, not from résumé claims ("he trabajado con X", "Y años").
 
 ## ES rules
 - Castilian (España), "tú" siempre. Nada de "usted". Nada de términos latinoamericanos.
@@ -702,31 +704,31 @@ ${SHARED_RULES}
 ## T+3 comment
 1-2 frases, español de España. Observación genuina sobre un post reciente. Cero emojis. Nada de "¡me encanta!".
 
-## Follow-up emails (ES) — value-first, ask-free
+## Follow-up emails (ES) — con seguridad, hacia la call
 
 ### Day 1 — la idea, con más profundidad
 """
 Hola {primeiro_nome}
 
-Te escribí por Instagram, pero quería dejarte esto también por email.
+Te escribí por Instagram, pero quería ponerte esto delante también por aquí.
 
 {hook_corto_con_otras_palabras}
 
-{la_idea_del_dm_desarrollada: la misma idea, ahora con 1-2 frases de cómo ponerla en práctica. Sigue siendo un regalo, sin venta.}
+{la_idea_del_dm_desarrollada: la misma idea, ahora con 1-2 frases de cómo ejecutarla.}
 
-Es tuya para usarla. Tengo dos más específicas para ti. Dime y te las paso.
+Esa es la fácil. Las dos que de verdad quiero darte valen 15 min en una llamada, solo intercambiar ideas, sin pitch. ¿Cómo tienes esta semana?
 
 Un abrazo,
 {senderName}
 """
 
-### Day 7 — una SEGUNDA idea (no es insistir)
+### Day 7 — una SEGUNDA idea + la call
 Subject: específico, ej.: "otra idea para [tema]".
-Body: abre con "Lo dejo aquí con las ideas, pero esta es demasiado buena para no compartirla." Luego UNA nueva idea concreta y a medida (distinta de la del Day 1). 4-5 frases. Cierra cálido, sin presión: "Si alguna te sirve y quieres profundizar, solo dilo." "Un abrazo, {senderName}".
+Body: abre con "Una más, que esta es demasiado buena para guardármela." Luego UNA nueva idea concreta y a medida (distinta de la del Day 1). 4-5 frases. Cierra con seguridad, hacia la call: "Hay más de donde salió esa, y es una conversación rápida, no un pitch. ¿15 min esta semana?" "Un abrazo, {senderName}".
 
-### Day 14 — salida generosa
+### Day 14 — la salida con seguridad
 Subject: directo, sobre su trabajo.
-Body: "Última nota por mi parte." Una idea que vale la pena probar igualmente (1 frase). Luego: sin presión, puerta abierta, "ya sabes dónde encontrarme". 3-4 frases. Sin CTA, sin pregunta.
+Body: "Última por mi parte." Una idea que vale la pena probar igualmente (1 frase). Luego un cierre con seguridad, sin súplica: "Si el momento es bueno, la call vale bien tus 15 min. Si no, ya sabes dónde encontrarme." 3-4 frases.
 
 ${OUTPUT_FORMAT}`;
 
@@ -1153,27 +1155,27 @@ ${TEMPLATE_FRAMING[template]}
   // paragraph, then a concrete video offer. No custom video, no meeting ask, no
   // audit data. The generic video (sent on interest) does the selling.
   const SOFT_ASK = {
-    pt: 'É tua para usares. Se te forem úteis, tenho mais duas ideias específicas para ti.',
-    en: "Yours to run with. If they're useful, I've got two more that are specific to you.",
-    es: 'Es tuya para usarla. Si te sirven, tengo dos más específicas para ti.',
+    pt: 'As melhores duas prefiro dizer-tas ao vivo, valem uma conversa. 15 min, só a trocar ideias, sem pitch. Esta semana dá-te jeito?',
+    en: "The best two are worth saying out loud, not typing. 15 min, just trading ideas, no pitch. You around this week?",
+    es: 'Las dos mejores prefiero decírtelas en directo, valen una conversación. 15 min, solo intercambiar ideas, sin pitch. ¿Te viene bien esta semana?',
   };
   const volumeOverride = `
 
 ---
 
-## VALUE-DROP DM (reinforce this exact shape; overrides any other structure above)
+## CONFIDENT COLD DM (reinforce this exact shape; overrides any other structure above)
 
-A short, high-volume cold DM whose only job is to be USEFUL. Parts, in order:
+A short, high-status cold DM. We reach out to HELP them, never to ask a favour. Parts, in order:
 1. Greeting on its own line, then a blank line.
 2. Hook: ONE genuine, specific observation about a real piece of their content plus one honest reaction. Name the exact post / reel / video, never "vi o teu perfil" / "I saw your profile". No generic compliments.
-3. The idea (2 to 3 sentences): ONE concrete, genuinely useful, low-lift idea THIS creator could act on this week to turn more of their audience into revenue without making more content. It must be specific to their niche and to the hook. A gift, not a pitch: NO product names, NO invented numbers, NO description of what we sell, NO "we".
-4. Soft bridge. Use this exact line, in the creator's language:
+3. The idea (2 to 3 sentences): ONE concrete, genuinely useful move THIS creator could act on this week to turn more of their audience into revenue. Give it with certainty, like you already see exactly what you would do for them. Specific to their niche and to the hook. NO product names, NO invented numbers, NO description of what we sell, NO "we".
+4. Confident call invite. Use this exact line, in the creator's language:
    ${SOFT_ASK[language] || SOFT_ASK.pt}
 5. Sign-off: blank line, "Abraço," / "Cheers," / "Un abrazo," blank line, then {senderName}.
 
-NEVER use: a video offer, a meeting or call ask, "faz sentido?" / "does it make sense?" / "¿tiene sentido?", "leaving money on the table" or any algorithm-risk scare, an authority claim, colons (":"), em dashes or "—", invented context, or internal audit data. The idea IS the value and the credibility. Around 4 to 5 lines, under 800 chars.
+The call is the goal, framed as a peer idea-exchange, not a sales call. NEVER use: a video offer, "faz sentido?" / "does it make sense?", "leaving money on the table" or any algorithm scare, a résumé claim, a needy or apologetic line ("no pressure", "if you want", "sorry to bother", "sem stress"), colons (":"), em dashes or "—", invented context, or internal audit data. The idea proves you know their world; the confidence makes the call an obvious yes for them. Around 4 to 5 lines, under 800 chars.
 
-Follow-up emails mirror this: value-first and ask-free. Each one gives another real, specific idea and leaves the door open — never a video, never a call ask.`;
+Follow-up emails mirror this: confident, one more real idea each, always driving to the same 15-minute idea-exchange call. Never needy, never a video.`;
 
   const systemPrompt = layeredKnowledge + baseSystemPrompt + volumeOverride;
 

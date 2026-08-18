@@ -2412,20 +2412,20 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
             const isEn = creator?.primaryLanguage === 'en';
             const isEs = creator?.primaryLanguage === 'es';
             const followupT3 = isEn
-              ? `Hey ${firstName},\n\nProbably got buried, no stress. Did that idea land at all for you? Even a quick "not for me" helps.\n\nCheers,\nRaul`
+              ? `Hey ${firstName},\n\nProbably buried this, so here it is again. That idea is worth two minutes of your time, easily. Did it land?\n\nCheers,\nRaul`
               : isEs
-              ? `Hola ${firstName},\n\nSeguro que se perdió por ahí, sin problema. ¿Aquella idea te encajó algo? Aunque sea un "no es para mí" ya me ayuda.\n\nUn abrazo,\nRaul`
-              : `Olá ${firstName},\n\nDeve ter-se perdido no meio, sem stress. Aquela ideia fez-te algum sentido? Mesmo um "não é para mim" já ajuda.\n\nAbraço,\nRaul`;
+              ? `Hola ${firstName},\n\nSeguro que se enterró, así que aquí va otra vez. Esa idea vale bien dos minutos de tu tiempo. ¿Te encajó?\n\nUn abrazo,\nRaul`
+              : `Olá ${firstName},\n\nDeve ter ficado enterrado, por isso aqui vai outra vez. Aquela ideia vale bem dois minutos do teu tempo. Fez sentido?\n\nAbraço,\nRaul`;
             const followupT7 = isEn
-              ? `Hey ${firstName},\n\nHaven't heard back, all good. Had another idea for you this week. Want it? It's two lines.\n\nCheers,\nRaul`
+              ? `Hey ${firstName},\n\nHad another one for you this week, sharper than the first. The best moves I'd rather walk you through live. 15 min, no pitch. You free this week?\n\nCheers,\nRaul`
               : isEs
-              ? `Hola ${firstName},\n\nSin respuesta, todo bien. Se me ocurrió otra idea para tu caso esta semana. ¿La quieres? Son dos líneas.\n\nUn abrazo,\nRaul`
-              : `Olá ${firstName},\n\nSem resposta, tudo bem. Tive outra ideia para o teu caso esta semana. Queres? São duas linhas.\n\nAbraço,\nRaul`;
+              ? `Hola ${firstName},\n\nSe me ocurrió otra para ti esta semana, más afilada que la primera. Las mejores prefiero enseñártelas en directo. 15 min, sin pitch. ¿Tienes hueco esta semana?\n\nUn abrazo,\nRaul`
+              : `Olá ${firstName},\n\nTive outra para ti esta semana, mais afiada que a primeira. As melhores prefiro mostrar-tas ao vivo. 15 min, sem pitch. Tens tempo esta semana?\n\nAbraço,\nRaul`;
             const breakupT14 = isEn
-              ? `Hey ${firstName},\n\nLast one from me, I'll leave you be. If the timing ever changes, you know where I am.\n\nCheers,\nRaul`
+              ? `Hey ${firstName},\n\nLast one from me. If turning the audience you already have into real revenue is ever a priority, that call is worth your 15 minutes. You know where I am.\n\nCheers,\nRaul`
               : isEs
-              ? `Hola ${firstName},\n\nÚltima por mi parte, lo dejo aquí. Si algún día cambia el momento, ya sabes dónde encontrarme.\n\nUn abrazo,\nRaul`
-              : `Olá ${firstName},\n\nÚltima do meu lado, fico por aqui. Se um dia o timing mudar, sabes onde me encontrar.\n\nAbraço,\nRaul`;
+              ? `Hola ${firstName},\n\nÚltima por mi parte. Si convertir la audiencia que ya tienes en ingresos de verdad llega a ser prioridad, esa llamada vale tus 15 min. Ya sabes dónde encontrarme.\n\nUn abrazo,\nRaul`
+              : `Olá ${firstName},\n\nÚltima do meu lado. Se transformar a audiência que já tens em receita a sério for um dia prioridade, essa call vale os teus 15 min. Sabes onde me encontrar.\n\nAbraço,\nRaul`;
 
             return (
               <div>
