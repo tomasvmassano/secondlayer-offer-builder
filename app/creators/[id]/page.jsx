@@ -1125,6 +1125,24 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
     if (!creator) return;
     setDmLoading(true); setDmError(null);
     try {
+      // Ground the DM in real content. For the initial DM, if we have fewer
+      // than 3 recent Instagram posts on the record, pull the latest ones from
+      // Apify first so Block 1 can name a real, specific post instead of a
+      // generic opener. Non-fatal: if the scrape fails we generate anyway.
+      let profile = creator;
+      if (stage === 'initial' && (creator.platforms?.instagram?.recentPosts?.length || 0) < 3) {
+        try {
+          const rp = await fetch(`/api/creators/${creator.id}/refresh-posts`, { method: "POST" });
+          if (rp.ok) {
+            const rpData = await parseJsonSafe(rp);
+            if (Array.isArray(rpData.recentPosts) && rpData.recentPosts.length) {
+              const ig = { ...(creator.platforms?.instagram || {}), recentPosts: rpData.recentPosts };
+              profile = { ...creator, platforms: { ...(creator.platforms || {}), instagram: ig } };
+              patchCreator({ platforms: profile.platforms });
+            }
+          }
+        } catch { /* non-fatal — fall back to whatever content we already have */ }
+      }
       const r = await fetch("/api/dm-writer", {
         method: "POST", headers: { "Content-Type": "application/json" },
         // safeStringify scrubs unpaired UTF-16 surrogates from every
@@ -1157,7 +1175,7 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
             externalUrl: creator.externalUrl,
             reputation: creator.reputation,
             research: creator.research,
-            platforms: creator.platforms,
+            platforms: profile.platforms,
             primaryLanguage: creator.primaryLanguage,
             intelligence: creator.intelligence,
             audienceEstimate: creator.audienceEstimate,
