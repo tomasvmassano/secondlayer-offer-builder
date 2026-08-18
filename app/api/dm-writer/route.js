@@ -518,7 +518,7 @@ Aponta UMA oportunidade real e específica que vês no que ela faz, a partir do 
 **Block 3 — Autoridade + call (2-3 frases)**
 Uma linha de prova fixa, depois o convite claro para a call. Usa estas linhas exatas:
 
-    Contexto rápido para não ser só mais um DM. Ajudo criadores a transformar a audiência em receita a sério há 5 anos, mais de 50 só no último ano.
+    Contexto rápido para não ser só mais um DM. Faço isto há 5 anos, mais de 50 clientes no último ano a transformar audiências em receita a sério.
 
     Vale uma call rápida para te mostrar o que faria? 15 min, sem pitch, só as ideias. Diz-me um dia que te dê jeito e eu mando uma hora.
 
@@ -602,7 +602,7 @@ Point at ONE real, specific gap or opportunity you see in what they do, based on
 **Block 3 — Authority + call (2-3 sentences)**
 One fixed proof line, then the clear call invite. Use these exact lines:
 
-    Quick context so I'm not just a random DM. I've spent 5 years helping creators turn their audience into real revenue, 50+ last year alone.
+    Quick context so I'm not just a random DM. I've done this for 5 years, 50+ clients last year turning audiences into real revenue.
 
     Worth a quick call to walk you through it? 15 min, no pitch, just the ideas. Tell me a day that works and I'll send a time.
 
@@ -686,7 +686,7 @@ Señala UNA oportunidad real y específica que ves en lo que hace, a partir del 
 **Block 3 — Autoridad + call (2-3 frases)**
 Una línea de prueba fija, luego la invitación clara a la call. Usa estas líneas exactas:
 
-    Contexto rápido para no ser solo otro DM. Llevo 5 años ayudando a creadores a convertir su audiencia en ingresos de verdad, más de 50 solo el último año.
+    Contexto rápido para no ser solo otro DM. Llevo 5 años en esto, más de 50 clientes el último año convirtiendo audiencias en ingresos de verdad.
 
     ¿Vale una llamada rápida para enseñarte lo que haría? 15 min, sin pitch, solo las ideas. Dime un día que te venga bien y te mando una hora.
 
@@ -1165,9 +1165,9 @@ ${TEMPLATE_FRAMING[template]}
   // from the deck (5 years, 50+ clients last year). Deliberately no ad-spend
   // figure (it mis-signals "paid-ads agency" to a creator).
   const AUTHORITY = {
-    pt: 'Contexto rápido para não ser só mais um DM. Ajudo criadores a transformar a audiência em receita a sério há 5 anos, mais de 50 só no último ano.',
-    en: "Quick context so I'm not just a random DM. I've spent 5 years helping creators turn their audience into real revenue, 50+ last year alone.",
-    es: 'Contexto rápido para no ser solo otro DM. Llevo 5 años ayudando a creadores a convertir su audiencia en ingresos de verdad, más de 50 solo el último año.',
+    pt: 'Contexto rápido para não ser só mais um DM. Faço isto há 5 anos, mais de 50 clientes no último ano a transformar audiências em receita a sério.',
+    en: "Quick context so I'm not just a random DM. I've done this for 5 years, 50+ clients last year turning audiences into real revenue.",
+    es: 'Contexto rápido para no ser solo otro DM. Llevo 5 años en esto, más de 50 clientes el último año convirtiendo audiencias en ingresos de verdad.',
   };
   // The meeting CTA — clear, low-pressure, asks for the call directly.
   const SOFT_ASK = {
