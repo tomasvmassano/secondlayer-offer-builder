@@ -980,6 +980,7 @@ export async function getRecentActivity({ limit = 8 } = {}) {
     const o = c.outreach || {};
     if (postReset(c.addedBy?.at)) events.push({ at: c.addedBy.at, type: 'added', firstName: c.addedBy.firstName, creator: c.name, creatorId: c.id });
     if (postReset(o.dmSentAt)) events.push({ at: o.dmSentAt, type: 'dm_sent', firstName: (o.dmSentBy || c.addedBy)?.firstName, creator: c.name, creatorId: c.id });
+    if (postReset(o.emailSentAt)) events.push({ at: o.emailSentAt, type: 'email_sent', firstName: (o.emailSentBy || c.addedBy)?.firstName, creator: c.name, creatorId: c.id });
     // Follow-ups — one event per follow-up from the channel-tagged array
     // (new shape), with the legacy single-timestamp fallback for records
     // that predate the array. Attributed to whoever did the follow-up.
