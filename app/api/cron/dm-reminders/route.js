@@ -438,9 +438,9 @@ function pickFollowers(c) {
 const DM_TEMPLATES = {
   pt: {
     // No-reply cadence (dia 3 / 7 / 14) — value-first, never a video.
-    softNudge:  `Olá {creator},\n\nNão quero ser persistente. Voltei a pensar no que te enviei e queria saber se fez algum sentido para o teu caso. Mesmo que não seja o momento certo, qualquer feedback ajuda.\n\nAbraço,\n{sender}`,
-    valueDrop:  `Olá {creator},\n\nA acompanhar. Fiquei a pensar no teu caso e ocorreu-me uma ideia concreta que podias testar já. Se quiseres, partilho-ta aqui, é tua para usares.\n\nAbraço,\n{sender}`,
-    lastTouch:  `Olá {creator},\n\nÚltimo toque do meu lado. Não vou voltar a mandar mensagem. Se um dia mudar de ideias, a porta fica aberta.\n\nAbraço,\n{sender}`,
+    softNudge:  `Olá {creator},\n\nDeve ter-se perdido no meio, sem stress. Aquela ideia fez-te algum sentido? Mesmo um "não é para mim" já ajuda.\n\nAbraço,\n{sender}`,
+    valueDrop:  `Olá {creator},\n\nSem resposta, tudo bem. Tive outra ideia para o teu caso esta semana. Queres? São duas linhas.\n\nAbraço,\n{sender}`,
+    lastTouch:  `Olá {creator},\n\nÚltima do meu lado, fico por aqui. Se um dia o timing mudar, sabes onde me encontrar.\n\nAbraço,\n{sender}`,
     // Post-reply — drop a tailored idea (giveValue), then invite the call (bookNudge).
     giveValue:  `Olá {creator},\n\nFiquei a pensar no que me disseste e tenho uma ideia específica para o teu caso. Queres que ta mande aqui?\n\nAbraço,\n{sender}`,
     bookNudge:  `Olá {creator},\n\nSe fizer sentido, o passo mais fácil é trocarmos duas ideias numa call rápida de 15 min. Sem venda, só para perceber melhor o teu caso e partilhar o resto. Queres que te passe uns horários?\n\nAbraço,\n{sender}`,
@@ -449,17 +449,17 @@ const DM_TEMPLATES = {
     voiceNote: `Olá {creator}, fala o {sender} da Second Layer, vou ser rápido. Já te tinha escrito há umas semanas mas sei que a caixa de entrada enche, por isso preferi gravar em vez de escrever. Nós ajudamos criadores como tu a transformar a audiência que já têm numa receita recorrente e mais previsível, com uma comunidade à volta do que já fazes, sem depender de marcas nem do algoritmo. Não sei se é o teu momento, mas se tiveres um bocadinho de curiosidade respondo-te aqui a qualquer pergunta, ou explico-te aqui mesmo como funciona. Diz-me só se queres. Um abraço.`,
   },
   en: {
-    softNudge:  `Hey {creator},\n\nNot trying to be pushy. Just thinking about what I sent the other day and wondering if it landed for your case. Even a quick "not now" helps.\n\nCheers,\n{sender}`,
-    valueDrop:  `Hey {creator},\n\nFollowing up. I kept thinking about your case and a concrete idea came to mind that you could test right away. Happy to share it here, yours to run with.\n\nCheers,\n{sender}`,
-    lastTouch:  `Hey {creator},\n\nLast message from my side. I won't reach out again. If anything changes down the line, the door stays open.\n\nCheers,\n{sender}`,
+    softNudge:  `Hey {creator},\n\nProbably got buried, no stress. Did that idea land at all for you? Even a quick "not for me" helps.\n\nCheers,\n{sender}`,
+    valueDrop:  `Hey {creator},\n\nHaven't heard back, all good. Had another idea for you this week. Want it? It's two lines.\n\nCheers,\n{sender}`,
+    lastTouch:  `Hey {creator},\n\nLast one from me, I'll leave you be. If the timing ever changes, you know where I am.\n\nCheers,\n{sender}`,
     giveValue:  `Hey {creator},\n\nBeen thinking about what you said and I've got a specific idea for your case. Want me to send it over?\n\nCheers,\n{sender}`,
     bookNudge:  `Hey {creator},\n\nIf it makes sense, the easiest next step is to trade a few ideas on a quick 15-min call. No pitch, just so I understand your case better and share the rest. Want me to send a few times?\n\nCheers,\n{sender}`,
     voiceNote: `Hey {creator}, it's {sender} from Second Layer, I'll keep this quick. I messaged you a few weeks back but I know the inbox gets buried, so I figured I'd just record this instead of writing. We help creators like you turn the audience you already have into recurring, more predictable revenue, by building a community around what you already do, without relying on brand deals or the algorithm. I don't know if the timing's right for you, but if you're even a bit curious I'm happy to answer anything here, or walk you through how it works right here. Just let me know. Cheers.`,
   },
   es: {
-    softNudge:  `Hola {creator},\n\nNo quiero ser pesado. Volví a pensar en lo que te escribí y quería saber si tuvo sentido para tu caso. Aunque no sea el momento, cualquier feedback ayuda.\n\nUn abrazo,\n{sender}`,
-    valueDrop:  `Hola {creator},\n\nAtento. Estuve pensando en tu caso y se me ocurrió una idea concreta que podrías probar ya. Si quieres, te la paso por aquí, es tuya para usarla.\n\nUn abrazo,\n{sender}`,
-    lastTouch:  `Hola {creator},\n\nÚltimo mensaje de mi lado. No te volveré a escribir. Si algún día cambia, la puerta queda abierta.\n\nUn abrazo,\n{sender}`,
+    softNudge:  `Hola {creator},\n\nSeguro que se perdió por ahí, sin problema. ¿Aquella idea te encajó algo? Aunque sea un "no es para mí" ya me ayuda.\n\nUn abrazo,\n{sender}`,
+    valueDrop:  `Hola {creator},\n\nSin respuesta, todo bien. Se me ocurrió otra idea para tu caso esta semana. ¿La quieres? Son dos líneas.\n\nUn abrazo,\n{sender}`,
+    lastTouch:  `Hola {creator},\n\nÚltima por mi parte, lo dejo aquí. Si algún día cambia el momento, ya sabes dónde encontrarme.\n\nUn abrazo,\n{sender}`,
     giveValue:  `Hola {creator},\n\nEstuve pensando en lo que me dijiste y tengo una idea específica para tu caso. ¿Quieres que te la mande?\n\nUn abrazo,\n{sender}`,
     bookNudge:  `Hola {creator},\n\nSi te encaja, el paso más fácil es intercambiar un par de ideas en una llamada rápida de 15 min. Sin venta, solo para entender mejor tu caso y compartirte el resto. ¿Te paso algunos horarios?\n\nUn abrazo,\n{sender}`,
     voiceNote: `Hola {creator}, soy {sender} de Second Layer, voy a ser rápido. Ya te había escrito hace unas semanas pero sé que la bandeja de entrada se llena, así que preferí grabarte esto en vez de escribir. Ayudamos a creadores como tú a convertir la audiencia que ya tienes en ingresos recurrentes y más previsibles, con una comunidad alrededor de lo que ya haces, sin depender de marcas ni del algoritmo. No sé si es tu momento, pero si tienes algo de curiosidad te respondo aquí a lo que quieras, o te explico aquí mismo cómo funciona. Dime y ya está. Un abrazo.`,

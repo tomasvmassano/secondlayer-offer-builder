@@ -2411,16 +2411,21 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
             // short, conversational, no em dashes, signed off with "Raul".
             const isEn = creator?.primaryLanguage === 'en';
             const isEs = creator?.primaryLanguage === 'es';
+            const followupT3 = isEn
+              ? `Hey ${firstName},\n\nProbably got buried, no stress. Did that idea land at all for you? Even a quick "not for me" helps.\n\nCheers,\nRaul`
+              : isEs
+              ? `Hola ${firstName},\n\nSeguro que se perdió por ahí, sin problema. ¿Aquella idea te encajó algo? Aunque sea un "no es para mí" ya me ayuda.\n\nUn abrazo,\nRaul`
+              : `Olá ${firstName},\n\nDeve ter-se perdido no meio, sem stress. Aquela ideia fez-te algum sentido? Mesmo um "não é para mim" já ajuda.\n\nAbraço,\nRaul`;
             const followupT7 = isEn
-              ? `Hey ${firstName},\n\nNoticed I haven't heard back. I actually jotted down one concrete idea for your case that you could run with either way. Want me to send it over?\n\nCheers,\nRaul`
+              ? `Hey ${firstName},\n\nHaven't heard back, all good. Had another idea for you this week. Want it? It's two lines.\n\nCheers,\nRaul`
               : isEs
-              ? `Hola ${firstName},\n\nVi que aún no hemos hablado. La verdad es que se me ocurrió una idea concreta para tu caso que podrías usar igualmente. ¿Quieres que te la mande?\n\nUn abrazo,\nRaul`
-              : `Olá ${firstName},\n\nVi que ainda não falámos. Na verdade ocorreu-me uma ideia concreta para o teu caso que podias usar de qualquer forma. Queres que ta mande?\n\nAbraço,\nRaul`;
+              ? `Hola ${firstName},\n\nSin respuesta, todo bien. Se me ocurrió otra idea para tu caso esta semana. ¿La quieres? Son dos líneas.\n\nUn abrazo,\nRaul`
+              : `Olá ${firstName},\n\nSem resposta, tudo bem. Tive outra ideia para o teu caso esta semana. Queres? São duas linhas.\n\nAbraço,\nRaul`;
             const breakupT14 = isEn
-              ? `Hey ${firstName},\n\nI'll assume now isn't the moment. Closing the loop on my end.\n\nIf that changes, the door stays open.\n\nCheers,\nRaul`
+              ? `Hey ${firstName},\n\nLast one from me, I'll leave you be. If the timing ever changes, you know where I am.\n\nCheers,\nRaul`
               : isEs
-              ? `Hola ${firstName},\n\nAsumo que ahora no es el momento. Cierro el bucle por mi lado.\n\nSi algún día cambia, la puerta queda abierta.\n\nUn abrazo,\nRaul`
-              : `Olá ${firstName},\n\nAssumo que agora não é altura. Fecho o loop do meu lado.\n\nSe um dia mudar, a porta fica aberta.\n\nAbraço,\nRaul`;
+              ? `Hola ${firstName},\n\nÚltima por mi parte, lo dejo aquí. Si algún día cambia el momento, ya sabes dónde encontrarme.\n\nUn abrazo,\nRaul`
+              : `Olá ${firstName},\n\nÚltima do meu lado, fico por aqui. Se um dia o timing mudar, sabes onde me encontrar.\n\nAbraço,\nRaul`;
 
             return (
               <div>
@@ -2615,8 +2620,9 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
                 {/* Follow-ups */}
                 <p style={{ ...sectionTitleStyle, marginTop: 24 }}>Follow-ups</p>
 
+                <MessageCard label="T+3 — Primeira DM" type="dm" content={followupT3} />
                 {seq.comment_t3 && (
-                  <MessageCard label="T+3 — Comentário no Post" type="comentário" content={seq.comment_t3} />
+                  <MessageCard label="T+3 — Comentário no Post (opcional)" type="comentário" content={seq.comment_t3} />
                 )}
                 <MessageCard label="T+7 — Segunda DM" type="dm" content={followupT7} />
                 <MessageCard label="T+14 — Breakup" type="dm" content={breakupT14} />
