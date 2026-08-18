@@ -69,7 +69,7 @@ function renderPrompt(promptText, vars) {
 // Rules shared by both languages. Lean.
 const SHARED_RULES = `## ABSOLUTE RULES
 
-ZERO em dashes ("—"), en dashes ("–"), or " - " as punctuation. ZERO hyphens in compound modifiers ("high-ticket" → "high ticket", "free-prompts" → "free prompts"). Number ranges use "to" or "a": "3 to 4 minutes" / "3 a 4 minutos" — NOT "3-4". Word-internal hyphens in proper compound words like "ebook", "TikTok" are fine.
+ZERO em dashes ("—"), en dashes ("–"), or " - " as punctuation. ZERO colons (":") anywhere in the DM, the comment, or the emails. A colon always reads as a setup for a pitch, so split it into two sentences instead. ZERO hyphens in compound modifiers ("high-ticket" becomes "high ticket", "free-prompts" becomes "free prompts"). Number ranges use "to" or "a", so "3 to 4 minutes" / "3 a 4 minutos", never "3-4". Word-internal hyphens in proper compound words like "ebook", "TikTok" are fine.
 
 Template text is FIXED except for variables. Do NOT paraphrase template sentences.
 One blank line between blocks. No emojis in emails or comments (DM allows max 1 emoji in the reacao_pessoal variable if natural). No links. Never mention "Second Layer".
@@ -504,14 +504,14 @@ One SPECIFIC piece of their content + one honest, human reaction.
 
 **Block 2 — A ideia (o presente) (2-3 sentences)**
 Give ONE concrete, genuinely useful idea this creator could act on this week to turn more of their audience into revenue WITHOUT making more content. This is a gift, not a pitch.
-- Open plainly: "Uma coisa que costuma funcionar mesmo bem com criadores como tu:" then the idea.
-- It MUST be specific to their niche and to what you named in Block 1. Adapta: um criador de receitas não é um coach de fitness nem um criador de finanças.
-- Calibration patterns (adapt, never copy):
-  · receitas/comida: "as receitas que mais guardam são uma lista de espera: junta as 5 mais guardadas num pequeno drop pago e vês logo quem paga."
-  · fitness: "as pessoas que te pedem o plano nos comentários já são a lista de espera de um programa simples de 4 semanas."
-  · finanças/educação: "as dúvidas que se repetem nos DMs são, na prática, o índice de um workshop pago."
+- Lead into the idea as one flowing sentence. Model this shape, "Uma coisa que costuma resultar mesmo bem com criadores como tu é [a ideia]", and never use a colon.
+- It MUST be specific to their niche and to what you named in Block 1. Adapta ao criador. Um criador de receitas não é um coach de fitness nem um criador de finanças.
+- Calibration patterns to adapt, never copy.
+  · receitas ou comida. "as receitas que as pessoas mais guardam já são uma lista de espera, e juntar as cinco mais guardadas num pequeno drop pago mostra logo quem está disposto a pagar."
+  · fitness. "as pessoas que te pedem o plano nos comentários já são a lista de espera de um programa simples de quatro semanas."
+  · finanças ou educação. "as dúvidas que se repetem nos DMs são, na prática, o índice de um workshop pago."
 - Low-lift, realista, algo que um bom operador sugeriria a um amigo. NO product names, NO invented numbers, NO "nós", NO description of what we sell.
-- NEVER "estás a perder dinheiro" nem medo do algoritmo. Neutro e generoso: aqui vai uma jogada que costuma resultar.
+- NEVER "estás a perder dinheiro" nem medo do algoritmo. Fica neutro e generoso, uma jogada que costuma resultar.
 
 **Block 3 — Soft bridge (1 line)**
 Offer more, ask for nothing. This shape:
@@ -586,14 +586,14 @@ One SPECIFIC piece of their content + one honest, human reaction.
 
 **Block 2 — The idea (the gift) (2-3 sentences)**
 Give ONE concrete, genuinely useful idea they could act on this week to turn more of their audience into revenue WITHOUT making more content. A gift, not a pitch.
-- Open plainly: "One thing that tends to work really well for creators like you:" then the idea.
-- MUST be specific to their niche and to Block 1. Adapt: a recipe creator is not a fitness coach or a finance creator.
-- Calibration patterns (adapt, never copy):
-  · recipes/food: "your most-saved recipes are a waitlist: bundle the top 5 into a small paid drop and you'll see who pays."
-  · fitness: "the people asking for your plan in the comments are already the waitlist for a simple 4-week program."
-  · finance/education: "the questions that keep repeating in your DMs are the table of contents for a paid workshop."
+- Lead into the idea as one flowing sentence. Model this shape, "One thing that tends to work really well for creators like you is [the idea]", and never use a colon.
+- MUST be specific to their niche and to Block 1. Adapt to the creator. A recipe creator is not a fitness coach or a finance creator.
+- Calibration patterns to adapt, never copy.
+  · recipes or food. "your most saved recipes are already a waitlist, and bundling the top five into a small paid drop shows you fast who is willing to pay."
+  · fitness. "the people asking for your plan in the comments are already the waitlist for a simple four week program."
+  · finance or education. "the questions that keep repeating in your DMs are, in practice, the table of contents for a paid workshop."
 - Low-lift, realistic, what a good operator would tell a friend. NO product names, NO invented numbers, NO "we", NO describing what we sell.
-- NEVER "leaving money on the table" or an algorithm scare. Neutral and generous: here's a move that tends to work.
+- NEVER "leaving money on the table" or an algorithm scare. Stay neutral and generous, a move that tends to work.
 
 **Block 3 — Soft bridge (1 line)**
 Offer more, ask for nothing. This shape:
@@ -668,14 +668,14 @@ One SPECIFIC piece of their content + one honest, human reaction.
 
 **Block 2 — La idea (el regalo) (2-3 sentences)**
 Give ONE concrete, genuinely useful idea they could act on this week to turn more of their audience into revenue WITHOUT making more content. Un regalo, no un pitch.
-- Open plainly: "Una cosa que suele funcionar muy bien con creadores como tú:" then the idea.
-- MUST be specific to their niche and to Block 1. Adapta: un creador de recetas no es un coach de fitness ni un creador de finanzas.
-- Calibration patterns (adapt, never copy):
-  · recetas/comida: "tus recetas más guardadas son una lista de espera: junta las 5 más guardadas en un pequeño pack de pago y verás quién paga."
-  · fitness: "la gente que te pide el plan en los comentarios ya es la lista de espera de un programa simple de 4 semanas."
-  · finanzas/educación: "las dudas que se repiten en tus DMs son el índice de un taller de pago."
+- Lead into the idea as one flowing sentence. Model this shape, "Una cosa que suele funcionar muy bien con creadores como tú es [la idea]", and never use a colon.
+- MUST be specific to their niche and to Block 1. Adapta al creador. Un creador de recetas no es un coach de fitness ni un creador de finanzas.
+- Calibration patterns to adapt, never copy.
+  · recetas o comida. "tus recetas más guardadas ya son una lista de espera, y juntar las cinco más guardadas en un pequeño pack de pago te muestra rápido quién está dispuesto a pagar."
+  · fitness. "la gente que te pide el plan en los comentarios ya es la lista de espera de un programa simple de cuatro semanas."
+  · finanzas o educación. "las dudas que se repiten en tus DMs son, en la práctica, el índice de un taller de pago."
 - Low-lift, realista, lo que un buen operador le diría a un amigo. NO product names, NO invented numbers, NO "nosotros", NO describir lo que vendemos.
-- NEVER "estás dejando dinero sobre la mesa" ni un miedo al algoritmo. Neutro y generoso: aquí va una jugada que suele funcionar.
+- NEVER "estás dejando dinero sobre la mesa" ni un miedo al algoritmo. Quédate neutro y generoso, una jugada que suele funcionar.
 
 **Block 3 — Soft bridge (1 line)**
 Offer more, ask for nothing. This shape:
@@ -1171,7 +1171,7 @@ A short, high-volume cold DM whose only job is to be USEFUL. Parts, in order:
    ${SOFT_ASK[language] || SOFT_ASK.pt}
 5. Sign-off: blank line, "Abraço," / "Cheers," / "Un abrazo," blank line, then {senderName}.
 
-NEVER use: a video offer, a meeting or call ask, "faz sentido?" / "does it make sense?" / "¿tiene sentido?", "leaving money on the table" or any algorithm-risk scare, an authority claim, em dashes or "—", invented context, or internal audit data. The idea IS the value and the credibility. Around 4 to 5 lines, under 800 chars.
+NEVER use: a video offer, a meeting or call ask, "faz sentido?" / "does it make sense?" / "¿tiene sentido?", "leaving money on the table" or any algorithm-risk scare, an authority claim, colons (":"), em dashes or "—", invented context, or internal audit data. The idea IS the value and the credibility. Around 4 to 5 lines, under 800 chars.
 
 Follow-up emails mirror this: value-first and ask-free. Each one gives another real, specific idea and leaves the door open — never a video, never a call ask.`;
 
