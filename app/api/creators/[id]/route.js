@@ -60,7 +60,12 @@ function stampOutreachActor(outreach, user) {
     // Clearing the reply also clears its channel attribution.
     stamped.repliedChannel = null;
   }
-  if (outreach.callAgreedAt === null) stamped.callAgreedBy = null;
+  if (outreach.callAgreedAt === null) {
+    stamped.callAgreedBy = null;
+    // Booking cleared (unmark or drag-back) → drop the meeting source too.
+    stamped.bookedVia = null;
+    stamped.bookedViaOther = null;
+  }
   if (outreach.callHeldAt === null) stamped.callHeldBy = null;
   return stamped;
 }

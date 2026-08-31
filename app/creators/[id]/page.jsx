@@ -77,6 +77,18 @@ const LAUNCH_PHASES = [
   ]},
 ];
 
+// Meeting booking sources (outreach.bookedVia). Powers the "Call agendada"
+// source picker + the "reuniões / negócios por origem" dashboard cut.
+const MEETING_SOURCES = [
+  ['dm', 'DM'], ['email', 'Email'], ['cold_call', 'Cold Call'],
+  ['referral', 'Referral'], ['ads', 'Ads'], ['other', 'Outro'],
+];
+const meetingSourceLabel = (via, other) => {
+  if (!via) return null;
+  if (via === 'other') return (other && other.trim()) || 'Outro';
+  return (MEETING_SOURCES.find(s => s[0] === via) || [null, via])[1];
+};
+
 function formatFollowers(n) {
   if (!n) return "0";
   if (n >= 1000000) return (n / 1000000).toFixed(1).replace(/\.0$/, "") + "M";
@@ -1200,10 +1212,35 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
     if (field === 'repliedEmail') { patch.repliedAt = now; patch.repliedChannel = 'email'; }
     if (field === 'unreplied')    { patch.repliedAt = null; patch.repliedChannel = null; }
     if (field === 'callAgreed')   patch.callAgreedAt = now;
-    if (field === 'uncallAgreed') patch.callAgreedAt = null;
+    if (field === 'uncallAgreed') { patch.callAgreedAt = null; patch.bookedVia = null; patch.bookedViaOther = null; }
     if (field === 'callHeld')     patch.callHeldAt = now;
     if (field === 'uncallHeld')   patch.callHeldAt = null;
     await patchCreator({ outreach: patch });
+  }, [creator, patchCreator]);
+
+  // Meeting booked — capture the SOURCE (bookedVia) so the dashboard can slice
+  // "reuniões / negócios por origem". Numbered prompt, same UX as markCold.
+  const bookMeeting = useCallback(async () => {
+    const cur = creator?.outreach || {};
+    const suggested = cur.repliedChannel === 'dm' ? 1 : cur.repliedChannel === 'email' ? 2 : null;
+    const msg = 'Origem da reunião?\n\n'
+      + MEETING_SOURCES.map((s, i) => `${i + 1}. ${s[1]}`).join('\n')
+      + (suggested ? `\n\n(sugerido: ${suggested})` : '')
+      + '\n\nEscreve 1-6:';
+    const raw = window.prompt(msg, suggested ? String(suggested) : '');
+    if (!raw) return;
+    const idx = Number(String(raw).trim()) - 1;
+    if (!Number.isInteger(idx) || idx < 0 || idx >= MEETING_SOURCES.length) {
+      window.alert('Opção inválida.');
+      return;
+    }
+    const bookedVia = MEETING_SOURCES[idx][0];
+    let bookedViaOther = null;
+    if (bookedVia === 'other') {
+      bookedViaOther = (window.prompt('Qual a origem?', '') || '').trim() || null;
+    }
+    const now = new Date().toISOString();
+    await patchCreator({ outreach: { ...cur, callAgreedAt: now, bookedVia, bookedViaOther } });
   }, [creator, patchCreator]);
 
   // Mark creator cold + capture the loss reason so the dashboard can show
@@ -2524,11 +2561,11 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
                           actually happened. Show as separate chips so they can
                           flip independently (e.g. cancelled calls). */}
                       {out.callAgreedAt ? (
-                        <button onClick={() => markOutreach('uncallAgreed')} title={`Call agendada ${fmtRelative(out.callAgreedAt)} · Clica para desmarcar`} style={{ padding: "4px 10px", borderRadius: 4, fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", border: "1px solid color-mix(in srgb, var(--sl-info) 30%, transparent)", background: "color-mix(in srgb, var(--sl-info) 8%, transparent)", color: "var(--sl-info)" }}>
-                          ✓ Call agendada
+                        <button onClick={() => markOutreach('uncallAgreed')} title={`Call agendada ${fmtRelative(out.callAgreedAt)}${meetingSourceLabel(out.bookedVia, out.bookedViaOther) ? ` · via ${meetingSourceLabel(out.bookedVia, out.bookedViaOther)}` : ''} · Clica para desmarcar`} style={{ padding: "4px 10px", borderRadius: 4, fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", border: "1px solid color-mix(in srgb, var(--sl-info) 30%, transparent)", background: "color-mix(in srgb, var(--sl-info) 8%, transparent)", color: "var(--sl-info)" }}>
+                          ✓ Call agendada{meetingSourceLabel(out.bookedVia, out.bookedViaOther) ? ` · via ${meetingSourceLabel(out.bookedVia, out.bookedViaOther)}` : ''}
                         </button>
                       ) : (
-                        <button onClick={() => markOutreach('callAgreed')} title="Marca quando o criador aceita uma call." style={{ padding: "4px 10px", borderRadius: 4, fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", border: "1px solid var(--sl-border)", background: "transparent", color: "var(--sl-text-muted)" }}>
+                        <button onClick={bookMeeting} title="Marca quando o criador aceita uma call. Vais escolher a origem (DM, Email, Cold Call, etc.)." style={{ padding: "4px 10px", borderRadius: 4, fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", border: "1px solid var(--sl-border)", background: "transparent", color: "var(--sl-text-muted)" }}>
                           ○ Call agendada
                         </button>
                       )}

@@ -510,6 +510,10 @@ export async function getTeamFunnel({ window = 'month', now = new Date(), from =
   const { startMs, endMs } = windowBounds(window, now, from, to);
   const all = await loadAllCreators();
   const f = { contactos: 0, conversas: 0, reunioesMarcadas: 0, reunioesRealizadas: 0, propostas: 0, negocios: 0 };
+  // Meetings + deals split by booking source (outreach.bookedVia). A meeting
+  // booked before this field existed has no source → 'sem_origem'.
+  const srcCounts = {}; // via -> { marcadas, negocios }
+  const bumpSrc = (via, key) => { const k = via || 'sem_origem'; (srcCounts[k] ||= { marcadas: 0, negocios: 0 })[key] += 1; };
   for (const c of all) {
     const o = c.outreach || {};
     const contactoAt = o.dmSentAt || o.emailSentAt || null;
@@ -517,14 +521,19 @@ export async function getTeamFunnel({ window = 'month', now = new Date(), from =
     const propostaAt = c.pitch?.sentAt || null;
     if (inWindow(contactoAt, startMs, endMs))       f.contactos += 1;
     if (inWindow(o.repliedAt, startMs, endMs))      f.conversas += 1;
-    if (inWindow(marcadaAt, startMs, endMs))        f.reunioesMarcadas += 1;
+    if (inWindow(marcadaAt, startMs, endMs))      { f.reunioesMarcadas += 1; bumpSrc(o.bookedVia, 'marcadas'); }
     if (inWindow(o.callHeldAt, startMs, endMs))     f.reunioesRealizadas += 1;
     if (inWindow(propostaAt, startMs, endMs))       f.propostas += 1;
-    if (c.pipelineStatus === 'signed' && inWindow(c.signedAt, startMs, endMs)) f.negocios += 1;
+    if (c.pipelineStatus === 'signed' && inWindow(c.signedAt, startMs, endMs)) { f.negocios += 1; bumpSrc(o.bookedVia, 'negocios'); }
   }
   const pct = (num, den) => den > 0 ? Math.round((num / den) * 100) : 0;
+  const SRC_ORDER = [['dm', 'DM'], ['email', 'Email'], ['cold_call', 'Cold Call'], ['referral', 'Referral'], ['ads', 'Ads'], ['other', 'Outro'], ['sem_origem', 'Sem origem']];
+  const sources = SRC_ORDER
+    .map(([key, label]) => ({ key, label, marcadas: srcCounts[key]?.marcadas || 0, negocios: srcCounts[key]?.negocios || 0 }))
+    .filter(s => s.marcadas > 0 || s.negocios > 0);
   return {
     ...f,
+    sources,
     rates: {
       contactoToConversa:  pct(f.conversas, f.contactos),
       conversaToMarcada:   pct(f.reunioesMarcadas, f.conversas),

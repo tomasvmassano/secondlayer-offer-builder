@@ -1450,6 +1450,35 @@ function TeamFunnel({ funnel, timing }) {
           </div>
         </div>
       </div>
+      {/* Reuniões marcadas por origem — where the meetings (and deals) came from */}
+      {Array.isArray(F.sources) && F.sources.length > 0 && (() => {
+        const maxMarcadas = Math.max(1, ...F.sources.map(s => s.marcadas));
+        return (
+          <div style={{ marginTop: 14, paddingTop: 12, borderTop: `1px solid ${BORDER}` }}>
+            <div style={{ fontSize: 12, fontWeight: 600, color: TEXT_LO, letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 10 }}>Reuniões marcadas por origem</div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              {F.sources.map(s => {
+                const closeRate = s.marcadas > 0 ? Math.round((s.negocios / s.marcadas) * 100) : 0;
+                const w = Math.round((s.marcadas / maxMarcadas) * 100);
+                return (
+                  <div key={s.key} style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                    <span style={{ fontSize: 12, color: TEXT_MID, width: 88, flexShrink: 0 }}>{s.label}</span>
+                    <div style={{ flex: 1, height: 24, borderRadius: 8, background: SURFACE_0, border: `1px solid ${BORDER}`, position: "relative", overflow: "hidden" }}>
+                      <div style={{ height: "100%", width: `${Math.max(6, w)}%`, background: `linear-gradient(90deg, color-mix(in srgb, var(--sl-primary) 22%, transparent), color-mix(in srgb, var(--sl-primary) 8%, transparent))`, borderRadius: 8 }} />
+                      <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", paddingLeft: 10 }}>
+                        <span style={{ ...monoNum, fontSize: 12, fontWeight: 700, color: TEXT_HI }}>{s.marcadas}</span>
+                      </div>
+                    </div>
+                    <span style={{ fontSize: 12, color: TEXT_DIM, width: 132, flexShrink: 0, textAlign: "right" }} title="Negócios fechados desta origem · taxa de fecho">
+                      {s.negocios} {s.negocios === 1 ? "negócio" : "negócios"} · {closeRate}%
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }
