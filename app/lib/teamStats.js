@@ -514,6 +514,7 @@ export async function getTeamFunnel({ window = 'month', now = new Date(), from =
   // booked before this field existed has no source → 'sem_origem'.
   const srcCounts = {}; // via -> { marcadas, negocios }
   const bumpSrc = (via, key) => { const k = via || 'sem_origem'; (srcCounts[k] ||= { marcadas: 0, negocios: 0 })[key] += 1; };
+  const cc = { dials: 0, connects: 0 }; // cold-call effort (the funnel denominator)
   for (const c of all) {
     const o = c.outreach || {};
     const contactoAt = o.dmSentAt || o.emailSentAt || null;
@@ -525,15 +526,37 @@ export async function getTeamFunnel({ window = 'month', now = new Date(), from =
     if (inWindow(o.callHeldAt, startMs, endMs))     f.reunioesRealizadas += 1;
     if (inWindow(propostaAt, startMs, endMs))       f.propostas += 1;
     if (c.pipelineStatus === 'signed' && inWindow(c.signedAt, startMs, endMs)) { f.negocios += 1; bumpSrc(o.bookedVia, 'negocios'); }
+    for (const dial of (Array.isArray(o.coldCalls) ? o.coldCalls : [])) {
+      if (!dial?.at || !inWindow(dial.at, startMs, endMs)) continue;
+      cc.dials += 1;
+      if (dial.connected) cc.connects += 1;
+    }
   }
   const pct = (num, den) => den > 0 ? Math.round((num / den) * 100) : 0;
   const SRC_ORDER = [['dm', 'DM'], ['email', 'Email'], ['cold_call', 'Cold Call'], ['referral', 'Referral'], ['ads', 'Ads'], ['other', 'Outro'], ['sem_origem', 'Sem origem']];
   const sources = SRC_ORDER
     .map(([key, label]) => ({ key, label, marcadas: srcCounts[key]?.marcadas || 0, negocios: srcCounts[key]?.negocios || 0 }))
     .filter(s => s.marcadas > 0 || s.negocios > 0);
+  const ccReunioes = srcCounts['cold_call']?.marcadas || 0;
+  const ccNegocios = srcCounts['cold_call']?.negocios || 0;
   return {
     ...f,
     sources,
+    // Cold-call funnel — dials → atendeu → reuniões → negócios. The dials are
+    // the effort denominator DM/email don't have; connectRate + dialToMarcada
+    // are what say whether cold call earns its labour.
+    coldCall: {
+      dials: cc.dials,
+      connects: cc.connects,
+      reunioes: ccReunioes,
+      negocios: ccNegocios,
+      rates: {
+        connectRate:      pct(cc.connects, cc.dials),
+        connectToMarcada: pct(ccReunioes, cc.connects),
+        dialToMarcada:    pct(ccReunioes, cc.dials),
+        marcadaToNegocio: pct(ccNegocios, ccReunioes),
+      },
+    },
     rates: {
       contactoToConversa:  pct(f.conversas, f.contactos),
       conversaToMarcada:   pct(f.reunioesMarcadas, f.conversas),

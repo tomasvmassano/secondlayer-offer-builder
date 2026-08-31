@@ -52,6 +52,15 @@ function stampOutreachActor(outreach, user) {
       return entry;
     });
   }
+  // Cold-call dials: same stamping — new entries come in as { at, connected }.
+  if (Array.isArray(outreach.coldCalls)) {
+    stamped.coldCalls = outreach.coldCalls.map(entry => {
+      if (entry && !entry.by && entry.at) {
+        return { ...entry, by: actorFromUser(user, entry.at) };
+      }
+      return entry;
+    });
+  }
   // Unmark cases — clear the *By when *At is null so the field stays consistent.
   if (outreach.dmSentAt === null) stamped.dmSentBy = null;
   if (outreach.emailSentAt === null) stamped.emailSentBy = null;

@@ -1479,6 +1479,27 @@ function TeamFunnel({ funnel, timing }) {
           </div>
         );
       })()}
+      {/* Cold-call funnel — dials → atendeu → reuniões → negócios. The dials are
+          the effort DM/email don't have, so this is how you judge cold call. */}
+      {F.coldCall && F.coldCall.dials > 0 && (
+        <div style={{ marginTop: 14, paddingTop: 12, borderTop: `1px solid ${BORDER}` }}>
+          <div style={{ fontSize: 12, fontWeight: 600, color: TEXT_LO, letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 10 }}>Cold call · funil</div>
+          <div style={{ display: "flex", gap: 22, flexWrap: "wrap" }}>
+            {[
+              ["Ligações", F.coldCall.dials, null],
+              ["Atenderam", F.coldCall.connects, `${F.coldCall.rates.connectRate}% atende`],
+              ["Reuniões", F.coldCall.reunioes, `${F.coldCall.rates.connectToMarcada}% das atendidas`],
+              ["Negócios", F.coldCall.negocios, `${F.coldCall.rates.marcadaToNegocio}% fecho`],
+            ].map(([label, value, sub]) => (
+              <div key={label}>
+                <div style={{ fontSize: 12, color: TEXT_LO, marginBottom: 2 }}>{label}</div>
+                <div style={{ ...monoNum, fontSize: 20, fontWeight: 700, color: TEXT_HI }}>{value}</div>
+                {sub && <div style={{ fontSize: 12, color: TEXT_DIM, marginTop: 2 }}>{sub}</div>}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

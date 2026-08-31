@@ -577,6 +577,52 @@ const EditableContactEmail = ({ creator, patchCreator }) => {
   );
 };
 
+// Cold-call phone number. Same edit/empty/view pattern as EditableContactEmail,
+// minus the Gmail machinery — view mode is a tel: link + copy.
+const EditableContactPhone = ({ creator, patchCreator }) => {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(creator?.contactPhone || '');
+  const [saving, setSaving] = useState(false);
+  const inputRef = useRef(null);
+  useEffect(() => { setDraft(creator?.contactPhone || ''); setEditing(false); }, [creator?.id, creator?.contactPhone]);
+  useEffect(() => { if (editing && inputRef.current) inputRef.current.focus(); }, [editing]);
+  const save = async () => {
+    const next = String(draft || '').trim();
+    if (next === (creator?.contactPhone || '')) { setEditing(false); return; }
+    setSaving(true);
+    try { await patchCreator({ contactPhone: next || null }); }
+    finally { setSaving(false); setEditing(false); }
+  };
+  if (!creator?.contactPhone && !editing) {
+    return (
+      <button onClick={() => setEditing(true)} style={{ marginTop: 8, padding: "6px 10px", background: "color-mix(in srgb, var(--sl-text) 2%, transparent)", border: "1px dashed color-mix(in srgb, var(--sl-text) 10%, transparent)", borderRadius: 6, color: "var(--sl-text-faint)", fontSize: 12, cursor: "pointer", fontFamily: "inherit", width: "100%", textAlign: "left" }}>
+        + Adicionar telefone (cold call)
+      </button>
+    );
+  }
+  if (editing) {
+    return (
+      <div style={{ marginTop: 8, display: "flex", alignItems: "center", gap: 8, padding: "6px 10px", background: "color-mix(in srgb, var(--sl-info) 6%, transparent)", border: "1px solid color-mix(in srgb, var(--sl-info) 30%, transparent)", borderRadius: 6 }}>
+        <span style={{ fontSize: 12, fontWeight: 700, color: "var(--sl-info)", letterSpacing: "0.10em", textTransform: "uppercase" }}>Telefone</span>
+        <input ref={inputRef} type="tel" value={draft} onChange={e => setDraft(e.target.value)}
+          onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); save(); } if (e.key === 'Escape') { setDraft(creator?.contactPhone || ''); setEditing(false); } }}
+          placeholder="+351 912 345 678" autoComplete="off"
+          style={{ flex: 1, fontSize: 12, padding: "4px 6px", border: "1px solid color-mix(in srgb, var(--sl-info) 30%, transparent)", background: "rgba(0,0,0,0.3)", color: "var(--sl-text)", borderRadius: 4, fontFamily: "'JetBrains Mono', ui-monospace, monospace", outline: "none" }} />
+        <button onClick={save} disabled={saving} style={{ padding: "2px 10px", borderRadius: 4, border: "1px solid color-mix(in srgb, var(--sl-info) 45%, transparent)", background: saving ? "transparent" : "color-mix(in srgb, var(--sl-info) 15%, transparent)", color: "var(--sl-info)", fontSize: 12, fontWeight: 700, cursor: saving ? "wait" : "pointer", fontFamily: "inherit" }}>{saving ? "..." : "Guardar"}</button>
+        <button onClick={() => { setDraft(creator?.contactPhone || ''); setEditing(false); }} style={{ padding: "2px 8px", borderRadius: 4, border: "1px solid var(--sl-border-strong)", background: "transparent", color: "var(--sl-text-muted)", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>Cancelar</button>
+      </div>
+    );
+  }
+  return (
+    <div style={{ marginTop: 8, display: "flex", alignItems: "center", gap: 8, padding: "6px 10px", background: "color-mix(in srgb, var(--sl-info) 6%, transparent)", border: "1px solid color-mix(in srgb, var(--sl-info) 20%, transparent)", borderRadius: 6 }}>
+      <span style={{ fontSize: 12, fontWeight: 700, color: "var(--sl-info)", letterSpacing: "0.10em", textTransform: "uppercase" }}>Telefone</span>
+      <a href={`tel:${creator.contactPhone}`} style={{ fontSize: 12, color: "var(--sl-info)", textDecoration: "none", fontFamily: "'JetBrains Mono', ui-monospace, monospace" }}>{creator.contactPhone}</a>
+      <button onClick={() => navigator.clipboard.writeText(creator.contactPhone)} title="Copiar" style={{ marginLeft: "auto", padding: "2px 8px", borderRadius: 4, border: "1px solid color-mix(in srgb, var(--sl-info) 25%, transparent)", background: "transparent", color: "var(--sl-info)", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>Copy</button>
+      <button onClick={() => setEditing(true)} title="Editar telefone" style={{ padding: "2px 8px", borderRadius: 4, border: "1px solid var(--sl-border-strong)", background: "transparent", color: "var(--sl-text-muted)", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>✏ Edit</button>
+    </div>
+  );
+};
+
 // Small action button rendered BETWEEN CP panels in the wizard area.
 // Click → opens the RegenCascadeModal targeting the appropriate CP.
 // Visually subdued so the operator's eye goes to the panel content
@@ -1241,6 +1287,20 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
     }
     const now = new Date().toISOString();
     await patchCreator({ outreach: { ...cur, callAgreedAt: now, bookedVia, bookedViaOther } });
+  }, [creator, patchCreator]);
+
+  // Log a cold-call dial + whether they picked up. Appends to outreach.coldCalls[]
+  // so the dashboard can build the dials → connects → meetings funnel.
+  const logColdCall = useCallback(async () => {
+    const cur = creator?.outreach || {};
+    const raw = window.prompt('Ligação — resultado?\n\n1. Não atendeu\n2. Atendeu\n\nEscreve 1-2:', '');
+    if (!raw) return;
+    const n = Number(String(raw).trim());
+    if (n !== 1 && n !== 2) { window.alert('Opção inválida.'); return; }
+    const now = new Date().toISOString();
+    const calls = Array.isArray(cur.coldCalls) ? cur.coldCalls : [];
+    const next = [...calls, { at: now, connected: n === 2 }]; // server stamps `by`
+    await patchCreator({ outreach: { ...cur, coldCalls: next, coldCalledAt: now } });
   }, [creator, patchCreator]);
 
   // Mark creator cold + capture the loss reason so the dashboard can show
@@ -2038,6 +2098,7 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
                 {creator.bio && <p style={{ fontSize: 12, color: "var(--sl-text-muted)", margin: 0, lineHeight: 1.6, whiteSpace: "pre-wrap" }}>{creator.bio}</p>}
                 {creator.externalUrl && <a href={creator.externalUrl.startsWith("http") ? creator.externalUrl : "https://" + creator.externalUrl} target="_blank" rel="noopener noreferrer" style={{ display: "block", marginTop: 6, fontSize: 12, color: "var(--sl-accent-text)", textDecoration: "none" }}>{creator.externalUrl}</a>}
                 <EditableContactEmail creator={creator} patchCreator={patchCreator} />
+                <EditableContactPhone creator={creator} patchCreator={patchCreator} />
               </div>
               {/* IG multi-link bio — Instagram's native "Links" feature, up to 5
                   titled links per profile. Captured on every scrape; falls back
@@ -2535,6 +2596,19 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
                               <span style={{ fontSize: 12, color: "var(--sl-text-faint)" }}>· {totalFu}/3{out.lastFollowUpAt ? ` · ${fmtRelative(out.lastFollowUpAt)}` : ''}</span>
                             )}
                           </>
+                        );
+                      })()}
+                      <span style={{ fontSize: 12, color: "var(--sl-text-faint)" }}>·</span>
+                      {/* Cold call — logs a dial + whether they picked up. Feeds
+                          the cold-call funnel (dials → atendidas → reuniões). */}
+                      {(() => {
+                        const calls = Array.isArray(out.coldCalls) ? out.coldCalls : [];
+                        const dials = calls.length;
+                        const connects = calls.filter(c => c.connected).length;
+                        return (
+                          <button onClick={logColdCall} title="Regista uma ligação (cold call) e se atendeu" style={{ padding: "4px 10px", borderRadius: 4, fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", border: "1px solid var(--sl-border)", background: connects > 0 ? "color-mix(in srgb, var(--sl-info) 8%, transparent)" : "transparent", color: dials > 0 ? "var(--sl-info)" : "var(--sl-text-muted)" }}>
+                            + Ligação{dials > 0 ? ` (${dials})` : ''}{connects > 0 ? ` · ${connects} atend.` : ''}
+                          </button>
                         );
                       })()}
                       <span style={{ fontSize: 12, color: "var(--sl-text-faint)" }}>·</span>

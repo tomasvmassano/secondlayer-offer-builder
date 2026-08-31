@@ -334,6 +334,9 @@ export async function saveCreator(data) {
     // contactEmail surfaced from the first scrape — IG public/business email,
     // aggregator page email, or regex over the bio. Null if none found.
     contactEmail: data.contactEmail || null,
+    // contactPhone — the number the team cold-calls. Populated by hand or a
+    // match-by-handle import (scrapes rarely surface a phone). Null if none.
+    contactPhone: data.contactPhone || null,
     // addedBy — team-member attribution. { userId, firstName, at }. Set by
     // the API route from the current session. Null when added pre-auth or
     // via cron / scripts. Backfilled to Tomás for legacy records on read.
@@ -443,6 +446,10 @@ export async function saveCreator(data) {
       followUps: [],
       followUpsDone: 0,
       lastFollowUpAt: null,
+      // coldCalls — cold-call dial log. Each entry { at, connected: bool, by }.
+      // Powers the cold-call funnel (dials → connects → meetings). A booking
+      // from a cold call is tracked separately via callAgreedAt + bookedVia.
+      coldCalls: [],
       repliedAt: null,
       // repliedChannel — which channel the creator first replied on.
       // 'dm' | 'email' | null. Critical for measuring per-channel
@@ -463,6 +470,10 @@ export async function saveCreator(data) {
       firstResponseAt: null,
       firstResponseLatencyHrs: null,
       callAgreedAt: null,
+      // bookedVia — the source that booked the meeting (dm/email/cold_call/
+      // referral/ads/other). bookedViaOther holds the free text for 'other'.
+      bookedVia: null,
+      bookedViaOther: null,
       callHeldAt: null,   // R1 (first meeting held)
       r2At: null,         // R2 (second meeting)
       qnaAt: null,        // Q&A session
