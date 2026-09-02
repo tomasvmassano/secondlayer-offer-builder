@@ -1083,7 +1083,10 @@ export async function getReplyAnalytics({ window = 'all', now = new Date(), from
     const msgs = Array.isArray(c.outreach?.replyMessages) ? c.outreach.replyMessages : [];
     const inWinMsgs = msgs.filter(m => m?.at && inWin(m.at));
     if (!inWinMsgs.length) continue;
-    const template = (c.dmSequence?.template === 'B') ? 'B' : 'A';
+    // Pass the real template through (VD is the active one); only records with
+    // no template at all (pre-template generations) fall back to 'A'. The old
+    // `=== 'B' ? 'B' : 'A'` silently misfiled every Value Drop DM as A.
+    const template = c.dmSequence?.template || 'A';
     const niche = c.niche || '—';
     const t = tmpl(template);
     t.creatorIds.add(c.id);

@@ -1831,6 +1831,34 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
                 </button>
               )}
               {creator.niche && <span style={{ fontSize: 12, color: "var(--sl-text-muted)", padding: "3px 8px", background: "color-mix(in srgb, var(--sl-text) 3%, transparent)", borderRadius: 4 }}>{creator.niche}</span>}
+              {/* Lead source — how this creator ENTERED the CRM (discovery / import /
+                  manual / referral / ads). Distinct from the MEETING source
+                  (outreach.bookedVia), which shows on the outreach bar once a call
+                  is booked. Stored as creator.source; click to change. */}
+              {(() => {
+                const LEAD_SOURCES = [
+                  ['discovery', 'Discovery'], ['import', 'Importado'], ['manual', 'Manual'],
+                  ['referral', 'Referral'], ['ads', 'Ads'], ['other', 'Outro'],
+                ];
+                const label = (LEAD_SOURCES.find(s => s[0] === creator.source) || [null, creator.source])[1];
+                const pick = () => {
+                  const msg = 'Origem do lead?\n\n' + LEAD_SOURCES.map((s, i) => `${i + 1}. ${s[1]}`).join('\n') + '\n\nEscreve 1-6:';
+                  const raw = window.prompt(msg, '');
+                  if (!raw) return;
+                  const idx = Number(String(raw).trim()) - 1;
+                  if (!Number.isInteger(idx) || idx < 0 || idx >= LEAD_SOURCES.length) { window.alert('Opção inválida.'); return; }
+                  patchCreator({ source: LEAD_SOURCES[idx][0] });
+                };
+                return (
+                  <button
+                    onClick={pick}
+                    title={`Origem do lead: ${label || 'por definir'} · Clica para alterar`}
+                    style={{ fontSize: 12, fontWeight: 600, padding: "3px 8px", background: "color-mix(in srgb, var(--sl-text) 3%, transparent)", color: label ? "var(--sl-text-muted)" : "var(--sl-text-faint)", border: "1px solid color-mix(in srgb, var(--sl-text) 8%, transparent)", borderRadius: 4, cursor: "pointer", fontFamily: "inherit" }}
+                  >
+                    ◇ Origem · {label || 'definir'}
+                  </button>
+                );
+              })()}
               {(() => {
                 const lang = creator.primaryLanguage;
                 const audienceHint = creator.intelligence?.audience?.primaryLanguage || creator.audienceEstimate?.language || '';

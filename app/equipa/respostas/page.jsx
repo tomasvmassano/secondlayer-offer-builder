@@ -138,10 +138,19 @@ export default function RespostasPage() {
               </div>
             ) : (
               <>
-                {/* ── LEAD: Template A vs B ── */}
-                <SectionTitle>Template A vs B</SectionTitle>
+                {/* ── LEAD: por template. Value Drop (VD) is the active template;
+                    A/B are legacy generations that predate the pivot. Rendered
+                    dynamically so a new template key never silently vanishes. ── */}
+                <SectionTitle>Por template</SectionTitle>
                 <div className="sl-grid-2" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 26 }}>
-                  {["A", "B"].map(k => <TemplateCard key={k} label={k} t={data.byTemplate?.[k]} />)}
+                  {(() => {
+                    const LABEL = { VD: "Value Drop", A: "Template A (legado)", B: "Template B (legado)" };
+                    const keys = Object.keys(data.byTemplate || {});
+                    const order = ["VD", "A", "B", ...keys.filter(k => !["VD", "A", "B"].includes(k))];
+                    // Always show VD (the live template) even when empty; legacy keys only if they have data.
+                    const shown = order.filter(k => k === "VD" || keys.includes(k));
+                    return shown.map(k => <TemplateCard key={k} label={LABEL[k] || `Template ${k}`} t={data.byTemplate?.[k]} />);
+                  })()}
                 </div>
 
                 {/* ── Tendência (sentiment over time) ── */}
@@ -290,7 +299,7 @@ function TemplateCard({ label, t }) {
   if (!t || !t.total) {
     return (
       <div style={{ border: `1px solid ${BORDER}`, borderRadius: 12, background: SURFACE_1, padding: "18px 20px" }}>
-        <div style={{ fontSize: 14, fontWeight: 700, color: TEXT_HI }}>Template {label}</div>
+        <div style={{ fontSize: 14, fontWeight: 700, color: TEXT_HI }}>{label}</div>
         <div style={{ fontSize: 12, color: TEXT_LO, marginTop: 8 }}>Sem respostas neste período.</div>
       </div>
     );
@@ -301,7 +310,7 @@ function TemplateCard({ label, t }) {
   return (
     <div style={{ border: `1px solid ${BORDER}`, borderRadius: 12, background: SURFACE_1, padding: "18px 20px" }}>
       <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between" }}>
-        <div style={{ fontSize: 14, fontWeight: 700, color: TEXT_HI }}>Template {label}</div>
+        <div style={{ fontSize: 14, fontWeight: 700, color: TEXT_HI }}>{label}</div>
         <div style={{ fontSize: 12, color: TEXT_LO }}>{t.total} respostas · {t.creators} criadores</div>
       </div>
       {/* Sentiment stacked bar */}
