@@ -1308,7 +1308,7 @@ ${intelPost.quote ? `- the part we are pointing at: ${JSON.stringify(intelPost.q
 - why it matters: ${intel.read?.why || 'n/a'}
 - gap: ${intel.read?.gap || 'n/a'}
 - angle: ${intel.read?.angle || 'n/a'}
-Build the hook from this post and the opportunity from the gap. Do not pick a different post or a different angle. Instagram does not show save counts, so never mention saves. Aim for 600 to 800 characters, the hard limit is 1000.
+Build the hook from this post and the opportunity from the gap. Do not pick a different post or a different angle. A count is the number of comments on the post ("that post got 263 comments"), never a number of people, and never say what the commenters wanted or wrote. The gap is a hypothesis: never say the audience would pay, will buy or is ready to buy. Instagram does not show save counts, so never mention saves. Aim for 600 to 800 characters, the hard limit is 1000.
 
 ` : '';
 
