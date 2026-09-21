@@ -195,9 +195,19 @@ const LANG_NAME = {
   es: 'Spanish, informal "tú"',
 };
 
+// In-language phrasing examples. English examples pulled the model into English
+// for Spanish and Portuguese leads, most of all in the manager variant.
+const PHRASES = {
+  en: { subject: 'your "BILL" post', agencySubject: 'laura\'s "tupper" post', third: '"Laura\'s post on...", "her audience", "I think there is an opportunity for Laura..."', think: 'I think' },
+  pt: { subject: 'o teu post "BILL"', agencySubject: 'o post "tupper" da laura', third: '"O post da Laura sobre...", "a audiência dela", "Acho que há uma oportunidade para a Laura..."', think: 'Acho que' },
+  br: { subject: 'seu post "BILL"', agencySubject: 'o post "tupper" da laura', third: '"O post da Laura sobre...", "a audiência dela", "Acho que existe uma oportunidade para a Laura..."', think: 'Acho que' },
+  es: { subject: 'tu post "BILL"', agencySubject: 'el post "tupper" de laura', third: '"El post de Laura sobre...", "su audiencia", "Creo que hay una oportunidad para Laura..."', think: 'Creo que' },
+};
+
 // ── Writer prompt ────────────────────────────────────────────────────────────
 export function buildWriterPrompt(language, { agency = false } = {}) {
   const lang = LANG_NAME[language] ? language : 'en';
+  const ph = PHRASES[lang];
   const example = EXAMPLES[lang === 'br' ? 'pt' : lang] || `${EXAMPLES.en}\n\n(The examples are in English for structure and tone only. Write in the target language.)`;
   return `You write the creator specific part of a first outreach from Tomás, who runs Second Layer, for two channels: EMAIL and WHATSAPP. Second Layer helps creators turn an audience they already have into a new paid offer. Everything after your paragraphs (who we are, the ask, the sign off) is fixed copy added by code. Never write a greeting, an introduction of who we are, a call to action or a sign off.
 
@@ -208,13 +218,13 @@ State nothing that is not in VERIFIED FACTS. Instagram does not show save counts
 
 The goal is that the creator thinks: this person looked at what I do, noticed something commercially interesting about my audience, and might have ideas worth discussing. Diagnose, never prescribe. Be specific about the gap and incomplete about the solution: never name a format, a price, a module count or a platform, and never describe the fix itself ("a smaller first step", "something free that..."). Say the gap exists and that you have ideas, nothing more. Make it feel incremental, building on the audience, knowledge and demand they already have.
 ${agency ? `
-THE READER IS NOT THE CREATOR. This address belongs to their manager or agency. Write ABOUT the creator in the third person, using their first name ("Laura's post on...", "her audience", "I think there is an opportunity for Laura..."). Never "you" or "your" for the creator. The subject names the creator and the post.
+THE READER IS NOT THE CREATOR. This address belongs to their manager or agency. Write ABOUT the creator in the third person, using their first name, in ${LANG_NAME[lang]}: ${ph.third}. Never address the creator directly. The subject names the creator and the post.
 ` : ''}
 EMAIL, three short paragraphs in ${LANG_NAME[lang]}. Email can carry a little more context because the reader does not know who is writing.
 p1, observation then interpretation, 2 to 3 sentences. Name the specific post or angle from the facts, then why it works or what it does differently. Your reaction ("stood out to me", "I liked how"), never a verdict ("You clearly", "Your content is"). If the sentence could be sent to 20 other creators, rewrite it.
 p2, demand evidence, 2 sentences. "I also noticed" plus the signal with its real number or multiple, then what it tells you. A count is the number of comments on the post: write "that post got 384 comments", never "384 people commented the keyword". When the post is marked x3 or more usual comments you may tie the count to the ask ("nearly 1,100 comments after you asked people to comment QUIERO"). Never describe what people wrote unless it appears under comments seen. You may round a big number.
    Tier 3: p2 is "I also noticed you already have" plus the offer exactly as quoted, then what it tells you: one product or service rarely captures everyone in an audience who wants help. State only that it exists, never how it sells.
-p3, the opportunity, 2 sentences at most, starting with "I think". Use the gap from our reading. No list of three. Mention an existing offer only if it is in the facts.
+p3, the opportunity, 2 sentences at most, starting with "${ph.think}". Use the gap from our reading. No list of three. Mention an existing offer only if it is in the facts.
    Tier 4: write p1 only and leave P2 and P3 empty. Code adds an honest question about demand.
 
 WHATSAPP, the same insight, much shorter and more conversational, for a personal channel. wa1 is the observation in ONE sentence of 24 words at most. wa2 is the signal and the opportunity in one or two short sentences, 34 words at most. Tier 4: leave WA2 empty.
@@ -225,8 +235,8 @@ Punctuation: never use a hyphen or a dash as punctuation (no "word - word", no e
 
 ${example}
 
-OUTPUT: plain text, one field per line, exactly these labels, nothing else.
-SUBJECT: 2 to 6 words, lowercase, a noun phrase that NAMES the post or angle${agency ? ' and the creator, like laura\'s "tupper" post' : ' and starts with your / o teu / a tua / seu / sua / tu, like your "BILL" post'}. Never words like demand, opportunity, idea or question
+OUTPUT: plain text, one field per line, exactly these labels (the labels stay as written, the content is in ${LANG_NAME[lang]}), nothing else.
+SUBJECT: 2 to 6 words, lowercase, a noun phrase that NAMES the post or angle${agency ? ` and the creator, like: ${ph.agencySubject}` : `, like: ${ph.subject}`}. Never words like demand, opportunity, idea or question
 P1: ...
 P2: ...
 P3: ...
