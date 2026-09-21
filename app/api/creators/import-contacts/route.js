@@ -24,8 +24,9 @@ import { computeOutreachStage, stagePatch } from '../../../lib/outreachStages';
 // inside the 60s function cap.
 export const maxDuration = 60;
 
+// NFKD, not NFD — IG display names in "𝐛𝐨𝐥𝐝" math letters fold to plain ASCII.
 const norm = (s) => String(s || '')
-  .normalize('NFD').replace(/[̀-ͯ]/g, '')
+  .normalize('NFKD').replace(/[̀-ͯ]/g, '')
   .toLowerCase()
   .replace(/[^a-z0-9]+/g, ' ')
   .trim();
@@ -65,7 +66,8 @@ export async function POST(request) {
       const k = norm(s.name);
       if (!k) continue;
       if (!byName.has(k)) byName.set(k, []);
-      byName.get(k).push(s);
+      // The index can hold the same creator twice — that's one hit, not two.
+      if (!byName.get(k).some(h => h.id === s.id)) byName.get(k).push(s);
     }
 
     const report = {
