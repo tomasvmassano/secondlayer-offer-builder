@@ -259,8 +259,13 @@ export function verifyAnalysis(a, facts) {
   }
   if (/\bsaves?\b|\bsaved\b|guardad|guardaram/i.test(`${a.read.signal || ''} ${a.read.why || ''}`)) problems.push('mentions saves');
   // The signal sentence is a FACT: its numbers must be the post's numbers.
-  const allowed = new Set([String(post.likes), String(post.comments), String(facts.followers)]);
-  for (const x of [post.xComments, post.xLikes]) if (x) { allowed.add(String(x).replace(/[.,]/g, '')); for (let k = 2; k <= Math.floor(x); k += 1) allowed.add(String(k)); }
+  // Any post's real numbers are fair: the reading often compares the chosen
+  // post with the others ("75 comments against a usual 16").
+  const allowed = new Set([String(facts.followers)]);
+  for (const p of facts.posts) {
+    allowed.add(String(p.likes)); allowed.add(String(p.comments));
+    for (const x of [p.xComments, p.xLikes]) if (x) { allowed.add(String(x).replace(/[.,]/g, '')); for (let k = 2; k <= Math.floor(x); k += 1) allowed.add(String(k)); }
+  }
   (post.caption.match(/\d+(?:[.,]\d+)*/g) || []).forEach(n => allowed.add(n.replace(/[.,]/g, '')));
   for (const n of (String(a.read.signal || '').match(/\d+(?:[.,]\d+)*/g) || [])) {
     const v = n.replace(/[.,]/g, '');
