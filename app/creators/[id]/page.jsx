@@ -620,15 +620,17 @@ const EditableContactPhone = ({ creator, patchCreator }) => {
       <span style={{ fontSize: 12, fontWeight: 700, color: "var(--sl-info)", letterSpacing: "0.10em", textTransform: "uppercase" }}>Telefone</span>
       <a href={`tel:${creator.contactPhone}`} style={{ fontSize: 12, color: "var(--sl-info)", textDecoration: "none", fontFamily: "'JetBrains Mono', ui-monospace, monospace" }}>{creator.contactPhone}</a>
       {(() => {
-        // WhatsApp deep link with the outreach message prefilled. Prefers the
-        // chat-ready text saved with the v2 email; falls back to the Day 1 email
-        // minus its contact card, then to the cold DM. A landline or toll-free
+        // WhatsApp deep link with the outreach message prefilled. Only copy
+        // written under the current framework (v2) is prefilled: sequences from
+        // the older strategies are still on many records and must not go out by
+        // accident, so those open an empty chat instead. A landline or toll-free
         // number still gets the button (WhatsApp Business can sit on a landline)
         // but says so, instead of looking like a sure thing.
         const seq = creator.dmSequence || {};
+        const isV2 = seq.emailMeta?.framework === 'v2';
         const card = formatSignature(seq.senderName || 'Tomás');
         const day1 = String(seq.email_day1?.body || '');
-        const text = seq.whatsapp || (card && day1.trimEnd().endsWith(card) ? day1.trimEnd().slice(0, -card.length).trimEnd() : day1) || seq.dm || '';
+        const text = !isV2 ? '' : (seq.whatsapp || (card && day1.trimEnd().endsWith(card) ? day1.trimEnd().slice(0, -card.length).trimEnd() : day1));
         const n = normalizePhone(creator.contactPhone, { email: creator.contactEmail, language: creator.primaryLanguage });
         const url = whatsappUrl(creator.contactPhone, text, { email: creator.contactEmail, language: creator.primaryLanguage });
         if (!url) return <span title="Falta o indicativo do país — edita o número para +XX…" style={{ marginLeft: "auto", fontSize: 12, color: "var(--sl-text-faint)" }}>sem indicativo</span>;
@@ -636,7 +638,7 @@ const EditableContactPhone = ({ creator, patchCreator }) => {
         return (
           <>
             {shaky && <span title="Pelo formato, é uma linha fixa ou gratuita. Só tem WhatsApp se for uma conta Business." style={{ marginLeft: "auto", fontSize: 12, color: "var(--sl-text-faint)" }}>{n.kind === 'tollfree' ? 'linha gratuita' : 'fixo'}</span>}
-            <a href={url} target="_blank" rel="noopener noreferrer" title={text ? "Abrir WhatsApp com a mensagem já escrita" : "Ainda não há mensagem gerada — abre a conversa vazia"} style={{ marginLeft: shaky ? 0 : "auto", padding: "2px 8px", borderRadius: 4, border: "1px solid color-mix(in srgb, var(--sl-success, #16a34a) 35%, transparent)", background: "transparent", color: "var(--sl-success, #16a34a)", fontSize: 12, fontWeight: 600, textDecoration: "none", fontFamily: "inherit", opacity: shaky ? 0.6 : 1 }}>WhatsApp{text ? '' : ' (vazio)'}</a>
+            <a href={url} target="_blank" rel="noopener noreferrer" title={text ? "Abrir WhatsApp com a mensagem já escrita" : "Ainda não há mensagem no formato novo para este lead. Abre a conversa vazia."} style={{ marginLeft: shaky ? 0 : "auto", padding: "2px 8px", borderRadius: 4, border: "1px solid color-mix(in srgb, var(--sl-success, #16a34a) 35%, transparent)", background: "transparent", color: "var(--sl-success, #16a34a)", fontSize: 12, fontWeight: 600, textDecoration: "none", fontFamily: "inherit", opacity: shaky ? 0.6 : 1 }}>WhatsApp{text ? '' : ' (vazio)'}</a>
           </>
         );
       })()}
