@@ -177,6 +177,7 @@ function emptyRow(key, firstName) {
     creatorsAdded: 0,
     dmsSent: 0,
     emailsSent: 0,
+    whatsappSent: 0,
     // Outreach touches — unique creators where this operator sent at least
     // one channel (DM or email) within the window. Same creator + same day
     // touched on both channels still counts as 1. Drives the €50 daily rule.
@@ -191,6 +192,7 @@ function emptyRow(key, firstName) {
     // actually come from".
     repliesViaDm: 0,
     repliesViaEmail: 0,
+    repliesViaWhatsapp: 0,
     // Meetings booked (call agreed/booked) — the operator-table "Reuniões".
     reunioesMarcadas: 0,
     signed: 0,
@@ -255,13 +257,18 @@ export async function getTeamStats({ window = 'today', now = new Date(), from = 
     if (emailInWindow) {
       bumpRow(rows, o.emailSentBy || c.addedBy, 'emailsSent');
     }
-    // Outreach touches — unique-creator count. If both DM and email landed
-    // in this window for the same creator, the creator counts as ONE touch.
-    // Attribute to whichever operator did the earlier send (or just the DM
-    // sender if both happened; falls back to email sender then addedBy).
-    if (dmInWindow || emailInWindow) {
+    // WhatsApp first messages — third first-contact channel.
+    const waInWindow = o.whatsappSentAt && inWindow(o.whatsappSentAt, startMs, endMs);
+    if (waInWindow) {
+      bumpRow(rows, o.whatsappSentBy || c.addedBy, 'whatsappSent');
+    }
+    // Outreach touches — unique-creator count. If several channels landed in
+    // this window for the same creator, the creator counts as ONE touch.
+    // Attributed to the DM sender first, then email, then WhatsApp, then addedBy.
+    if (dmInWindow || emailInWindow || waInWindow) {
       const touchActor = (dmInWindow ? (o.dmSentBy || c.addedBy) : null)
         || (emailInWindow ? (o.emailSentBy || c.addedBy) : null)
+        || (waInWindow ? (o.whatsappSentBy || c.addedBy) : null)
         || c.addedBy;
       bumpRow(rows, touchActor, 'touchesSent');
     }
@@ -296,6 +303,7 @@ export async function getTeamStats({ window = 'today', now = new Date(), from = 
       bumpRow(rows, actor, 'repliesReceived');
       if (o.repliedChannel === 'dm') bumpRow(rows, actor, 'repliesViaDm');
       else if (o.repliedChannel === 'email') bumpRow(rows, actor, 'repliesViaEmail');
+      else if (o.repliedChannel === 'whatsapp') bumpRow(rows, actor, 'repliesViaWhatsapp');
     }
     // Meetings booked — attributed to whoever added the creator.
     const marcadaAt = o.callBookedAt || o.callAgreedAt || null;
@@ -462,7 +470,7 @@ export async function getFunnels(creators, { window = 'all', now = new Date(), f
     if (!byUser.has(key)) byUser.set(key, { firstName: owner.firstName, contactos: 0, respostas: 0, reunioesMarcadas: 0, reunioesRealizadas: 0, propostas: 0, negocios: 0 });
     const row = byUser.get(key);
     const o = c.outreach || {};
-    const contactoAt = o.dmSentAt || o.emailSentAt || null;
+    const contactoAt = o.dmSentAt || o.emailSentAt || o.whatsappSentAt || null;
     const marcadaAt  = o.callBookedAt || o.callAgreedAt || null;
     const propostaAt = c.pitch?.sentAt || null;
     if (inWin(contactoAt))        row.contactos += 1;
@@ -517,7 +525,7 @@ export async function getTeamFunnel({ window = 'month', now = new Date(), from =
   const cc = { dials: 0, connects: 0 }; // cold-call effort (the funnel denominator)
   for (const c of all) {
     const o = c.outreach || {};
-    const contactoAt = o.dmSentAt || o.emailSentAt || null;
+    const contactoAt = o.dmSentAt || o.emailSentAt || o.whatsappSentAt || null;
     const marcadaAt  = o.callBookedAt || o.callAgreedAt || null;
     const propostaAt = c.pitch?.sentAt || null;
     if (inWindow(contactoAt, startMs, endMs))       f.contactos += 1;
@@ -533,7 +541,7 @@ export async function getTeamFunnel({ window = 'month', now = new Date(), from =
     }
   }
   const pct = (num, den) => den > 0 ? Math.round((num / den) * 100) : 0;
-  const SRC_ORDER = [['dm', 'DM'], ['email', 'Email'], ['cold_call', 'Cold Call'], ['referral', 'Referral'], ['ads', 'Ads'], ['other', 'Outro'], ['sem_origem', 'Sem origem']];
+  const SRC_ORDER = [['dm', 'DM'], ['email', 'Email'], ['whatsapp', 'WhatsApp'], ['cold_call', 'Cold Call'], ['referral', 'Referral'], ['ads', 'Ads'], ['other', 'Outro'], ['sem_origem', 'Sem origem']];
   const sources = SRC_ORDER
     .map(([key, label]) => ({ key, label, marcadas: srcCounts[key]?.marcadas || 0, negocios: srcCounts[key]?.negocios || 0 }))
     .filter(s => s.marcadas > 0 || s.negocios > 0);
@@ -585,7 +593,7 @@ export async function getFunnelTiming({ window = 'all', now = new Date(), from =
   const push = (arr, a, z) => { if (postReset(a) && postReset(z) && new Date(z) >= new Date(a)) arr.push(days(a, z)); };
   for (const c of all) {
     const o = c.outreach || {};
-    const contactoAt = o.dmSentAt || o.emailSentAt || null;
+    const contactoAt = o.dmSentAt || o.emailSentAt || o.whatsappSentAt || null;
     const marcadaAt  = o.callBookedAt || o.callAgreedAt || null;
     const propostaAt = c.pitch?.sentAt || null;
     const signedAt   = c.pipelineStatus === 'signed' ? c.signedAt : null;
@@ -644,7 +652,7 @@ export async function getStageAnalytics({ window = 'all', now = new Date(), from
   const milestoneAt = (c) => {
     const o = c.outreach || {};
     const at = {
-      contactado:  o.dmSentAt || o.emailSentAt || null,
+      contactado:  o.dmSentAt || o.emailSentAt || o.whatsappSentAt || null,
       respondeu:   o.repliedAt || null,
       marcada:     o.callBookedAt || o.callAgreedAt || null,
       realizada:   o.callHeldAt || null,
@@ -1013,6 +1021,7 @@ export async function getRecentActivity({ limit = 8 } = {}) {
     if (postReset(c.addedBy?.at)) events.push({ at: c.addedBy.at, type: 'added', firstName: c.addedBy.firstName, creator: c.name, creatorId: c.id });
     if (postReset(o.dmSentAt)) events.push({ at: o.dmSentAt, type: 'dm_sent', firstName: (o.dmSentBy || c.addedBy)?.firstName, creator: c.name, creatorId: c.id });
     if (postReset(o.emailSentAt)) events.push({ at: o.emailSentAt, type: 'email_sent', firstName: (o.emailSentBy || c.addedBy)?.firstName, creator: c.name, creatorId: c.id });
+    if (postReset(o.whatsappSentAt)) events.push({ at: o.whatsappSentAt, type: 'whatsapp_sent', firstName: (o.whatsappSentBy || c.addedBy)?.firstName, creator: c.name, creatorId: c.id });
     // Follow-ups — one event per follow-up from the channel-tagged array
     // (new shape), with the legacy single-timestamp fallback for records
     // that predate the array. Attributed to whoever did the follow-up.
@@ -1407,6 +1416,7 @@ export async function getTouchpointsPerClose({ window = 'all', now = new Date(),
     let touches = 0;
     if (o.dmSentAt) touches += 1;
     if (o.emailSentAt) touches += 1;
+    if (o.whatsappSentAt) touches += 1;
     touches += (o.followUpsDone || 0);
     if (o.callHeldAt) touches += 1;
     if (o.callAgreedAt && !o.callHeldAt) touches += 1; // no-show still cost a touch

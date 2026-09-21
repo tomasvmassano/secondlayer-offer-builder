@@ -20,6 +20,7 @@ const LABELS = {
   added:           { label: "adicionou",                  color: TEXT_MID },
   dm_sent:         { label: "enviou DM a",                color: ACCENT },
   email_sent:      { label: "enviou email a",             color: ACCENT },
+  whatsapp_sent:   { label: "enviou WhatsApp a",          color: ACCENT },
   follow_up:       { label: "fez follow-up a",            color: AMBER },
   replied:         { label: "recebeu resposta de",        color: "var(--sl-info)" },
   signed:          { label: "fechou",                     color: GREEN },

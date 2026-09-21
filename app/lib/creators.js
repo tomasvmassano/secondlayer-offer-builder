@@ -74,6 +74,7 @@ function buildSummary(creator, createdAt) {
     //   Em contacto    = repliedAt
     dmSentAt: creator.outreach?.dmSentAt || null,
     emailSentAt: creator.outreach?.emailSentAt || null,
+    whatsappSentAt: creator.outreach?.whatsappSentAt || null,
     repliedAt: creator.outreach?.repliedAt || null,
     repliedChannel: creator.outreach?.repliedChannel || null,
     // Kanban-stage signals — surface here so the CRM Kanban can place each
@@ -438,6 +439,7 @@ export async function saveCreator(data) {
     outreach: data.outreach || {
       dmSentAt: null,
       emailSentAt: null,
+      whatsappSentAt: null,
       // followUps is the authoritative log — each entry is
       // { channel: 'dm'|'email', at: ISO, by: { userId, firstName, at } }.
       // followUpsDone / lastFollowUpAt / lastFollowUpBy stay as DERIVED

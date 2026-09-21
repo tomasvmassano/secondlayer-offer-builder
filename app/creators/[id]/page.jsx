@@ -82,7 +82,7 @@ const LAUNCH_PHASES = [
 // Meeting booking sources (outreach.bookedVia). Powers the "Call agendada"
 // source picker + the "reuniões / negócios por origem" dashboard cut.
 const MEETING_SOURCES = [
-  ['dm', 'DM'], ['email', 'Email'], ['cold_call', 'Cold Call'],
+  ['dm', 'DM'], ['email', 'Email'], ['whatsapp', 'WhatsApp'], ['cold_call', 'Cold Call'],
   ['referral', 'Referral'], ['ads', 'Ads'], ['other', 'Outro'],
 ];
 const meetingSourceLabel = (via, other) => {
@@ -581,7 +581,86 @@ const EditableContactEmail = ({ creator, patchCreator }) => {
 
 // Cold-call phone number. Same edit/empty/view pattern as EditableContactEmail,
 // minus the Gmail machinery — view mode is a tel: link + copy.
-const EditableContactPhone = ({ creator, patchCreator }) => {
+// WhatsApp first approach from the phone chip.
+//   message ready   → "WhatsApp" opens the chat with the short message typed in
+//   no message yet  → "WhatsApp · escrever mensagem" writes it first (~20s:
+//                     fresh scrape + Haiku, same writer as the email) and then
+//                     opens the chat. The tab is opened on the click itself and
+//                     pointed at wa.me afterwards, or the browser blocks it.
+// Only copy from the current framework (v2) is ever prefilled; sequences from
+// older strategies are still on many records and must not go out by accident.
+// Opening the chat is not sending, so the send is confirmed with one click
+// ("Marcar enviado") and lands on outreach.whatsappSentAt like DM and email.
+const WhatsAppAction = ({ creator, patchCreator, onRefresh }) => {
+  const seq = creator?.dmSequence || {};
+  const saved = seq.emailMeta?.framework === 'v2' ? (seq.whatsapp || '') : '';
+  const [text, setText] = useState(saved);
+  const [busy, setBusy] = useState(false);
+  const [note, setNote] = useState('');
+  const [opened, setOpened] = useState(false);
+  const [copied, setCopied] = useState(false);
+  useEffect(() => { setText(saved); setNote(''); setOpened(false); }, [creator?.id, saved]);
+
+  const hints = { email: creator?.contactEmail, language: creator?.primaryLanguage };
+  const n = normalizePhone(creator?.contactPhone, hints);
+  if (!n.ok) return <span title="Falta o indicativo do país. Edita o número para +XX…" style={{ marginLeft: "auto", fontSize: 12, color: "var(--sl-text-faint)" }}>sem indicativo</span>;
+
+  const out = creator?.outreach || {};
+  const sentAt = out.whatsappSentAt;
+  const shaky = n.kind === 'landline' || n.kind === 'tollfree';
+  const btn = { padding: "2px 8px", borderRadius: 4, border: "1px solid color-mix(in srgb, var(--sl-success, #16a34a) 35%, transparent)", background: "transparent", color: "var(--sl-success, #16a34a)", fontSize: 12, fontWeight: 600, textDecoration: "none", cursor: "pointer", fontFamily: "inherit" };
+
+  const writeAndOpen = async () => {
+    const tab = window.open('', '_blank'); // must happen inside the click
+    setBusy(true); setNote('');
+    try {
+      const res = await fetch(`/api/creators/${creator.id}/outreach-email`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
+      const data = await res.json().catch(() => ({}));
+      if (data.whatsapp) {
+        setText(data.whatsapp); setOpened(true);
+        const url = whatsappUrl(creator.contactPhone, data.whatsapp, hints);
+        if (tab) tab.location.href = url; else setNote('Mensagem pronta. Clica em WhatsApp.');
+        if (onRefresh) onRefresh();
+      } else {
+        if (tab) tab.close();
+        setNote(data.outcome === 'rate_limited' ? 'Limite da Anthropic. Tenta daqui a 1 minuto.'
+          : data.outcome === 'no_signal' ? 'Conta sem posts suficientes para escrever. Abre sem mensagem.'
+          : data.outcome === 'no_instagram' ? 'Sem Instagram no perfil para analisar. Abre sem mensagem.'
+          : `Não deu para escrever (${data.outcome || data.error || res.status}). Abre sem mensagem.`);
+      }
+    } catch (e) {
+      if (tab) tab.close();
+      setNote('Erro a escrever a mensagem. Tenta outra vez.');
+    } finally { setBusy(false); }
+  };
+
+  const markSent = () => patchCreator({ outreach: { ...(creator.outreach || {}), whatsappSentAt: new Date().toISOString() } });
+
+  return (
+    <>
+      {note && <span style={{ marginLeft: "auto", fontSize: 12, color: "var(--sl-text-muted)" }}>{note}</span>}
+      {shaky && !note && <span title="Pelo formato, é uma linha fixa ou gratuita. Só tem WhatsApp se for uma conta Business." style={{ marginLeft: "auto", fontSize: 12, color: "var(--sl-text-faint)" }}>{n.kind === 'tollfree' ? 'linha gratuita' : 'fixo'}</span>}
+      {sentAt ? (
+        <span title={`WhatsApp enviado a ${new Date(sentAt).toLocaleString('pt-PT')}`} style={{ marginLeft: note || shaky ? 0 : "auto", fontSize: 12, fontWeight: 600, color: "var(--sl-success, #16a34a)" }}>✓ WhatsApp enviado</span>
+      ) : opened ? (
+        <button onClick={markSent} title="Confirma que a mensagem foi enviada. Conta para o objetivo diário." style={{ ...btn, marginLeft: note || shaky ? 0 : "auto", background: "color-mix(in srgb, var(--sl-success, #16a34a) 12%, transparent)" }}>✓ Marcar enviado</button>
+      ) : null}
+      {text ? (
+        <>
+          <a href={whatsappUrl(creator.contactPhone, text, hints)} target="_blank" rel="noopener noreferrer" onClick={() => setOpened(true)} title="Abre o WhatsApp com a mensagem já escrita" style={{ ...btn, marginLeft: sentAt || opened || note || shaky ? 0 : "auto", opacity: shaky ? 0.6 : 1 }}>WhatsApp</a>
+          <button onClick={() => { navigator.clipboard.writeText(text); setCopied(true); setOpened(true); setTimeout(() => setCopied(false), 1500); }} title={text} style={{ ...btn, border: "1px solid var(--sl-border-strong)", color: "var(--sl-text-muted)" }}>{copied ? '✓ Copiada' : 'Copiar msg'}</button>
+        </>
+      ) : (
+        <>
+          <button onClick={writeAndOpen} disabled={busy} title="Escreve a mensagem curta para este lead (cerca de 20 segundos) e abre o WhatsApp com ela" style={{ ...btn, marginLeft: sentAt || note || shaky ? 0 : "auto", opacity: busy ? 0.6 : 1, cursor: busy ? "wait" : "pointer" }}>{busy ? 'A escrever… ~20s' : 'WhatsApp · escrever mensagem'}</button>
+          {!busy && <a href={whatsappUrl(creator.contactPhone, '', hints)} target="_blank" rel="noopener noreferrer" onClick={() => setOpened(true)} title="Abre a conversa sem mensagem" style={{ ...btn, border: "1px solid var(--sl-border-strong)", color: "var(--sl-text-muted)" }}>Abrir sem msg</a>}
+        </>
+      )}
+    </>
+  );
+};
+
+const EditableContactPhone = ({ creator, patchCreator, onRefresh }) => {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(creator?.contactPhone || '');
   const [saving, setSaving] = useState(false);
@@ -619,29 +698,7 @@ const EditableContactPhone = ({ creator, patchCreator }) => {
     <div style={{ marginTop: 8, display: "flex", alignItems: "center", gap: 8, padding: "6px 10px", background: "color-mix(in srgb, var(--sl-info) 6%, transparent)", border: "1px solid color-mix(in srgb, var(--sl-info) 20%, transparent)", borderRadius: 6 }}>
       <span style={{ fontSize: 12, fontWeight: 700, color: "var(--sl-info)", letterSpacing: "0.10em", textTransform: "uppercase" }}>Telefone</span>
       <a href={`tel:${creator.contactPhone}`} style={{ fontSize: 12, color: "var(--sl-info)", textDecoration: "none", fontFamily: "'JetBrains Mono', ui-monospace, monospace" }}>{creator.contactPhone}</a>
-      {(() => {
-        // WhatsApp deep link with the outreach message prefilled. Only copy
-        // written under the current framework (v2) is prefilled: sequences from
-        // the older strategies are still on many records and must not go out by
-        // accident, so those open an empty chat instead. A landline or toll-free
-        // number still gets the button (WhatsApp Business can sit on a landline)
-        // but says so, instead of looking like a sure thing.
-        const seq = creator.dmSequence || {};
-        const isV2 = seq.emailMeta?.framework === 'v2';
-        const card = formatSignature(seq.senderName || 'Tomás');
-        const day1 = String(seq.email_day1?.body || '');
-        const text = !isV2 ? '' : (seq.whatsapp || (card && day1.trimEnd().endsWith(card) ? day1.trimEnd().slice(0, -card.length).trimEnd() : day1));
-        const n = normalizePhone(creator.contactPhone, { email: creator.contactEmail, language: creator.primaryLanguage });
-        const url = whatsappUrl(creator.contactPhone, text, { email: creator.contactEmail, language: creator.primaryLanguage });
-        if (!url) return <span title="Falta o indicativo do país — edita o número para +XX…" style={{ marginLeft: "auto", fontSize: 12, color: "var(--sl-text-faint)" }}>sem indicativo</span>;
-        const shaky = n.kind === 'landline' || n.kind === 'tollfree';
-        return (
-          <>
-            {shaky && <span title="Pelo formato, é uma linha fixa ou gratuita. Só tem WhatsApp se for uma conta Business." style={{ marginLeft: "auto", fontSize: 12, color: "var(--sl-text-faint)" }}>{n.kind === 'tollfree' ? 'linha gratuita' : 'fixo'}</span>}
-            <a href={url} target="_blank" rel="noopener noreferrer" title={text ? "Abrir WhatsApp com a mensagem já escrita" : "Ainda não há mensagem no formato novo para este lead. Abre a conversa vazia."} style={{ marginLeft: shaky ? 0 : "auto", padding: "2px 8px", borderRadius: 4, border: "1px solid color-mix(in srgb, var(--sl-success, #16a34a) 35%, transparent)", background: "transparent", color: "var(--sl-success, #16a34a)", fontSize: 12, fontWeight: 600, textDecoration: "none", fontFamily: "inherit", opacity: shaky ? 0.6 : 1 }}>WhatsApp{text ? '' : ' (vazio)'}</a>
-          </>
-        );
-      })()}
+      <WhatsAppAction creator={creator} patchCreator={patchCreator} onRefresh={onRefresh} />
       <button onClick={() => navigator.clipboard.writeText(creator.contactPhone)} title="Copiar" style={{ padding: "2px 8px", borderRadius: 4, border: "1px solid color-mix(in srgb, var(--sl-info) 25%, transparent)", background: "transparent", color: "var(--sl-info)", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>Copy</button>
       <button onClick={() => setEditing(true)} title="Editar telefone" style={{ padding: "2px 8px", borderRadius: 4, border: "1px solid var(--sl-border-strong)", background: "transparent", color: "var(--sl-text-muted)", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>✏ Edit</button>
     </div>
@@ -1273,14 +1330,16 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
     const patch = { ...cur };
     if (field === 'dm')    patch.dmSentAt = now;
     if (field === 'email') patch.emailSentAt = now;
-    if (field === 'followUpDm' || field === 'followUpEmail') {
+    if (field === 'whatsapp') patch.whatsappSentAt = now;
+    if (field === 'followUpDm' || field === 'followUpEmail' || field === 'followUpWhatsapp') {
       const existingArr = Array.isArray(cur.followUps) ? cur.followUps : [];
       if (existingArr.length >= 3) return; // cap stays at 3 across channels
-      const channel = field === 'followUpDm' ? 'dm' : 'email';
+      const channel = field === 'followUpDm' ? 'dm' : field === 'followUpWhatsapp' ? 'whatsapp' : 'email';
       patch.followUps = [...existingArr, { channel, at: now }]; // server stamps `by`
     }
     if (field === 'repliedDm')    { patch.repliedAt = now; patch.repliedChannel = 'dm'; }
     if (field === 'repliedEmail') { patch.repliedAt = now; patch.repliedChannel = 'email'; }
+    if (field === 'repliedWhatsapp') { patch.repliedAt = now; patch.repliedChannel = 'whatsapp'; }
     if (field === 'unreplied')    { patch.repliedAt = null; patch.repliedChannel = null; }
     if (field === 'callAgreed')   patch.callAgreedAt = now;
     if (field === 'uncallAgreed') { patch.callAgreedAt = null; patch.bookedVia = null; patch.bookedViaOther = null; }
@@ -1293,11 +1352,12 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
   // "reuniões / negócios por origem". Numbered prompt, same UX as markCold.
   const bookMeeting = useCallback(async () => {
     const cur = creator?.outreach || {};
-    const suggested = cur.repliedChannel === 'dm' ? 1 : cur.repliedChannel === 'email' ? 2 : null;
+    const sugIdx = MEETING_SOURCES.findIndex(s => s[0] === cur.repliedChannel);
+    const suggested = sugIdx >= 0 ? sugIdx + 1 : null;
     const msg = 'Origem da reunião?\n\n'
       + MEETING_SOURCES.map((s, i) => `${i + 1}. ${s[1]}`).join('\n')
       + (suggested ? `\n\n(sugerido: ${suggested})` : '')
-      + '\n\nEscreve 1-6:';
+      + `\n\nEscreve 1-${MEETING_SOURCES.length}:`;
     const raw = window.prompt(msg, suggested ? String(suggested) : '');
     if (!raw) return;
     const idx = Number(String(raw).trim()) - 1;
@@ -2151,7 +2211,7 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
                 {creator.bio && <p style={{ fontSize: 12, color: "var(--sl-text-muted)", margin: 0, lineHeight: 1.6, whiteSpace: "pre-wrap" }}>{creator.bio}</p>}
                 {creator.externalUrl && <a href={creator.externalUrl.startsWith("http") ? creator.externalUrl : "https://" + creator.externalUrl} target="_blank" rel="noopener noreferrer" style={{ display: "block", marginTop: 6, fontSize: 12, color: "var(--sl-accent-text)", textDecoration: "none" }}>{creator.externalUrl}</a>}
                 <EditableContactEmail creator={creator} patchCreator={patchCreator} />
-                <EditableContactPhone creator={creator} patchCreator={patchCreator} />
+                <EditableContactPhone creator={creator} patchCreator={patchCreator} onRefresh={() => fetchCreator(creator.id)} />
               </div>
               {/* IG multi-link bio — Instagram's native "Links" feature, up to 5
                   titled links per profile. Captured on every scrape; falls back
@@ -2617,6 +2677,7 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
                       <span style={{ fontSize: 12, fontWeight: 700, color: "var(--sl-text-faint)", letterSpacing: "0.08em", textTransform: "uppercase" }}>Outreach</span>
                       {sentChip(out.dmSentAt, 'DM', () => markOutreach('dm'))}
                       {sentChip(out.emailSentAt, 'Email', () => markOutreach('email'))}
+                      {(creator.contactPhone || out.whatsappSentAt) && sentChip(out.whatsappSentAt, 'WhatsApp', () => markOutreach('whatsapp'))}
                       <span style={{ fontSize: 12, color: "var(--sl-text-faint)" }}>·</span>
                       {/* Follow-ups split by channel so the dashboard can
                           show DM-followups vs Email-followups effectiveness.
@@ -2625,6 +2686,7 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
                         const followUps = Array.isArray(out.followUps) ? out.followUps : [];
                         const dmFu = followUps.filter(f => f.channel === 'dm').length;
                         const emFu = followUps.filter(f => f.channel === 'email').length;
+                        const waFu = followUps.filter(f => f.channel === 'whatsapp').length;
                         const totalFu = followUps.length;
                         const capped = totalFu >= 3;
                         return (
@@ -2645,6 +2707,16 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
                             >
                               + Follow-up Email{emFu > 0 ? ` (${emFu})` : ''}
                             </button>
+                            {(creator.contactPhone || out.whatsappSentAt) && (
+                            <button
+                              onClick={() => markOutreach('followUpWhatsapp')}
+                              title="Marca quando enviares um follow-up por WhatsApp"
+                              disabled={capped}
+                              style={{ padding: "4px 10px", borderRadius: 4, fontSize: 12, fontWeight: 600, cursor: capped ? "default" : "pointer", fontFamily: "inherit", border: "1px solid var(--sl-border)", background: waFu > 0 ? "color-mix(in srgb, var(--sl-info) 8%, transparent)" : "transparent", color: waFu > 0 ? "var(--sl-info)" : "var(--sl-text-muted)" }}
+                            >
+                              + Follow-up WhatsApp{waFu > 0 ? ` (${waFu})` : ''}
+                            </button>
+                            )}
                             {totalFu > 0 && (
                               <span style={{ fontSize: 12, color: "var(--sl-text-faint)" }}>· {totalFu}/3{out.lastFollowUpAt ? ` · ${fmtRelative(out.lastFollowUpAt)}` : ''}</span>
                             )}
@@ -2669,8 +2741,8 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
                           where the conversion happened. After marking, the
                           chip shows which channel was used. */}
                       {out.repliedAt ? (
-                        <button onClick={() => markOutreach('unreplied')} title={`Respondeu via ${out.repliedChannel === 'email' ? 'Email' : 'DM'} ${fmtRelative(out.repliedAt)} · Clica para desmarcar`} style={{ padding: "4px 10px", borderRadius: 4, fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", border: "1px solid color-mix(in srgb, var(--sl-success) 30%, transparent)", background: "color-mix(in srgb, var(--sl-success) 8%, transparent)", color: "var(--sl-success)" }}>
-                          ✓ Respondeu via {out.repliedChannel === 'email' ? 'Email' : out.repliedChannel === 'dm' ? 'DM' : '?'} · {fmtRelative(out.repliedAt)}
+                        <button onClick={() => markOutreach('unreplied')} title={`Respondeu via ${out.repliedChannel === 'email' ? 'Email' : out.repliedChannel === 'whatsapp' ? 'WhatsApp' : 'DM'} ${fmtRelative(out.repliedAt)} · Clica para desmarcar`} style={{ padding: "4px 10px", borderRadius: 4, fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", border: "1px solid color-mix(in srgb, var(--sl-success) 30%, transparent)", background: "color-mix(in srgb, var(--sl-success) 8%, transparent)", color: "var(--sl-success)" }}>
+                          ✓ Respondeu via {out.repliedChannel === 'email' ? 'Email' : out.repliedChannel === 'whatsapp' ? 'WhatsApp' : out.repliedChannel === 'dm' ? 'DM' : '?'} · {fmtRelative(out.repliedAt)}
                         </button>
                       ) : (
                         <>
@@ -2680,6 +2752,11 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
                           <button onClick={() => markOutreach('repliedEmail')} title="Marca quando o creator responder via email." style={{ padding: "4px 10px", borderRadius: 4, fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", border: "1px solid var(--sl-border)", background: "transparent", color: "var(--sl-text-muted)" }}>
                             ○ Respondeu (Email)
                           </button>
+                          {(creator.contactPhone || out.whatsappSentAt) && (
+                          <button onClick={() => markOutreach('repliedWhatsapp')} title="Marca quando o creator responder via WhatsApp." style={{ padding: "4px 10px", borderRadius: 4, fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", border: "1px solid var(--sl-border)", background: "transparent", color: "var(--sl-text-muted)" }}>
+                            ○ Respondeu (WhatsApp)
+                          </button>
+                          )}
                         </>
                       )}
                       <span style={{ fontSize: 12, color: "var(--sl-text-faint)" }}>·</span>

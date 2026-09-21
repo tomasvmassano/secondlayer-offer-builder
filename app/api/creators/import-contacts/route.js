@@ -41,7 +41,7 @@ const cleanEmail = (s) => {
 
 const neverContacted = (c) => {
   const o = c.outreach || {};
-  return !o.dmSentAt && !o.emailSentAt && !o.repliedAt && !o.notInterestedAt
+  return !o.dmSentAt && !o.emailSentAt && !o.whatsappSentAt && !o.repliedAt && !o.notInterestedAt
     && !(Array.isArray(o.coldCalls) && o.coldCalls.length);
 };
 

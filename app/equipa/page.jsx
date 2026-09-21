@@ -86,6 +86,7 @@ const ACTIVITY_LABELS = {
   added:           { label: 'adicionou',                  color: TEXT_MID },
   dm_sent:         { label: 'enviou DM a',                color: ACCENT },
   email_sent:      { label: 'enviou email a',             color: ACCENT },
+  whatsapp_sent:   { label: 'enviou WhatsApp a',          color: ACCENT },
   follow_up:       { label: 'fez follow-up a',            color: AMBER },
   replied:         { label: 'recebeu resposta de',        color: 'var(--sl-info)' },
   signed:          { label: 'fechou',                     color: GREEN },
@@ -940,6 +941,7 @@ function PersonCard({ row, sbRow, streak, pipe, vel, delta, yesterdayRow, monthl
         <StatTile label="Fechados" value={row.signed} accent={row.signed > 0 ? GREEN : null} delta={delta?.deltaSigned} />
         <StatTile label="Follow-ups" value={row.followUpsDone} />
         <StatTile label="Emails" value={row.emailsSent} />
+        <StatTile label="WhatsApp" value={row.whatsappSent || 0} />
       </div>
 
       {/* Pipeline mini */}
@@ -1016,7 +1018,7 @@ function PersonCard({ row, sbRow, streak, pipe, vel, delta, yesterdayRow, monthl
 // Order: Operador · Streak · Touches · DMs · Emails · Reply % · Respostas · Fechados · Criadores · F-up · 7-day spark · Goal ring
 // Criadores (creators added) + F-up (follow-ups done) sit together at the
 // end — the two daily-input metrics the team tracks alongside outreach.
-const PERSON_ROW_COLS = "180px 70px 70px 100px 80px 80px 70px 70px 110px 50px";
+const PERSON_ROW_COLS = "180px 70px 70px 80px 100px 80px 80px 70px 70px 110px 50px";
 function PersonRow({ row, sbRow, streak, delta, yesterdayRow, activity, isLeader, isLoser, goalPct, windowKey, last }) {
   const series = activity?.days || [];
   const replyRate = row.replyRate;
@@ -1061,6 +1063,9 @@ function PersonRow({ row, sbRow, streak, delta, yesterdayRow, activity, isLeader
 
       {/* Emails — channel-specific send count */}
       <PersonRowCell label="Emails" value={row.emailsSent} accent={TEXT_MID} delta={showVsYesterday ? (row.emailsSent - (yesterdayRow.emailsSent || 0)) : null} />
+
+      {/* WhatsApp — first messages sent through the phone chip */}
+      <PersonRowCell label="WhatsApp" value={row.whatsappSent || 0} accent={TEXT_MID} delta={showVsYesterday ? ((row.whatsappSent || 0) - (yesterdayRow.whatsappSent || 0)) : null} />
 
       {/* Reply % — color-coded */}
       <PersonRowCell label="Reply %" value={`${replyRate}%`} accent={replyAccent} delta={showVsYesterday ? (replyRate - (yesterdayRow.replyRate || 0)) : null} deltaSuffix="pp" />

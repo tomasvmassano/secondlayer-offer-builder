@@ -28,6 +28,9 @@ function stampOutreachActor(outreach, user) {
   if (outreach.emailSentAt && !outreach.emailSentBy) {
     stamped.emailSentBy = actorFromUser(user, outreach.emailSentAt);
   }
+  if (outreach.whatsappSentAt && !outreach.whatsappSentBy) {
+    stamped.whatsappSentBy = actorFromUser(user, outreach.whatsappSentAt);
+  }
   if (outreach.lastFollowUpAt && !outreach.lastFollowUpBy) {
     stamped.lastFollowUpBy = actorFromUser(user, outreach.lastFollowUpAt);
   }
@@ -64,6 +67,7 @@ function stampOutreachActor(outreach, user) {
   // Unmark cases — clear the *By when *At is null so the field stays consistent.
   if (outreach.dmSentAt === null) stamped.dmSentBy = null;
   if (outreach.emailSentAt === null) stamped.emailSentBy = null;
+  if (outreach.whatsappSentAt === null) stamped.whatsappSentBy = null;
   if (outreach.repliedAt === null) {
     stamped.repliedMarkedBy = null;
     // Clearing the reply also clears its channel attribution.
@@ -95,7 +99,7 @@ function computeReplyAttribution(before, repliedAtISO) {
   // Every touch that could have earned the reply, kept only if it landed
   // at-or-before the reply. The latest one wins.
   const cands = [
-    { touch: 'dm',         at: o.dmSentAt || o.emailSentAt },
+    { touch: 'dm',         at: o.dmSentAt || o.emailSentAt || o.whatsappSentAt },
     { touch: fuStage,      at: lastFu?.at },
     { touch: 'voiceNote',  at: o.voiceNotedAt },
   ].filter(c => c.touch && c.at && Number.isFinite(new Date(c.at).getTime()) && new Date(c.at).getTime() <= replyMs);

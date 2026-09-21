@@ -62,7 +62,7 @@ export async function GET(request) {
   // The anchor is an explicit send (DM or email), never "copy was generated":
   // see the same note in cron/dm-reminders.
   const candidates = mine.filter(s => {
-    const anchor = s.dmSentAt || s.emailSentAt || null;
+    const anchor = s.dmSentAt || s.emailSentAt || s.whatsappSentAt || null;
     const followUpsDone = Number(s.followUpsDone) || 0;
     if (!anchor) return false;
     const days = daysBetween(anchor, now);
@@ -85,7 +85,7 @@ export async function GET(request) {
     const out = c.outreach || {};
     if (out.repliedAt) continue;
 
-    const dmAnchor = out.dmSentAt || out.emailSentAt || null;
+    const dmAnchor = out.dmSentAt || out.emailSentAt || out.whatsappSentAt || null;
     if (!dmAnchor) continue;
 
     const days = daysBetween(dmAnchor, now);

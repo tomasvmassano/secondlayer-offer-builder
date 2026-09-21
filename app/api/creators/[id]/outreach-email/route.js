@@ -56,7 +56,7 @@ export async function POST(request, { params }) {
   const done = (outcome, extra = {}) => NextResponse.json({ id, name: creator.name, outcome, cost, ...extra });
 
   if (!force && !dryRun && creator.dmSequence?.emailMeta?.framework === EMAIL_FRAMEWORK) {
-    return done('skipped', { tier: creator.dmSequence.emailMeta.tier });
+    return done('skipped', { tier: creator.dmSequence.emailMeta.tier, whatsapp: creator.dmSequence.whatsapp || null });
   }
 
   const username = igUsername(creator);
@@ -82,7 +82,7 @@ export async function POST(request, { params }) {
         headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01' },
         // 32s scrape + two 13s calls still lands under the 60s cap.
         signal: AbortSignal.timeout(13000),
-        body: safeStringify({ model: EMAIL_MODEL, max_tokens: 900, system, messages }),
+        body: safeStringify({ model: EMAIL_MODEL, max_tokens: 1000, system, messages }),
       });
       const data = await res.json().catch(() => null);
       if (res.status === 429 || res.status === 529) {
@@ -139,9 +139,8 @@ export async function POST(request, { params }) {
     }
 
     const mail = assemble(draft, language);
-    // Chat-ready copy for the WhatsApp button: the same message before the
-    // email contact card goes on (a name/email/website block reads wrong there).
-    const whatsapp = mail.email_day1.body;
+    // Short first-approach version for the WhatsApp button (see WHATSAPP copy).
+    const whatsapp = mail.whatsapp;
     // Same contact card dm-writer appends to every email.
     for (const k of ['email_day1', 'email_day7', 'email_day14']) {
       mail[k].body = appendSignature(mail[k].body, SENDER_FIRST_NAME);
@@ -159,7 +158,7 @@ export async function POST(request, { params }) {
       }, { skipIndexIfUnchanged: true });
     }
 
-    return done('written', { tier: meta.tier, reason: meta.reason, evidence, email: mail.email_day1, day7: mail.email_day7.body, day14: mail.email_day14.body, usage: data.usage });
+    return done('written', { tier: meta.tier, reason: meta.reason, evidence, whatsapp, email: mail.email_day1, day7: mail.email_day7.body, day14: mail.email_day14.body, usage: data.usage });
   } catch (err) {
     logError('outreach-email', err, { creatorId: id }).catch(() => {});
     return done('error', { error: err?.message || 'erro' });

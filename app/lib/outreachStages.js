@@ -121,6 +121,7 @@ export function computeOutreachStage(creator) {
   const repliedAt       = o.repliedAt     || creator.repliedAt;
   const dmSentAt        = o.dmSentAt      || creator.dmSentAt;
   const emailSentAt     = o.emailSentAt   || creator.emailSentAt;
+  const whatsappSentAt  = o.whatsappSentAt || creator.whatsappSentAt;
   const followUpsDone   = Number(o.followUpsDone ?? creator.followUpsDone ?? 0);
   const lastFollowUpAt  = o.lastFollowUpAt || creator.lastFollowUpAt || null;
 
@@ -142,7 +143,7 @@ export function computeOutreachStage(creator) {
   if (followUpsDone >= 3)           return 'followup_14';
   if (followUpsDone === 2)          return 'followup_7';
   if (followUpsDone === 1)          return 'followup_3';
-  if (dmSentAt || emailSentAt)      return 'em_outreach';
+  if (dmSentAt || emailSentAt || whatsappSentAt) return 'em_outreach';
   return 'por_contactar';
 }
 
@@ -163,7 +164,7 @@ export function stagePatch(creator, targetStage) {
       return {
         pipelineStatus: 'prospect',
         outreach: {
-          dmSentAt: null, emailSentAt: null,
+          dmSentAt: null, emailSentAt: null, whatsappSentAt: null,
           repliedAt: null, repliedChannel: null,
           followUps: [], followUpsDone: 0, lastFollowUpAt: null,          callBookedAt: null, callAgreedAt: null, callHeldAt: null,
           r2At: null, qnaAt: null, nutricaoAt: null,
@@ -176,7 +177,9 @@ export function stagePatch(creator, targetStage) {
       return {
         pipelineStatus: 'prospect',
         outreach: {
-          dmSentAt: getOutreach('dmSentAt') || now,
+          // First contact may have been by email or WhatsApp; only stamp a DM
+          // when the lead has no first-contact signal at all.
+          ...(getOutreach('dmSentAt') || getOutreach('emailSentAt') || getOutreach('whatsappSentAt') ? {} : { dmSentAt: now }),
           repliedAt: null, repliedChannel: null,
           followUps: [], followUpsDone: 0, lastFollowUpAt: null,          callBookedAt: null, callAgreedAt: null, callHeldAt: null,
           r2At: null, qnaAt: null, nutricaoAt: null,
@@ -335,7 +338,7 @@ export function stageEntries(creator) {
                    : Array.isArray(creator.followUps) ? creator.followUps : [];
   const entries = [
     { key: 'por_contactar',        at: creator.createdAt || null },
-    { key: 'em_outreach',          at: pick('dmSentAt') || pick('emailSentAt') || null },
+    { key: 'em_outreach',          at: pick('dmSentAt') || pick('emailSentAt') || pick('whatsappSentAt') || null },
     { key: 'followup_3',           at: followUps[0]?.at || null },
     { key: 'followup_7',           at: followUps[1]?.at || null },
     { key: 'followup_14',          at: followUps[2]?.at || null },
@@ -478,7 +481,7 @@ export function stageStaleness(creator) {
     case 'por_contactar':
       return { days: daysSince(creator?.createdAt), level: 'ok', stale: false };
     case 'em_outreach': {
-      const d = daysSince(o.dmSentAt || o.emailSentAt || creator?.dmSentAt);
+      const d = daysSince(o.dmSentAt || o.emailSentAt || o.whatsappSentAt || creator?.dmSentAt || creator?.whatsappSentAt);
       if (d > 14) return { days: d, level: 'cold', stale: true };
       if (d > 7)  return { days: d, level: 'warn', stale: false };
       return { days: d, level: 'ok', stale: false };

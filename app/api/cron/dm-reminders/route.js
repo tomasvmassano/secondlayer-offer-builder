@@ -239,7 +239,7 @@ export async function GET(request) {
     // as "lead was contacted": never-contacted leads got auto-colded at 21
     // days, and a lead moved back to Por contactar was re-colded the next
     // morning because its old sequence was still on the record.
-    const dmAnchor = out.dmSentAt || out.emailSentAt || null;
+    const dmAnchor = out.dmSentAt || out.emailSentAt || out.whatsappSentAt || null;
     if (!dmAnchor) {
       // Only flag creators that have been in the CRM for at least 1 day (so we
       // don't pester about creators added this morning).

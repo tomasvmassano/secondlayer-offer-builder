@@ -1742,7 +1742,7 @@ function CrmKanban({ creators, setCreators, onDragChange }) {
       if ('pipelineStatus' in patch) updated.pipelineStatus = patch.pipelineStatus;
       // Flatten outreach fields onto the summary's top level. Any key
       // present in patch.outreach gets applied (null included → clears).
-      for (const k of ['dmSentAt', 'emailSentAt', 'repliedAt', 'repliedChannel',
+      for (const k of ['dmSentAt', 'emailSentAt', 'whatsappSentAt', 'repliedAt', 'repliedChannel',
                        'proposalReadyAt',
                        'callBookedAt', 'callAgreedAt', 'callHeldAt', 'r2At', 'qnaAt', 'nutricaoAt',
                        'notInterestedAt']) {

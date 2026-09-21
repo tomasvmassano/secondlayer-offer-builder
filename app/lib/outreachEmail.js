@@ -81,6 +81,33 @@ export const ASK_BLOCK = {
   ],
 };
 
+// WhatsApp first message — the same diagnosis at roughly half the length. A
+// cold WhatsApp lands on a personal phone from an unknown number, so it says
+// who is writing in the first line and asks one thing. wa1/wa2 come from the
+// model (tier 4 uses the fixed ask for wa2); the rest is fixed.
+export const WHATSAPP = {
+  en: {
+    greet: (n) => (n ? `Hey ${n}, Tomás here.` : 'Hey, Tomás here.'),
+    ask4: "What I can't see from the outside is whether people ask you for more than the posts. I think that's usually where the opportunity sits.",
+    close: "I run Second Layer. I've been doing this for 5 years and worked with 50+ clients last year, and I already have a few ideas for you.\n\nGot 15 minutes this week to exchange some ideas?",
+  },
+  pt: {
+    greet: (n) => (n ? `Olá ${n}, é o Tomás.` : 'Olá, é o Tomás.'),
+    ask4: 'O que não consigo ver de fora é se as pessoas te pedem mais do que os posts. Acho que é normalmente aí que está a oportunidade.',
+    close: 'Lidero a Second Layer. Faço isto há 5 anos, no último ano trabalhámos com mais de 50 clientes, e já tenho algumas ideias para o teu caso.\n\nTens 15 minutos esta semana para trocarmos ideias?',
+  },
+  br: {
+    greet: (n) => (n ? `Olá ${n}, aqui é o Tomás.` : 'Olá, aqui é o Tomás.'),
+    ask4: 'O que eu não consigo ver de fora é se as pessoas pedem mais do que os posts. Acho que normalmente é aí que está a oportunidade.',
+    close: 'Lidero a Second Layer. Faço isso há 5 anos, no último ano trabalhamos com mais de 50 clientes, e já tenho algumas ideias para o seu caso.\n\nVocê tem 15 minutos esta semana para trocarmos ideias?',
+  },
+  es: {
+    greet: (n) => (n ? `Hola ${n}, soy Tomás.` : 'Hola, soy Tomás.'),
+    ask4: 'Lo que no puedo ver desde fuera es si la gente te pide más que los posts. Creo que ahí suele estar la oportunidad.',
+    close: 'Dirijo Second Layer. Llevo 5 años haciendo esto, el último año trabajamos con más de 50 clientes, y ya tengo algunas ideas para tu caso.\n\n¿Tienes 15 minutos esta semana para intercambiar ideas?',
+  },
+};
+
 // Style references: the three custom paragraphs of emails Tomás wrote and
 // rates as good. Diana's original cited saves; Instagram doesn't expose save
 // counts, so the reference uses a signal the scrape can actually see.
@@ -129,6 +156,7 @@ p1, observation then interpretation, 2 to 3 sentences. Name the specific post or
 p2, demand evidence, 2 sentences. "I also noticed" plus the signal with its real number or multiple, then what it tells you: people want something more structured, or more of this than single posts give them. A count is the number of comments on the post, so write "that post got 384 comments", never "384 people commented the keyword". When the post is marked x3 or more usual comments you may tie the count to the ask, in this shape: "that post got nearly 1,100 comments after you asked people to comment QUIERO". Never describe what people wrote in the comments, never say they sent messages, never say the comments "had the word" in them, unless it is shown under "comments seen". You may round a big number ("nearly 14,000 comments").
 For tier 3, p2 is instead "I also noticed you already have" plus the offer exactly as the bio or links name it, then what it tells you: one product or service rarely captures everyone in an audience who wants help. State only that the offer exists. Never claim how many people buy it, contact them or respond to it unless the bio gives that number. In tier 3, p1 is still about one specific post. Its gap in p3 is what sits around or beyond that offer.
 For tier 4, write p1 only and leave P2 and P3 empty.
+Then the same message for WhatsApp, much shorter, same facts and same rules. wa1 is the observation in ONE sentence of 24 words at most. wa2 is the demand signal and the opportunity in one or two short sentences, 34 words at most in total. For tier 4 leave WA2 empty.
 p3, the opportunity, 2 sentences at most, starting with "I think". No list of three. Mention a service or product they already have only if it appears in the bio or links. Be specific about the gap (for example between the free content and the 1 to 1 work, or beyond a product they already sell) and incomplete about the solution. Never name a format, a price, a module count or a platform. Make it feel incremental: they already have the audience, the knowledge and the demand, so it should not mean much more work for them.
 
 VOICE
@@ -150,7 +178,9 @@ VARIANT: pt or br for Portuguese, else none
 SUBJECT: 2 to 6 words, lowercase, a noun phrase that NAMES the post or angle and starts with your / o teu / a tua / tu, like your "BILL" post. Never words like demand, opportunity, idea or question
 P1: ...
 P2: ...
-P3: ...`;
+P3: ...
+WA1: ...
+WA2: ...`;
 }
 
 // ── Lead data → user message ─────────────────────────────────────────────────
@@ -269,7 +299,8 @@ export function checkDraft(draft, posts, scrape) {
 
   // 2. Every number in the copy must exist in the data. Tier 4 writes p1 only.
   const parts = draft.tier === 4 ? ['p1'] : ['p1', 'p2', 'p3'];
-  const body = parts.map(k => draft[k]).join(' ');
+  const waParts = draft.tier === 4 ? ['wa1'] : ['wa1', 'wa2'];
+  const body = [...parts, ...waParts].map(k => draft[k]).join(' ');
   const allowed = new Set();
   const addNums = (s) => (String(s || '').match(/\d+(?:[.,]\d+)*/g) || []).forEach(n => allowed.add(n.replace(/[.,]/g, '')));
   posts.forEach(p => { addNums(p.caption); allowed.add(String(p.likes)); allowed.add(String(p.comments)); (p.sampleComments || []).forEach(addNums); });
@@ -317,11 +348,16 @@ export function checkDraft(draft, posts, scrape) {
     if (w < 8) problems.push(`${k} too short`);
     if (w > 75) problems.push(`${k} too long (${w} words)`);
   }
+  for (const k of waParts) {
+    const w = String(draft[k] || '').trim().split(/\s+/).filter(Boolean).length;
+    if (w < 5) problems.push(`${k} missing`);
+    if (w > 45) problems.push(`${k} too long for WhatsApp (${w} words)`);
+  }
   if (!String(draft.subject || '').trim()) problems.push('no subject');
   return problems;
 }
 
-const FIELDS = ['TIER', 'REASON', 'POST', 'QUOTE', 'OFFER', 'FIRST_NAME', 'VARIANT', 'SUBJECT', 'P1', 'P2', 'P3'];
+const FIELDS = ['TIER', 'REASON', 'POST', 'QUOTE', 'OFFER', 'FIRST_NAME', 'VARIANT', 'SUBJECT', 'P1', 'P2', 'P3', 'WA1', 'WA2'];
 
 export function parseDraft(text) {
   const raw = String(text || '');
@@ -341,7 +377,7 @@ export function parseDraft(text) {
     quote: unq(v.QUOTE), offer: none(unq(v.OFFER)), first_name: none(unq(v.FIRST_NAME)), variant: none(unq(v.VARIANT)),
     // A subject is often a quoted title: strip only a quote pair that wraps the WHOLE value.
     subject: /^"[^"]*"$/.test(v.SUBJECT || '') ? unq(v.SUBJECT) : (v.SUBJECT || ''),
-    p1: v.P1 || '', p2: v.P2 || '', p3: v.P3 || '',
+    p1: v.P1 || '', p2: v.P2 || '', p3: v.P3 || '', wa1: v.WA1 || '', wa2: v.WA2 || '',
   };
 }
 
@@ -359,8 +395,11 @@ export function assemble(draft, language) {
     cleanPunctuation(draft.p1), p2, p3,
     f.credibility, f.ask, f.close, sign,
   ].join('\n\n');
+  const w = WHATSAPP[key];
+  const whatsapp = [w.greet(name), cleanPunctuation(draft.wa1), draft.tier === 4 ? w.ask4 : cleanPunctuation(draft.wa2), w.close].join('\n\n');
   return {
     copyKey: key,
+    whatsapp,
     email_day1: { subject, body: day1 },
     email_day7: { subject, body: `${f.day7(name, topic)}\n${SENDER_FIRST_NAME}` },
     email_day14: { subject, body: `${f.day14(name, topic)}\n${SENDER_FIRST_NAME}` },
