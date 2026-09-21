@@ -607,6 +607,9 @@ const WhatsAppAction = ({ creator, patchCreator, onRefresh }) => {
 
   const out = creator?.outreach || {};
   const sentAt = out.whatsappSentAt;
+  // Where the number came from, as verified by code against the creator's own
+  // profile. Unknown means the message says nothing about it.
+  const src = seq.emailMeta?.whatsappSource || creator?.outreachIntel?.facts?.contact?.phone || null;
   const shaky = n.kind === 'landline' || n.kind === 'tollfree';
   const btn = { padding: "2px 8px", borderRadius: 4, border: "1px solid color-mix(in srgb, var(--sl-success, #16a34a) 35%, transparent)", background: "transparent", color: "var(--sl-success, #16a34a)", fontSize: 12, fontWeight: 600, textDecoration: "none", cursor: "pointer", fontFamily: "inherit" };
 
@@ -639,20 +642,21 @@ const WhatsAppAction = ({ creator, patchCreator, onRefresh }) => {
   return (
     <>
       {note && <span style={{ marginLeft: "auto", fontSize: 12, color: "var(--sl-text-muted)" }}>{note}</span>}
+      {src && !note && !shaky && <span title={src.verified ? `Origem verificada: ${src.detail}. A mensagem menciona-o.` : 'Não sabemos onde este número foi encontrado, por isso a mensagem não diz nada sobre isso.'} style={{ marginLeft: "auto", fontSize: 12, color: src.verified ? "var(--sl-success, #16a34a)" : "var(--sl-text-faint)" }}>{src.verified ? 'origem verificada' : 'origem desconhecida'}</span>}
       {shaky && !note && <span title="Pelo formato, é uma linha fixa ou gratuita. Só tem WhatsApp se for uma conta Business." style={{ marginLeft: "auto", fontSize: 12, color: "var(--sl-text-faint)" }}>{n.kind === 'tollfree' ? 'linha gratuita' : 'fixo'}</span>}
       {sentAt ? (
-        <span title={`WhatsApp enviado a ${new Date(sentAt).toLocaleString('pt-PT')}`} style={{ marginLeft: note || shaky ? 0 : "auto", fontSize: 12, fontWeight: 600, color: "var(--sl-success, #16a34a)" }}>✓ WhatsApp enviado</span>
+        <span title={`WhatsApp enviado a ${new Date(sentAt).toLocaleString('pt-PT')}`} style={{ marginLeft: note || shaky || src ? 0 : "auto", fontSize: 12, fontWeight: 600, color: "var(--sl-success, #16a34a)" }}>✓ WhatsApp enviado</span>
       ) : opened ? (
-        <button onClick={markSent} title="Confirma que a mensagem foi enviada. Conta para o objetivo diário." style={{ ...btn, marginLeft: note || shaky ? 0 : "auto", background: "color-mix(in srgb, var(--sl-success, #16a34a) 12%, transparent)" }}>✓ Marcar enviado</button>
+        <button onClick={markSent} title="Confirma que a mensagem foi enviada. Conta para o objetivo diário." style={{ ...btn, marginLeft: note || shaky || src ? 0 : "auto", background: "color-mix(in srgb, var(--sl-success, #16a34a) 12%, transparent)" }}>✓ Marcar enviado</button>
       ) : null}
       {text ? (
         <>
-          <a href={whatsappUrl(creator.contactPhone, text, hints)} target="_blank" rel="noopener noreferrer" onClick={() => setOpened(true)} title="Abre o WhatsApp com a mensagem já escrita" style={{ ...btn, marginLeft: sentAt || opened || note || shaky ? 0 : "auto", opacity: shaky ? 0.6 : 1 }}>WhatsApp</a>
+          <a href={whatsappUrl(creator.contactPhone, text, hints)} target="_blank" rel="noopener noreferrer" onClick={() => setOpened(true)} title="Abre o WhatsApp com a mensagem já escrita" style={{ ...btn, marginLeft: sentAt || opened || note || shaky || src ? 0 : "auto", opacity: shaky ? 0.6 : 1 }}>WhatsApp</a>
           <button onClick={() => { navigator.clipboard.writeText(text); setCopied(true); setOpened(true); setTimeout(() => setCopied(false), 1500); }} title={text} style={{ ...btn, border: "1px solid var(--sl-border-strong)", color: "var(--sl-text-muted)" }}>{copied ? '✓ Copiada' : 'Copiar msg'}</button>
         </>
       ) : (
         <>
-          <button onClick={writeAndOpen} disabled={busy} title="Escreve a mensagem curta para este lead (cerca de 20 segundos) e abre o WhatsApp com ela" style={{ ...btn, marginLeft: sentAt || note || shaky ? 0 : "auto", opacity: busy ? 0.6 : 1, cursor: busy ? "wait" : "pointer" }}>{busy ? 'A escrever… ~20s' : 'WhatsApp · escrever mensagem'}</button>
+          <button onClick={writeAndOpen} disabled={busy} title="Escreve a mensagem curta para este lead (cerca de 20 segundos) e abre o WhatsApp com ela" style={{ ...btn, marginLeft: sentAt || note || shaky || src ? 0 : "auto", opacity: busy ? 0.6 : 1, cursor: busy ? "wait" : "pointer" }}>{busy ? 'A escrever… ~20s' : 'WhatsApp · escrever mensagem'}</button>
           {!busy && <a href={whatsappUrl(creator.contactPhone, '', hints)} target="_blank" rel="noopener noreferrer" onClick={() => setOpened(true)} title="Abre a conversa sem mensagem" style={{ ...btn, border: "1px solid var(--sl-border-strong)", color: "var(--sl-text-muted)" }}>Abrir sem msg</a>}
         </>
       )}
@@ -671,7 +675,7 @@ const EditableContactPhone = ({ creator, patchCreator, onRefresh }) => {
     const next = String(draft || '').trim();
     if (next === (creator?.contactPhone || '')) { setEditing(false); return; }
     setSaving(true);
-    try { await patchCreator({ contactPhone: next || null }); }
+    try { await patchCreator({ contactPhone: next || null, contactPhoneSource: next ? { type: 'operator', detail: 'typed in on the profile, origin not recorded', at: new Date().toISOString() } : null }); }
     finally { setSaving(false); setEditing(false); }
   };
   if (!creator?.contactPhone && !editing) {
@@ -1245,18 +1249,19 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
       // Apify first so Block 1 can name a real, specific post instead of a
       // generic opener. Non-fatal: if the scrape fails we generate anyway.
       let profile = creator;
-      if (stage === 'initial' && (creator.platforms?.instagram?.recentPosts?.length || 0) < 3) {
+      // Analyse once, reuse everywhere: the initial DM is built from the same
+      // creator intelligence as the email and the WhatsApp message. If there is
+      // none yet (or it is over 30 days old) this runs the one scrape + analysis
+      // and stores it; otherwise nothing is scraped. Non-fatal: on failure we
+      // generate from whatever is already on the record.
+      let intel = creator.outreachIntel;
+      const intelFresh = intel && intel.v === 1 && (Date.now() - new Date(intel.at).getTime()) < 30 * 86400000;
+      if (stage === 'initial' && !intelFresh) {
         try {
-          const rp = await fetch(`/api/creators/${creator.id}/refresh-posts`, { method: "POST" });
-          if (rp.ok) {
-            const rpData = await parseJsonSafe(rp);
-            if (Array.isArray(rpData.recentPosts) && rpData.recentPosts.length) {
-              const ig = { ...(creator.platforms?.instagram || {}), recentPosts: rpData.recentPosts };
-              profile = { ...creator, platforms: { ...(creator.platforms || {}), instagram: ig } };
-              patchCreator({ platforms: profile.platforms });
-            }
-          }
-        } catch { /* non-fatal — fall back to whatever content we already have */ }
+          const ir = await fetch(`/api/creators/${creator.id}/intel`, { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" });
+          const iData = ir.ok ? await parseJsonSafe(ir) : null;
+          if (iData?.intel) { intel = iData.intel; setCreator(prev => (prev ? { ...prev, outreachIntel: iData.intel } : prev)); }
+        } catch { /* non-fatal */ }
       }
       const r = await fetch("/api/dm-writer", {
         method: "POST", headers: { "Content-Type": "application/json" },
@@ -1279,6 +1284,7 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
           },
           notes: dmNotes,
           creatorProfile: {
+            outreachIntel: intel || null,
             name: creator.name,
             niche: creator.niche,
             bio: creator.bio,

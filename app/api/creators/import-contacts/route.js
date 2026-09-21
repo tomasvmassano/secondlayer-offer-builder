@@ -3,7 +3,12 @@ import { getCurrentUser } from '../../../lib/auth';
 import { listCreators, getCreator, updateCreator } from '../../../lib/creators';
 import { computeOutreachStage, stagePatch } from '../../../lib/outreachStages';
 
-// Bulk contact import — POST { rows: [{ name, email, phone }], dryRun, stageMode }
+// Bulk contact import — POST { rows: [{ name, email, phone }], dryRun, stageMode, source }
+//
+// `source` says where the sheet's contacts came from ("enrichment tool X",
+// "creator websites, collected by hand"). It is stored next to each contact so
+// the WhatsApp writer knows what it may say about the number. Leave it out and
+// the contacts are recorded as source unknown; nothing is ever guessed.
 //
 // Attaches emails / phones found outside the hub (enrichment sheets) to the
 // matching creator. Match is by NAME only, because those sheets carry no IG
@@ -61,6 +66,7 @@ export async function POST(request) {
   const rows = Array.isArray(body?.rows) ? body.rows.slice(0, 1000) : [];
   const dryRun = body?.dryRun !== false;
   const stageMode = ['none', 'safe', 'force'].includes(body?.stageMode) ? body.stageMode : 'none';
+  const provenance = { type: 'import', detail: String(body?.source || '').trim().slice(0, 200) || 'source unknown', by: u.email || null, at: new Date().toISOString() };
   if (!rows.length) return NextResponse.json({ error: 'rows[] required' }, { status: 400 });
 
   try {
@@ -115,12 +121,12 @@ export async function POST(request) {
         const patch = {};
         const have = cleanEmail(c.contactEmail);
         if (w.email) {
-          if (!have) { patch.contactEmail = w.email; report.emailSet += 1; }
+          if (!have) { patch.contactEmail = w.email; patch.contactEmailSource = provenance; report.emailSet += 1; }
           else if (have === w.email) report.emailAlready += 1;
           else report.emailConflict.push({ name: w.name, id: w.id, current: have, sheet: w.email });
         }
         if (w.phone) {
-          if (!String(c.contactPhone || '').trim()) { patch.contactPhone = w.phone; report.phoneSet += 1; }
+          if (!String(c.contactPhone || '').trim()) { patch.contactPhone = w.phone; patch.contactPhoneSource = provenance; report.phoneSet += 1; }
           else report.phoneAlready += 1;
         }
 

@@ -69,7 +69,7 @@ function renderPrompt(promptText, vars) {
 // Rules shared by both languages. Lean.
 const SHARED_RULES = `## ABSOLUTE RULES
 
-ZERO em dashes ("—"), en dashes ("–"), or " - " as punctuation. ZERO colons (":") anywhere in the DM, the comment, or the emails. A colon always reads as a setup for a pitch, so split it into two sentences instead. ZERO hyphens in compound modifiers ("high-ticket" becomes "high ticket", "free-prompts" becomes "free prompts"). Number ranges use "to" or "a", so "3 to 4 minutes" / "3 a 4 minutos", never "3-4". Word-internal hyphens in proper compound words like "ebook", "TikTok" are fine.
+ZERO em dashes ("—"), en dashes ("–"), or " - " used as punctuation. Hyphens that belong to a word or a name stay (Portuguese "diz-me", surnames). Colons are fine when grammar needs one, but keep it conversational, never formatted like a list. ZERO hyphens in compound modifiers ("high-ticket" becomes "high ticket", "free-prompts" becomes "free prompts"). Number ranges use "to" or "a", so "3 to 4 minutes" / "3 a 4 minutos", never "3-4". Word-internal hyphens in proper compound words like "ebook", "TikTok" are fine.
 
 Template text is FIXED except for variables. Do NOT paraphrase template sentences.
 One blank line between blocks. No emojis in emails or comments (DM allows max 1 emoji in the reacao_pessoal variable if natural). No links. Never mention "Second Layer".
@@ -508,7 +508,7 @@ One SPECIFIC piece of their content + one honest, human reaction.
 
 **Block 2 — A oportunidade (2 frases)**
 Aponta UMA oportunidade real e específica que vês no que ela faz, a partir do hook. Observa-a, NÃO prescrevas o plano todo e NÃO inventes números nem afirmações sobre a receita dela. Depois diz que tens uma ideia específica de como a abordarias.
-- Observa, não mandes. Model this shape, "Isso costuma ser sinal de que há uma oferta à espera de ser feita, e tenho uma ideia específica de como a montaria contigo", and never use a colon.
+- Observa, não mandes. Model this shape, "Isso costuma ser sinal de que há uma oferta à espera de ser feita, e tenho uma ideia específica de como a montaria contigo".
 - It MUST be specific to their niche and to what you named in Block 1. Adapta ao criador. Um criador de receitas não é um coach de fitness nem um criador de finanças.
 - Calibration patterns to adapt, never copy.
   · receitas ou comida. "as receitas que as pessoas mais guardam já são uma lista de espera, e há aí uma oferta paga à espera de ser feita."
@@ -593,7 +593,7 @@ One SPECIFIC piece of their content + one honest, human reaction.
 
 **Block 2 — The opportunity (2 sentences)**
 Point at ONE real, specific gap or opportunity you see in what they do, based on the hook. Observe it, do NOT prescribe the full plan and do NOT invent numbers or claims about their revenue. Then say you have a specific idea for how you would approach it.
-- Observe, don't instruct. Model this shape, "That clarity is usually a sign there's an offer hiding in plain sight, and I've got a specific idea for how I'd package it for you", and never use a colon.
+- Observe, don't instruct. Model this shape, "That clarity is usually a sign there's an offer hiding in plain sight, and I've got a specific idea for how I'd package it for you".
 - MUST be specific to their niche and to Block 1. Adapt to the creator. A recipe creator is not a fitness coach or a finance creator.
 - Calibration patterns to adapt, never copy.
   · recipes or food. "your most saved recipes are already a waitlist, and there's a paid offer sitting in there waiting to be built."
@@ -678,7 +678,7 @@ One SPECIFIC piece of their content + one honest, human reaction.
 
 **Block 2 — La oportunidad (2 frases)**
 Señala UNA oportunidad real y específica que ves en lo que hace, a partir del hook. Obsérvala, NO prescribas el plan entero y NO inventes números ni afirmaciones sobre sus ingresos. Luego di que tienes una idea específica de cómo lo abordarías.
-- Observa, no ordenes. Model this shape, "Eso suele ser señal de que hay una oferta esperando a hacerse, y tengo una idea específica de cómo la montaría contigo", and never use a colon.
+- Observa, no ordenes. Model this shape, "Eso suele ser señal de que hay una oferta esperando a hacerse, y tengo una idea específica de cómo la montaría contigo".
 - MUST be specific to their niche and to Block 1. Adapta al creador. Un creador de recetas no es un coach de fitness ni un creador de finanzas.
 - Calibration patterns to adapt, never copy.
   · recetas o comida. "tus recetas más guardadas ya son una lista de espera, y hay una oferta de pago esperando a hacerse."
@@ -1195,7 +1195,7 @@ A short, credible cold DM. We reach out to HELP them, never to ask a favour, and
    ${SOFT_ASK[language] || SOFT_ASK.pt}
 6. Sign-off: blank line, "Abraço," / "Cheers," / "Un abrazo," blank line, then {senderName}.
 
-The call is the goal, framed as a peer idea-exchange, not a sales call. NEVER use: a video offer, "faz sentido?" / "does it make sense?", "leaving money on the table" or any algorithm scare, a prescriptive or presumptuous line about their business, a needy or apologetic line ("no pressure", "if you want", "sorry to bother", "sem stress"), colons (":"), em dashes or "—", invented context, or internal audit data. The opportunity shows you see it, the authority line earns the ask, the CTA books the call. Around 5 to 6 lines, under 800 chars.
+The call is the goal, framed as a peer idea-exchange, not a sales call. NEVER use: a video offer, "faz sentido?" / "does it make sense?", "leaving money on the table" or any algorithm scare, a prescriptive or presumptuous line about their business, a needy or apologetic line ("no pressure", "if you want", "sorry to bother", "sem stress"), em dashes or "—", invented context, or internal audit data. The opportunity shows you see it, the authority line earns the ask, the CTA books the call. Around 5 to 6 lines, under 800 chars.
 
 Follow-up emails mirror this: one more specific idea each, one light proof point, always a clear call ask. Never needy, never presumptuous, never a video.`;
 
@@ -1290,9 +1290,31 @@ ${notesTrimmed}
     ? `\n\nBefore you write a single block, re-read the OPERATOR INSTRUCTIONS at the top of this message. Apply them literally. If you wrote a block that ignores or contradicts them, rewrite it.`
     : '';
 
+  // Shared creator intelligence (lib/creatorIntel). When present, the DM is
+  // built from the SAME reading as the email and the WhatsApp message: facts
+  // were verified by code, the reading is ours. The DM keeps its own approved
+  // structure, authority line and locked ending; only the personalised blocks
+  // draw on this.
+  const intel = cp.outreachIntel && cp.outreachIntel.tier > 0 ? cp.outreachIntel : null;
+  const intelPost = intel?.facts?.evidence?.find(e => e.ref === 'post');
+  const intelOffer = intel?.facts?.evidence?.find(e => e.ref === 'bio_or_links');
+  const intelBlock = intel && intelPost ? `## CREATOR INTELLIGENCE (analysed once, reuse it, do not re-derive)
+VERIFIED FACTS, checked by code. You may state these, numbers exactly as written, never recalculated:
+- post: ${intelPost.postType}, comments=${intelPost.value}${intelPost.likes > 0 ? `, likes=${intelPost.likes}` : ''}${intelPost.multiple >= 2 ? ` (x${intelPost.multiple} usual comments)` : ''}${intelPost.likesMultiple >= 2 ? ` (x${intelPost.likesMultiple} usual likes)` : ''}
+- caption: ${JSON.stringify(intelPost.caption || '')}
+${intelPost.quote ? `- the part we are pointing at: ${JSON.stringify(intelPost.quote)}\n` : ''}${intelOffer ? `- already offers, as written on their profile: ${JSON.stringify(intelOffer.quote)}\n` : ''}OUR READING, interpretation only. Phrase it as your view, never as a fact about them:
+- what the post does: ${intel.read?.postGist || 'n/a'}
+- signal: ${intel.read?.signal || 'n/a'}
+- why it matters: ${intel.read?.why || 'n/a'}
+- gap: ${intel.read?.gap || 'n/a'}
+- angle: ${intel.read?.angle || 'n/a'}
+Build the hook from this post and the opportunity from the gap. Do not pick a different post or a different angle. Instagram does not show save counts, so never mention saves. Aim for 600 to 800 characters, the hard limit is 1000.
+
+` : '';
+
   const userMessage = `Generate the DM outreach for this creator.
 
-${notesBlock}## PROFILE
+${notesBlock}${intelBlock}## PROFILE
 ${profileSummary}
 
 ## INPUTS (fill [FILL] from profile)

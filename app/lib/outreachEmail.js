@@ -1,26 +1,39 @@
-// Cold outreach email — framework v2 (Sept 2026).
+// Channel writers for EMAIL and WHATSAPP — stage 2 of the outreach pipeline.
 //
-// Formula: personal observation → why it works → evidence of audience demand →
-// monetization gap, incomplete on purpose → credibility → curiosity → low
-// pressure 15 minutes. Diagnose before prescribing.
+// Input is the stored creator intelligence (lib/creatorIntel.js), never the raw
+// scrape: the writer can only state what code already verified, and it is told
+// which lines are facts and which are our reading. The Instagram DM keeps its
+// own approved writer (api/dm-writer) and receives the same intelligence.
 //
-// Only the first three paragraphs (plus the subject and a short topic phrase)
-// are written by the model. Everything from the credibility line down is FIXED
-// copy per language, identical on every send, so the team reviews it once.
-// Day 7 and Day 14 are fixed too and only take the first name and the topic.
+// FIXED SALES MECHANICS, VARIABLE PERSONALIZATION. The model writes the creator
+// specific insight and opportunity (subject, p1 to p3, wa1, wa2). Credibility,
+// the ask, the close, the follow-ups, the manager variant and the WhatsApp
+// source line are fixed copy per language, reviewed once, identical every send.
 //
-// Honesty rule: the model may only use facts present in the scrape. We check
-// its work here instead of trusting it — the quoted caption fragment must
-// exist in the post it points at, and every number in the copy must exist in
-// the data. A lead with no real demand signal gets NO email (tier 3) and goes
-// to a human instead of getting a generic one.
+// Prompt instructions are not enforcement: checkCopy() re-verifies every number,
+// multiple and banned claim in code before anything is saved.
+
+import { plain, fold } from './creatorIntel';
 
 export const EMAIL_FRAMEWORK = 'v2';
 export const EMAIL_MODEL = 'claude-haiku-4-5-20251001';
+
+// ── Sender ───────────────────────────────────────────────────────────────────
+// The credibility line below says "I run Second Layer", which is only true for
+// Tomás. Another sender needs their own APPROVED line before the writer will
+// produce anything in their name; we never generate a statement that is false
+// for the person sending it.
+const SENDERS = { tomas: { firstName: 'Tomás', approved: true } };
+const senderKey = (n) => String(n || '').normalize('NFD').replace(/\p{M}/gu, '').toLowerCase().trim();
+export function resolveSender(name) {
+  const s = SENDERS[senderKey(name || 'Tomás')];
+  return s && s.approved ? s : null;
+}
 export const SENDER_FIRST_NAME = 'Tomás';
 
 // ── Fixed copy ───────────────────────────────────────────────────────────────
-// 'br' is Brazilian Portuguese; the model picks pt vs br from the captions.
+// 'br' is Brazilian Portuguese. The analysis stage decides pt vs br; the two
+// are never mixed.
 export const FIXED = {
   en: {
     greet: (n) => (n ? `Hey ${n},` : 'Hey,'),
@@ -127,55 +140,93 @@ p2: Reparei também que o Bacalhau Cremoso teve cerca de 3 vezes os teus coment�
 p3: Acho que há uma oportunidade interessante para transformar essa procura numa oferta paga, sem depender apenas de conteúdo gratuito ou de criar muito mais trabalho para ti.`,
 };
 
+// Manager / talent agency inbox. The reader is NOT the creator, so the email is
+// written to that person ABOUT the creator, and the ask is a conversation or
+// being pointed to whoever handles this.
+export const AGENCY = {
+  en: {
+    greet: 'Hi,',
+    intro: (full) => `I'm writing about ${full}, who I understand you work with.`,
+    ask: 'I already have a few ideas for what that could look like. Would be good to connect for 15 minutes with you or whoever handles this side of things, exchange some ideas and see where the conversation goes.',
+    close: 'If it makes sense from there, great. If not, hopefully you leave with a couple of useful ideas.',
+    day7: (full, first, topic) => `Hi,\n\nComing back to my note about ${full} and ${topic}.\n\nThe ideas I mentioned come from what ${first}'s audience is already asking for, so they are easier to talk through than to write out.\n\nDo you have 15 minutes this week or next, or is there someone better placed to speak with?\n\nCheers,`,
+    day14: (full, first, topic) => `Hi,\n\nLast note from me on this. I still think there is something worth building around ${topic}.\n\nIf the timing is off, tell me and I will check back later in the year. If someone else handles this for ${first}, point me to them and I will take it from there.\n\nCheers,`,
+  },
+  pt: {
+    greet: 'Olá,',
+    intro: (full) => `Escrevo a propósito de ${full}, com quem penso que trabalham.`,
+    ask: 'Já tenho algumas ideias para o que isto poderia ser. Gostava de falar 15 minutos convosco, ou com quem trate desta parte, para trocarmos ideias e ver onde a conversa nos leva.',
+    close: 'Se fizer sentido, ótimo. Se não, pelo menos trocamos algumas ideias que podem ser úteis.',
+    day7: (full, first, topic) => `Olá,\n\nVolto ao que escrevi sobre ${full} e ${topic}.\n\nAs ideias de que falei vêm do que a audiência de ${first} já anda a pedir, por isso são mais fáceis de conversar do que de escrever.\n\nTêm 15 minutos esta semana ou na próxima, ou há alguém mais indicado com quem falar?\n\nAbraço,`,
+    day14: (full, first, topic) => `Olá,\n\nÚltima nota minha sobre isto. Continuo a achar que há algo que vale a pena construir à volta de ${topic}.\n\nSe a altura não é boa, digam-me e volto a falar mais para o fim do ano. Se for outra pessoa a tratar disto para ${first}, indiquem-me quem e eu sigo por aí.\n\nAbraço,`,
+  },
+  br: {
+    greet: 'Olá,',
+    intro: (full) => `Escrevo a respeito de ${full}, com quem acredito que vocês trabalham.`,
+    ask: 'Já tenho algumas ideias do que isso poderia ser. Gostaria de conversar 15 minutos com vocês, ou com quem cuida dessa parte, para trocarmos ideias e ver aonde a conversa nos leva.',
+    close: 'Se fizer sentido, ótimo. Se não, pelo menos trocamos algumas ideias que podem ser úteis.',
+    day7: (full, first, topic) => `Olá,\n\nVolto ao que escrevi sobre ${full} e ${topic}.\n\nAs ideias que mencionei vêm do que a audiência de ${first} já está pedindo, por isso são mais fáceis de conversar do que de escrever.\n\nVocês têm 15 minutos esta semana ou na próxima, ou existe alguém mais indicado para falar?\n\nAbraço,`,
+    day14: (full, first, topic) => `Olá,\n\nÚltima mensagem minha sobre isso. Continuo achando que existe algo que vale a pena construir em torno de ${topic}.\n\nSe o momento não é bom, me avisem e eu volto a falar mais para o fim do ano. Se outra pessoa cuida disso para ${first}, me indiquem quem e eu sigo por aí.\n\nAbraço,`,
+  },
+  es: {
+    greet: 'Hola,',
+    intro: (full) => `Escribo por ${full}, con quien entiendo que trabajan.`,
+    ask: 'Ya tengo algunas ideas de cómo podría ser. Me gustaría hablar 15 minutos con ustedes, o con quien lleve esta parte, intercambiar ideas y ver a dónde nos lleva la conversación.',
+    close: 'Si tiene sentido, genial. Si no, al menos intercambiamos algunas ideas que pueden servir.',
+    day7: (full, first, topic) => `Hola,\n\nVuelvo a lo que escribí sobre ${full} y ${topic}.\n\nLas ideas que mencioné salen de lo que la audiencia de ${first} ya está pidiendo, así que son más fáciles de hablar que de escribir.\n\n¿Tienen 15 minutos esta semana o la próxima, o hay alguien más indicado con quien hablar?\n\nUn abrazo,`,
+    day14: (full, first, topic) => `Hola,\n\nÚltimo mensaje mío sobre esto. Sigo pensando que hay algo que merece la pena construir alrededor de ${topic}.\n\nSi no es buen momento, díganmelo y vuelvo a escribir hacia final de año. Si otra persona lleva esto para ${first}, indíquenme quién y sigo por ahí.\n\nUn abrazo,`,
+  },
+};
+
+// WhatsApp source line. Used ONLY when code verified where the number is
+// published (lib/creatorIntel verifyPhoneSource). Neutral, never apologetic.
+// Unknown source → no line at all; we never invent an explanation.
+export const WA_SOURCE = {
+  en: { link: "Found your WhatsApp link on your Instagram profile and thought I'd reach out here.", number: "Found your number on your Instagram profile and thought I'd reach out here." },
+  pt: { link: 'Encontrei o teu link de WhatsApp no teu perfil de Instagram e decidi falar contigo por aqui.', number: 'Encontrei o teu número no teu perfil de Instagram e decidi falar contigo por aqui.' },
+  br: { link: 'Encontrei seu link de WhatsApp no seu perfil do Instagram e resolvi falar com você por aqui.', number: 'Encontrei seu número no seu perfil do Instagram e resolvi falar com você por aqui.' },
+  es: { link: 'Encontré tu enlace de WhatsApp en tu perfil de Instagram y pensé en escribirte por aquí.', number: 'Encontré tu número en tu perfil de Instagram y pensé en escribirte por aquí.' },
+};
+
 const LANG_NAME = {
   en: 'English',
-  pt: 'Portuguese. Match the variety of the captions: European Portuguese ("tu", "a fazer") or Brazilian Portuguese ("você", "fazendo")',
+  pt: 'European Portuguese ("tu", "a fazer"). Never Brazilian forms',
+  br: 'Brazilian Portuguese ("você", "fazendo"). Never European forms',
   es: 'Spanish, informal "tú"',
 };
 
-export function buildSystemPrompt(language) {
+// ── Writer prompt ────────────────────────────────────────────────────────────
+export function buildWriterPrompt(language, { agency = false } = {}) {
   const lang = LANG_NAME[language] ? language : 'en';
-  const example = EXAMPLES[lang] || `${EXAMPLES.en}\n\n(The examples are in English for structure and tone only. Write in the target language.)`;
-  return `You write the three custom paragraphs of a cold email from Tomás, who runs Second Layer, to a creator he has never spoken to. Second Layer helps creators turn an audience they already have into a new paid offer. Everything after your paragraphs (who we are, the ask, the sign off) is fixed copy added by code. Never write a greeting, an introduction of who we are, a call to action or a sign off.
+  const example = EXAMPLES[lang === 'br' ? 'pt' : lang] || `${EXAMPLES.en}\n\n(The examples are in English for structure and tone only. Write in the target language.)`;
+  return `You write the creator specific part of a first outreach from Tomás, who runs Second Layer, for two channels: EMAIL and WHATSAPP. Second Layer helps creators turn an audience they already have into a new paid offer. Everything after your paragraphs (who we are, the ask, the sign off) is fixed copy added by code. Never write a greeting, an introduction of who we are, a call to action or a sign off.
 
-The email must feel like it came from someone who understands their business, noticed an opportunity and might be worth knowing. Diagnose, never prescribe.
+You receive a creator intelligence object prepared earlier. It has two parts and the difference is the whole job:
+VERIFIED FACTS were checked by code. You may state them, with numbers exactly as written. Never calculate or restate a number differently.
+OUR READING is interpretation. Use it to decide what to say, and phrase it as your view ("I think", "that tells me"), never as a fact about them. The line marked INTERNAL is never revealed.
+State nothing that is not in VERIFIED FACTS. Instagram does not show save counts, so never mention saves.
 
-You get the creator's bio and recent posts with real numbers. Use ONLY facts present in that data. Never invent a post, a number, a comment, a product or an audience reaction. Instagram does not show save counts, so never mention saves.
+The goal is that the creator thinks: this person looked at what I do, noticed something commercially interesting about my audience, and might have ideas worth discussing. Diagnose, never prescribe. Be specific about the gap and incomplete about the solution: never name a format, a price, a module count or a platform. Make it feel incremental, building on the audience, knowledge and demand they already have.
+${agency ? `
+THE READER IS NOT THE CREATOR. This address belongs to their manager or agency. Write ABOUT the creator in the third person, using their first name ("Laura's post on...", "her audience", "I think there is an opportunity for Laura..."). Never "you" or "your" for the creator. The subject names the creator and the post.
+` : ''}
+EMAIL, three short paragraphs in ${LANG_NAME[lang]}. Email can carry a little more context because the reader does not know who is writing.
+p1, observation then interpretation, 2 to 3 sentences. Name the specific post or angle from the facts, then why it works or what it does differently. Your reaction ("stood out to me", "I liked how"), never a verdict ("You clearly", "Your content is"). If the sentence could be sent to 20 other creators, rewrite it.
+p2, demand evidence, 2 sentences. "I also noticed" plus the signal with its real number or multiple, then what it tells you. A count is the number of comments on the post: write "that post got 384 comments", never "384 people commented the keyword". When the post is marked x3 or more usual comments you may tie the count to the ask ("nearly 1,100 comments after you asked people to comment QUIERO"). Never describe what people wrote unless it appears under comments seen. You may round a big number.
+   Tier 3: p2 is "I also noticed you already have" plus the offer exactly as quoted, then what it tells you: one product or service rarely captures everyone in an audience who wants help. State only that it exists, never how it sells.
+p3, the opportunity, 2 sentences at most, starting with "I think". Use the gap from our reading. No list of three. Mention an existing offer only if it is in the facts.
+   Tier 4: write p1 only and leave P2 and P3 empty. Code adds an honest question about demand.
 
-STEP 1. Find the demand signal. This decides the tier.
-Tier 1: a caption asks people to take an action to get something (comment a keyword, DM a word, grab a guide or template, join a list, link in bio for a resource) AND that post has real comment volume: at least 20 comments and not below the creator's usual. A call to action that few people answered is not a signal, so look at the other posts instead. People taking an action to receive something is the strongest signal there is.
-Tier 2: no such caption, but a post line is marked as x2 or more above this creator's usual and it teaches, explains or answers something. The signal is that this topic pulled far more response than usual.
-Never a signal, whatever the numbers: giveaways, contests, tag a friend posts, birthdays, personal announcements, brand collaborations, and questions to the audience such as "where are you from?" or "what do you think?". That is engagement, not demand. For tier 1 the caption must OFFER something in return for the action (a guide, a link, a template, the details, a spot).
-Tier 3: no tier 1 or 2 signal, but the bio or the links show they ALREADY offer something: a product, a course, an ebook, consultations, coaching, a newsletter, a free guide, a community, a shop. People already pay or sign up for it, which is demand you can point at.
-Tier 4: none of the above, but there is a specific post or recurring angle worth a real observation. You write p1 only. Code adds an honest p2 and p3 that ASK about demand rather than claim it.
-Tier 0: not writable, and ONLY for these two reasons: fewer than three real posts, or the account is a brand, agency, shop or fan page rather than a person. A person with an audience always gets at least tier 4, whatever the niche (travel, lifestyle, comedy included). Return TIER and REASON only.
-Always take the strongest tier the data honestly supports. Never stretch a weak post into tier 1 or 2 when tier 3 or 4 is the truth.
-
-STEP 2. Write three short paragraphs in ${LANG_NAME[lang]}.
-p1, observation then interpretation, 2 to 3 sentences. Name the specific post or recurring angle, then say why it works or what it does differently from others in the niche. Frame it as YOUR reaction ("stood out to me", "I liked how"), never as a verdict about them ("You clearly", "Your content is"). Test: if the sentence could be sent to 20 other creators, rewrite it.
-p2, demand evidence, 2 sentences. "I also noticed" plus the signal with its real number or multiple, then what it tells you: people want something more structured, or more of this than single posts give them. A count is the number of comments on the post, so write "that post got 384 comments", never "384 people commented the keyword". When the post is marked x3 or more usual comments you may tie the count to the ask, in this shape: "that post got nearly 1,100 comments after you asked people to comment QUIERO". Never describe what people wrote in the comments, never say they sent messages, never say the comments "had the word" in them, unless it is shown under "comments seen". You may round a big number ("nearly 14,000 comments").
-For tier 3, p2 is instead "I also noticed you already have" plus the offer exactly as the bio or links name it, then what it tells you: one product or service rarely captures everyone in an audience who wants help. State only that the offer exists. Never claim how many people buy it, contact them or respond to it unless the bio gives that number. In tier 3, p1 is still about one specific post. Its gap in p3 is what sits around or beyond that offer.
-For tier 4, write p1 only and leave P2 and P3 empty.
-Then the same message for WhatsApp, much shorter, same facts and same rules. wa1 is the observation in ONE sentence of 24 words at most. wa2 is the demand signal and the opportunity in one or two short sentences, 34 words at most in total. For tier 4 leave WA2 empty.
-p3, the opportunity, 2 sentences at most, starting with "I think". No list of three. Mention a service or product they already have only if it appears in the bio or links. Be specific about the gap (for example between the free content and the 1 to 1 work, or beyond a product they already sell) and incomplete about the solution. Never name a format, a price, a module count or a platform. Make it feel incremental: they already have the audience, the knowledge and the demand, so it should not mean much more work for them.
+WHATSAPP, the same insight, much shorter and more conversational, for a personal channel. wa1 is the observation in ONE sentence of 24 words at most. wa2 is the signal and the opportunity in one or two short sentences, 34 words at most. Tier 4: leave WA2 empty.
 
 VOICE
-Plain words, like a person typing to a peer. The sophistication is in the thinking, not the vocabulary. Short, uneven sentences. No hype and no copywriter phrases (unlock, maximize, scale your brand, monetization potential, turn followers into customers, game changer, leverage, next level). No flattery such as "great content" or "amazing". One observation only, never a stack of compliments. Every sentence must add relevance, understanding, demand or curiosity, otherwise cut it.
-Punctuation: no em dashes, no en dashes, no hyphen used as punctuation, no colons, no semicolons, no parentheses, no emojis, no exclamation marks. Write "1 to 1", never "1:1". Put a post title or keyword in straight double quotes.
-Numbers: only numbers that appear in the data. A multiple such as "3 times your usual comments" only if that post's line shows it, rounded down.
+Plain words, like a person typing to a peer. The sophistication is in the thinking, not the vocabulary. Short, uneven sentences. No hype and no agency phrases (unlock, maximize, scale your brand, monetization potential, monetization ecosystem, high converting funnel, turn followers into customers, game changer, leverage, next level). No flattery such as "great content". One observation only. Every sentence must add relevance, understanding, demand or curiosity, otherwise cut it.
+Punctuation: never use a hyphen or a dash as punctuation (no "word - word", no em or en dashes). Hyphens that belong to a word or a name stay. Colons are fine when grammar needs one, but keep it conversational, not formatted. No parentheses, no emojis, no exclamation marks. Write "1 to 1". Put a post title or keyword in straight double quotes.
 
 ${example}
 
-OUTPUT
-Plain text, one field per line, exactly these labels in this order and nothing else. No JSON, no markdown. For tier 0 return only TIER and REASON.
-TIER: 1, 2, 3, 4 or 0
-REASON: why this tier, 12 words at most
-POST: index of the post you built the email on
-QUOTE: a short fragment copied EXACTLY from that post's caption, the part p1 refers to
-OFFER: tier 3 only, the fragment of the bio or links that names what they already offer, copied EXACTLY, else none
-FIRST_NAME: the person's first name if this is clearly a person and the name is evident from the name or bio, else none
-VARIANT: pt or br for Portuguese, else none
-SUBJECT: 2 to 6 words, lowercase, a noun phrase that NAMES the post or angle and starts with your / o teu / a tua / tu, like your "BILL" post. Never words like demand, opportunity, idea or question
+OUTPUT: plain text, one field per line, exactly these labels, nothing else.
+SUBJECT: 2 to 6 words, lowercase, a noun phrase that NAMES the post or angle${agency ? ' and the creator, like laura\'s "tupper" post' : ' and starts with your / o teu / a tua / seu / sua / tu, like your "BILL" post'}. Never words like demand, opportunity, idea or question
 P1: ...
 P2: ...
 P3: ...
@@ -183,64 +234,43 @@ WA1: ...
 WA2: ...`;
 }
 
-// ── Lead data → user message ─────────────────────────────────────────────────
-const median = (arr) => {
-  const a = arr.filter(n => Number.isFinite(n) && n > 0).sort((x, y) => x - y);
-  if (!a.length) return 0;
-  const m = Math.floor(a.length / 2);
-  return a.length % 2 ? a[m] : (a[m - 1] + a[m]) / 2;
-};
+const TIER_NAME = { 1: 'caption offered something for an action and people answered', 2: 'one post far above their usual', 3: 'they already offer something', 4: 'no demand evidence, observation only' };
 
-// Each post's multiple is measured against the median of the OTHER posts, so a
-// single viral post can't inflate its own baseline.
-export function withMultiples(posts) {
-  return posts.map((p, i) => {
-    const others = posts.filter((_, j) => j !== i);
-    const mc = median(others.map(o => o.comments));
-    const ml = median(others.map(o => o.likes));
-    return {
-      ...p,
-      xComments: mc > 0 && p.comments > 0 ? Math.floor((p.comments / mc) * 10) / 10 : null,
-      xLikes: ml > 0 && p.likes > 0 ? Math.floor((p.likes / ml) * 10) / 10 : null,
-    };
-  });
-}
-
-// "title (url)" — the domain alone often names the product (stan.store, hotmart).
-const bioLinks = (scrape) => (scrape?.igBioLinks || [])
-  .map(l => (typeof l === 'string' ? l : [l?.title, l?.url].filter(Boolean).join(' ')))
-  .map(x => String(x || '').replace(/\s+/g, ' ').trim()).filter(Boolean).slice(0, 6);
-
-// Fancy-unicode display names ("𝐀𝐧𝐝𝐫𝐞́") fold to plain letters.
-const plain = (s) => String(s || '').normalize('NFKC').replace(/\s+/g, ' ').trim();
-
-export function buildUserMessage({ creator, scrape, posts }) {
-  const lines = posts.map((p, i) => {
+export function buildWriterInput(intel, creator) {
+  const ev = intel.facts.evidence.find(e => e.ref === 'post');
+  const offer = intel.facts.evidence.find(e => e.ref === 'bio_or_links');
+  const r = intel.read || {};
+  const facts = [];
+  if (ev) {
     const marks = [];
-    if (p.xComments && p.xComments >= 2) marks.push(`x${p.xComments} usual comments`);
-    if (p.xLikes && p.xLikes >= 2) marks.push(`x${p.xLikes} usual likes`);
-    if (p.comments < 20 || (p.xComments != null && p.xComments < 1)) marks.push('below usual, NOT usable as the signal');
-    const likes = p.likes > 0 ? `likes=${p.likes}` : 'likes=hidden';
-    const sample = p.sampleComments?.length ? `\n    comments seen: ${p.sampleComments.map(c => JSON.stringify(plain(c))).join(' | ')}` : '';
-    const cap = plain(p.caption);
-    const shown = cap.length > 820 ? `${cap.slice(0, 400)} [...] ${cap.slice(-400)}` : cap;
-    return `[${i}] ${p.type} ${likes} comments=${p.comments}${marks.length ? ` (${marks.join(', ')})` : ''}\n    caption: ${JSON.stringify(shown)}${sample}`;
-  });
-  const links = bioLinks(scrape);
-  return `CREATOR
-name: ${plain(creator?.name || scrape?.name)}
-niche: ${plain(creator?.niche) || 'unknown'}
-followers: ${scrape?.followers || 0}
-bio: ${JSON.stringify(plain(scrape?.bio || creator?.bio).slice(0, 400))}
-links in bio: ${links.length ? links.join(' | ') : 'none'}
+    if (ev.multiple && ev.multiple >= 2) marks.push(`x${ev.multiple} usual comments`);
+    if (ev.likesMultiple && ev.likesMultiple >= 2) marks.push(`x${ev.likesMultiple} usual likes`);
+    facts.push(`post: ${ev.postType}, comments=${ev.value}${ev.likes > 0 ? `, likes=${ev.likes}` : ''}${marks.length ? ` (${marks.join(', ')})` : ''}`);
+    facts.push(`caption: ${JSON.stringify(ev.caption)}`);
+    if (ev.quote) facts.push(`the part we are pointing at: ${JSON.stringify(ev.quote)}`);
+  }
+  if (offer) facts.push(`already offers, as written on their profile: ${JSON.stringify(offer.quote)}`);
+  facts.push(`bio: ${JSON.stringify(intel.facts.bio)}`);
+  if (intel.facts.links.length) facts.push(`links in bio: ${intel.facts.links.join(' | ')}`);
+  facts.push(`followers: ${intel.facts.followers}`);
+  const reading = [
+    r.niche && `niche: ${r.niche}`, r.audience && `audience: ${r.audience}`, r.expertise && `expertise: ${r.expertise}`,
+    `monetization seen: free = ${r.free || 'none found'}; paid = ${r.paid || 'none found'}; needs their time = ${r.timeBound || 'none found'}`,
+    r.postGist && `what the post does: ${r.postGist}`, r.signal && `signal: ${r.signal}`, r.why && `why it matters: ${r.why}`,
+    r.gap && `gap: ${r.gap}`, r.angle && `angle: ${r.angle}`, r.assumptions && `we are assuming: ${r.assumptions}`,
+    r.direction && `INTERNAL, never reveal: ${r.direction}`,
+  ].filter(Boolean);
+  return `CREATOR: ${plain(creator?.name)}${intel.firstName ? ` (first name ${intel.firstName})` : ''}
+TIER: ${intel.tier}, ${TIER_NAME[intel.tier] || ''}
 
-RECENT POSTS, newest first
-${lines.join('\n')}`;
+VERIFIED FACTS
+- ${facts.join('\n- ')}
+
+OUR READING
+- ${reading.join('\n- ')}`;
 }
 
-// ── Checking the model's work ────────────────────────────────────────────────
-const fold = (s) => plain(s).normalize('NFKD').replace(/\p{M}/gu, '').toLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
-
+// ── Checking the writer's work (code, not prompt) ────────────────────────────
 // Words that claim a multiple → the multiple they claim.
 const MULTIPLE_WORDS = [
   [/\b(twice|double|dobro|doble)\b/i, 2],
@@ -252,76 +282,54 @@ const MULTIPLE_WORDS = [
 const BANNED = [
   /\bsaves?\b/i, /\bsaved\b/i, /\bguardad[oa]s?\b/i, /\bsalv[oa]s?\b/i, /\bguardaram\b/i,
   /no pitch/i, /sem pitch/i, /sin pitch/i,
-  /\bunlock/i, /\bmaximi[sz]e/i, /monetization potential/i, /game.?changer/i, /\bleverage\b/i, /next level/i,
-  /discovery call/i, /strategy session/i,
+  /\bunlock/i, /\bmaximi[sz]e/i, /monetization potential/i, /monetization ecosystem/i, /high converting/i, /game.?changer/i, /\bleverage\b/i, /next level/i,
+  /discovery call/i, /strategy session/i, /book a demo/i, /sales call/i,
 ];
 
-// Dashes and colons are fixed rather than failed: the sentence survives a
-// comma, and it's the one mistake the model makes most.
+// Stylistic dashes become commas. Grammatical hyphens (diz-me, Gómez-Chao) have
+// no spaces around them and are left alone. Colons are allowed.
 export function cleanPunctuation(text) {
   return String(text || '')
     .replace(/\s*\n+\s*/g, ' ')
     .replace(/\b1:1\b/g, '1 to 1')
     .replace(/[ \t]*[—–][ \t]*/g, ', ')
     .replace(/[ \t]+-[ \t]+/g, ', ')
-    .replace(/[ \t]*[:;][ \t]+/g, ', ')
     .replace(/[()]/g, '')
-    .replace(/!/g, '.')
+    .replace(/[!¡]/g, (c) => (c === '!' ? '.' : ''))
     .replace(/,\s*,/g, ',')
     .replace(/,\s*\./g, '.')
+    .replace(/\.{2,}/g, '.')
     .replace(/[ \t]{2,}/g, ' ')
     .trim();
 }
 
-export function checkDraft(draft, posts, scrape) {
+export function checkCopy(draft, intel) {
   const problems = [];
-  const post = posts[draft.post];
-  if (!post) return ['post index out of range'];
-
-  // 1. The quoted fragment must really be in that caption.
-  const cap = fold(post.caption);
-  const q = /^(none|null)$/i.test(String(draft.quote || '').trim()) ? '' : fold(draft.quote);
-  if (!q) { if (draft.tier !== 3) problems.push('no quote'); }
-  else if (!cap.includes(q)) {
-    const words = q.split(' ').filter(w => w.length > 2);
-    const hit = words.filter(w => cap.includes(w)).length;
-    if (!words.length || hit / words.length < 0.8) problems.push('quote not found in caption');
-  }
-
-  // 1b. Tier 3 points at an existing offer: it must be named in the bio/links.
-  if (draft.tier === 3) {
-    const src = fold(`${scrape?.bio || ''} ${bioLinks(scrape).join(' ')} ${scrape?.externalUrl || ''}`);
-    const o = fold(draft.offer);
-    const ow = o.split(' ').filter(w => w.length > 2);
-    if (!o) problems.push('tier 3 without an offer quote');
-    else if (!src.includes(o) && (!ow.length || ow.filter(w => src.includes(w)).length / ow.length < 0.8)) problems.push('offer not found in bio or links');
-  }
-
-  // 2. Every number in the copy must exist in the data. Tier 4 writes p1 only.
-  const parts = draft.tier === 4 ? ['p1'] : ['p1', 'p2', 'p3'];
-  const waParts = draft.tier === 4 ? ['wa1'] : ['wa1', 'wa2'];
+  const ev = intel.facts.evidence.find(e => e.ref === 'post');
+  if (!ev) return ['intel has no post evidence'];
+  const offer = intel.facts.evidence.find(e => e.ref === 'bio_or_links');
+  const parts = intel.tier === 4 ? ['p1'] : ['p1', 'p2', 'p3'];
+  const waParts = intel.tier === 4 ? ['wa1'] : ['wa1', 'wa2'];
   const body = [...parts, ...waParts].map(k => draft[k]).join(' ');
-  const allowed = new Set();
+
+  // Every number in the copy must exist in the verified facts.
+  const allowed = new Set(['1']);
   const addNums = (s) => (String(s || '').match(/\d+(?:[.,]\d+)*/g) || []).forEach(n => allowed.add(n.replace(/[.,]/g, '')));
-  posts.forEach(p => { addNums(p.caption); allowed.add(String(p.likes)); allowed.add(String(p.comments)); (p.sampleComments || []).forEach(addNums); });
-  addNums(scrape?.bio); allowed.add(String(scrape?.followers || ''));
-  const maxX = Math.floor(Math.max(post.xComments || 0, post.xLikes || 0));
+  addNums(ev.caption); addNums(intel.facts.bio); addNums(offer?.quote); addNums(intel.facts.links.join(' '));
+  [ev.value, ev.likes, intel.facts.followers].forEach(v => allowed.add(String(v)));
+  const maxX = Math.floor(Math.max(ev.multiple || 0, ev.likesMultiple || 0));
   for (let k = 2; k <= maxX; k += 1) allowed.add(String(k));
-  // The exact multiples shown to the model ("x6.6 usual comments") are data too.
-  for (const x of [post.xComments, post.xLikes]) if (x) allowed.add(String(x).replace(/[.,]/g, ''));
-  allowed.add('1'); // "1 to 1"
-  // A rounded figure ("nearly 14,000" for 13,994) is how a person writes it.
+  for (const x of [ev.multiple, ev.likesMultiple]) if (x) allowed.add(String(x).replace(/[.,]/g, ''));
   const real = [...allowed].map(Number).filter(v => Number.isFinite(v) && v >= 100);
   for (const n of (body.match(/\d+(?:[.,]\d+)*/g) || [])) {
     const v = n.replace(/[.,]/g, '');
     if (allowed.has(v)) continue;
     const num = Number(v);
-    if (num >= 100 && real.some(r => Math.abs(r - num) / r <= 0.05)) continue;
-    problems.push(`number not in data: ${n}`);
+    if (num >= 100 && real.some(r => Math.abs(r - num) / r <= 0.05)) continue; // "nearly 14,000" for 13,994
+    problems.push(`number not in the facts: ${n}`);
   }
-  // A claimed multiple must belong to the metric the sentence names: "53
-  // comments, more than double your usual" is false when it was the LIKES that
-  // doubled. "nearly 44 times" is fine for x43.6, hence the half point of slack.
+
+  // A claimed multiple must belong to the metric the sentence names.
   for (const sentence of body.split(/(?<=[.?!])\s+/)) {
     const claims = [];
     for (const [re, x] of MULTIPLE_WORDS) if (re.test(sentence)) claims.push(x);
@@ -329,21 +337,11 @@ export function checkDraft(draft, posts, scrape) {
     if (!claims.length) continue;
     const onComments = /comment|coment/i.test(sentence);
     const onLikes = /\blikes?\b|gostos|me gusta/i.test(sentence);
-    const have = onComments && !onLikes ? (post.xComments || 0)
-      : onLikes && !onComments ? (post.xLikes || 0)
-      : Math.max(post.xComments || 0, post.xLikes || 0);
+    const have = onComments && !onLikes ? (ev.multiple || 0) : onLikes && !onComments ? (ev.likesMultiple || 0) : Math.max(ev.multiple || 0, ev.likesMultiple || 0);
     const claimed = Math.max(...claims);
-    if (claimed > have + 0.5) problems.push(`claims x${claimed} ${onComments ? 'comments' : onLikes ? 'likes' : 'response'}, post shows x${have}`);
+    if (claimed > have + 0.5) problems.push(`claims x${claimed} ${onComments ? 'comments' : onLikes ? 'likes' : 'response'}, facts show x${have}`);
   }
 
-  // 3. The signal has to be real. Tier 2 only on a post the code marked as an
-  // outlier; tier 1 only where people actually answered the call to action.
-  if (draft.tier === 2 && maxX < 2) problems.push('tier 2 on a post that is not above usual');
-  if (draft.tier === 1 && (post.comments < 20 || (post.xComments != null && post.xComments < 1))) {
-    problems.push(`weak tier 1: ${post.comments} comments, x${post.xComments} usual`);
-  }
-
-  // 4. Voice.
   for (const re of BANNED) if (re.test(`${body} ${draft.subject}`)) problems.push(`banned phrase: ${re.source}`);
   for (const k of parts) {
     const w = String(draft[k] || '').trim().split(/\s+/).filter(Boolean).length;
@@ -359,58 +357,62 @@ export function checkDraft(draft, posts, scrape) {
   return problems;
 }
 
-const FIELDS = ['TIER', 'REASON', 'POST', 'QUOTE', 'OFFER', 'FIRST_NAME', 'VARIANT', 'SUBJECT', 'P1', 'P2', 'P3', 'WA1', 'WA2'];
+const W_FIELDS = ['SUBJECT', 'P1', 'P2', 'P3', 'WA1', 'WA2'];
 
-export function parseDraft(text) {
+export function parseCopy(text) {
   const raw = String(text || '');
-  const re = new RegExp(`^[ \\t>*#-]*(${FIELDS.join('|')})[ \\t]*:[ \\t]*`, 'gim');
+  const re = new RegExp(`^[ \\t>*#-]*(${W_FIELDS.join('|')})[ \\t]*:[ \\t]*`, 'gim');
   const marks = [];
   let m;
   while ((m = re.exec(raw))) marks.push({ key: m[1].toUpperCase(), at: m.index, from: re.lastIndex });
   if (!marks.length) return null;
   const v = {};
   marks.forEach((k, i) => { if (!(k.key in v)) v[k.key] = raw.slice(k.from, i + 1 < marks.length ? marks[i + 1].at : raw.length).trim(); });
-  const none = (x) => (!x || /^(none|null|n\/a|-)$/i.test(x) ? null : x);
-  const unq = (x) => String(x || '').replace(/^["“”'`]+|["“”'`]+$/g, '').trim();
-  const tier = parseInt(v.TIER, 10);
-  if (![0, 1, 2, 3, 4].includes(tier)) return null;
-  return {
-    tier, reason: v.REASON || '', post: parseInt(v.POST, 10),
-    quote: unq(v.QUOTE), offer: none(unq(v.OFFER)), first_name: none(unq(v.FIRST_NAME)), variant: none(unq(v.VARIANT)),
-    // A subject is often a quoted title: strip only a quote pair that wraps the WHOLE value.
-    subject: /^"[^"]*"$/.test(v.SUBJECT || '') ? unq(v.SUBJECT) : (v.SUBJECT || ''),
-    p1: v.P1 || '', p2: v.P2 || '', p3: v.P3 || '', wa1: v.WA1 || '', wa2: v.WA2 || '',
-  };
+  const unwrap = (x) => (/^"[^"]*"$/.test(x || '') ? x.slice(1, -1).trim() : (x || ''));
+  if (!v.P1) return null;
+  return { subject: unwrap(v.SUBJECT), p1: v.P1 || '', p2: v.P2 || '', p3: v.P3 || '', wa1: v.WA1 || '', wa2: v.WA2 || '' };
 }
 
-// ── Assembly ─────────────────────────────────────────────────────────────────
-export function assemble(draft, language) {
-  const key = language === 'pt' && draft.variant === 'br' ? 'br' : (FIXED[language] ? language : 'en');
+export function buildRetryMessage(problems) {
+  return `Your draft failed these checks:\n- ${problems.join('\n- ')}\n\nFix it in the same output format, using only the VERIFIED FACTS. If a claim cannot be supported, drop the claim rather than soften the number.`;
+}
+
+// ── Assembly (code adds every fixed part) ────────────────────────────────────
+export function assemble(draft, intel, creator, { sender = SENDER_FIRST_NAME } = {}) {
+  const key = FIXED[intel.language] ? intel.language : 'en';
   const f = FIXED[key];
-  const name = plain(draft.first_name || '') || null;
+  const name = plain(intel.firstName || '') || null;
+  const full = plain(creator?.name) || name || '';
   const subject = cleanPunctuation(draft.subject || '').replace(/[.,]+$/, '');
   const topic = subject;
-  const sign = `${f.signoff}\n${SENDER_FIRST_NAME}`;
-  const [p2, p3] = draft.tier === 4 ? ASK_BLOCK[key] : [cleanPunctuation(draft.p2), cleanPunctuation(draft.p3)];
-  const day1 = [
-    f.greet(name),
-    cleanPunctuation(draft.p1), p2, p3,
-    f.credibility, f.ask, f.close, sign,
-  ].join('\n\n');
+  const sign = `${f.signoff}\n${sender}`;
+  const [p2, p3] = intel.tier === 4 ? ASK_BLOCK[key] : [cleanPunctuation(draft.p2), cleanPunctuation(draft.p3)];
+  const isAgency = intel.facts.contact?.email?.kind === 'agency';
+
+  let day1; let day7; let day14;
+  if (isAgency) {
+    const a = AGENCY[key];
+    day1 = [a.greet, a.intro(full), cleanPunctuation(draft.p1), p2, p3, f.credibility, a.ask, a.close, sign].join('\n\n');
+    day7 = `${a.day7(full, name || full, topic)}\n${sender}`;
+    day14 = `${a.day14(full, name || full, topic)}\n${sender}`;
+  } else {
+    day1 = [f.greet(name), cleanPunctuation(draft.p1), p2, p3, f.credibility, f.ask, f.close, sign].join('\n\n');
+    day7 = `${f.day7(name, topic)}\n${sender}`;
+    day14 = `${f.day14(name, topic)}\n${sender}`;
+  }
+
+  // WhatsApp: provenance aware. The source line appears only when code verified
+  // where the creator publishes the number; otherwise nothing is claimed.
   const w = WHATSAPP[key];
-  const whatsapp = [w.greet(name), cleanPunctuation(draft.wa1), draft.tier === 4 ? w.ask4 : cleanPunctuation(draft.wa2), w.close].join('\n\n');
+  const phone = intel.facts.contact?.phone;
+  const sourceLine = phone?.verified ? (/whatsapp link/i.test(phone.detail || '') ? WA_SOURCE[key].link : WA_SOURCE[key].number) : null;
+  const whatsapp = [w.greet(name), sourceLine, cleanPunctuation(draft.wa1), intel.tier === 4 ? w.ask4 : cleanPunctuation(draft.wa2), w.close].filter(Boolean).join('\n\n');
+
   return {
-    copyKey: key,
-    whatsapp,
+    copyKey: key, recipient: isAgency ? 'agency' : 'creator',
+    whatsapp, whatsappSource: phone ? { status: phone.status, verified: !!phone.verified, detail: phone.detail, disclosed: !!sourceLine } : null,
     email_day1: { subject, body: day1 },
-    email_day7: { subject, body: `${f.day7(name, topic)}\n${SENDER_FIRST_NAME}` },
-    email_day14: { subject, body: `${f.day14(name, topic)}\n${SENDER_FIRST_NAME}` },
+    email_day7: { subject, body: day7 },
+    email_day14: { subject, body: day14 },
   };
-}
-
-
-// One corrective pass: the model sees exactly what failed and either fixes it
-// or steps down a tier. Cheaper than a human sorting out a bad draft.
-export function buildRetryMessage(problems) {
-  return `Your draft failed these checks:\n- ${problems.join('\n- ')}\n\nFix it using only the data above, in the same output format. If the only way to pass is to invent something or to lean on a post marked NOT usable, step down to the tier the data honestly supports (3, 4 or 0).`;
 }
