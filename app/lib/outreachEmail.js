@@ -246,7 +246,7 @@ export function checkDraft(draft, posts, scrape) {
   }
   // A claimed multiple must belong to the metric the sentence names: "53
   // comments, more than double your usual" is false when it was the LIKES that
-  // doubled. "nearly 44 times" is fine for x43.6, hence the ceil.
+  // doubled. "nearly 44 times" is fine for x43.6, hence the half point of slack.
   for (const sentence of body.split(/(?<=[.?!])\s+/)) {
     const claims = [];
     for (const [re, x] of MULTIPLE_WORDS) if (re.test(sentence)) claims.push(x);
@@ -258,7 +258,7 @@ export function checkDraft(draft, posts, scrape) {
       : onLikes && !onComments ? (post.xLikes || 0)
       : Math.max(post.xComments || 0, post.xLikes || 0);
     const claimed = Math.max(...claims);
-    if (claimed > Math.ceil(have)) problems.push(`claims x${claimed} ${onComments ? 'comments' : onLikes ? 'likes' : 'response'}, post shows x${have}`);
+    if (claimed > have + 0.5) problems.push(`claims x${claimed} ${onComments ? 'comments' : onLikes ? 'likes' : 'response'}, post shows x${have}`);
   }
 
   // 3. The signal has to be real. Tier 2 only on a post the code marked as an
