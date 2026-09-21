@@ -182,10 +182,10 @@ export const AGENCY = {
 // published (lib/creatorIntel verifyPhoneSource). Neutral, never apologetic.
 // Unknown source → no line at all; we never invent an explanation.
 export const WA_SOURCE = {
-  en: { link: "Found your WhatsApp link on your Instagram profile and thought I'd reach out here.", number: "Found your number on your Instagram profile and thought I'd reach out here." },
-  pt: { link: 'Encontrei o teu link de WhatsApp no teu perfil de Instagram e decidi falar contigo por aqui.', number: 'Encontrei o teu número no teu perfil de Instagram e decidi falar contigo por aqui.' },
-  br: { link: 'Encontrei seu link de WhatsApp no seu perfil do Instagram e resolvi falar com você por aqui.', number: 'Encontrei seu número no seu perfil do Instagram e resolvi falar com você por aqui.' },
-  es: { link: 'Encontré tu enlace de WhatsApp en tu perfil de Instagram y pensé en escribirte por aquí.', number: 'Encontré tu número en tu perfil de Instagram y pensé en escribirte por aquí.' },
+  en: { link: "Found your WhatsApp link on your Instagram profile and thought I'd reach out here.", number: "Found your number on your Instagram profile and thought I'd reach out here.", website: "Found your number on your website and thought I'd reach out here." },
+  pt: { link: 'Encontrei o teu link de WhatsApp no teu perfil de Instagram e decidi falar contigo por aqui.', number: 'Encontrei o teu número no teu perfil de Instagram e decidi falar contigo por aqui.', website: 'Encontrei o teu número no teu site e decidi falar contigo por aqui.' },
+  br: { link: 'Encontrei seu link de WhatsApp no seu perfil do Instagram e resolvi falar com você por aqui.', number: 'Encontrei seu número no seu perfil do Instagram e resolvi falar com você por aqui.', website: 'Encontrei seu número no seu site e resolvi falar com você por aqui.' },
+  es: { link: 'Encontré tu enlace de WhatsApp en tu perfil de Instagram y pensé en escribirte por aquí.', number: 'Encontré tu número en tu perfil de Instagram y pensé en escribirte por aquí.', website: 'Encontré tu número en tu web y pensé en escribirte por aquí.' },
 };
 
 const LANG_NAME = {
@@ -405,7 +405,9 @@ export function assemble(draft, intel, creator, { sender = SENDER_FIRST_NAME } =
   // where the creator publishes the number; otherwise nothing is claimed.
   const w = WHATSAPP[key];
   const phone = intel.facts.contact?.phone;
-  const sourceLine = phone?.verified ? (/whatsapp link/i.test(phone.detail || '') ? WA_SOURCE[key].link : WA_SOURCE[key].number) : null;
+  const sourceLine = !phone?.verified ? null
+    : phone.status === 'public_website' ? WA_SOURCE[key].website
+    : /whatsapp link/i.test(phone.detail || '') ? WA_SOURCE[key].link : WA_SOURCE[key].number;
   const whatsapp = [w.greet(name), sourceLine, cleanPunctuation(draft.wa1), intel.tier === 4 ? w.ask4 : cleanPunctuation(draft.wa2), w.close].filter(Boolean).join('\n\n');
 
   return {

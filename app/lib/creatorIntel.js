@@ -61,7 +61,7 @@ const headTail = (s, n = 820) => (s.length > n ? `${s.slice(0, n / 2 - 10)} [...
 const FREEMAIL = /@(gmail|googlemail|hotmail|outlook|live|yahoo|icloud|me|proton|protonmail|sapo|aol)\./i;
 const AGENCY_DOMAIN = /(talent|agency|agencia|agência|agence|mgmt|management|manage|represent|artists|creators|influenc|booking|\bpr\b|media)/i;
 
-export function verifyPhoneSource(phone, scrape, hints = {}) {
+export function verifyPhoneSource(phone, scrape, hints = {}, creator = null) {
   const n = normalizePhone(phone, hints);
   if (!n.ok) return { status: 'unknown', verified: false, detail: 'number could not be normalised' };
   // Match on the national part too: bio links often carry the number without "+".
@@ -78,6 +78,15 @@ export function verifyPhoneSource(phone, scrape, hints = {}) {
         detail: `${isWa ? 'WhatsApp link' : 'link'} in the creator's Instagram bio links${title ? ` ("${plain(title)}")` : ''}`,
         url,
       };
+    }
+  }
+  // The creator's own website / link-in-bio page, scraped earlier and kept on
+  // the record (creator.intelligence.bioLinks). Still their own publication.
+  for (const l of [...(creator?.intelligence?.bioLinks || []), ...(creator?.bioLinks || [])]) {
+    const url = typeof l === 'string' ? l : (l?.url || l?.href || '');
+    const title = typeof l === 'string' ? '' : (l?.title || l?.productName || '');
+    if (has(url) || has(title)) {
+      return { status: 'public_website', verified: true, detail: `${/wa\.me|whatsapp/i.test(url) ? 'WhatsApp link' : 'link'} on the creator's own website or link page${title ? ` ("${plain(title)}")` : ''}`, url };
     }
   }
   if (has(scrape?.bio)) return { status: 'social_profile', verified: true, detail: "written in the creator's Instagram bio" };
@@ -117,7 +126,7 @@ export function buildFacts({ creator, scrape, posts }) {
     })),
     contact: {
       email: classifyEmail(creator?.contactEmail, scrape),
-      phone: creator?.contactPhone ? { value: creator.contactPhone, ...verifyPhoneSource(creator.contactPhone, scrape, hints) } : null,
+      phone: creator?.contactPhone ? { value: creator.contactPhone, ...verifyPhoneSource(creator.contactPhone, scrape, hints, creator) } : null,
     },
   };
 }
@@ -231,6 +240,11 @@ const inText = (needle, hay) => {
 export function verifyAnalysis(a, facts) {
   if (a.tier === 0) return [];
   const problems = [];
+  // The model sometimes drops the index but quotes the caption: recover it.
+  if (!facts.posts[a.post] && a.quote) {
+    const hit = facts.posts.find(p => inText(a.quote, p.caption));
+    if (hit) a.post = hit.i;
+  }
   const post = facts.posts[a.post];
   if (!post) return ['post index out of range'];
   if (a.quote) { if (!inText(a.quote, post.caption)) problems.push('quote not found in that caption'); }
@@ -249,7 +263,7 @@ export function verifyAnalysis(a, facts) {
   for (const n of (String(a.read.signal || '').match(/\d+(?:[.,]\d+)*/g) || [])) {
     const v = n.replace(/[.,]/g, '');
     const num = Number(v);
-    if (allowed.has(v) || v === '1') continue;
+    if (allowed.has(v) || num < 13) continue; // post indexes, ordinals, small counts
     if (num >= 100 && [...allowed].map(Number).some(r => r >= 100 && Math.abs(r - num) / r <= 0.05)) continue;
     problems.push(`signal number not in data: ${n}`);
   }

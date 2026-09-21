@@ -61,7 +61,7 @@ export async function ensureIntel(creator, { apiKey, cost, force = false } = {})
     const contact = {
       email: stored.facts.contact?.email?.value === String(creator.contactEmail || '').toLowerCase() ? stored.facts.contact.email : classifyEmail(creator.contactEmail, probe),
       phone: creator.contactPhone
-        ? (stored.facts.contact?.phone?.value === creator.contactPhone ? stored.facts.contact.phone : { value: creator.contactPhone, ...verifyPhoneSource(creator.contactPhone, probe, hints) })
+        ? (stored.facts.contact?.phone?.value === creator.contactPhone ? stored.facts.contact.phone : { value: creator.contactPhone, ...verifyPhoneSource(creator.contactPhone, probe, hints, creator) })
         : null,
     };
     return { intel: { ...stored, facts: { ...stored.facts, contact } }, fresh: false };
