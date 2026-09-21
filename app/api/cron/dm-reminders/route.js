@@ -441,29 +441,29 @@ const DM_TEMPLATES = {
   pt: {
     // No-reply cadence (dia 3 / 7 / 14) — value-first, never a video.
     softNudge:  `Olá {creator},\n\nDeve ter ficado enterrado, por isso aqui vai outra vez. Aquela ideia vale bem dois minutos do teu tempo. Fez sentido?\n\nAbraço,\n{sender}`,
-    valueDrop:  `Olá {creator},\n\nTive outra para ti esta semana, mais afiada que a primeira. As melhores prefiro mostrar-tas ao vivo. 15 min, sem pitch. Tens tempo esta semana?\n\nAbraço,\n{sender}`,
+    valueDrop:  `Olá {creator},\n\nTive outra para ti esta semana, mais afiada que a primeira. As melhores prefiro mostrar-tas ao vivo. Tens 15 minutos esta semana?\n\nAbraço,\n{sender}`,
     lastTouch:  `Olá {creator},\n\nÚltima do meu lado. Se transformar a audiência que já tens em receita a sério for um dia prioridade, essa call vale os teus 15 min. Sabes onde me encontrar.\n\nAbraço,\n{sender}`,
     // Post-reply — drop a tailored idea (giveValue), then push the call (bookNudge).
-    giveValue:  `Olá {creator},\n\nBoa, respondeste. Tenho uma ideia específica para o teu caso, mas o quadro completo mostra-se melhor numa call rápida. 15 min, sem pitch. Quando podes?\n\nAbraço,\n{sender}`,
-    bookNudge:  `Olá {creator},\n\nO passo óbvio agora é falarmos. 15 min, só a trocar ideias, sem venda. Passo-te uns horários?\n\nAbraço,\n{sender}`,
+    giveValue:  `Olá {creator},\n\nBoa, respondeste. Tenho uma ideia específica para o teu caso, mas o quadro completo mostra-se melhor numa call rápida de 15 minutos. Quando podes?\n\nAbraço,\n{sender}`,
+    bookNudge:  `Olá {creator},\n\nO passo óbvio agora é falarmos. 15 minutos, só a trocar ideias. Passo-te uns horários?\n\nAbraço,\n{sender}`,
     // Day-45 voice-note SCRIPT (spoken, not pasted). The operator records this as
     // an audio note in the DM and sends it by hand.
     voiceNote: `Olá {creator}, fala o {sender} da Second Layer, vou ser rápido. Já te tinha escrito há umas semanas mas sei que a caixa de entrada enche, por isso preferi gravar em vez de escrever. Nós ajudamos criadores como tu a transformar a audiência que já têm numa receita recorrente e mais previsível, com uma comunidade à volta do que já fazes, sem depender de marcas nem do algoritmo. Não sei se é o teu momento, mas se tiveres um bocadinho de curiosidade respondo-te aqui a qualquer pergunta, ou explico-te aqui mesmo como funciona. Diz-me só se queres. Um abraço.`,
   },
   en: {
     softNudge:  `Hey {creator},\n\nProbably buried this, so here it is again. That idea is worth two minutes of your time, easily. Did it land?\n\nCheers,\n{sender}`,
-    valueDrop:  `Hey {creator},\n\nHad another one for you this week, sharper than the first. The best moves I'd rather walk you through live. 15 min, no pitch. You free this week?\n\nCheers,\n{sender}`,
+    valueDrop:  `Hey {creator},\n\nHad another one for you this week, sharper than the first. The best moves I'd rather walk you through live. Got 15 minutes this week?\n\nCheers,\n{sender}`,
     lastTouch:  `Hey {creator},\n\nLast one from me. If turning the audience you already have into real revenue is ever a priority, that call is worth your 15 minutes. You know where I am.\n\nCheers,\n{sender}`,
-    giveValue:  `Hey {creator},\n\nGood, you replied. I've got a specific idea for your case, but the full picture lands better on a quick call. 15 min, no pitch. When works?\n\nCheers,\n{sender}`,
-    bookNudge:  `Hey {creator},\n\nThe obvious next step is a quick talk. 15 min, just trading ideas, no pitch. Want me to send a few times?\n\nCheers,\n{sender}`,
+    giveValue:  `Hey {creator},\n\nGood, you replied. I've got a specific idea for your case, but the full picture lands better on a quick 15 minute call. When works?\n\nCheers,\n{sender}`,
+    bookNudge:  `Hey {creator},\n\nThe obvious next step is a quick talk. 15 minutes, just trading ideas. Want me to send a few times?\n\nCheers,\n{sender}`,
     voiceNote: `Hey {creator}, it's {sender} from Second Layer, I'll keep this quick. I messaged you a few weeks back but I know the inbox gets buried, so I figured I'd just record this instead of writing. We help creators like you turn the audience you already have into recurring, more predictable revenue, by building a community around what you already do, without relying on brand deals or the algorithm. I don't know if the timing's right for you, but if you're even a bit curious I'm happy to answer anything here, or walk you through how it works right here. Just let me know. Cheers.`,
   },
   es: {
     softNudge:  `Hola {creator},\n\nSeguro que se enterró, así que aquí va otra vez. Esa idea vale bien dos minutos de tu tiempo. ¿Te encajó?\n\nUn abrazo,\n{sender}`,
-    valueDrop:  `Hola {creator},\n\nSe me ocurrió otra para ti esta semana, más afilada que la primera. Las mejores prefiero enseñártelas en directo. 15 min, sin pitch. ¿Tienes hueco esta semana?\n\nUn abrazo,\n{sender}`,
+    valueDrop:  `Hola {creator},\n\nSe me ocurrió otra para ti esta semana, más afilada que la primera. Las mejores prefiero enseñártelas en directo. ¿Tienes 15 minutos esta semana?\n\nUn abrazo,\n{sender}`,
     lastTouch:  `Hola {creator},\n\nÚltima por mi parte. Si convertir la audiencia que ya tienes en ingresos de verdad llega a ser prioridad, esa llamada vale tus 15 min. Ya sabes dónde encontrarme.\n\nUn abrazo,\n{sender}`,
-    giveValue:  `Hola {creator},\n\nBien, respondiste. Tengo una idea específica para tu caso, pero el cuadro completo se ve mejor en una llamada rápida. 15 min, sin pitch. ¿Cuándo puedes?\n\nUn abrazo,\n{sender}`,
-    bookNudge:  `Hola {creator},\n\nEl paso obvio ahora es hablar. 15 min, solo intercambiar ideas, sin venta. ¿Te paso algunos horarios?\n\nUn abrazo,\n{sender}`,
+    giveValue:  `Hola {creator},\n\nBien, respondiste. Tengo una idea específica para tu caso, pero el cuadro completo se ve mejor en una llamada rápida de 15 minutos. ¿Cuándo puedes?\n\nUn abrazo,\n{sender}`,
+    bookNudge:  `Hola {creator},\n\nEl paso obvio ahora es hablar. 15 minutos, solo intercambiar ideas. ¿Te paso algunos horarios?\n\nUn abrazo,\n{sender}`,
     voiceNote: `Hola {creator}, soy {sender} de Second Layer, voy a ser rápido. Ya te había escrito hace unas semanas pero sé que la bandeja de entrada se llena, así que preferí grabarte esto en vez de escribir. Ayudamos a creadores como tú a convertir la audiencia que ya tienes en ingresos recurrentes y más previsibles, con una comunidad alrededor de lo que ya haces, sin depender de marcas ni del algoritmo. No sé si es tu momento, pero si tienes algo de curiosidad te respondo aquí a lo que quieras, o te explico aquí mismo cómo funciona. Dime y ya está. Un abrazo.`,
   },
 };

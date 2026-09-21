@@ -2634,10 +2634,10 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
               ? `Hola ${firstName},\n\nSeguro que se enterró, así que aquí va otra vez. Esa idea vale bien dos minutos de tu tiempo. ¿Te encajó?\n\nUn abrazo,\nRaul`
               : `Olá ${firstName},\n\nDeve ter ficado enterrado, por isso aqui vai outra vez. Aquela ideia vale bem dois minutos do teu tempo. Fez sentido?\n\nAbraço,\nRaul`;
             const followupT7 = isEn
-              ? `Hey ${firstName},\n\nHad another one for you this week, sharper than the first. The best moves I'd rather walk you through live. 15 min, no pitch. You free this week?\n\nCheers,\nRaul`
+              ? `Hey ${firstName},\n\nHad another one for you this week, sharper than the first. The best moves I'd rather walk you through live. Got 15 minutes this week?\n\nCheers,\nRaul`
               : isEs
-              ? `Hola ${firstName},\n\nSe me ocurrió otra para ti esta semana, más afilada que la primera. Las mejores prefiero enseñártelas en directo. 15 min, sin pitch. ¿Tienes hueco esta semana?\n\nUn abrazo,\nRaul`
-              : `Olá ${firstName},\n\nTive outra para ti esta semana, mais afiada que a primeira. As melhores prefiro mostrar-tas ao vivo. 15 min, sem pitch. Tens tempo esta semana?\n\nAbraço,\nRaul`;
+              ? `Hola ${firstName},\n\nSe me ocurrió otra para ti esta semana, más afilada que la primera. Las mejores prefiero enseñártelas en directo. ¿Tienes 15 minutos esta semana?\n\nUn abrazo,\nRaul`
+              : `Olá ${firstName},\n\nTive outra para ti esta semana, mais afiada que a primeira. As melhores prefiro mostrar-tas ao vivo. Tens 15 minutos esta semana?\n\nAbraço,\nRaul`;
             const breakupT14 = isEn
               ? `Hey ${firstName},\n\nLast one from me. If turning the audience you already have into real revenue is ever a priority, that call is worth your 15 minutes. You know where I am.\n\nCheers,\nRaul`
               : isEs
