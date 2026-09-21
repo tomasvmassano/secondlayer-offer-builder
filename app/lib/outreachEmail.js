@@ -42,7 +42,7 @@ export const FIXED = {
     close: 'If it makes sense from there, great. If not, hopefully you leave with a couple of useful ideas.',
     signoff: 'Cheers,',
     day7: (n, topic) => `${n ? `Hey ${n},` : 'Hey,'}\n\nComing back to my note about ${topic}.\n\nThe ideas I mentioned come from what your audience is already asking you for, so they are easier to talk through than to write out.\n\nDo you have 15 minutes this week or next?\n\nCheers,`,
-    day14: (n, topic) => `${n ? `Hey ${n},` : 'Hey,'}\n\nLast note from me on this. I still think there is something worth building around ${topic}.\n\nIf the timing is off, tell me and I will check back later in the year. If it is not, tell me a day that works and I will send a time.\n\nCheers,`,
+    day14: (n, topic) => `${n ? `Hey ${n},` : 'Hey,'}\n\nLast note from me about ${topic}. I still think there is something worth building there.\n\nIf the timing is off, tell me and I will check back later in the year. If it is not, tell me a day that works and I will send a time.\n\nCheers,`,
   },
   pt: {
     greet: (n) => (n ? `Olá ${n},` : 'Olá,'),
@@ -51,7 +51,7 @@ export const FIXED = {
     close: 'Tens 15 minutos para falarmos esta semana? Se fizer sentido, ótimo. Se não, pelo menos trocamos algumas ideias que te podem ser úteis.',
     signoff: 'Abraço,',
     day7: (n, topic) => `${n ? `Olá ${n},` : 'Olá,'}\n\nVolto ao que te escrevi sobre ${topic}.\n\nAs ideias de que falei vêm do que a tua audiência já te anda a pedir, por isso são mais fáceis de conversar do que de escrever.\n\nTens 15 minutos esta semana ou na próxima?\n\nAbraço,`,
-    day14: (n, topic) => `${n ? `Olá ${n},` : 'Olá,'}\n\nÚltima nota minha sobre isto. Continuo a achar que há algo que vale a pena construir à volta de ${topic}.\n\nSe a altura não é boa, diz-me e volto a falar contigo mais para o fim do ano. Se for, diz-me um dia que te dê jeito e eu mando uma hora.\n\nAbraço,`,
+    day14: (n, topic) => `${n ? `Olá ${n},` : 'Olá,'}\n\nÚltima nota minha sobre ${topic}. Continuo a achar que há ali algo que vale a pena construir.\n\nSe a altura não é boa, diz-me e volto a falar contigo mais para o fim do ano. Se for, diz-me um dia que te dê jeito e eu mando uma hora.\n\nAbraço,`,
   },
   br: {
     greet: (n) => (n ? `Olá ${n},` : 'Olá,'),
@@ -60,7 +60,7 @@ export const FIXED = {
     close: 'Você tem 15 minutos para conversarmos esta semana? Se fizer sentido, ótimo. Se não, pelo menos trocamos algumas ideias que podem ser úteis para você.',
     signoff: 'Abraço,',
     day7: (n, topic) => `${n ? `Olá ${n},` : 'Olá,'}\n\nVolto ao que escrevi sobre ${topic}.\n\nAs ideias que mencionei vêm do que a sua audiência já está pedindo, por isso são mais fáceis de conversar do que de escrever.\n\nVocê tem 15 minutos esta semana ou na próxima?\n\nAbraço,`,
-    day14: (n, topic) => `${n ? `Olá ${n},` : 'Olá,'}\n\nÚltima mensagem minha sobre isso. Continuo achando que existe algo que vale a pena construir em torno de ${topic}.\n\nSe o momento não é bom, me avise e eu volto a falar mais para o fim do ano. Se for, me diga um dia que funcione e eu mando um horário.\n\nAbraço,`,
+    day14: (n, topic) => `${n ? `Olá ${n},` : 'Olá,'}\n\nÚltima mensagem minha sobre ${topic}. Continuo achando que existe ali algo que vale a pena construir.\n\nSe o momento não é bom, me avise e eu volto a falar mais para o fim do ano. Se for, me diga um dia que funcione e eu mando um horário.\n\nAbraço,`,
   },
   es: {
     greet: (n) => (n ? `Hola ${n},` : 'Hola,'),
@@ -69,7 +69,7 @@ export const FIXED = {
     close: '¿Tienes 15 minutos para hablar esta semana? Si tiene sentido, genial. Si no, al menos intercambiamos algunas ideas que te pueden servir.',
     signoff: 'Un abrazo,',
     day7: (n, topic) => `${n ? `Hola ${n},` : 'Hola,'}\n\nVuelvo a lo que te escribí sobre ${topic}.\n\nLas ideas que mencioné salen de lo que tu audiencia ya te está pidiendo, así que son más fáciles de hablar que de escribir.\n\n¿Tienes 15 minutos esta semana o la próxima?\n\nUn abrazo,`,
-    day14: (n, topic) => `${n ? `Hola ${n},` : 'Hola,'}\n\nÚltimo mensaje mío sobre esto. Sigo pensando que hay algo que merece la pena construir alrededor de ${topic}.\n\nSi no es buen momento, dímelo y vuelvo a escribirte hacia final de año. Si lo es, dime un día que te venga bien y te mando una hora.\n\nUn abrazo,`,
+    day14: (n, topic) => `${n ? `Hola ${n},` : 'Hola,'}\n\nÚltimo mensaje mío sobre ${topic}. Sigo pensando que ahí hay algo que merece la pena construir.\n\nSi no es buen momento, dímelo y vuelvo a escribirte hacia final de año. Si lo es, dime un día que te venga bien y te mando una hora.\n\nUn abrazo,`,
   },
 };
 
@@ -150,7 +150,7 @@ export const AGENCY = {
     ask: 'I already have a few ideas for what that could look like. Would be good to connect for 15 minutes with you or whoever handles this side of things, exchange some ideas and see where the conversation goes.',
     close: 'If it makes sense from there, great. If not, hopefully you leave with a couple of useful ideas.',
     day7: (full, first, topic) => `Hi,\n\nComing back to my note about ${full} and ${topic}.\n\nThe ideas I mentioned come from what ${first}'s audience is already asking for, so they are easier to talk through than to write out.\n\nDo you have 15 minutes this week or next, or is there someone better placed to speak with?\n\nCheers,`,
-    day14: (full, first, topic) => `Hi,\n\nLast note from me on this. I still think there is something worth building around ${topic}.\n\nIf the timing is off, tell me and I will check back later in the year. If someone else handles this for ${first}, point me to them and I will take it from there.\n\nCheers,`,
+    day14: (full, first, topic) => `Hi,\n\nLast note from me about ${topic}. I still think there is something worth building there.\n\nIf the timing is off, tell me and I will check back later in the year. If someone else handles this for ${first}, point me to them and I will take it from there.\n\nCheers,`,
   },
   pt: {
     greet: 'Olá,',
@@ -158,7 +158,7 @@ export const AGENCY = {
     ask: 'Já tenho algumas ideias para o que isto poderia ser. Gostava de falar 15 minutos convosco, ou com quem trate desta parte, para trocarmos ideias e ver onde a conversa nos leva.',
     close: 'Se fizer sentido, ótimo. Se não, pelo menos trocamos algumas ideias que podem ser úteis.',
     day7: (full, first, topic) => `Olá,\n\nVolto ao que escrevi sobre ${full} e ${topic}.\n\nAs ideias de que falei vêm do que a audiência de ${first} já anda a pedir, por isso são mais fáceis de conversar do que de escrever.\n\nTêm 15 minutos esta semana ou na próxima, ou há alguém mais indicado com quem falar?\n\nAbraço,`,
-    day14: (full, first, topic) => `Olá,\n\nÚltima nota minha sobre isto. Continuo a achar que há algo que vale a pena construir à volta de ${topic}.\n\nSe a altura não é boa, digam-me e volto a falar mais para o fim do ano. Se for outra pessoa a tratar disto para ${first}, indiquem-me quem e eu sigo por aí.\n\nAbraço,`,
+    day14: (full, first, topic) => `Olá,\n\nÚltima nota minha sobre ${topic}. Continuo a achar que há ali algo que vale a pena construir.\n\nSe a altura não é boa, digam-me e volto a falar mais para o fim do ano. Se for outra pessoa a tratar disto para ${first}, indiquem-me quem e eu sigo por aí.\n\nAbraço,`,
   },
   br: {
     greet: 'Olá,',
@@ -166,7 +166,7 @@ export const AGENCY = {
     ask: 'Já tenho algumas ideias do que isso poderia ser. Gostaria de conversar 15 minutos com vocês, ou com quem cuida dessa parte, para trocarmos ideias e ver aonde a conversa nos leva.',
     close: 'Se fizer sentido, ótimo. Se não, pelo menos trocamos algumas ideias que podem ser úteis.',
     day7: (full, first, topic) => `Olá,\n\nVolto ao que escrevi sobre ${full} e ${topic}.\n\nAs ideias que mencionei vêm do que a audiência de ${first} já está pedindo, por isso são mais fáceis de conversar do que de escrever.\n\nVocês têm 15 minutos esta semana ou na próxima, ou existe alguém mais indicado para falar?\n\nAbraço,`,
-    day14: (full, first, topic) => `Olá,\n\nÚltima mensagem minha sobre isso. Continuo achando que existe algo que vale a pena construir em torno de ${topic}.\n\nSe o momento não é bom, me avisem e eu volto a falar mais para o fim do ano. Se outra pessoa cuida disso para ${first}, me indiquem quem e eu sigo por aí.\n\nAbraço,`,
+    day14: (full, first, topic) => `Olá,\n\nÚltima mensagem minha sobre ${topic}. Continuo achando que existe ali algo que vale a pena construir.\n\nSe o momento não é bom, me avisem e eu volto a falar mais para o fim do ano. Se outra pessoa cuida disso para ${first}, me indiquem quem e eu sigo por aí.\n\nAbraço,`,
   },
   es: {
     greet: 'Hola,',
@@ -174,7 +174,7 @@ export const AGENCY = {
     ask: 'Ya tengo algunas ideas de cómo podría ser. Me gustaría hablar 15 minutos con ustedes, o con quien lleve esta parte, intercambiar ideas y ver a dónde nos lleva la conversación.',
     close: 'Si tiene sentido, genial. Si no, al menos intercambiamos algunas ideas que pueden servir.',
     day7: (full, first, topic) => `Hola,\n\nVuelvo a lo que escribí sobre ${full} y ${topic}.\n\nLas ideas que mencioné salen de lo que la audiencia de ${first} ya está pidiendo, así que son más fáciles de hablar que de escribir.\n\n¿Tienen 15 minutos esta semana o la próxima, o hay alguien más indicado con quien hablar?\n\nUn abrazo,`,
-    day14: (full, first, topic) => `Hola,\n\nÚltimo mensaje mío sobre esto. Sigo pensando que hay algo que merece la pena construir alrededor de ${topic}.\n\nSi no es buen momento, díganmelo y vuelvo a escribir hacia final de año. Si otra persona lleva esto para ${first}, indíquenme quién y sigo por ahí.\n\nUn abrazo,`,
+    day14: (full, first, topic) => `Hola,\n\nÚltimo mensaje mío sobre ${topic}. Sigo pensando que ahí hay algo que merece la pena construir.\n\nSi no es buen momento, díganmelo y vuelvo a escribir hacia final de año. Si otra persona lleva esto para ${first}, indíquenme quién y sigo por ahí.\n\nUn abrazo,`,
   },
 };
 
@@ -301,6 +301,7 @@ const BANNED = [
   /no pitch/i, /sem pitch/i, /sin pitch/i,
   /\bunlock/i, /\bmaximi[sz]e/i, /monetization potential/i, /monetization ecosystem/i, /high converting/i, /game.?changer/i, /\bleverage\b/i, /next level/i,
   /discovery call/i, /strategy session/i, /book a demo/i, /sales call/i,
+  /\bis gold\b/i, /\bé ouro\b/i, /\bes oro\b/i, /\bmomentum\b/i,
   // agency jargon, in any of the four languages
   /\bfunnel\b/i, /\bembudo\b/i, /\bfunil\b/i, /\bconversi[oó]n\b/i, /\bconversão\b/i, /\bconversion\b/i, /\bfricci[oó]n\b/i, /\bfricção\b/i, /\bfriction\b/i,
 ];
@@ -396,6 +397,8 @@ export function checkCopy(draft, intel) {
   else {
     // The subject names the post. It never sells or editorialises.
     if (subj.split(/\s+/).length > 8) problems.push('subject too long, 2 to 6 words');
+    const names = { en: /^your\b/i, pt: /^(o teu|a tua|os teus|as tuas)\b/i, br: /^(o seu|a sua|os seus|as suas|seu|sua|seus|suas)\b/i, es: /^(tu|tus)\b/i }[intel.language];
+    if (names && intel.facts.contact?.email?.kind !== 'agency' && !names.test(subj)) problems.push('subject must be a noun phrase that names the post and starts with the possessive (your / o teu, a tua / seu, sua / tu), because the follow-ups say "my note about <subject>"');
     if (/\b(demand|opportunity|idea|ideas|question|procura|oportunidade|ideia|ideias|demanda|oportunidad|pergunta|pregunta)\b/i.test(subj)) problems.push('subject must only name the post or angle, no words like demand, opportunity or idea');
   }
   return problems;
