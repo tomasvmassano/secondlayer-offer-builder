@@ -16,7 +16,7 @@ import {
  * Filter rules (mirror the daily-reminders cron):
  *   - Only prospects (no signed, no cold) belonging to the current user
  *     by addedBy.userId.
- *   - DM was sent (outreach.dmSentAt or dmSequence.generatedAt as anchor).
+ *   - First contact was sent (outreach.dmSentAt or outreach.emailSentAt).
  *   - Creator has not replied.
  *   - Days since DM ≥ next milestone day (3 / 7 / 14).
  *   - followUpsDone count maps to milestone: 0→softNudge, 1→valueDrop,
@@ -59,12 +59,12 @@ export async function GET(request) {
   // dmSentAt + followUpsDone, so we can decide who's at a day-3/7/14
   // milestone WITHOUT loading their full record. Only creators that pass
   // this gate get a full fetch (for language, IG url, stored email body).
-  // Creators with no dmSentAt but hasDm=true might still have a
-  // dmSequence.generatedAt anchor — keep those for the full check too.
+  // The anchor is an explicit send (DM or email), never "copy was generated":
+  // see the same note in cron/dm-reminders.
   const candidates = mine.filter(s => {
-    const anchor = s.dmSentAt || null;
+    const anchor = s.dmSentAt || s.emailSentAt || null;
     const followUpsDone = Number(s.followUpsDone) || 0;
-    if (!anchor) return !!s.hasDm; // needs full record to read generatedAt
+    if (!anchor) return false;
     const days = daysBetween(anchor, now);
     return ['lastTouch', 'valueDrop', 'softNudge'].some(k =>
       days >= CADENCE[k].day && followUpsDone <= CADENCE[k].followUpsDoneCap);
@@ -85,7 +85,7 @@ export async function GET(request) {
     const out = c.outreach || {};
     if (out.repliedAt) continue;
 
-    const dmAnchor = out.dmSentAt || c.dmSequence?.generatedAt || null;
+    const dmAnchor = out.dmSentAt || out.emailSentAt || null;
     if (!dmAnchor) continue;
 
     const days = daysBetween(dmAnchor, now);

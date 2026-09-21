@@ -234,10 +234,12 @@ export async function GET(request) {
       || '';
     const ownerEmail = FIRSTNAME_TO_EMAIL[canonicaliseName(actorName)] || null;
 
-    // The "first contact" anchor: explicit outreach.dmSentAt wins, else fall
-    // back to dmSequence.generatedAt (the user usually sends within minutes of
-    // generating). If neither exists, the creator is in "no DM yet" bucket.
-    const dmAnchor = out.dmSentAt || c.dmSequence?.generatedAt || null;
+    // The "first contact" anchor is an explicit send, DM or email. It used to
+    // fall back to dmSequence.generatedAt, which treated "copy was generated"
+    // as "lead was contacted": never-contacted leads got auto-colded at 21
+    // days, and a lead moved back to Por contactar was re-colded the next
+    // morning because its old sequence was still on the record.
+    const dmAnchor = out.dmSentAt || out.emailSentAt || null;
     if (!dmAnchor) {
       // Only flag creators that have been in the CRM for at least 1 day (so we
       // don't pester about creators added this morning).
