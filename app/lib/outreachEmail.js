@@ -265,7 +265,9 @@ export function buildWriterInput(intel, creator) {
     r.gap && `gap: ${r.gap}`, r.angle && `angle: ${r.angle}`, r.assumptions && `we are assuming: ${r.assumptions}`,
     r.direction && `INTERNAL, never reveal: ${r.direction}`,
   ].filter(Boolean);
-  return `CREATOR: ${plain(creator?.name)}${intel.firstName ? ` (first name ${intel.firstName})` : ''}
+  const isAgency = intel.facts.contact?.email?.kind === 'agency';
+  return `WRITE EVERY FIELD IN: ${LANG_NAME[intel.language] || 'English'}. The notes below are in English only because they are internal; your output is not.
+${isAgency ? `READER: the creator's manager or agency, NOT the creator. Third person only ("${intel.firstName || 'the creator'}'s post", "her audience"), never "you" or "your" for the creator.\n` : ''}CREATOR: ${plain(creator?.name)}${intel.firstName ? ` (first name ${intel.firstName})` : ''}
 TIER: ${intel.tier}, ${TIER_NAME[intel.tier] || ''}
 
 VERIFIED FACTS
@@ -356,9 +358,16 @@ export function checkCopy(draft, intel) {
   if (intel.tier >= 3 && /\d\s*(comments|comentarios|comentários|likes)|(times|veces|vezes)\b.{0,25}(usual|habitual)/i.test(body)) {
     problems.push('cites engagement numbers, but this tier has no demand signal');
   }
+  // Wrong language: the reading handed to the writer is in English, and the
+  // model sometimes answers in it. Cheap stop-word count, only for non-English.
+  if (intel.language !== 'en') {
+    const hits = (body.match(/\b(the|and|your|you|that|with|this|there|their|what|from)\b/gi) || []).length;
+    if (hits >= 6) problems.push(`written in English, must be ${LANG_NAME[intel.language] || intel.language}`);
+  }
   // A manager reads this inbox: the creator is "she / Laura", never "you".
   if (intel.facts.contact?.email?.kind === 'agency') {
-    const you = { en: /\b(you|your|yours)\b/i, es: /\b(tú|tu|tus|te|ti|contigo)\b/i, pt: /\b(tu|teu|tua|teus|tuas|te|ti|contigo)\b/i, br: /\b(você|vocês)\b/i }[intel.language] || /\b(you|your)\b/i;
+    const local = { es: /\b(tú|tu|tus|te|ti|contigo)\b/i, pt: /\b(tu|teu|tua|teus|tuas|te|ti|contigo)\b/i, br: /\b(você|vocês)\b/i }[intel.language];
+    const you = { test: (t) => /\b(you|your|yours)\b/i.test(t) || (local ? local.test(t) : false) };
     for (const k of parts) if (you.test(String(draft[k] || ''))) { problems.push(`${k} addresses the creator directly, but the reader is their manager: write in the third person`); break; }
   }
   for (const re of BANNED) if (re.test(`${body} ${draft.subject}`)) problems.push(`banned phrase: ${re.source}`);
