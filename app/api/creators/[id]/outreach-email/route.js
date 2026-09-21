@@ -139,6 +139,9 @@ export async function POST(request, { params }) {
     }
 
     const mail = assemble(draft, language);
+    // Chat-ready copy for the WhatsApp button: the same message before the
+    // email contact card goes on (a name/email/website block reads wrong there).
+    const whatsapp = mail.email_day1.body;
     // Same contact card dm-writer appends to every email.
     for (const k of ['email_day1', 'email_day7', 'email_day14']) {
       mail[k].body = appendSignature(mail[k].body, SENDER_FIRST_NAME);
@@ -150,6 +153,7 @@ export async function POST(request, { params }) {
           ...(creator.dmSequence || {}),
           email_day1: mail.email_day1, email_day7: mail.email_day7, email_day14: mail.email_day14,
           senderName: SENDER_FIRST_NAME,
+          whatsapp,
           emailMeta: { ...meta, copy: mail.copyKey, evidence },
         },
       }, { skipIndexIfUnchanged: true });
