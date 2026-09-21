@@ -7,7 +7,7 @@ import { appendSignature } from '../../../../lib/operatorSignature';
 import { safeStringify } from '../../../../lib/safeJson';
 import {
   EMAIL_FRAMEWORK, EMAIL_MODEL, SENDER_FIRST_NAME,
-  buildSystemPrompt, buildUserMessage, withMultiples, parseDraft, checkDraft, assemble,
+  buildSystemPrompt, buildUserMessage, buildRetryMessage, withMultiples, parseDraft, checkDraft, assemble,
 } from '../../../../lib/outreachEmail';
 
 // POST /api/creators/:id/outreach-email   body: { dryRun?, force? }
@@ -72,34 +72,53 @@ export async function POST(request, { params }) {
     const rawLang = String(creator.primaryLanguage || 'en').toLowerCase();
     const language = rawLang.startsWith('pt') ? 'pt' : rawLang.startsWith('es') ? 'es' : 'en';
 
-    const res = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01' },
-      signal: AbortSignal.timeout(24000),
-      body: safeStringify({
-        model: EMAIL_MODEL,
-        max_tokens: 900,
-        system: buildSystemPrompt(language),
-        messages: [{ role: 'user', content: buildUserMessage({ creator, scrape, posts }) }],
-      }),
-    });
-    const data = await res.json().catch(() => null);
-    if (res.status === 429 || res.status === 529) {
-      return NextResponse.json({ id, name: creator.name, outcome: 'rate_limited', cost, retryAfter: 60 }, { status: 429 });
-    }
-    if (!res.ok || !data) return done('error', { error: data?.error?.message || `anthropic ${res.status}` });
-    if (data.usage) {
-      cost.llmUsd = estimateCost(EMAIL_MODEL, data.usage);
-      recordLlmUsage({ route: 'outreach-email', model: EMAIL_MODEL, usage: data.usage }).catch(() => {});
-    }
+    const system = buildSystemPrompt(language);
+    const messages = [{ role: 'user', content: buildUserMessage({ creator, scrape, posts }) }];
+    let usage = null;
+    // Returns the parsed draft, or a NextResponse when the call itself failed.
+    const ask = async () => {
+      const res = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01' },
+        // 32s scrape + two 13s calls still lands under the 60s cap.
+        signal: AbortSignal.timeout(13000),
+        body: safeStringify({ model: EMAIL_MODEL, max_tokens: 900, system, messages }),
+      });
+      const data = await res.json().catch(() => null);
+      if (res.status === 429 || res.status === 529) {
+        return { fail: NextResponse.json({ id, name: creator.name, outcome: 'rate_limited', cost, retryAfter: 60 }, { status: 429 }) };
+      }
+      if (!res.ok || !data) return { fail: done('error', { error: data?.error?.message || `anthropic ${res.status}` }) };
+      if (data.usage) {
+        cost.llmUsd += estimateCost(EMAIL_MODEL, data.usage);
+        usage = data.usage;
+        recordLlmUsage({ route: 'outreach-email', model: EMAIL_MODEL, usage: data.usage }).catch(() => {});
+      }
+      const text = (data.content || []).filter(b => b.type === 'text').map(b => b.text).join('\n');
+      const parsed = parseDraft(text);
+      if (!parsed) return { fail: done('error', { error: 'model output not parseable', raw: text.slice(0, 600) }) };
+      return { draft: parsed, text };
+    };
 
-    const text = (data.content || []).filter(b => b.type === 'text').map(b => b.text).join('\n');
-    const draft = parseDraft(text);
-    if (!draft) return done('error', { error: 'model did not return JSON', raw: text.slice(0, 300) });
+    let turn = await ask();
+    if (turn.fail) return turn.fail;
+    let draft = turn.draft;
+    let problems = draft.tier === 3 ? [] : checkDraft(draft, posts, scrape);
+    let retried = false;
+    if (problems.length) {
+      // One corrective pass with the failed checks spelled out.
+      retried = true;
+      messages.push({ role: 'assistant', content: turn.text }, { role: 'user', content: buildRetryMessage(problems) });
+      turn = await ask();
+      if (turn.fail) return turn.fail;
+      draft = turn.draft;
+      problems = draft.tier === 3 ? [] : checkDraft(draft, posts, scrape);
+    }
+    const data = { usage };
 
     const meta = {
       framework: EMAIL_FRAMEWORK, generatedAt: new Date().toISOString(), language,
-      tier: Number(draft.tier) || 3, reason: String(draft.reason || '').slice(0, 200),
+      tier: Number(draft.tier) || 3, reason: String(draft.reason || '').slice(0, 200), retried,
     };
 
     if (meta.tier === 3) {
@@ -107,7 +126,6 @@ export async function POST(request, { params }) {
       return done('no_signal', { reason: meta.reason, usage: data.usage });
     }
 
-    const problems = checkDraft(draft, posts, scrape);
     const post = posts[draft.post];
     const evidence = post ? {
       postUrl: post.url || null, likes: post.likes, comments: post.comments,

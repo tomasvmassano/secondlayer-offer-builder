@@ -112,15 +112,17 @@ Numbers: only numbers that appear in the data. A multiple such as "3 times your 
 ${example}
 
 OUTPUT
-Return only a JSON object, no markdown fence:
-{"tier": 1 | 2 | 3,
- "reason": "why this tier, 12 words at most",
- "post": index of the post you built the email on,
- "quote": "a short fragment copied EXACTLY from that post's caption, the part you are referring to",
- "first_name": "the person's first name if this is clearly a person and the name is evident from the name or bio, else null",
- "variant": "pt" or "br" (Portuguese only, else null),
- "subject": "2 to 6 words, lowercase, a noun phrase that NAMES the post or angle and starts with your / o teu / a tua / tu, like: your \\"BILL\\" post. Never words like demand, opportunity, idea or question",
- "p1": "...", "p2": "...", "p3": "..."}`;
+Plain text, one field per line, exactly these labels in this order and nothing else. No JSON, no markdown. For tier 3 return only TIER and REASON.
+TIER: 1, 2 or 3
+REASON: why this tier, 12 words at most
+POST: index of the post you built the email on
+QUOTE: a short fragment copied EXACTLY from that post's caption, the part you are referring to
+FIRST_NAME: the person's first name if this is clearly a person and the name is evident from the name or bio, else none
+VARIANT: pt or br for Portuguese, else none
+SUBJECT: 2 to 6 words, lowercase, a noun phrase that NAMES the post or angle and starts with your / o teu / a tua / tu, like your "BILL" post. Never words like demand, opportunity, idea or question
+P1: ...
+P2: ...
+P3: ...`;
 }
 
 // ── Lead data → user message ─────────────────────────────────────────────────
@@ -154,6 +156,7 @@ export function buildUserMessage({ creator, scrape, posts }) {
     const marks = [];
     if (p.xComments && p.xComments >= 2) marks.push(`x${p.xComments} usual comments`);
     if (p.xLikes && p.xLikes >= 2) marks.push(`x${p.xLikes} usual likes`);
+    if (p.comments < 20 || (p.xComments != null && p.xComments < 1)) marks.push('below usual, NOT usable as the signal');
     const likes = p.likes > 0 ? `likes=${p.likes}` : 'likes=hidden';
     const sample = p.sampleComments?.length ? `\n    comments seen: ${p.sampleComments.map(c => JSON.stringify(plain(c))).join(' | ')}` : '';
     const cap = plain(p.caption);
@@ -194,6 +197,7 @@ const BANNED = [
 // comma, and it's the one mistake the model makes most.
 export function cleanPunctuation(text) {
   return String(text || '')
+    .replace(/\s*\n+\s*/g, ' ')
     .replace(/\b1:1\b/g, '1 to 1')
     .replace(/[ \t]*[—–][ \t]*/g, ', ')
     .replace(/[ \t]+-[ \t]+/g, ', ')
@@ -261,12 +265,28 @@ export function checkDraft(draft, posts, scrape) {
   return problems;
 }
 
+const FIELDS = ['TIER', 'REASON', 'POST', 'QUOTE', 'FIRST_NAME', 'VARIANT', 'SUBJECT', 'P1', 'P2', 'P3'];
+
 export function parseDraft(text) {
   const raw = String(text || '');
-  const start = raw.indexOf('{');
-  const end = raw.lastIndexOf('}');
-  if (start < 0 || end <= start) return null;
-  try { return JSON.parse(raw.slice(start, end + 1)); } catch { return null; }
+  const re = new RegExp(`^[ \\t>*#-]*(${FIELDS.join('|')})[ \\t]*:[ \\t]*`, 'gim');
+  const marks = [];
+  let m;
+  while ((m = re.exec(raw))) marks.push({ key: m[1].toUpperCase(), at: m.index, from: re.lastIndex });
+  if (!marks.length) return null;
+  const v = {};
+  marks.forEach((k, i) => { if (!(k.key in v)) v[k.key] = raw.slice(k.from, i + 1 < marks.length ? marks[i + 1].at : raw.length).trim(); });
+  const none = (x) => (!x || /^(none|null|n\/a|-)$/i.test(x) ? null : x);
+  const unq = (x) => String(x || '').replace(/^["“”'`]+|["“”'`]+$/g, '').trim();
+  const tier = parseInt(v.TIER, 10);
+  if (![1, 2, 3].includes(tier)) return null;
+  return {
+    tier, reason: v.REASON || '', post: parseInt(v.POST, 10),
+    quote: unq(v.QUOTE), first_name: none(unq(v.FIRST_NAME)), variant: none(unq(v.VARIANT)),
+    // A subject is often a quoted title: strip only a quote pair that wraps the WHOLE value.
+    subject: /^"[^"]*"$/.test(v.SUBJECT || '') ? unq(v.SUBJECT) : (v.SUBJECT || ''),
+    p1: v.P1 || '', p2: v.P2 || '', p3: v.P3 || '',
+  };
 }
 
 // ── Assembly ─────────────────────────────────────────────────────────────────
@@ -288,4 +308,11 @@ export function assemble(draft, language) {
     email_day7: { subject, body: `${f.day7(name, topic)}\n${SENDER_FIRST_NAME}` },
     email_day14: { subject, body: `${f.day14(name, topic)}\n${SENDER_FIRST_NAME}` },
   };
+}
+
+
+// One corrective pass: the model sees exactly what failed and either fixes it
+// or concedes tier 3. Cheaper than a human sorting out a bad draft.
+export function buildRetryMessage(problems) {
+  return `Your draft failed these checks:\n- ${problems.join('\n- ')}\n\nFix it using only the data above, in the same output format. If the only way to pass is to invent something or to lean on a post marked NOT usable, return tier 3.`;
 }
