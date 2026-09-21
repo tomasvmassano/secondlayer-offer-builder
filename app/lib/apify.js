@@ -234,8 +234,8 @@ export async function scrapeInstagramBasic(username, opts = {}) {
     // more posts to find an outlier against, and any comment text the scrape
     // happened to return. Never persisted on the creator; used in-flight.
     ...(opts.outreach ? {
-      outreachPosts: posts.slice(0, 12).map(post => ({
-        caption: (post.caption || '').slice(0, 1200),
+      outreachPosts: posts.slice(0, 10).map(post => ({
+        caption: (post.caption || '').slice(0, 2200),
         likes: post.likesCount ?? post.likes ?? 0,
         comments: post.commentsCount ?? post.comments ?? 0,
         type: post.type || 'image',

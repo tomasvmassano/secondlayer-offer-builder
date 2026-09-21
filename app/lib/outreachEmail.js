@@ -95,14 +95,14 @@ The email must feel like it came from someone who understands their business, no
 You get the creator's bio and recent posts with real numbers. Use ONLY facts present in that data. Never invent a post, a number, a comment, a product or an audience reaction. Instagram does not show save counts, so never mention saves.
 
 STEP 1. Find the demand signal. This decides the tier.
-Tier 1: a caption asks people to take an action to get something (comment a keyword, DM a word, grab a guide or template, join a list, link in bio for a resource) and that post has real comment volume. People taking an action to receive something is the strongest signal there is.
+Tier 1: a caption asks people to take an action to get something (comment a keyword, DM a word, grab a guide or template, join a list, link in bio for a resource) AND that post has real comment volume: at least 20 comments and not below the creator's usual. A call to action that few people answered is not a signal, so look at the other posts instead. People taking an action to receive something is the strongest signal there is.
 Tier 2: no such caption, but a post line is marked as x2 or more above this creator's usual and it teaches, explains or answers something. The signal is that this topic pulled far more response than usual.
 Tier 3: neither. Return tier 3 with a short reason and nothing else. Do not force it. A generic email is worse than no email.
 
 STEP 2. Write three short paragraphs in ${LANG_NAME[lang]}.
 p1, observation then interpretation, 2 to 3 sentences. Name the specific post or recurring angle, then say why it works or what it does differently from others in the niche. Frame it as YOUR reaction ("stood out to me", "I liked how"), never as a verdict about them ("You clearly", "Your content is"). Test: if the sentence could be sent to 20 other creators, rewrite it.
-p2, demand evidence, 2 sentences. "I also noticed" plus the signal with its real number or multiple, then what it tells you: people want something more structured, or more of this than single posts give them.
-p3, the opportunity, 1 to 2 sentences, starting with "I think". Be specific about the gap (for example between the free content and the 1 to 1 work, or beyond a product they already sell) and incomplete about the solution. Never name a format, a price, a module count or a platform. Make it feel incremental: they already have the audience, the knowledge and the demand, so it should not mean much more work for them.
+p2, demand evidence, 2 sentences. "I also noticed" plus the signal with its real number or multiple, then what it tells you: people want something more structured, or more of this than single posts give them. A count is the number of comments on the post, so write "that post got 384 comments", never "384 people commented the keyword". You may say people were commenting the keyword to get the resource only when that post is marked x3 or more usual comments. Never claim that people sent messages or what else they wrote unless it is shown under "comments seen". You may round a big number ("nearly 14,000 comments").
+p3, the opportunity, 2 sentences at most, starting with "I think". No list of three. Mention a service or product they already have only if it appears in the bio or links. Be specific about the gap (for example between the free content and the 1 to 1 work, or beyond a product they already sell) and incomplete about the solution. Never name a format, a price, a module count or a platform. Make it feel incremental: they already have the audience, the knowledge and the demand, so it should not mean much more work for them.
 
 VOICE
 Plain words, like a person typing to a peer. The sophistication is in the thinking, not the vocabulary. Short, uneven sentences. No hype and no copywriter phrases (unlock, maximize, scale your brand, monetization potential, turn followers into customers, game changer, leverage, next level). No flattery such as "great content" or "amazing". One observation only, never a stack of compliments. Every sentence must add relevance, understanding, demand or curiosity, otherwise cut it.
@@ -114,13 +114,12 @@ ${example}
 OUTPUT
 Return only a JSON object, no markdown fence:
 {"tier": 1 | 2 | 3,
- "reason": "one line, why this tier",
+ "reason": "why this tier, 12 words at most",
  "post": index of the post you built the email on,
  "quote": "a short fragment copied EXACTLY from that post's caption, the part you are referring to",
  "first_name": "the person's first name if this is clearly a person and the name is evident from the name or bio, else null",
  "variant": "pt" or "br" (Portuguese only, else null),
- "subject": "2 to 5 words, lowercase, tied to the observation, like: your \\"BILL\\" post",
- "topic": "2 to 6 words naming what you observed, fits after the word about, like: your \\"BILL\\" post",
+ "subject": "2 to 6 words, lowercase, a noun phrase that NAMES the post or angle and starts with your / o teu / a tua / tu, like: your \\"BILL\\" post. Never words like demand, opportunity, idea or question",
  "p1": "...", "p2": "...", "p3": "..."}`;
 }
 
@@ -157,7 +156,9 @@ export function buildUserMessage({ creator, scrape, posts }) {
     if (p.xLikes && p.xLikes >= 2) marks.push(`x${p.xLikes} usual likes`);
     const likes = p.likes > 0 ? `likes=${p.likes}` : 'likes=hidden';
     const sample = p.sampleComments?.length ? `\n    comments seen: ${p.sampleComments.map(c => JSON.stringify(plain(c))).join(' | ')}` : '';
-    return `[${i}] ${p.type} ${likes} comments=${p.comments}${marks.length ? ` (${marks.join(', ')})` : ''}\n    caption: ${JSON.stringify(plain(p.caption))}${sample}`;
+    const cap = plain(p.caption);
+    const shown = cap.length > 820 ? `${cap.slice(0, 400)} [...] ${cap.slice(-400)}` : cap;
+    return `[${i}] ${p.type} ${likes} comments=${p.comments}${marks.length ? ` (${marks.join(', ')})` : ''}\n    caption: ${JSON.stringify(shown)}${sample}`;
   });
   const links = (scrape?.igBioLinks || []).map(l => plain(l?.title || l?.url || l)).filter(Boolean).slice(0, 6);
   return `CREATOR
@@ -229,15 +230,25 @@ export function checkDraft(draft, posts, scrape) {
   const maxX = Math.floor(Math.max(post.xComments || 0, post.xLikes || 0));
   for (let k = 2; k <= maxX; k += 1) allowed.add(String(k));
   allowed.add('1'); // "1 to 1"
+  // A rounded figure ("nearly 14,000" for 13,994) is how a person writes it.
+  const real = [...allowed].map(Number).filter(v => Number.isFinite(v) && v >= 100);
   for (const n of (body.match(/\d+(?:[.,]\d+)*/g) || [])) {
-    if (!allowed.has(n.replace(/[.,]/g, ''))) problems.push(`number not in data: ${n}`);
+    const v = n.replace(/[.,]/g, '');
+    if (allowed.has(v)) continue;
+    const num = Number(v);
+    if (num >= 100 && real.some(r => Math.abs(r - num) / r <= 0.05)) continue;
+    problems.push(`number not in data: ${n}`);
   }
   for (const [re, x] of MULTIPLE_WORDS) {
     if (re.test(body) && maxX < x) problems.push(`claims x${x}, post shows x${maxX}`);
   }
 
-  // 3. Tier 2 is only allowed on a post the code marked as an outlier.
+  // 3. The signal has to be real. Tier 2 only on a post the code marked as an
+  // outlier; tier 1 only where people actually answered the call to action.
   if (draft.tier === 2 && maxX < 2) problems.push('tier 2 on a post that is not above usual');
+  if (draft.tier === 1 && (post.comments < 20 || (post.xComments != null && post.xComments < 1))) {
+    problems.push(`weak tier 1: ${post.comments} comments, x${post.xComments} usual`);
+  }
 
   // 4. Voice.
   for (const re of BANNED) if (re.test(`${body} ${draft.subject}`)) problems.push(`banned phrase: ${re.source}`);
@@ -263,8 +274,8 @@ export function assemble(draft, language) {
   const key = language === 'pt' && draft.variant === 'br' ? 'br' : (FIXED[language] ? language : 'en');
   const f = FIXED[key];
   const name = plain(draft.first_name || '') || null;
-  const topic = cleanPunctuation(draft.topic || '') || cleanPunctuation(draft.subject || '');
   const subject = cleanPunctuation(draft.subject || '').replace(/[.,]+$/, '');
+  const topic = subject;
   const sign = `${f.signoff}\n${SENDER_FIRST_NAME}`;
   const day1 = [
     f.greet(name),
