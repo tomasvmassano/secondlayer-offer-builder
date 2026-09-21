@@ -206,7 +206,7 @@ VERIFIED FACTS were checked by code. You may state them, with numbers exactly as
 OUR READING is interpretation. Use it to decide what to say, and phrase it as your view ("I think", "that tells me"), never as a fact about them. The line marked INTERNAL is never revealed.
 State nothing that is not in VERIFIED FACTS. Instagram does not show save counts, so never mention saves.
 
-The goal is that the creator thinks: this person looked at what I do, noticed something commercially interesting about my audience, and might have ideas worth discussing. Diagnose, never prescribe. Be specific about the gap and incomplete about the solution: never name a format, a price, a module count or a platform. Make it feel incremental, building on the audience, knowledge and demand they already have.
+The goal is that the creator thinks: this person looked at what I do, noticed something commercially interesting about my audience, and might have ideas worth discussing. Diagnose, never prescribe. Be specific about the gap and incomplete about the solution: never name a format, a price, a module count or a platform, and never describe the fix itself ("a smaller first step", "something free that..."). Say the gap exists and that you have ideas, nothing more. Make it feel incremental, building on the audience, knowledge and demand they already have.
 ${agency ? `
 THE READER IS NOT THE CREATOR. This address belongs to their manager or agency. Write ABOUT the creator in the third person, using their first name ("Laura's post on...", "her audience", "I think there is an opportunity for Laura..."). Never "you" or "your" for the creator. The subject names the creator and the post.
 ` : ''}
@@ -243,9 +243,14 @@ export function buildWriterInput(intel, creator) {
   const facts = [];
   if (ev) {
     const marks = [];
-    if (ev.multiple && ev.multiple >= 2) marks.push(`x${ev.multiple} usual comments`);
-    if (ev.likesMultiple && ev.likesMultiple >= 2) marks.push(`x${ev.likesMultiple} usual likes`);
-    facts.push(`post: ${ev.postType}, comments=${ev.value}${ev.likes > 0 ? `, likes=${ev.likes}` : ''}${marks.length ? ` (${marks.join(', ')})` : ''}`);
+    const isSignal = intel.tier === 1 || intel.tier === 2;
+    if (isSignal && ev.multiple && ev.multiple >= 2) marks.push(`x${ev.multiple} usual comments`);
+    if (isSignal && ev.likesMultiple && ev.likesMultiple >= 2) marks.push(`x${ev.likesMultiple} usual likes`);
+    // Tier 3 and 4: the post is what we OBSERVED, not proof of demand, so its
+    // numbers are withheld and may not be cited.
+    facts.push(isSignal
+      ? `post: ${ev.postType}, comments=${ev.value}${ev.likes > 0 ? `, likes=${ev.likes}` : ''}${marks.length ? ` (${marks.join(', ')})` : ''}`
+      : `post: ${ev.postType}. Its engagement is NOT a demand signal, so cite no numbers or multiples for it`);
     facts.push(`caption: ${JSON.stringify(ev.caption)}`);
     if (ev.quote) facts.push(`the part we are pointing at: ${JSON.stringify(ev.quote)}`);
   }
@@ -284,6 +289,8 @@ const BANNED = [
   /no pitch/i, /sem pitch/i, /sin pitch/i,
   /\bunlock/i, /\bmaximi[sz]e/i, /monetization potential/i, /monetization ecosystem/i, /high converting/i, /game.?changer/i, /\bleverage\b/i, /next level/i,
   /discovery call/i, /strategy session/i, /book a demo/i, /sales call/i,
+  // agency jargon, in any of the four languages
+  /\bfunnel\b/i, /\bembudo\b/i, /\bfunil\b/i, /\bconversi[oó]n\b/i, /\bconversão\b/i, /\bconversion\b/i, /\bfricci[oó]n\b/i, /\bfricção\b/i, /\bfriction\b/i,
 ];
 
 // Stylistic dashes become commas. Grammatical hyphens (diz-me, Gómez-Chao) have
@@ -342,6 +349,14 @@ export function checkCopy(draft, intel) {
     if (claimed > have + 0.5) problems.push(`claims x${claimed} ${onComments ? 'comments' : onLikes ? 'likes' : 'response'}, facts show x${have}`);
   }
 
+  if (intel.tier >= 3 && /\d\s*(comments|comentarios|comentários|likes)|(times|veces|vezes)\b.{0,25}(usual|habitual)/i.test(body)) {
+    problems.push('cites engagement numbers, but this tier has no demand signal');
+  }
+  // A manager reads this inbox: the creator is "she / Laura", never "you".
+  if (intel.facts.contact?.email?.kind === 'agency') {
+    const you = { en: /\b(you|your|yours)\b/i, es: /\b(tú|tu|tus|te|ti|contigo)\b/i, pt: /\b(tu|teu|tua|teus|tuas|te|ti|contigo)\b/i, br: /\b(você|vocês)\b/i }[intel.language] || /\b(you|your)\b/i;
+    for (const k of parts) if (you.test(String(draft[k] || ''))) { problems.push(`${k} addresses the creator directly, but the reader is their manager: write in the third person`); break; }
+  }
   for (const re of BANNED) if (re.test(`${body} ${draft.subject}`)) problems.push(`banned phrase: ${re.source}`);
   for (const k of parts) {
     const w = String(draft[k] || '').trim().split(/\s+/).filter(Boolean).length;
