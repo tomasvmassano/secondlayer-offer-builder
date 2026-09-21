@@ -324,6 +324,10 @@ export function checkCopy(draft, intel) {
   const addNums = (s) => (String(s || '').match(/\d+(?:[.,]\d+)*/g) || []).forEach(n => allowed.add(n.replace(/[.,]/g, '')));
   addNums(ev.caption); addNums(intel.facts.bio); addNums(offer?.quote); addNums(intel.facts.links.join(' '));
   [ev.value, ev.likes, intel.facts.followers].forEach(v => allowed.add(String(v)));
+  // Follower counts are written "173K" or "1.2M" as often as in full.
+  const fol = Number(intel.facts.followers) || 0;
+  if (fol >= 1000) [Math.floor(fol / 1000), Math.round(fol / 1000)].forEach(v => allowed.add(String(v)));
+  if (fol >= 1e6) [Math.floor(fol / 1e5) / 10, Math.round(fol / 1e5) / 10, Math.floor(fol / 1e6)].forEach(v => allowed.add(String(v).replace('.', '')));
   const maxX = Math.floor(Math.max(ev.multiple || 0, ev.likesMultiple || 0));
   for (let k = 2; k <= maxX; k += 1) allowed.add(String(k));
   for (const x of [ev.multiple, ev.likesMultiple]) if (x) allowed.add(String(x).replace(/[.,]/g, ''));
