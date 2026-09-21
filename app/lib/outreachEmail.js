@@ -244,8 +244,21 @@ export function checkDraft(draft, posts, scrape) {
     if (num >= 100 && real.some(r => Math.abs(r - num) / r <= 0.05)) continue;
     problems.push(`number not in data: ${n}`);
   }
-  for (const [re, x] of MULTIPLE_WORDS) {
-    if (re.test(body) && maxX < x) problems.push(`claims x${x}, post shows x${maxX}`);
+  // A claimed multiple must belong to the metric the sentence names: "53
+  // comments, more than double your usual" is false when it was the LIKES that
+  // doubled. "nearly 44 times" is fine for x43.6, hence the ceil.
+  for (const sentence of body.split(/(?<=[.?!])\s+/)) {
+    const claims = [];
+    for (const [re, x] of MULTIPLE_WORDS) if (re.test(sentence)) claims.push(x);
+    for (const m of sentence.matchAll(/(\d+(?:[.,]\d+)?)\s*(?:times|x\b|vezes|veces)/gi)) claims.push(parseFloat(m[1].replace(',', '.')));
+    if (!claims.length) continue;
+    const onComments = /comment|coment/i.test(sentence);
+    const onLikes = /\blikes?\b|gostos|me gusta/i.test(sentence);
+    const have = onComments && !onLikes ? (post.xComments || 0)
+      : onLikes && !onComments ? (post.xLikes || 0)
+      : Math.max(post.xComments || 0, post.xLikes || 0);
+    const claimed = Math.max(...claims);
+    if (claimed > Math.ceil(have)) problems.push(`claims x${claimed} ${onComments ? 'comments' : onLikes ? 'likes' : 'response'}, post shows x${have}`);
   }
 
   // 3. The signal has to be real. Tier 2 only on a post the code marked as an
