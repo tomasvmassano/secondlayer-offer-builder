@@ -26,7 +26,7 @@ export const maxDuration = 60;
 
 // NFKD, not NFD — IG display names in "𝐛𝐨𝐥𝐝" math letters fold to plain ASCII.
 const norm = (s) => String(s || '')
-  .normalize('NFKD').replace(/[̀-ͯ]/g, '')
+  .normalize('NFKD').replace(/[\u0300-\u036f]/g, '')
   .toLowerCase()
   .replace(/[^a-z0-9]+/g, ' ')
   .trim();
