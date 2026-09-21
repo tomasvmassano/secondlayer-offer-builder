@@ -175,7 +175,7 @@ export async function scrapeInstagram(username, opts = {}) {
  * related profiles lookup. Returns just what's needed for deal scoring.
  * ~€0.15 per call vs ~€0.30 for full scrapeInstagram.
  */
-export async function scrapeInstagramBasic(username) {
+export async function scrapeInstagramBasic(username, opts = {}) {
   if (!APIFY_TOKEN) return null;
 
   // Tight budget — this runs inside the bulk-import route which must fit
@@ -229,6 +229,22 @@ export async function scrapeInstagramBasic(username) {
       comments: post.commentsCount || post.comments || 0,
       type: post.type || 'image',
     })),
+    // opts.outreach — the cold-email writer needs what recentPosts throws
+    // away: the END of the caption (where "comment GUIDE" style CTAs live),
+    // more posts to find an outlier against, and any comment text the scrape
+    // happened to return. Never persisted on the creator; used in-flight.
+    ...(opts.outreach ? {
+      outreachPosts: posts.slice(0, 12).map(post => ({
+        caption: (post.caption || '').slice(0, 1200),
+        likes: post.likesCount ?? post.likes ?? 0,
+        comments: post.commentsCount ?? post.comments ?? 0,
+        type: post.type || 'image',
+        url: post.url || (post.shortCode ? `https://www.instagram.com/p/${post.shortCode}/` : ''),
+        timestamp: post.timestamp || '',
+        sampleComments: (Array.isArray(post.latestComments) ? post.latestComments : [])
+          .map(c => String(c?.text || '').slice(0, 140)).filter(Boolean).slice(0, 6),
+      })),
+    } : {}),
   };
 }
 
