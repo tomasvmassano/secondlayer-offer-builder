@@ -121,13 +121,13 @@ Tier 2: no such caption, but a post line is marked as x2 or more above this crea
 Never a signal, whatever the numbers: giveaways, contests, tag a friend posts, birthdays, personal announcements, brand collaborations, and questions to the audience such as "where are you from?" or "what do you think?". That is engagement, not demand. For tier 1 the caption must OFFER something in return for the action (a guide, a link, a template, the details, a spot).
 Tier 3: no tier 1 or 2 signal, but the bio or the links show they ALREADY offer something: a product, a course, an ebook, consultations, coaching, a newsletter, a free guide, a community, a shop. People already pay or sign up for it, which is demand you can point at.
 Tier 4: none of the above, but there is a specific post or recurring angle worth a real observation. You write p1 only. Code adds an honest p2 and p3 that ASK about demand rather than claim it.
-Tier 0: not writable. Fewer than three real posts, or the account is a brand, agency, shop or fan page rather than a person who teaches or shares expertise. Return TIER and REASON only.
+Tier 0: not writable, and ONLY for these two reasons: fewer than three real posts, or the account is a brand, agency, shop or fan page rather than a person. A person with an audience always gets at least tier 4, whatever the niche (travel, lifestyle, comedy included). Return TIER and REASON only.
 Always take the strongest tier the data honestly supports. Never stretch a weak post into tier 1 or 2 when tier 3 or 4 is the truth.
 
 STEP 2. Write three short paragraphs in ${LANG_NAME[lang]}.
 p1, observation then interpretation, 2 to 3 sentences. Name the specific post or recurring angle, then say why it works or what it does differently from others in the niche. Frame it as YOUR reaction ("stood out to me", "I liked how"), never as a verdict about them ("You clearly", "Your content is"). Test: if the sentence could be sent to 20 other creators, rewrite it.
 p2, demand evidence, 2 sentences. "I also noticed" plus the signal with its real number or multiple, then what it tells you: people want something more structured, or more of this than single posts give them. A count is the number of comments on the post, so write "that post got 384 comments", never "384 people commented the keyword". When the post is marked x3 or more usual comments you may tie the count to the ask, in this shape: "that post got nearly 1,100 comments after you asked people to comment QUIERO". Never describe what people wrote in the comments, never say they sent messages, never say the comments "had the word" in them, unless it is shown under "comments seen". You may round a big number ("nearly 14,000 comments").
-For tier 3, p2 is instead "I also noticed you already have" plus the offer exactly as the bio or links name it, then what it tells you: people already come to you for this, and one product or service rarely captures all of that demand. Its gap in p3 is what sits around or beyond that offer.
+For tier 3, p2 is instead "I also noticed you already have" plus the offer exactly as the bio or links name it, then what it tells you: one product or service rarely captures everyone in an audience who wants help. State only that the offer exists. Never claim how many people buy it, contact them or respond to it unless the bio gives that number. In tier 3, p1 is still about one specific post. Its gap in p3 is what sits around or beyond that offer.
 For tier 4, write p1 only and leave P2 and P3 empty.
 p3, the opportunity, 2 sentences at most, starting with "I think". No list of three. Mention a service or product they already have only if it appears in the bio or links. Be specific about the gap (for example between the free content and the 1 to 1 work, or beyond a product they already sell) and incomplete about the solution. Never name a format, a price, a module count or a platform. Make it feel incremental: they already have the audience, the knowledge and the demand, so it should not mean much more work for them.
 
@@ -250,8 +250,8 @@ export function checkDraft(draft, posts, scrape) {
 
   // 1. The quoted fragment must really be in that caption.
   const cap = fold(post.caption);
-  const q = fold(draft.quote);
-  if (!q) problems.push('no quote');
+  const q = /^(none|null)$/i.test(String(draft.quote || '').trim()) ? '' : fold(draft.quote);
+  if (!q) { if (draft.tier !== 3) problems.push('no quote'); }
   else if (!cap.includes(q)) {
     const words = q.split(' ').filter(w => w.length > 2);
     const hit = words.filter(w => cap.includes(w)).length;
