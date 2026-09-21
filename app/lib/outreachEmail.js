@@ -307,6 +307,8 @@ export function checkDraft(draft, posts, scrape) {
   addNums(scrape?.bio); allowed.add(String(scrape?.followers || ''));
   const maxX = Math.floor(Math.max(post.xComments || 0, post.xLikes || 0));
   for (let k = 2; k <= maxX; k += 1) allowed.add(String(k));
+  // The exact multiples shown to the model ("x6.6 usual comments") are data too.
+  for (const x of [post.xComments, post.xLikes]) if (x) allowed.add(String(x).replace(/[.,]/g, ''));
   allowed.add('1'); // "1 to 1"
   // A rounded figure ("nearly 14,000" for 13,994) is how a person writes it.
   const real = [...allowed].map(Number).filter(v => Number.isFinite(v) && v >= 100);

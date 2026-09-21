@@ -55,7 +55,10 @@ export async function POST(request, { params }) {
   const cost = { llmUsd: 0, apifyUsd: 0 };
   const done = (outcome, extra = {}) => NextResponse.json({ id, name: creator.name, outcome, cost, ...extra });
 
-  if (!force && !dryRun && creator.dmSequence?.emailMeta?.framework === EMAIL_FRAMEWORK) {
+  // Skip only when a v2 email really exists. A lead whose last attempt failed a
+  // check carries v2 meta but no email, and must be retried on the next run.
+  const prev = creator.dmSequence?.emailMeta;
+  if (!force && !dryRun && prev?.framework === EMAIL_FRAMEWORK && !prev.failedCheck && (prev.tier === 0 || creator.dmSequence?.whatsapp)) {
     return done('skipped', { tier: creator.dmSequence.emailMeta.tier, whatsapp: creator.dmSequence.whatsapp || null });
   }
 
