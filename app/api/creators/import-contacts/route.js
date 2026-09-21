@@ -8,7 +8,8 @@ import { computeOutreachStage, stagePatch } from '../../../lib/outreachStages';
 // Attaches emails / phones found outside the hub (enrichment sheets) to the
 // matching creator. Match is by NAME only, because those sheets carry no IG
 // handle: accent/punctuation-insensitive exact match against the index. A name
-// that hits zero or 2+ creators is reported and never written.
+// that hits zero or 2+ creators is reported and never written, unless exactly
+// one of the candidates already holds the row's email.
 //
 // Writes are additive: contactEmail / contactPhone are only filled when empty.
 // A creator that already has a DIFFERENT email is reported as a conflict.
@@ -84,8 +85,16 @@ export async function POST(request) {
     const seen = new Set();
     for (const row of rows) {
       const name = String(row?.name || '').trim();
-      const hits = byName.get(norm(name)) || [];
+      let hits = byName.get(norm(name)) || [];
       if (!hits.length) { report.unmatched.push(name); continue; }
+      if (hits.length > 1 && row?.email) {
+        // First-name-only rows ("Alba" ×3): the candidate that already holds
+        // this exact email is the one the sheet row was exported from.
+        const want = cleanEmail(row.email);
+        const full = await Promise.all(hits.map(h => getCreator(h.id)));
+        const same = hits.filter((h, i) => want && cleanEmail(full[i]?.contactEmail) === want);
+        if (same.length === 1) hits = same;
+      }
       if (hits.length > 1) { report.ambiguous.push({ name, ids: hits.map(h => h.id) }); continue; }
       // Same creator listed twice in the sheet — first row wins.
       if (seen.has(hits[0].id)) continue;
