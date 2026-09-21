@@ -351,7 +351,7 @@ Return ONLY this JSON. No markdown code fences. No commentary. No prefix or suff
         "currency": "EUR|USD|GBP",
         "format": "course|ebook|coaching|app|service|book|physical_product|newsletter|community|template|other",
         "tier": "lead_magnet|low_ticket|mid_ticket|high_ticket|recurring|service|physical_product",
-        "url": "string",
+        "url": "string (optional, '' if the product has no link, e.g. sold by DM or in person)",
         "transformation_offered": "string (1 specific outcome sentence)"
       }
     ],

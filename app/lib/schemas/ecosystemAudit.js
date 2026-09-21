@@ -115,7 +115,10 @@ export function validateEcosystemAudit(obj) {
         }
         if (!isStr(p.format)) push(`${px}.format`, 'required non-empty string');
         if (!VALID_TIERS.includes(p.tier)) push(`${px}.tier`, `must be one of ${VALID_TIERS.join('|')}`);
-        if (!isStr(p.url)) push(`${px}.url`, 'required non-empty string');
+        // url optional — products sold by DM or in person (ebook "via direct
+        // message", consultations) have no link. Coerce to '' so consumers
+        // keep a string, same policy as existing_communities[].url below.
+        if (!isStr(p.url)) p.url = '';
         if (!isStr(p.transformation_offered)) push(`${px}.transformation_offered`, 'required non-empty string');
       });
     }
