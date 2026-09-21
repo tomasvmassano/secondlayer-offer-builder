@@ -17,8 +17,10 @@ import { computeOutreachStage, stagePatch } from '../../../lib/outreachStages';
 //   'none'  (default) leave the stage alone
 //   'safe'  revive never-contacted cold leads (frio with no DM, email, reply or
 //           loss reason) back to prospect. Nothing with history is touched.
-//   'force' reset EVERY matched creator to Por contactar. Wipes dmSentAt,
-//           follow-ups and reply state, which also rewrites past team stats.
+//   'force' 'safe' plus: reset cold leads WITH history to Por contactar. Wipes
+//           dmSentAt, follow-ups, reminder stamps and the loss reason, which
+//           also lowers past team stats. Only ever touches Frio — live deals
+//           (em outreach, reunião, R1/R2, proposta) are reported, never reset.
 //
 // dryRun defaults to TRUE. The caller batches rows (~40 per apply call) to stay
 // inside the 60s function cap.
@@ -114,12 +116,20 @@ export async function POST(request) {
         }
 
         if (stage !== 'por_contactar' && stage !== 'signed' && stageMode !== 'none') {
-          if (stageMode === 'force') {
-            Object.assign(patch, stagePatch(c, 'por_contactar'));
-            report.reset += 1;
-          } else if (stage === 'frio' && neverContacted(c) && !c.lostReason) {
+          if (stage === 'frio' && neverContacted(c) && !c.lostReason) {
             patch.pipelineStatus = 'prospect';
             report.revived += 1;
+          } else if (stage === 'frio' && stageMode === 'force') {
+            const sp = stagePatch(c, 'por_contactar');
+            // stagePatch clears the timestamps; a clean restart also needs the
+            // actor stamps, the cron's reminder dedup (or day 3/7/14 never
+            // fire again for this lead) and the loss detail gone.
+            const rs = Object.fromEntries(Object.keys(c.outreach?.remindersSent || {}).map(k => [k, null]));
+            Object.assign(patch, sp, {
+              outreach: { ...sp.outreach, dmSentBy: null, emailSentBy: null, lastFollowUpBy: null, remindersSent: rs },
+              lostReason: null, lostAt: null, lostStage: null, objection: null,
+            });
+            report.reset += 1;
           } else {
             report.needsDecision.push({ name: w.name, id: w.id, stage });
           }
