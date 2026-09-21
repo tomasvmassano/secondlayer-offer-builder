@@ -68,7 +68,9 @@ export function verifyPhoneSource(phone, scrape, hints = {}, creator = null) {
   const needles = [n.wa, n.wa.slice(String(n.country || '').length)].filter(x => x && x.length >= 7);
   const has = (text) => { const d = String(text || '').replace(/\D/g, ''); return needles.some(x => d.includes(x)); };
 
-  for (const l of (scrape?.igBioLinks || [])) {
+  // Instagram's own bio links: this scrape, plus the ones a fuller scrape already
+  // put on the record (the light scrape doesn't always return all five).
+  for (const l of [...(scrape?.igBioLinks || []), ...(creator?.platforms?.instagram?.bioLinks || [])]) {
     const url = typeof l === 'string' ? l : (l?.url || '');
     const title = typeof l === 'string' ? '' : (l?.title || '');
     if (has(url) || has(title)) {
