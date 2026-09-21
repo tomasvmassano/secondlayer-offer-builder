@@ -20,7 +20,7 @@ import {
 //
 // Outcomes (always 200 unless the request itself is wrong):
 //   written     email saved (or returned, on dryRun)
-//   no_signal   tier 3 — no honest demand evidence; needs a human look
+//   no_signal   tier 0 — not writable (dead account, brand/agency page); needs a human look
 //   failed_check  the draft cited something that isn't in the data
 //   skipped     already has a v2 email (pass force to redo)
 export const maxDuration = 60;
@@ -103,7 +103,7 @@ export async function POST(request, { params }) {
     let turn = await ask();
     if (turn.fail) return turn.fail;
     let draft = turn.draft;
-    let problems = draft.tier === 3 ? [] : checkDraft(draft, posts, scrape);
+    let problems = draft.tier === 0 ? [] : checkDraft(draft, posts, scrape);
     let retried = false;
     if (problems.length) {
       // One corrective pass with the failed checks spelled out.
@@ -112,16 +112,16 @@ export async function POST(request, { params }) {
       turn = await ask();
       if (turn.fail) return turn.fail;
       draft = turn.draft;
-      problems = draft.tier === 3 ? [] : checkDraft(draft, posts, scrape);
+      problems = draft.tier === 0 ? [] : checkDraft(draft, posts, scrape);
     }
     const data = { usage };
 
     const meta = {
       framework: EMAIL_FRAMEWORK, generatedAt: new Date().toISOString(), language,
-      tier: Number(draft.tier) || 3, reason: String(draft.reason || '').slice(0, 200), retried,
+      tier: Number(draft.tier) || 0, reason: String(draft.reason || '').slice(0, 200), retried,
     };
 
-    if (meta.tier === 3) {
+    if (meta.tier === 0) {
       if (!dryRun) await updateCreator(id, { dmSequence: { ...(creator.dmSequence || {}), emailMeta: meta } }, { skipIndexIfUnchanged: true });
       return done('no_signal', { reason: meta.reason, usage: data.usage });
     }
@@ -130,6 +130,7 @@ export async function POST(request, { params }) {
     const evidence = post ? {
       postUrl: post.url || null, likes: post.likes, comments: post.comments,
       xComments: post.xComments, xLikes: post.xLikes, quote: String(draft.quote || '').slice(0, 160),
+      offer: draft.offer ? String(draft.offer).slice(0, 160) : null,
     } : null;
 
     if (problems.length) {

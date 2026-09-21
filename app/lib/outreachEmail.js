@@ -60,6 +60,27 @@ export const FIXED = {
   },
 };
 
+// Tier 4 — no demand evidence in the data, so the email ASKS instead of claiming.
+// Diagnose before prescribing, taken literally. p1 stays specific to the lead.
+export const ASK_BLOCK = {
+  en: [
+    "What I can't see from the outside is what happens after the posts. Whether people ask you for more, a plan, a guide, a way to work with you, and where you send them when they do.",
+    "I think that's usually where the opportunity sits for an audience like yours, and it rarely takes much more work than what you already do.",
+  ],
+  pt: [
+    'O que não consigo ver de fora é o que acontece depois dos posts. Se as pessoas te pedem mais, um plano, um guia, uma forma de trabalhar contigo, e para onde as mandas quando pedem.',
+    'Acho que é normalmente aí que está a oportunidade para uma audiência como a tua, e raramente exige muito mais trabalho do que o que já fazes.',
+  ],
+  br: [
+    'O que eu não consigo ver de fora é o que acontece depois dos posts. Se as pessoas pedem mais, um plano, um guia, uma forma de trabalhar com você, e para onde você manda quando pedem.',
+    'Acho que normalmente é aí que está a oportunidade para uma audiência como a sua, e raramente exige muito mais trabalho do que você já faz.',
+  ],
+  es: [
+    'Lo que no puedo ver desde fuera es qué pasa después de los posts. Si la gente te pide más, un plan, una guía, una forma de trabajar contigo, y a dónde la mandas cuando lo hace.',
+    'Creo que ahí suele estar la oportunidad para una audiencia como la tuya, y rara vez exige mucho más trabajo del que ya haces.',
+  ],
+};
+
 // Style references: the three custom paragraphs of emails Tomás wrote and
 // rates as good. Diana's original cited saves; Instagram doesn't expose save
 // counts, so the reference uses a signal the scrape can actually see.
@@ -98,11 +119,16 @@ STEP 1. Find the demand signal. This decides the tier.
 Tier 1: a caption asks people to take an action to get something (comment a keyword, DM a word, grab a guide or template, join a list, link in bio for a resource) AND that post has real comment volume: at least 20 comments and not below the creator's usual. A call to action that few people answered is not a signal, so look at the other posts instead. People taking an action to receive something is the strongest signal there is.
 Tier 2: no such caption, but a post line is marked as x2 or more above this creator's usual and it teaches, explains or answers something. The signal is that this topic pulled far more response than usual.
 Never a signal, whatever the numbers: giveaways, contests, tag a friend posts, birthdays, personal announcements, brand collaborations, and questions to the audience such as "where are you from?" or "what do you think?". That is engagement, not demand. For tier 1 the caption must OFFER something in return for the action (a guide, a link, a template, the details, a spot).
-Tier 3: neither. Return tier 3 with a short reason and nothing else. Do not force it. A generic email is worse than no email.
+Tier 3: no tier 1 or 2 signal, but the bio or the links show they ALREADY offer something: a product, a course, an ebook, consultations, coaching, a newsletter, a free guide, a community, a shop. People already pay or sign up for it, which is demand you can point at.
+Tier 4: none of the above, but there is a specific post or recurring angle worth a real observation. You write p1 only. Code adds an honest p2 and p3 that ASK about demand rather than claim it.
+Tier 0: not writable. Fewer than three real posts, or the account is a brand, agency, shop or fan page rather than a person who teaches or shares expertise. Return TIER and REASON only.
+Always take the strongest tier the data honestly supports. Never stretch a weak post into tier 1 or 2 when tier 3 or 4 is the truth.
 
 STEP 2. Write three short paragraphs in ${LANG_NAME[lang]}.
 p1, observation then interpretation, 2 to 3 sentences. Name the specific post or recurring angle, then say why it works or what it does differently from others in the niche. Frame it as YOUR reaction ("stood out to me", "I liked how"), never as a verdict about them ("You clearly", "Your content is"). Test: if the sentence could be sent to 20 other creators, rewrite it.
 p2, demand evidence, 2 sentences. "I also noticed" plus the signal with its real number or multiple, then what it tells you: people want something more structured, or more of this than single posts give them. A count is the number of comments on the post, so write "that post got 384 comments", never "384 people commented the keyword". When the post is marked x3 or more usual comments you may tie the count to the ask, in this shape: "that post got nearly 1,100 comments after you asked people to comment QUIERO". Never describe what people wrote in the comments, never say they sent messages, never say the comments "had the word" in them, unless it is shown under "comments seen". You may round a big number ("nearly 14,000 comments").
+For tier 3, p2 is instead "I also noticed you already have" plus the offer exactly as the bio or links name it, then what it tells you: people already come to you for this, and one product or service rarely captures all of that demand. Its gap in p3 is what sits around or beyond that offer.
+For tier 4, write p1 only and leave P2 and P3 empty.
 p3, the opportunity, 2 sentences at most, starting with "I think". No list of three. Mention a service or product they already have only if it appears in the bio or links. Be specific about the gap (for example between the free content and the 1 to 1 work, or beyond a product they already sell) and incomplete about the solution. Never name a format, a price, a module count or a platform. Make it feel incremental: they already have the audience, the knowledge and the demand, so it should not mean much more work for them.
 
 VOICE
@@ -113,11 +139,12 @@ Numbers: only numbers that appear in the data. A multiple such as "3 times your 
 ${example}
 
 OUTPUT
-Plain text, one field per line, exactly these labels in this order and nothing else. No JSON, no markdown. For tier 3 return only TIER and REASON.
-TIER: 1, 2 or 3
+Plain text, one field per line, exactly these labels in this order and nothing else. No JSON, no markdown. For tier 0 return only TIER and REASON.
+TIER: 1, 2, 3, 4 or 0
 REASON: why this tier, 12 words at most
 POST: index of the post you built the email on
-QUOTE: a short fragment copied EXACTLY from that post's caption, the part you are referring to
+QUOTE: a short fragment copied EXACTLY from that post's caption, the part p1 refers to
+OFFER: tier 3 only, the fragment of the bio or links that names what they already offer, copied EXACTLY, else none
 FIRST_NAME: the person's first name if this is clearly a person and the name is evident from the name or bio, else none
 VARIANT: pt or br for Portuguese, else none
 SUBJECT: 2 to 6 words, lowercase, a noun phrase that NAMES the post or angle and starts with your / o teu / a tua / tu, like your "BILL" post. Never words like demand, opportunity, idea or question
@@ -149,6 +176,11 @@ export function withMultiples(posts) {
   });
 }
 
+// "title (url)" — the domain alone often names the product (stan.store, hotmart).
+const bioLinks = (scrape) => (scrape?.igBioLinks || [])
+  .map(l => (typeof l === 'string' ? l : [l?.title, l?.url].filter(Boolean).join(' ')))
+  .map(x => String(x || '').replace(/\s+/g, ' ').trim()).filter(Boolean).slice(0, 6);
+
 // Fancy-unicode display names ("𝐀𝐧𝐝𝐫𝐞́") fold to plain letters.
 const plain = (s) => String(s || '').normalize('NFKC').replace(/\s+/g, ' ').trim();
 
@@ -164,7 +196,7 @@ export function buildUserMessage({ creator, scrape, posts }) {
     const shown = cap.length > 820 ? `${cap.slice(0, 400)} [...] ${cap.slice(-400)}` : cap;
     return `[${i}] ${p.type} ${likes} comments=${p.comments}${marks.length ? ` (${marks.join(', ')})` : ''}\n    caption: ${JSON.stringify(shown)}${sample}`;
   });
-  const links = (scrape?.igBioLinks || []).map(l => plain(l?.title || l?.url || l)).filter(Boolean).slice(0, 6);
+  const links = bioLinks(scrape);
   return `CREATOR
 name: ${plain(creator?.name || scrape?.name)}
 niche: ${plain(creator?.niche) || 'unknown'}
@@ -226,8 +258,18 @@ export function checkDraft(draft, posts, scrape) {
     if (!words.length || hit / words.length < 0.8) problems.push('quote not found in caption');
   }
 
-  // 2. Every number in the copy must exist in the data.
-  const body = [draft.p1, draft.p2, draft.p3].join(' ');
+  // 1b. Tier 3 points at an existing offer: it must be named in the bio/links.
+  if (draft.tier === 3) {
+    const src = fold(`${scrape?.bio || ''} ${bioLinks(scrape).join(' ')} ${scrape?.externalUrl || ''}`);
+    const o = fold(draft.offer);
+    const ow = o.split(' ').filter(w => w.length > 2);
+    if (!o) problems.push('tier 3 without an offer quote');
+    else if (!src.includes(o) && (!ow.length || ow.filter(w => src.includes(w)).length / ow.length < 0.8)) problems.push('offer not found in bio or links');
+  }
+
+  // 2. Every number in the copy must exist in the data. Tier 4 writes p1 only.
+  const parts = draft.tier === 4 ? ['p1'] : ['p1', 'p2', 'p3'];
+  const body = parts.map(k => draft[k]).join(' ');
   const allowed = new Set();
   const addNums = (s) => (String(s || '').match(/\d+(?:[.,]\d+)*/g) || []).forEach(n => allowed.add(n.replace(/[.,]/g, '')));
   posts.forEach(p => { addNums(p.caption); allowed.add(String(p.likes)); allowed.add(String(p.comments)); (p.sampleComments || []).forEach(addNums); });
@@ -270,7 +312,7 @@ export function checkDraft(draft, posts, scrape) {
 
   // 4. Voice.
   for (const re of BANNED) if (re.test(`${body} ${draft.subject}`)) problems.push(`banned phrase: ${re.source}`);
-  for (const k of ['p1', 'p2', 'p3']) {
+  for (const k of parts) {
     const w = String(draft[k] || '').trim().split(/\s+/).filter(Boolean).length;
     if (w < 8) problems.push(`${k} too short`);
     if (w > 75) problems.push(`${k} too long (${w} words)`);
@@ -279,7 +321,7 @@ export function checkDraft(draft, posts, scrape) {
   return problems;
 }
 
-const FIELDS = ['TIER', 'REASON', 'POST', 'QUOTE', 'FIRST_NAME', 'VARIANT', 'SUBJECT', 'P1', 'P2', 'P3'];
+const FIELDS = ['TIER', 'REASON', 'POST', 'QUOTE', 'OFFER', 'FIRST_NAME', 'VARIANT', 'SUBJECT', 'P1', 'P2', 'P3'];
 
 export function parseDraft(text) {
   const raw = String(text || '');
@@ -293,10 +335,10 @@ export function parseDraft(text) {
   const none = (x) => (!x || /^(none|null|n\/a|-)$/i.test(x) ? null : x);
   const unq = (x) => String(x || '').replace(/^["“”'`]+|["“”'`]+$/g, '').trim();
   const tier = parseInt(v.TIER, 10);
-  if (![1, 2, 3].includes(tier)) return null;
+  if (![0, 1, 2, 3, 4].includes(tier)) return null;
   return {
     tier, reason: v.REASON || '', post: parseInt(v.POST, 10),
-    quote: unq(v.QUOTE), first_name: none(unq(v.FIRST_NAME)), variant: none(unq(v.VARIANT)),
+    quote: unq(v.QUOTE), offer: none(unq(v.OFFER)), first_name: none(unq(v.FIRST_NAME)), variant: none(unq(v.VARIANT)),
     // A subject is often a quoted title: strip only a quote pair that wraps the WHOLE value.
     subject: /^"[^"]*"$/.test(v.SUBJECT || '') ? unq(v.SUBJECT) : (v.SUBJECT || ''),
     p1: v.P1 || '', p2: v.P2 || '', p3: v.P3 || '',
@@ -311,9 +353,10 @@ export function assemble(draft, language) {
   const subject = cleanPunctuation(draft.subject || '').replace(/[.,]+$/, '');
   const topic = subject;
   const sign = `${f.signoff}\n${SENDER_FIRST_NAME}`;
+  const [p2, p3] = draft.tier === 4 ? ASK_BLOCK[key] : [cleanPunctuation(draft.p2), cleanPunctuation(draft.p3)];
   const day1 = [
     f.greet(name),
-    cleanPunctuation(draft.p1), cleanPunctuation(draft.p2), cleanPunctuation(draft.p3),
+    cleanPunctuation(draft.p1), p2, p3,
     f.credibility, f.ask, f.close, sign,
   ].join('\n\n');
   return {
@@ -326,7 +369,7 @@ export function assemble(draft, language) {
 
 
 // One corrective pass: the model sees exactly what failed and either fixes it
-// or concedes tier 3. Cheaper than a human sorting out a bad draft.
+// or steps down a tier. Cheaper than a human sorting out a bad draft.
 export function buildRetryMessage(problems) {
-  return `Your draft failed these checks:\n- ${problems.join('\n- ')}\n\nFix it using only the data above, in the same output format. If the only way to pass is to invent something or to lean on a post marked NOT usable, return tier 3.`;
+  return `Your draft failed these checks:\n- ${problems.join('\n- ')}\n\nFix it using only the data above, in the same output format. If the only way to pass is to invent something or to lean on a post marked NOT usable, step down to the tier the data honestly supports (3, 4 or 0).`;
 }
