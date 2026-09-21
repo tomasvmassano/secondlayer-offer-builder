@@ -940,7 +940,12 @@ export async function rebuildAllSummaries() {
   return { rebuilt };
 }
 
-export async function updateCreator(id, updates) {
+// opts.skipIndexIfUnchanged — bulk writers (contact import) that only touch
+// fields the summary doesn't carry can skip the index rewrite entirely. The
+// rewrite ZRANGEs the whole index per call, so 500 email writes would pull the
+// index 500 times for no visible change. Opt-in: normal edits keep bumping the
+// card to the top of the list.
+export async function updateCreator(id, updates, opts = {}) {
   // fresh:true — NEVER merge onto a cached base. The read cache is
   // per-lambda-instance with a 30s TTL; merging onto it silently reverts
   // any write that landed on another instance inside that window.
@@ -1041,6 +1046,13 @@ export async function updateCreator(id, updates) {
   const updated = { ...existing, ...updates, id, updatedAt: new Date().toISOString() };
 
   const summary = buildSummary(updated, updated.createdAt);
+
+  if (opts.skipIndexIfUnchanged && !useMemory()
+    && JSON.stringify(summary) === JSON.stringify(buildSummary(existing, existing.createdAt))) {
+    await getRedis().set(`creator:${id}`, JSON.stringify(updated));
+    _cacheInvalidateAll();
+    return updated;
+  }
 
   if (useMemory()) {
     memStore.set(`creator:${id}`, JSON.stringify(updated));
