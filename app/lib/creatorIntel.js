@@ -153,7 +153,7 @@ MONETIZATION, from the bio and links only. Say what appears to be free, what app
 
 Keep FACT and INTERPRETATION apart. SIGNAL is a fact and must be supported by the data as written. WHY, GAP, DIRECTION and ANGLE are your reading, phrased as a reasonable hypothesis, never as certainty ("the audience will pay for a course" is not allowed).
 
-OUTPUT: plain text, one field per line, exactly these labels, nothing else. For tier 0 return LANGUAGE, TIER and REASON only.
+OUTPUT: plain text, one field per line, exactly these labels, nothing else. Fill EVERY field for tiers 1 to 4, including POST_GIST, WHY, GAP and ANGLE in tier 3 and 4 (a lead with no demand spike still has a post worth describing and a gap worth a hypothesis). For tier 0 return LANGUAGE, TIER and REASON only.
 LANGUAGE: en, pt (European Portuguese), br (Brazilian Portuguese) or es, judged from how the creator writes captions and bio
 FIRST_NAME: the person's first name if evident from the name or bio, else none
 NICHE: 6 words at most
@@ -257,6 +257,9 @@ export function verifyAnalysis(a, facts) {
     if (!a.offer) problems.push('tier 3 without an offer quote');
     else if (!inText(a.offer, `${facts.bio} ${facts.links.join(' ')}`)) problems.push('offer not found in bio or links');
   }
+  // The reading is what every channel writer works from. An empty one means the
+  // writers improvise, which is exactly what this layer exists to prevent.
+  for (const k of ['postGist', 'why', 'gap', 'angle']) if (!a.read?.[k]) problems.push(`${k.replace(/[A-Z]/g, c => `_${c}`).toUpperCase()} is empty: every tier from 1 to 4 needs it`);
   if (/\bsaves?\b|\bsaved\b|guardad|guardaram/i.test(`${a.read.signal || ''} ${a.read.why || ''}`)) problems.push('mentions saves');
   // The signal sentence is a FACT: its numbers must be the post's numbers.
   // Any post's real numbers are fair: the reading often compares the chosen

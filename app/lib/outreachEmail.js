@@ -230,7 +230,7 @@ p3, the opportunity, 2 sentences at most, starting with "${ph.think}". Use the g
 WHATSAPP, the same insight, much shorter and more conversational, for a personal channel. wa1 is the observation in ONE sentence of 24 words at most. wa2 is the signal and the opportunity in one or two short sentences, 34 words at most. Tier 4: leave WA2 empty.
 
 VOICE
-Plain words, like a person typing to a peer. The sophistication is in the thinking, not the vocabulary. Short, uneven sentences. No hype and no agency phrases (unlock, maximize, scale your brand, monetization potential, monetization ecosystem, high converting funnel, turn followers into customers, game changer, leverage, next level). No flattery such as "great content". One observation only. Every sentence must add relevance, understanding, demand or curiosity, otherwise cut it.
+Plain words, like a person typing to a peer. The sophistication is in the thinking, not the vocabulary. Short, uneven sentences. No hype and no agency phrases (unlock, maximize, scale your brand, monetization potential, monetization ecosystem, high converting funnel, turn followers into customers, game changer, leverage, next level). No flattery such as "great content". No business filler either (momentum, synergy, complementary offers, take it to the next stage). Do not say you have ideas: the fixed copy right after your paragraphs already says it. One observation only. Every sentence must add relevance, understanding, demand or curiosity, otherwise cut it.
 Punctuation: never use a hyphen or a dash as punctuation (no "word - word", no em or en dashes). Hyphens that belong to a word or a name stay. Colons are fine when grammar needs one, but keep it conversational, not formatted. No parentheses, no emojis, no exclamation marks. Write "1 to 1". Put a post title or keyword in straight double quotes.
 
 ${example}
@@ -391,7 +391,13 @@ export function checkCopy(draft, intel) {
     if (w < 5) problems.push(`${k} missing`);
     if (w > 45) problems.push(`${k} too long for WhatsApp (${w} words)`);
   }
-  if (!String(draft.subject || '').trim()) problems.push('no subject');
+  const subj = String(draft.subject || '').trim();
+  if (!subj) problems.push('no subject');
+  else {
+    // The subject names the post. It never sells or editorialises.
+    if (subj.split(/\s+/).length > 8) problems.push('subject too long, 2 to 6 words');
+    if (/\b(demand|opportunity|idea|ideas|question|procura|oportunidade|ideia|ideias|demanda|oportunidad|pergunta|pregunta)\b/i.test(subj)) problems.push('subject must only name the post or angle, no words like demand, opportunity or idea');
+  }
   return problems;
 }
 
