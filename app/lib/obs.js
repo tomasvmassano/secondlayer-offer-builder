@@ -120,11 +120,7 @@ export async function getObsSnapshot({ recentErrors = 20 } = {}) {
   if (!r) return { available: false };
   const today = ymd();
   const yest = ymd(new Date(Date.now() - 86400000));
-  const ROUTES = [
-    'ecosystem-audit', 'archetype', 'uniqueness', 'strategic-frame',
-    'offer-judgment', 'core-offer', 'modules', 'value-stack', 'sales-copy',
-    'dm-writer', 'launch-generate', 'full-scrape', 'discovery', 'import-research',
-  ];
+  const ROUTES = METERED_ROUTES;
   try {
     const p = r.pipeline();
     p.get(`obs:cost:${today}`);
@@ -150,6 +146,51 @@ export async function getObsSnapshot({ recentErrors = 20 } = {}) {
       perRoute,
       recentErrors: errors,
     };
+  } catch (e) {
+    return { available: false, error: e?.message };
+  }
+}
+
+// Every route that meters itself through recordLlmUsage. Keep in sync when a
+// new LLM route is added, or its spend is invisible on /admin.
+export const METERED_ROUTES = [
+  'ecosystem-audit', 'archetype', 'uniqueness', 'strategic-frame',
+  'offer-judgment', 'core-offer', 'modules', 'value-stack', 'sales-copy',
+  'service-offer', 'service-sales-copy',
+  'dm-writer', 'outreach-intel', 'outreach-email', 'launch-generate',
+  'full-scrape', 'discovery', 'import-research',
+];
+
+/**
+ * Per-route spend over the last N days, from the same counters recordLlmUsage
+ * writes: { days, routes: { [route]: { cost, calls, avg, days: [{day, cost, calls}] } } }.
+ * "avg" is measured cost per metered call, i.e. per successful Anthropic
+ * response (429/529 retries and Vercel timeouts are not metered).
+ */
+export async function getRouteCosts(days = 40) {
+  const r = redis();
+  if (!r) return { available: false };
+  const n = Math.max(1, Math.min(40, days));
+  const now = new Date();
+  const daysArr = [];
+  for (let i = n - 1; i >= 0; i--) daysArr.push(ymd(new Date(now.getTime() - i * 86400000)));
+  try {
+    const p = r.pipeline();
+    for (const day of daysArr) for (const rt of METERED_ROUTES) { p.get(`obs:cost:${day}:${rt}`); p.get(`obs:calls:${day}:${rt}`); }
+    const res = await p.exec();
+    const routes = {};
+    let k = 0;
+    for (const day of daysArr) {
+      for (const rt of METERED_ROUTES) {
+        const cost = Number(res[k++]) || 0;
+        const calls = Number(res[k++]) || 0;
+        if (!cost && !calls) continue;
+        const row = (routes[rt] ||= { cost: 0, calls: 0, days: [] });
+        row.cost += cost; row.calls += calls; row.days.push({ day, cost: +cost.toFixed(4), calls });
+      }
+    }
+    for (const row of Object.values(routes)) { row.cost = +row.cost.toFixed(4); row.avg = row.calls ? +(row.cost / row.calls).toFixed(4) : null; }
+    return { available: true, days: n, from: daysArr[0], to: daysArr[daysArr.length - 1], routes };
   } catch (e) {
     return { available: false, error: e?.message };
   }
