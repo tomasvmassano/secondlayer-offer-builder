@@ -1263,6 +1263,7 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
           if (iData?.intel) { intel = iData.intel; setCreator(prev => (prev ? { ...prev, outreachIntel: iData.intel } : prev)); }
         } catch { /* non-fatal */ }
       }
+      const dmStage = stage === 'initial' ? 'dm' : stage;
       const r = await fetch("/api/dm-writer", {
         method: "POST", headers: { "Content-Type": "application/json" },
         // safeStringify scrubs unpaired UTF-16 surrogates from every
@@ -1273,7 +1274,7 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
         // in string" 400s. The scrub replaces the orphan half with
         // U+FFFD so the body parses fine; the LLM ignores the marker.
         body: safeStringify({
-          stage,
+          stage: dmStage,
           template: dmTemplate,
           senderName,
           // Explicit operator-chosen language wins over the creator's
@@ -1317,8 +1318,21 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
       } else if (stage === 'followup_14') {
         merged = { ...existing, email_day14: data.email_day14, followup14GeneratedAt: now };
       } else {
-        // initial — full replace of opening fields, preserve any earlier followups
-        merged = { ...existing, ...data, generatedAt: now };
+        // initial — the DM writer only returns the DM + comment now. The Day 1
+        // email, its follow-ups and the WhatsApp message come from the outreach
+        // pipeline (same intelligence, current framework). Write them here when
+        // the lead has none yet, so one click leaves all channels ready.
+        const { email_day1: _e1, email_day7: _e7, email_day14: _e14, ...dmOnly } = data;
+        merged = { ...existing, ...dmOnly, generatedAt: existing.generatedAt || now, dmGeneratedAt: now };
+        if (existing.emailMeta?.framework !== 'v2') {
+          try {
+            const er = await fetch(`/api/creators/${creator.id}/outreach-email`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
+            const ed = await parseJsonSafe(er);
+            if (ed?.outcome === 'written') {
+              merged = { ...merged, email_day1: ed.email, email_day7: { subject: ed.email.subject, body: ed.day7 }, email_day14: { subject: ed.email.subject, body: ed.day14 }, whatsapp: ed.whatsapp, senderName: 'Tomás', emailMeta: { framework: 'v2', pipeline: 'intel-1', generatedAt: now, tier: ed.tier, reason: ed.reason, recipient: ed.recipient, whatsappSource: ed.whatsappSource, evidence: ed.evidence } };
+            }
+          } catch { /* the DM is still saved; email can be written from the phone/email chips */ }
+        }
       }
       await patchCreator({ dmSequence: merged });
       if (data.inputs) setDmInputs({ _filled: true, ...data.inputs });
@@ -2585,14 +2599,8 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
 
         {/* ════════════ DM WRITER TAB ════════════ */}
         {tab === "dm" && (<>
-          {!creator.dmSequence && !dmLoading && (
-            !creator?.offer?.internal_metadata?.ecosystem_audit ? (
-              <div style={{ padding: "48px 24px", textAlign: "center", border: "1px solid var(--sl-border)", borderRadius: 8, marginBottom: 24 }}>
-                <p style={{ color: "var(--sl-text-muted)", fontSize: 13, marginBottom: 8 }}>A auditoria de ecossistema é necessária para gerar a DM.</p>
-                <p style={{ color: "var(--sl-text-faint)", fontSize: 12, marginBottom: 20 }}>Os dados do audit garantem que a mensagem é específica ao criador e com o ângulo certo.</p>
-                <button onClick={() => setTab("audit")} style={{ padding: "10px 24px", borderRadius: 6, border: "none", background: "var(--sl-primary)", color: "var(--sl-primary-contrast)", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>Correr Audit →</button>
-              </div>
-            ) : (
+          {!creator.dmSequence?.dm && !dmLoading && (
+            (
             <div>
               <div className="sl-grid-3" style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12, marginBottom: 16 }}>
                 <div>
@@ -2623,12 +2631,12 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
           {dmLoading && (
             <div style={{ textAlign: "center", padding: 40 }}>
               <div style={{ width: 20, height: 20, margin: "0 auto 12px", border: "2px solid var(--sl-surface-raised)", borderTopColor: "var(--sl-primary)", borderRadius: "50%", animation: "sl-spin 0.8s linear infinite" }} />
-              <p style={{ fontSize: 12, color: "var(--sl-text-faint)" }}>A analisar perfil e gerar outreach... (30-60s)</p>
+              <p style={{ fontSize: 12, color: "var(--sl-text-faint)" }}>A analisar o perfil e a escrever DM, email e WhatsApp... (30-60s)</p>
               <style>{`@keyframes sl-spin{to{transform:rotate(360deg)}}`}</style>
             </div>
           )}
           {dmError && <div style={{ padding: "10px 14px", borderRadius: 6, background: "color-mix(in srgb, var(--sl-danger) 10%, transparent)", border: "1px solid color-mix(in srgb, var(--sl-danger) 20%, transparent)", color: "var(--sl-danger)", fontSize: 12, marginBottom: 16 }}>{dmError}</div>}
-          {creator.dmSequence && (() => {
+          {creator.dmSequence && (creator.dmSequence.dm || creator.dmSequence.email_day1) && (() => {
             const seq = creator.dmSequence;
             const firstName = seq.inputs?.primeiro_nome || creator.name?.split(" ")[0] || "";
             // Templates — zero API cost, switched on creator language so an

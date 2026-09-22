@@ -1079,7 +1079,10 @@ export async function POST(request) {
   //   'followup_14'  → Email Day 14 only
   // The system prompt stays identical per (template,language); we just tell
   // the LLM which delimiters to emit in the user message.
-  const stage = ['initial', 'followup_7', 'followup_14'].includes(rawStage) ? rawStage : 'initial';
+  // 'dm' = the Instagram DM + T+3 comment only. The Day 1 email and the WhatsApp
+  // message come from the outreach pipeline (outreach-email), which writes from
+  // the same creator intelligence; this route must not overwrite them.
+  const stage = ['initial', 'dm', 'followup_7', 'followup_14'].includes(rawStage) ? rawStage : 'initial';
   if (!creatorProfile) return NextResponse.json({ error: 'Missing creator profile' }, { status: 400 });
 
   const cp = creatorProfile;
@@ -1264,6 +1267,8 @@ observacao_dor: ${inputFields.observacao_dor || inputFields.buraco_identificado 
     ? `Compose ONLY the Day 7 follow-up email. Output ONLY the EMAIL_DAY7_SUBJECT and EMAIL_DAY7 delimiters and skip EVERY other section (no INPUTS, no DM, no COMMENT_T3, no Day 1, no Day 14).`
     : stage === 'followup_14'
     ? `Compose ONLY the Day 14 breakup email. Output ONLY the EMAIL_DAY14_SUBJECT and EMAIL_DAY14 delimiters and skip EVERY other section.`
+    : stage === 'dm'
+    ? `Compose ONLY the Cold DM and the T+3 Comment. Output the INPUTS block + DM + COMMENT_T3 and STOP. Do not output any EMAIL section.`
     : `Compose ONLY: the Cold DM, the T+3 Comment, and the Day 1 Email. Output the INPUTS block + DM + COMMENT_T3 + EMAIL_DAY1_SUBJECT + EMAIL_DAY1. DO NOT generate EMAIL_DAY7 or EMAIL_DAY14 — those are generated later on demand. Skip those delimiters entirely.`;
 
   // Operator instructions (the "Notas (Opcional)" textarea in the UI) ride
@@ -1434,17 +1439,19 @@ ${stageInstruction} Follow the output format exactly. ZERO em dashes.${notesRemi
       language,
       _usage: data.usage || null,
     };
-    if (stage === 'initial') {
+    if (stage === 'initial' || stage === 'dm') {
       result.inputs = parsedInputs;
       result.dm = extract('DM', 'COMMENT_T3');
       result.comment_t3 = extract('COMMENT_T3', 'EMAIL_DAY1_SUBJECT');
       // Email gets the operator's contact card appended (name + email +
       // website). DMs never do — Instagram doesn't render signatures and
       // the 1000-char cap can't afford the lines.
-      result.email_day1 = {
-        subject: extract('EMAIL_DAY1_SUBJECT', 'EMAIL_DAY1'),
-        body: appendSignature(extract('EMAIL_DAY1', 'EMAIL_DAY7_SUBJECT'), senderName),
-      };
+      if (stage === 'initial') {
+        result.email_day1 = {
+          subject: extract('EMAIL_DAY1_SUBJECT', 'EMAIL_DAY1'),
+          body: appendSignature(extract('EMAIL_DAY1', 'EMAIL_DAY7_SUBJECT'), senderName),
+        };
+      }
 
       // Instagram silently truncates DMs over 1000 chars. The system prompt
       // already enforces this but LLMs are unreliable at exact char counts,
