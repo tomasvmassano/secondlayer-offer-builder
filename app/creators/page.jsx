@@ -80,8 +80,8 @@ export default function CreatorsPage() {
   // addedBy: null | "Tomás" | "Raúl" | etc.  (string match against summary.addedByFirstName)
   // dealScore: null | "A" | "B" | "C" | "D"
   // hasAudit: null | true | false
-  // contact: null | 'email' | 'phone' | 'both' | 'none'  (summary.hasEmail / hasPhone)
-  const [filters, setFilters] = useState({ addedBy: null, dealScore: null, hasAudit: null, contact: null });
+  // hasPhone / hasEmail: true = only leads with it (both ticked = must have both)
+  const [filters, setFilters] = useState({ addedBy: null, dealScore: null, hasAudit: null, hasPhone: false, hasEmail: false });
   useEffect(() => {
     try {
       const stored = JSON.parse(localStorage.getItem('sl_crm_filters_v1') || 'null');
@@ -990,10 +990,8 @@ export default function CreatorsPage() {
             if (filters.dealScore && c.dealScoreGrade !== filters.dealScore) return false;
             if (filters.hasAudit === true && !c.hasAudit) return false;
             if (filters.hasAudit === false && c.hasAudit) return false;
-            if (filters.contact === 'email' && !c.hasEmail) return false;
-            if (filters.contact === 'phone' && !c.hasPhone) return false;
-            if (filters.contact === 'both' && !(c.hasEmail && c.hasPhone)) return false;
-            if (filters.contact === 'none' && (c.hasEmail || c.hasPhone)) return false;
+            if (filters.hasPhone && !c.hasPhone) return false;
+            if (filters.hasEmail && !c.hasEmail) return false;
             return true;
           };
           const filtered = creators.filter(matchesFilters);
@@ -1016,7 +1014,7 @@ export default function CreatorsPage() {
           const operatorOptions = Array.from(new Set(
             creators.map(c => c.addedByFirstName).filter(Boolean)
           )).sort();
-          const filterCount = (filters.addedBy ? 1 : 0) + (filters.dealScore ? 1 : 0) + (filters.hasAudit !== null ? 1 : 0) + (filters.contact ? 1 : 0);
+          const filterCount = (filters.addedBy ? 1 : 0) + (filters.dealScore ? 1 : 0) + (filters.hasAudit !== null ? 1 : 0) + (filters.hasPhone ? 1 : 0) + (filters.hasEmail ? 1 : 0);
 
           return (
             <div>
@@ -1057,22 +1055,14 @@ export default function CreatorsPage() {
                     onChange={(v) => setFilters(f => ({ ...f, hasAudit: v === 'yes' ? true : v === 'no' ? false : null }))}
                   />
 
-                  {/* Contacto — who can be reached outside Instagram */}
-                  <FilterDropdown
-                    label="Contacto"
-                    value={filters.contact}
-                    options={[
-                      { value: 'email', label: '✉ tem email' },
-                      { value: 'phone', label: '☎ tem telefone' },
-                      { value: 'both',  label: '✉ + ☎ tem os dois' },
-                      { value: 'none',  label: '✗ sem email nem telefone' },
-                    ]}
-                    onChange={(v) => setFilters(f => ({ ...f, contact: v }))}
-                  />
+                  {/* Contact — who can be reached outside Instagram. Two
+                      independent checkboxes; ticking both means "has both". */}
+                  <FilterCheck label="Phone" checked={!!filters.hasPhone} onChange={(v) => setFilters(f => ({ ...f, hasPhone: v }))} />
+                  <FilterCheck label="Email" checked={!!filters.hasEmail} onChange={(v) => setFilters(f => ({ ...f, hasEmail: v }))} />
 
                   {filterCount > 0 && (
                     <button
-                      onClick={() => setFilters({ addedBy: null, dealScore: null, hasAudit: null, contact: null })}
+                      onClick={() => setFilters({ addedBy: null, dealScore: null, hasAudit: null, hasPhone: false, hasEmail: false })}
                       style={{ padding: "5px 11px", borderRadius: 4, background: "transparent", border: "1px solid color-mix(in srgb, var(--sl-primary) 30%, transparent)", color: "var(--sl-accent-text)", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}
                     >
                       Limpar ({filterCount})
@@ -1694,6 +1684,30 @@ function FilterDropdown({ label, value, options, onChange }) {
   );
 }
 
+// Filter checkbox chip — same look as FilterDropdown, for boolean filters
+// that can be combined (Phone + Email ticked = leads that have both).
+function FilterCheck({ label, checked, onChange }) {
+  return (
+    <label style={{
+      display: "inline-flex", alignItems: "center", gap: 7,
+      padding: "4px 10px",
+      borderRadius: 4,
+      border: `1px solid ${checked ? "color-mix(in srgb, var(--sl-primary) 40%, transparent)" : "color-mix(in srgb, var(--sl-text) 8%, transparent)"}`,
+      background: checked ? "color-mix(in srgb, var(--sl-primary) 6%, transparent)" : "transparent",
+      fontSize: 12, fontFamily: "inherit",
+      cursor: "pointer", userSelect: "none",
+    }}>
+      <input
+        type="checkbox"
+        checked={checked}
+        onChange={(e) => onChange(e.target.checked)}
+        style={{ margin: 0, width: 13, height: 13, accentColor: "var(--sl-primary)", cursor: "pointer" }}
+      />
+      <span style={{ fontSize: 12, color: checked ? "var(--sl-accent-text)" : "var(--sl-text-faint)", fontWeight: 600 }}>{label}</span>
+    </label>
+  );
+}
+
 // ─────────────────────────────────────────────────────────────────
 // CrmKanban — 8-column drag-and-drop board for the outreach pipeline.
 // Stages: Por contactar → Em outreach → Contacto feito → Pediu Loom →
@@ -1911,7 +1925,7 @@ function KanbanCard({ creator, isDragging, onDragStart, onDragEnd }) {
       )}
       {/* Quick-view signals — deal value + loom/notes flags. Only rendered
           when there's something to show, so untouched cards stay clean. */}
-      {(valueLabel || creator.hasLoom || creator.hasNotes || creator.hasEmail || creator.hasPhone) && (
+      {(valueLabel || creator.hasLoom || creator.hasNotes) && (
         <div style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 8, flexWrap: "wrap" }}>
           {valueLabel && (
             <span style={{ fontSize: 12, fontWeight: 700, color: "var(--sl-success)", padding: "2px 7px", background: "color-mix(in srgb, var(--sl-success) 10%, transparent)", border: "1px solid color-mix(in srgb, var(--sl-success) 22%, transparent)", borderRadius: 5, fontFamily: "ui-monospace, monospace" }}>
@@ -1922,12 +1936,6 @@ function KanbanCard({ creator, isDragging, onDragStart, onDragEnd }) {
             <span title="Loom disponível" style={{ fontSize: 12, fontWeight: 700, color: "var(--sl-text)", padding: "2px 6px", background: "color-mix(in srgb, var(--sl-primary) 22%, transparent)", border: "1px solid color-mix(in srgb, var(--sl-primary) 45%, transparent)", borderRadius: 5, letterSpacing: "0.05em" }}>
               LOOM
             </span>
-          )}
-          {creator.hasEmail && (
-            <span title="Tem email" style={{ fontSize: 12, fontWeight: 600, color: "var(--sl-text-muted)", padding: "2px 6px", background: "color-mix(in srgb, var(--sl-text) 3%, transparent)", border: "1px solid var(--sl-border)", borderRadius: 4 }}>✉</span>
-          )}
-          {creator.hasPhone && (
-            <span title="Tem telefone" style={{ fontSize: 12, fontWeight: 600, color: "var(--sl-text-muted)", padding: "2px 6px", background: "color-mix(in srgb, var(--sl-text) 3%, transparent)", border: "1px solid var(--sl-border)", borderRadius: 4 }}>☎</span>
           )}
           {creator.hasNotes && (
             <span title="Tem notas" style={{ fontSize: 12, fontWeight: 600, color: "var(--sl-text-muted)", padding: "2px 6px", background: "color-mix(in srgb, var(--sl-text) 3%, transparent)", border: "1px solid var(--sl-border)", borderRadius: 5 }}>
