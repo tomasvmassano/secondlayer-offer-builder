@@ -43,6 +43,22 @@ export async function POST(request, { params }) {
     const creator = await getCreator(id);
     if (!creator) return NextResponse.json({ error: 'Creator not found' }, { status: 404 });
 
+    // Reply gate (2026-09-22). This is the priciest call in the hub (~$0.26
+    // measured) and it only informs the offer wizard, which needs a meeting.
+    // 85% of past audits went to creators who never replied. So: no reply, no
+    // booking, not signed → refuse, unless the caller says `force` (the
+    // profile button after a confirm, or the bulk queue with its toggle off).
+    let gateBody = {};
+    try { gateBody = await request.clone().json(); } catch {}
+    const o = creator.outreach || {};
+    const engaged = !!(o.repliedAt || o.callAgreedAt || o.callBookedAt || o.callHeldAt || creator.pipelineStatus === 'signed');
+    if (!engaged && gateBody?.force !== true) {
+      return NextResponse.json({
+        error: 'audit_gated',
+        hint: 'Este lead ainda não respondeu. O audit custa cerca de $0.26 e só é preciso depois da resposta. Confirma para correr na mesma.',
+      }, { status: 409 });
+    }
+
     // ── Step 1 + 2: gather + resolve URLs ──
     const seedUrls = new Set();
     if (creator.externalUrl) seedUrls.add(creator.externalUrl);

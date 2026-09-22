@@ -1616,12 +1616,20 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
     setAuditRunning(true);
     setAuditError(null);
     try {
-      const r = await fetch(`/api/creators/${creator.id}/ecosystem-audit`, {
+      let r = await fetch(`/api/creators/${creator.id}/ecosystem-audit`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({}),
       });
-      const data = await parseJsonSafe(r);
+      let data = await parseJsonSafe(r);
+      // Reply gate: the server refuses unreplied leads. Ask, then force.
+      if (r.status === 409 && data?.error === 'audit_gated') {
+        if (!window.confirm(`${data.hint}\n\nCorrer o audit na mesma?`)) { setAuditRunning(false); return; }
+        r = await fetch(`/api/creators/${creator.id}/ecosystem-audit`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ force: true }),
+        });
+        data = await parseJsonSafe(r);
+      }
       if (!r.ok) {
         const detail = data.errors?.length ? '\n\n' + data.errors.join('\n') : '';
         throw new Error((data.error || 'Audit failed') + detail);

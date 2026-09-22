@@ -51,6 +51,18 @@ export function withMultiples(posts) {
   });
 }
 
+// Posts worth pulling comments for: a caption that asks for an action, or a
+// usable post well above the creator's usual. At most two, biggest first.
+const CTA = /\b(comment|comenta|comentem|comment[ae]|escreve|escribe|manda|env[ií]a|m[aá]ndame|dm|link (in|na|en) (the )?bio|link na bio|link en bio)\b/i;
+// Giveaways pull comments without meaning demand; don't pay to read them.
+const NOISE = /\b(giveaway|sorteio|sorteo|passatempo|concurso|contest|tag (a|um|una|dos|2|3) (friend|amig[oa]s?)|marca (um|uma|dois|duas) amig)/i;
+export function pickCommentPosts(posts, max = 2) {
+  return posts
+    .filter(p => p.usable && p.url && !NOISE.test(p.caption || '') && (CTA.test(p.caption || '') || (p.xComments || 0) >= 2))
+    .sort((a, b) => (b.comments || 0) - (a.comments || 0))
+    .slice(0, max);
+}
+
 const headTail = (s, n = 820) => (s.length > n ? `${s.slice(0, n / 2 - 10)} [...] ${s.slice(-(n / 2 - 10))}` : s);
 
 // ── contact provenance ───────────────────────────────────────────────────────
@@ -139,7 +151,7 @@ export function buildAnalysisPrompt() {
 
 Think in this order: specific evidence, audience behaviour, commercial interpretation, monetization gap, possible direction, best conversation angle. Look for intent, not vanity metrics: 500 people commenting a keyword to get a guide beats 10,000 likes, and a post at 9 times the usual comments beats a bigger post that is normal for them.
 
-All numbers and multiples in the data were calculated by code. Never calculate, estimate or restate a number differently. Instagram does not show save counts, so never mention saves. Never invent a post, a comment, a product, a price or an audience reaction.
+All numbers and multiples in the data were calculated by code. Never calculate, estimate or restate a number differently. Instagram does not show save counts, so never mention saves. Never invent a post, a comment, a product, a price or an audience reaction. Lines marked "comments seen" are real comments on that post, the newest few only: you may quote them exactly in SIGNAL and WHY, and they are the only source for what people wrote or asked.
 
 TIER, take the strongest one the data honestly supports:
 1  a caption OFFERS something in return for an action (comment a keyword, DM a word, grab a guide or template, join a list, link in bio for a resource) and that post is marked usable.
@@ -183,7 +195,7 @@ export function buildAnalysisInput({ creator, facts }) {
     if (p.xLikes && p.xLikes >= 2) marks.push(`x${p.xLikes} usual likes`);
     if (!p.usable) marks.push('NOT usable as the signal');
     const likes = p.likes > 0 ? `likes=${p.likes}` : 'likes=hidden';
-    const seen = p.sampleComments?.length ? `\n    comments seen: ${p.sampleComments.map(c => JSON.stringify(plain(c))).join(' | ')}` : '';
+    const seen = p.sampleComments?.length ? `\n    comments seen (newest ${p.sampleComments.length}): ${p.sampleComments.map(c => JSON.stringify(plain(typeof c === 'string' ? c : c?.text))).join(' | ')}` : '';
     return `[${p.i}] ${p.type} ${likes} comments=${p.comments}${marks.length ? ` (${marks.join(', ')})` : ''}\n    caption: ${JSON.stringify(p.caption)}${seen}`;
   });
   return `CREATOR
@@ -290,6 +302,7 @@ export function toIntel({ analysis, facts }) {
       metric: 'comments', value: post.comments, multiple: post.xComments,
       likes: post.likes, likesMultiple: post.xLikes,
       quote: analysis.quote || null, caption: post.caption,
+      comments: (post.sampleComments || []).map(c => (typeof c === 'string' ? c : c?.text)).filter(Boolean).slice(0, 15),
     });
   }
   if (analysis.tier === 3 && analysis.offer) evidence.push({ ref: 'bio_or_links', source: 'instagram profile', quote: analysis.offer });

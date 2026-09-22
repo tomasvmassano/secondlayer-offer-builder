@@ -248,6 +248,29 @@ export async function scrapeInstagramBasic(username, opts = {}) {
   };
 }
 
+// Comments on up to a few posts, one Apify run. Apify's free tier returns the
+// 15 newest comments per post; each comment is one billed result. Feeds the
+// outreach intelligence: on a "comment INFO" post it confirms what people are
+// typing, on an outlier post it shows what they ask. Fast (measured ~5s), so
+// the caller gives it a tight budget and treats a miss as "no comments".
+export async function scrapeInstagramComments(postUrls, { perPost = 15, timeoutMs = 14000, apifyTimeoutSec = 13 } = {}) {
+  if (!APIFY_TOKEN || !postUrls?.length) return {};
+  const items = await runApifyActor('apify~instagram-scraper', {
+    directUrls: postUrls,
+    resultsType: 'comments',
+    resultsLimit: perPost,
+  }, { timeoutMs, apifyTimeoutSec });
+  const byPost = {};
+  const key = (u) => String(u || '').replace(/\/+$/, '').toLowerCase();
+  for (const it of (Array.isArray(items) ? items : [])) {
+    const text = String(it?.text || '').replace(/\s+/g, ' ').trim();
+    if (!text) continue;
+    const k = key(it.postUrl);
+    (byPost[k] ||= []).push({ text: text.slice(0, 140), likes: it.likesCount || 0, at: it.timestamp || null });
+  }
+  return { byPost, billed: (Array.isArray(items) ? items : []).length };
+}
+
 // Keyword/niche SEARCH → full creator profiles. This is how discovery finds
 // NEW creators now that Instagram's "related profiles" data is gone from the
 // single-profile scrape (confirmed dead — see /api/discovery/test-seed). The

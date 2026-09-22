@@ -1302,7 +1302,7 @@ ${notesTrimmed}
 VERIFIED FACTS, checked by code. You may state these, numbers exactly as written, never recalculated:
 - post: ${intelPost.postType}, comments=${intelPost.value}${intelPost.likes > 0 ? `, likes=${intelPost.likes}` : ''}${intelPost.multiple >= 2 ? ` (x${intelPost.multiple} usual comments)` : ''}${intelPost.likesMultiple >= 2 ? ` (x${intelPost.likesMultiple} usual likes)` : ''}
 - caption: ${JSON.stringify(intelPost.caption || '')}
-${intelPost.quote ? `- the part we are pointing at: ${JSON.stringify(intelPost.quote)}\n` : ''}${intelOffer ? `- already offers, as written on their profile: ${JSON.stringify(intelOffer.quote)}\n` : ''}OUR READING, interpretation only. Phrase it as your view, never as a fact about them:
+${intelPost.quote ? `- the part we are pointing at: ${JSON.stringify(intelPost.quote)}\n` : ''}${intelPost.comments?.length ? `- comments seen on that post, real and quotable: ${intelPost.comments.map(c => JSON.stringify(c)).join(' | ')}\n` : ''}${intelOffer ? `- already offers, as written on their profile: ${JSON.stringify(intelOffer.quote)}\n` : ''}OUR READING, interpretation only. Phrase it as your view, never as a fact about them:
 - what the post does: ${intel.read?.postGist || 'n/a'}
 - signal: ${intel.read?.signal || 'n/a'}
 - why it matters: ${intel.read?.why || 'n/a'}

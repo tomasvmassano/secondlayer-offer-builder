@@ -8,17 +8,19 @@
 //
 // Each model call gets one corrective retry with the failed checks spelled out.
 
-import { scrapeInstagramBasic } from './apify';
+import { scrapeInstagramBasic, scrapeInstagramComments } from './apify';
 import { recordLlmUsage, estimateCost } from './obs';
 import { safeStringify } from './safeJson';
 import {
-  INTEL_MODEL, isFresh, withMultiples, buildFacts, buildAnalysisPrompt, buildAnalysisInput,
+  INTEL_MODEL, isFresh, withMultiples, pickCommentPosts, buildFacts, buildAnalysisPrompt, buildAnalysisInput,
   parseAnalysis, verifyAnalysis, toIntel, buildAnalysisRetry, verifyPhoneSource, classifyEmail,
 } from './creatorIntel';
 import { EMAIL_MODEL, buildWriterPrompt, buildWriterInput, parseCopy, checkCopy, buildRetryMessage, assemble } from './outreachEmail';
 
-// Apify bills the details scrape as one result (FREE-tier price).
+// Apify bills the details scrape as one result, and each comment as one
+// result (FREE-tier price).
 export const APIFY_COST_USD = 0.0027;
+export const APIFY_COMMENT_USD = 0.0027;
 
 export class PipelineStop extends Error {
   constructor(outcome, extra = {}) { super(outcome); this.outcome = outcome; this.extra = extra; }
@@ -76,7 +78,21 @@ export async function ensureIntel(creator, { apiKey, cost, force = false } = {})
     const facts = buildFacts({ creator, scrape, posts: [] });
     return { intel: toIntel({ analysis: { tier: 0, language: null, firstName: null, reason: `only ${rawPosts.length} posts with a caption`, read: null }, facts }), fresh: true };
   }
-  const facts = buildFacts({ creator, scrape, posts: withMultiples(rawPosts) });
+  const posts = withMultiples(rawPosts);
+  // Comments only where a post can carry a signal (≤2 posts, one Apify run).
+  // Non-fatal: a timeout means the analysis runs on captions alone.
+  const targets = pickCommentPosts(posts);
+  if (targets.length) {
+    try {
+      const { byPost = {}, billed = 0 } = await scrapeInstagramComments(targets.map(p => p.url));
+      cost.apifyUsd += billed * APIFY_COMMENT_USD;
+      for (const p of posts) {
+        const got = byPost[String(p.url || '').replace(/\/+$/, '').toLowerCase()];
+        if (got?.length) p.sampleComments = got.map(c => c.text);
+      }
+    } catch { /* captions only */ }
+  }
+  const facts = buildFacts({ creator, scrape, posts });
 
   const system = buildAnalysisPrompt();
   const messages = [{ role: 'user', content: buildAnalysisInput({ creator, facts }) }];

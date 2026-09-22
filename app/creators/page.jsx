@@ -1799,7 +1799,9 @@ function CrmKanban({ creators, setCreators, onDragChange }) {
     // a meeting is booked — not on every scraped lead. Trigger it the first
     // time a card lands in 'Reunião marcada' and hasn't been audited yet.
     if (stageKey === 'reuniao_marcada' && creator && !creator.hasAudit) {
-      fetch(`/api/creators/${id}/ecosystem-audit`, { method: 'POST' }).catch(() => {});
+      // The booking IS the trigger; the PATCH above may still be landing, so
+      // pass the gate explicitly instead of racing it.
+      fetch(`/api/creators/${id}/ecosystem-audit`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ force: true, reason: 'booking' }) }).catch(() => {});
     }
   };
 

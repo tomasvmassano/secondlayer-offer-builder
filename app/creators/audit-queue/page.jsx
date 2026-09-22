@@ -35,6 +35,9 @@ export default function AuditQueuePage() {
   const [loadError, setLoadError] = useState("");
   const [running, setRunning] = useState(false);
   const [includeCold, setIncludeCold] = useState(false);
+  // Reply gate: by default only leads that replied (or booked) are listed.
+  // The audit costs ~$0.26 and only informs the offer wizard.
+  const [onlyReplied, setOnlyReplied] = useState(true);
   // "Adicionado por" filter — mirrors the chip on /creators (CRM list).
   // null = no filter (all operators); a string value matches against the
   // row's addedByFirstName (already canonicalised via normalizeOperatorName
@@ -70,6 +73,7 @@ export default function AuditQueuePage() {
           followers: c.followers || 0,
           pipelineStatus: c.pipelineStatus || 'prospect',
           hasAudit: !!c.hasAudit,
+          engaged: !!(c.repliedAt || c.callBookedAt || c.callHeldAt || c.pipelineStatus === 'signed'),
           createdAt: c.createdAt,
           addedByFirstName: c.addedByFirstName || null,
           status: null,
@@ -96,9 +100,10 @@ export default function AuditQueuePage() {
     const filtered = allCreators
       .filter(c => !c.hasAudit)
       .filter(c => includeCold || c.pipelineStatus !== 'cold')
+      .filter(c => !onlyReplied || c.engaged)
       .filter(c => !filterAddedBy || c.addedByFirstName === filterAddedBy);
     setCreators(filtered);
-  }, [allCreators, includeCold, filterAddedBy]);
+  }, [allCreators, includeCold, onlyReplied, filterAddedBy]);
 
   // Audit worker — single-flight, paced. Same logic as bulk-import,
   // updates rows by creatorId so a refetch mid-run doesn't drift.
@@ -111,7 +116,7 @@ export default function AuditQueuePage() {
         const creatorId = queueRef.current.shift();
         setCreators(prev => prev.map(r => r.id === creatorId ? { ...r, status: 'running' } : r));
         try {
-          const r = await fetch(`/api/creators/${creatorId}/ecosystem-audit`, { method: 'POST' });
+          const r = await fetch(`/api/creators/${creatorId}/ecosystem-audit`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ force: !onlyReplied }) });
           const data = await r.json();
           if (!r.ok) {
             // Compose a fuller error string: top-level message + the field-
@@ -274,6 +279,21 @@ export default function AuditQueuePage() {
               <StatCard label="Concluídos" value={done} color={done > 0 ? "var(--sl-success)" : "var(--sl-text-faint)"} />
               <StatCard label={selectedCount > 0 ? "Custo · ETA" : "Concluídos · A correr"} value={selectedCount > 0 ? `$${estCost} · ${etaStr}` : `${done} · ${queued}`} small color="var(--sl-primary)" />
             </div>
+
+            {/* Toggle: reply gate */}
+            <label style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 16px", background: "var(--sl-surface)", border: "1px solid var(--sl-border)", borderRadius: 10, marginBottom: 12, cursor: running ? "default" : "pointer" }}>
+              <input
+                type="checkbox"
+                checked={onlyReplied}
+                disabled={running}
+                onChange={e => setOnlyReplied(e.target.checked)}
+                style={{ width: 16, height: 16, accentColor: "var(--sl-success)" }}
+              />
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 13, fontWeight: 600, color: "var(--sl-text)" }}>Só quem respondeu ou marcou call</div>
+                <div style={{ fontSize: 12, color: "var(--sl-text-muted)", marginTop: 2 }}>O audit custa cerca de $0.26 por creator e só serve para construir a oferta. Desliga para auditar leads que ainda não responderam.</div>
+              </div>
+            </label>
 
             {/* Toggle: include cold */}
             <label style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 16px", background: "var(--sl-surface)", border: "1px solid var(--sl-border)", borderRadius: 10, marginBottom: 12, cursor: running ? "not-allowed" : "pointer", opacity: running ? 0.7 : 1 }}>

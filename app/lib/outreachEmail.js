@@ -222,7 +222,7 @@ THE READER IS NOT THE CREATOR. This address belongs to their manager or agency. 
 ` : ''}
 EMAIL, three short paragraphs in ${LANG_NAME[lang]}. Email can carry a little more context because the reader does not know who is writing.
 p1, observation then interpretation, 2 to 3 sentences. Name the specific post or angle from the facts, then why it works or what it does differently. Your reaction ("stood out to me", "I liked how"), never a verdict ("You clearly", "Your content is"). If the sentence could be sent to 20 other creators, rewrite it.
-p2, demand evidence, 2 sentences. "I also noticed" plus the signal with its real number or multiple, then what it tells you. A count is the number of comments on the post: write "that post got 384 comments", never "384 people commented the keyword". When the post is marked x3 or more usual comments you may tie the count to the ask ("nearly 1,100 comments after you asked people to comment QUIERO"). Never describe what people wrote unless it appears under comments seen. You may round a big number.
+p2, demand evidence, 2 sentences. "I also noticed" plus the signal with its real number or multiple, then what it tells you. A count is the number of comments on the post: write "that post got 384 comments", never "384 people commented the keyword". When the post is marked x3 or more usual comments you may tie the count to the ask ("nearly 1,100 comments after you asked people to comment QUIERO"). Never describe what people wrote unless it appears under comments seen; when it does, quoting one or two of them exactly, in straight double quotes, is the strongest evidence you have ("people asking how long in the oven", "comments like \"Quero a receita\""). You may round a big number.
    Tier 3: p2 is "I also noticed you already have" plus the offer exactly as quoted, then what it tells you: one product or service rarely captures everyone in an audience who wants help. State only that it exists, never how it sells.
 p3, the opportunity, 2 sentences at most, starting with "${ph.think}". Use the gap from our reading. No list of three. Mention an existing offer only if it is in the facts.
    Tier 4: write p1 only and leave P2 and P3 empty. Code adds an honest question about demand.
@@ -263,6 +263,7 @@ export function buildWriterInput(intel, creator) {
       : `post: ${ev.postType}. Its engagement is NOT a demand signal, so cite no numbers or multiples for it`);
     facts.push(`caption: ${JSON.stringify(ev.caption)}`);
     if (ev.quote) facts.push(`the part we are pointing at: ${JSON.stringify(ev.quote)}`);
+    if (ev.comments?.length) facts.push(`comments seen on that post, the newest ${ev.comments.length}, real and quotable: ${ev.comments.map(c => JSON.stringify(c)).join(' | ')}`);
   }
   if (offer) facts.push(`already offers, as written on their profile: ${JSON.stringify(offer.quote)}`);
   facts.push(`bio: ${JSON.stringify(intel.facts.bio)}`);
@@ -380,6 +381,18 @@ export function checkCopy(draft, intel) {
     const local = { es: /\b(tú|tu|tus|te|ti|contigo)\b/i, pt: /\b(tu|teu|tua|teus|tuas|te|ti|contigo)\b/i, br: /\b(você|vocês)\b/i }[intel.language];
     const you = { test: (t) => /\b(you|your|yours)\b/i.test(t) || (local ? local.test(t) : false) };
     for (const k of parts) if (you.test(String(draft[k] || ''))) { problems.push(`${k} addresses the creator directly, but the reader is their manager: write in the third person`); break; }
+  }
+  // Anything in straight quotes must exist somewhere in the facts: the caption,
+  // the bio, the links, the offer, or a comment we actually saw.
+  {
+    const hay = [ev.caption, ev.quote, offer?.quote, intel.facts.bio, intel.facts.links.join(' '), ...(ev.comments || [])].map(fold).join(' \n ');
+    for (const m of body.matchAll(/"([^"]{3,120})"/g)) {
+      const q = fold(m[1]);
+      if (!q) continue;
+      const words = q.split(' ').filter(w => w.length > 2);
+      const ok = hay.includes(q) || (words.length > 0 && words.filter(w => hay.includes(w)).length / words.length >= 0.8);
+      if (!ok) problems.push(`quoted text not in the facts: "${m[1]}"`);
+    }
   }
   for (const re of BANNED) if (re.test(`${body} ${draft.subject}`)) problems.push(`banned phrase: ${re.source}`);
   for (const k of parts) {
