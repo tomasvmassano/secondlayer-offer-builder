@@ -53,7 +53,7 @@ function scrubSurrogatesInPlace(node, ctx = { changed: false }) {
 // warm instance stampeded a full-CRM rebuild (50-100K commands in an
 // hour). Now a version bump still triggers a rebuild, but it's gated by
 // a Redis lock so only one instance does it.
-export const SUMMARY_VERSION = 6;
+export const SUMMARY_VERSION = 7;
 
 function buildSummary(creator, createdAt) {
   let dealScoreGrade = null;
@@ -114,6 +114,10 @@ function buildSummary(creator, createdAt) {
     dealValue: creator.dealValue ?? null,
     hasLoom:  !!(creator.loomUrl && String(creator.loomUrl).trim()),
     hasNotes: !!(creator.notes && String(creator.notes).trim()),
+    // Contact flags — drive the CRM "Contacto" filter (who can be emailed /
+    // WhatsApp'd / cold called) without fetching the full record.
+    hasEmail: !!(creator.contactEmail && String(creator.contactEmail).trim()),
+    hasPhone: !!(creator.contactPhone && String(creator.contactPhone).trim()),
     createdAt: createdAt || creator.createdAt || new Date().toISOString(),
   };
 }

@@ -80,7 +80,8 @@ export default function CreatorsPage() {
   // addedBy: null | "Tomás" | "Raúl" | etc.  (string match against summary.addedByFirstName)
   // dealScore: null | "A" | "B" | "C" | "D"
   // hasAudit: null | true | false
-  const [filters, setFilters] = useState({ addedBy: null, dealScore: null, hasAudit: null });
+  // contact: null | 'email' | 'phone' | 'both' | 'none'  (summary.hasEmail / hasPhone)
+  const [filters, setFilters] = useState({ addedBy: null, dealScore: null, hasAudit: null, contact: null });
   useEffect(() => {
     try {
       const stored = JSON.parse(localStorage.getItem('sl_crm_filters_v1') || 'null');
@@ -989,6 +990,10 @@ export default function CreatorsPage() {
             if (filters.dealScore && c.dealScoreGrade !== filters.dealScore) return false;
             if (filters.hasAudit === true && !c.hasAudit) return false;
             if (filters.hasAudit === false && c.hasAudit) return false;
+            if (filters.contact === 'email' && !c.hasEmail) return false;
+            if (filters.contact === 'phone' && !c.hasPhone) return false;
+            if (filters.contact === 'both' && !(c.hasEmail && c.hasPhone)) return false;
+            if (filters.contact === 'none' && (c.hasEmail || c.hasPhone)) return false;
             return true;
           };
           const filtered = creators.filter(matchesFilters);
@@ -1011,7 +1016,7 @@ export default function CreatorsPage() {
           const operatorOptions = Array.from(new Set(
             creators.map(c => c.addedByFirstName).filter(Boolean)
           )).sort();
-          const filterCount = (filters.addedBy ? 1 : 0) + (filters.dealScore ? 1 : 0) + (filters.hasAudit !== null ? 1 : 0);
+          const filterCount = (filters.addedBy ? 1 : 0) + (filters.dealScore ? 1 : 0) + (filters.hasAudit !== null ? 1 : 0) + (filters.contact ? 1 : 0);
 
           return (
             <div>
@@ -1052,9 +1057,22 @@ export default function CreatorsPage() {
                     onChange={(v) => setFilters(f => ({ ...f, hasAudit: v === 'yes' ? true : v === 'no' ? false : null }))}
                   />
 
+                  {/* Contacto — who can be reached outside Instagram */}
+                  <FilterDropdown
+                    label="Contacto"
+                    value={filters.contact}
+                    options={[
+                      { value: 'email', label: '✉ tem email' },
+                      { value: 'phone', label: '☎ tem telefone' },
+                      { value: 'both',  label: '✉ + ☎ tem os dois' },
+                      { value: 'none',  label: '✗ sem email nem telefone' },
+                    ]}
+                    onChange={(v) => setFilters(f => ({ ...f, contact: v }))}
+                  />
+
                   {filterCount > 0 && (
                     <button
-                      onClick={() => setFilters({ addedBy: null, dealScore: null, hasAudit: null })}
+                      onClick={() => setFilters({ addedBy: null, dealScore: null, hasAudit: null, contact: null })}
                       style={{ padding: "5px 11px", borderRadius: 4, background: "transparent", border: "1px solid color-mix(in srgb, var(--sl-primary) 30%, transparent)", color: "var(--sl-accent-text)", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}
                     >
                       Limpar ({filterCount})
@@ -1893,7 +1911,7 @@ function KanbanCard({ creator, isDragging, onDragStart, onDragEnd }) {
       )}
       {/* Quick-view signals — deal value + loom/notes flags. Only rendered
           when there's something to show, so untouched cards stay clean. */}
-      {(valueLabel || creator.hasLoom || creator.hasNotes) && (
+      {(valueLabel || creator.hasLoom || creator.hasNotes || creator.hasEmail || creator.hasPhone) && (
         <div style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 8, flexWrap: "wrap" }}>
           {valueLabel && (
             <span style={{ fontSize: 12, fontWeight: 700, color: "var(--sl-success)", padding: "2px 7px", background: "color-mix(in srgb, var(--sl-success) 10%, transparent)", border: "1px solid color-mix(in srgb, var(--sl-success) 22%, transparent)", borderRadius: 5, fontFamily: "ui-monospace, monospace" }}>
@@ -1904,6 +1922,12 @@ function KanbanCard({ creator, isDragging, onDragStart, onDragEnd }) {
             <span title="Loom disponível" style={{ fontSize: 12, fontWeight: 700, color: "var(--sl-text)", padding: "2px 6px", background: "color-mix(in srgb, var(--sl-primary) 22%, transparent)", border: "1px solid color-mix(in srgb, var(--sl-primary) 45%, transparent)", borderRadius: 5, letterSpacing: "0.05em" }}>
               LOOM
             </span>
+          )}
+          {creator.hasEmail && (
+            <span title="Tem email" style={{ fontSize: 12, fontWeight: 600, color: "var(--sl-text-muted)", padding: "2px 6px", background: "color-mix(in srgb, var(--sl-text) 3%, transparent)", border: "1px solid var(--sl-border)", borderRadius: 4 }}>✉</span>
+          )}
+          {creator.hasPhone && (
+            <span title="Tem telefone" style={{ fontSize: 12, fontWeight: 600, color: "var(--sl-text-muted)", padding: "2px 6px", background: "color-mix(in srgb, var(--sl-text) 3%, transparent)", border: "1px solid var(--sl-border)", borderRadius: 4 }}>☎</span>
           )}
           {creator.hasNotes && (
             <span title="Tem notas" style={{ fontSize: 12, fontWeight: 600, color: "var(--sl-text-muted)", padding: "2px 6px", background: "color-mix(in srgb, var(--sl-text) 3%, transparent)", border: "1px solid var(--sl-border)", borderRadius: 5 }}>
