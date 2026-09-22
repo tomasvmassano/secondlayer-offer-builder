@@ -13,7 +13,7 @@
 // Prompt instructions are not enforcement: checkCopy() re-verifies every number,
 // multiple and banned claim in code before anything is saved.
 
-import { plain, fold } from './creatorIntel';
+import { plain, fold, postKind } from './creatorIntel';
 
 export const EMAIL_FRAMEWORK = 'v2';
 export const EMAIL_MODEL = 'claude-haiku-4-5-20251001';
@@ -259,8 +259,8 @@ export function buildWriterInput(intel, creator) {
     // Tier 3 and 4: the post is what we OBSERVED, not proof of demand, so its
     // numbers are withheld and may not be cited.
     facts.push(isSignal
-      ? `post: ${ev.postType}, comments=${ev.value}${ev.likes > 0 ? `, likes=${ev.likes}` : ''}${marks.length ? ` (${marks.join(', ')})` : ''}`
-      : `post: ${ev.postType}. Its engagement is NOT a demand signal, so cite no numbers or multiples for it`);
+      ? `post: a ${postKind(ev.postType)} (the format, not a title), comments=${ev.value}${ev.likes > 0 ? `, likes=${ev.likes}` : ''}${marks.length ? ` (${marks.join(', ')})` : ''}`
+      : `post: a ${postKind(ev.postType)} (the format, not a title). Its engagement is NOT a demand signal, so cite no numbers or multiples for it`);
     facts.push(`caption: ${JSON.stringify(ev.caption)}`);
     if (ev.quote) facts.push(`the part we are pointing at: ${JSON.stringify(ev.quote)}`);
     if (ev.comments?.length) facts.push(`comments seen on that post, the newest ${ev.comments.length}, real and quotable: ${ev.comments.map(c => JSON.stringify(c)).join(' | ')}`);

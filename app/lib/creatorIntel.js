@@ -63,6 +63,9 @@ export function pickCommentPosts(posts, max = 2) {
     .slice(0, max);
 }
 
+// Instagram's type names read like titles to the model ("your Sidecar post").
+export const postKind = (t) => ({ sidecar: 'carousel', video: 'video', image: 'photo', reel: 'reel' }[String(t || '').toLowerCase()] || 'post');
+
 const headTail = (s, n = 820) => (s.length > n ? `${s.slice(0, n / 2 - 10)} [...] ${s.slice(-(n / 2 - 10))}` : s);
 
 // ── contact provenance ───────────────────────────────────────────────────────
@@ -196,7 +199,7 @@ export function buildAnalysisInput({ creator, facts }) {
     if (!p.usable) marks.push('NOT usable as the signal');
     const likes = p.likes > 0 ? `likes=${p.likes}` : 'likes=hidden';
     const seen = p.sampleComments?.length ? `\n    comments seen (newest ${p.sampleComments.length}): ${p.sampleComments.map(c => JSON.stringify(plain(typeof c === 'string' ? c : c?.text))).join(' | ')}` : '';
-    return `[${p.i}] ${p.type} ${likes} comments=${p.comments}${marks.length ? ` (${marks.join(', ')})` : ''}\n    caption: ${JSON.stringify(p.caption)}${seen}`;
+    return `[${p.i}] ${postKind(p.type)} ${likes} comments=${p.comments}${marks.length ? ` (${marks.join(', ')})` : ''}\n    caption: ${JSON.stringify(p.caption)}${seen}`;
   });
   return `CREATOR
 name: ${plain(creator?.name)}
