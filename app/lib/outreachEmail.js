@@ -375,7 +375,13 @@ export function checkCopy(draft, intel) {
   if (intel.language !== 'en') {
     const hits = (body.match(/\b(the|and|your|you|that|with|this|there|their|what|from)\b/gi) || []).length;
     if (hits >= 6) problems.push(`written in English, must be ${LANG_NAME[intel.language] || intel.language}`);
+    // The prompt's English scaffolding ("I also noticed", "I think") leaks into
+    // the first words of a paragraph even when the rest is in the right language.
+    if (/\b(I also noticed|I think|I liked|stood out to me|I noticed)\b/i.test(body)) problems.push(`English phrase inside ${LANG_NAME[intel.language] || intel.language} copy`);
   }
+  // Counting commenters is the model doing arithmetic on the sample we showed
+  // it. A count is only ever the post's comment total.
+  if (/\b\d+\s+(people|persons|commenters|pessoas|personas|comentaristas)\b/i.test(body)) problems.push('counts people from the comments seen; only the post total is a number');
   // A manager reads this inbox: the creator is "she / Laura", never "you".
   if (intel.facts.contact?.email?.kind === 'agency') {
     const local = { es: /\b(tú|tu|tus|te|ti|contigo)\b/i, pt: /\b(tu|teu|tua|teus|tuas|te|ti|contigo)\b/i, br: /\b(você|vocês)\b/i }[intel.language];
