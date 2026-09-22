@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { repairJsonWithHaiku } from '../../../../lib/jsonRepair';
-import { recordLlmUsage, logError } from '../../../../lib/obs';
+import { recordLlmUsage, logError, estimateCost } from '../../../../lib/obs';
 import { getCreator, updateCreator } from '../../../../lib/creators';
 import { scrapeBioLinks } from '../../../../lib/apify';
 import { scrapeKnownAggregators } from '../../../../lib/aggregatorScrapers';
@@ -203,6 +203,7 @@ export async function POST(request, { params }) {
       })),
       url_previews_count: urlPreviewsWithSignal.length,
       retries: audit.retries,
+      usage: audit.usage || null,
       products_returned: audit.data?.ecosystem_map?.products_found?.length || 0,
       communities_returned: audit.data?.ecosystem_map?.existing_communities?.length || 0,
       ran_at: new Date().toISOString(),
@@ -609,6 +610,8 @@ Return ONLY the JSON object matching the schema in your system prompt. Start you
   }
   // Meter spend (best-effort, non-blocking) — this is the priciest route.
   recordLlmUsage({ route: 'ecosystem-audit', model: 'claude-sonnet-4-5-20250929', usage: data.usage }).catch(() => {});
+  // Kept on the audit so the per-creator cost is visible, not just the daily total.
+  const usage = data.usage ? { ...data.usage, cost_usd: +estimateCost('claude-sonnet-4-5-20250929', data.usage).toFixed(4) } : null;
 
   // Concat all text blocks (web_search produces tool_use + tool_result + final text)
   const rawText = (data.content || []).filter(b => b.type === 'text').map(b => b.text).join('\n');
@@ -630,10 +633,10 @@ Return ONLY the JSON object matching the schema in your system prompt. Start you
     // even when the original output was 95% correct. Now: fail fast,
     // return the validator errors to the operator, let them re-run
     // manually if needed. Net per-audit cost halved.
-    return { error: 'Schema validation failed', errors: validation.errors, raw: rawText, retries: retryCount };
+    return { error: 'Schema validation failed', errors: validation.errors, raw: rawText, retries: retryCount, usage };
   }
 
-  return { data: parsed, retries: retryCount };
+  return { data: parsed, retries: retryCount, usage };
 }
 
 // Extract the first valid JSON object from the model's text output. The model
