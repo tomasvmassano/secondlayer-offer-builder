@@ -251,8 +251,19 @@ const inText = (needle, hay) => {
 };
 
 // Code decides whether the model's reading stands on real evidence.
+const NOT_A_PERSON = /\b(brand|agency|agência|agencia|shop|store|loja|tienda|fan ?page|company|empresa|business page|media outlet|magazine|revista|clinic|clínica|restaurant|restaurante|hotel|team account)\b/i;
+
 export function verifyAnalysis(a, facts) {
-  if (a.tier === 0) return [];
+  if (a.tier === 0) {
+    // Tier 0 is for dead accounts and non-person pages only. "No demand spike"
+    // is tier 4, and the model keeps reaching for 0 instead. Only accept 0
+    // when the reason says the account isn't a person (we already know the
+    // post count, so that excuse is checked here too).
+    if (facts.posts.length >= 3 && !NOT_A_PERSON.test(a.reason || '')) {
+      return [`tier 0 is only for fewer than three posts or a brand / agency / shop / fan page; this account has ${facts.posts.length} captioned posts and looks like a person, so the floor is tier 4 (observation only)`];
+    }
+    return [];
+  }
   const problems = [];
   // The model sometimes drops the index but quotes the caption: recover it.
   if (!facts.posts[a.post] && a.quote) {
