@@ -581,90 +581,54 @@ const EditableContactEmail = ({ creator, patchCreator }) => {
 
 // Cold-call phone number. Same edit/empty/view pattern as EditableContactEmail,
 // minus the Gmail machinery — view mode is a tel: link + copy.
-// WhatsApp first approach from the phone chip.
-//   message ready   → "WhatsApp" opens the chat with the short message typed in
-//   no message yet  → "WhatsApp · escrever mensagem" writes it first (~20s:
-//                     fresh scrape + Haiku, same writer as the email) and then
-//                     opens the chat. The tab is opened on the click itself and
-//                     pointed at wa.me afterwards, or the browser blocks it.
-// Only copy from the current framework (v2) is ever prefilled; sequences from
-// older strategies are still on many records and must not go out by accident.
+// WhatsApp from the phone chip: one button that opens the chat. It never writes
+// anything itself. If the lead already has a current-framework (v2) message,
+// written from the DM Writer tab or a bulk run, the chat opens with it typed
+// in; otherwise the chat opens empty. Sequences from older strategies are still
+// on many records and are never prefilled.
 // Opening the chat is not sending, so the send is confirmed with one click
 // ("Marcar enviado") and lands on outreach.whatsappSentAt like DM and email.
-const WhatsAppAction = ({ creator, patchCreator, onRefresh }) => {
+const WhatsAppAction = ({ creator, patchCreator }) => {
   const seq = creator?.dmSequence || {};
-  const saved = seq.emailMeta?.framework === 'v2' ? (seq.whatsapp || '') : '';
-  const [text, setText] = useState(saved);
-  const [busy, setBusy] = useState(false);
-  const [note, setNote] = useState('');
+  const text = seq.emailMeta?.framework === 'v2' ? (seq.whatsapp || '') : '';
   const [opened, setOpened] = useState(false);
   const [copied, setCopied] = useState(false);
-  useEffect(() => { setText(saved); setNote(''); setOpened(false); }, [creator?.id, saved]);
+  useEffect(() => { setOpened(false); }, [creator?.id]);
 
   const hints = { email: creator?.contactEmail, language: creator?.primaryLanguage };
   const n = normalizePhone(creator?.contactPhone, hints);
   if (!n.ok) return <span title="Falta o indicativo do país. Edita o número para +XX…" style={{ marginLeft: "auto", fontSize: 12, color: "var(--sl-text-faint)" }}>sem indicativo</span>;
 
-  const out = creator?.outreach || {};
-  const sentAt = out.whatsappSentAt;
+  const sentAt = creator?.outreach?.whatsappSentAt;
   // Where the number came from, as verified by code against the creator's own
   // profile. Unknown means the message says nothing about it.
   const src = seq.emailMeta?.whatsappSource || creator?.outreachIntel?.facts?.contact?.phone || null;
   const shaky = n.kind === 'landline' || n.kind === 'tollfree';
   const btn = { padding: "2px 8px", borderRadius: 4, border: "1px solid color-mix(in srgb, var(--sl-success, #16a34a) 35%, transparent)", background: "transparent", color: "var(--sl-success, #16a34a)", fontSize: 12, fontWeight: 600, textDecoration: "none", cursor: "pointer", fontFamily: "inherit" };
-
-  const writeAndOpen = async () => {
-    const tab = window.open('', '_blank'); // must happen inside the click
-    setBusy(true); setNote('');
-    try {
-      const res = await fetch(`/api/creators/${creator.id}/outreach-email`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
-      const data = await res.json().catch(() => ({}));
-      if (data.whatsapp) {
-        setText(data.whatsapp); setOpened(true);
-        const url = whatsappUrl(creator.contactPhone, data.whatsapp, hints);
-        if (tab) tab.location.href = url; else setNote('Mensagem pronta. Clica em WhatsApp.');
-        if (onRefresh) onRefresh();
-      } else {
-        if (tab) tab.close();
-        setNote(data.outcome === 'rate_limited' ? 'Limite da Anthropic. Tenta daqui a 1 minuto.'
-          : data.outcome === 'no_signal' ? 'Conta sem posts suficientes para escrever. Abre sem mensagem.'
-          : data.outcome === 'no_instagram' ? 'Sem Instagram no perfil para analisar. Abre sem mensagem.'
-          : `Não deu para escrever (${data.outcome || data.error || res.status}). Abre sem mensagem.`);
-      }
-    } catch (e) {
-      if (tab) tab.close();
-      setNote('Erro a escrever a mensagem. Tenta outra vez.');
-    } finally { setBusy(false); }
-  };
-
   const markSent = () => patchCreator({ outreach: { ...(creator.outreach || {}), whatsappSentAt: new Date().toISOString() } });
 
+  // The first visible element takes marginLeft:auto to push the group right.
+  const lead = (isFirst) => (isFirst ? "auto" : 0);
+  const label = !!src && !shaky;
+  const showStatus = !!sentAt || opened;
   return (
     <>
-      {note && <span style={{ marginLeft: "auto", fontSize: 12, color: "var(--sl-text-muted)" }}>{note}</span>}
-      {src && !note && !shaky && <span title={src.verified ? `Origem verificada: ${src.detail}. A mensagem menciona-o.` : 'Não sabemos onde este número foi encontrado, por isso a mensagem não diz nada sobre isso.'} style={{ marginLeft: "auto", fontSize: 12, color: src.verified ? "var(--sl-success, #16a34a)" : "var(--sl-text-faint)" }}>{src.verified ? 'origem verificada' : 'origem desconhecida'}</span>}
-      {shaky && !note && <span title="Pelo formato, é uma linha fixa ou gratuita. Só tem WhatsApp se for uma conta Business." style={{ marginLeft: "auto", fontSize: 12, color: "var(--sl-text-faint)" }}>{n.kind === 'tollfree' ? 'linha gratuita' : 'fixo'}</span>}
+      {shaky && <span title="Pelo formato, é uma linha fixa ou gratuita. Só tem WhatsApp se for uma conta Business." style={{ marginLeft: "auto", fontSize: 12, color: "var(--sl-text-faint)" }}>{n.kind === 'tollfree' ? 'linha gratuita' : 'fixo'}</span>}
+      {label && <span title={src.verified ? `Origem verificada: ${src.detail}.` : 'Não sabemos onde este número foi encontrado, por isso a mensagem não diz nada sobre isso.'} style={{ marginLeft: "auto", fontSize: 12, color: src.verified ? "var(--sl-success, #16a34a)" : "var(--sl-text-faint)" }}>{src.verified ? 'origem verificada' : 'origem desconhecida'}</span>}
       {sentAt ? (
-        <span title={`WhatsApp enviado a ${new Date(sentAt).toLocaleString('pt-PT')}`} style={{ marginLeft: note || shaky || src ? 0 : "auto", fontSize: 12, fontWeight: 600, color: "var(--sl-success, #16a34a)" }}>✓ WhatsApp enviado</span>
+        <span title={`WhatsApp enviado a ${new Date(sentAt).toLocaleString('pt-PT')}`} style={{ marginLeft: lead(!shaky && !label), fontSize: 12, fontWeight: 600, color: "var(--sl-success, #16a34a)" }}>✓ WhatsApp enviado</span>
       ) : opened ? (
-        <button onClick={markSent} title="Confirma que a mensagem foi enviada. Conta para o objetivo diário." style={{ ...btn, marginLeft: note || shaky || src ? 0 : "auto", background: "color-mix(in srgb, var(--sl-success, #16a34a) 12%, transparent)" }}>✓ Marcar enviado</button>
+        <button onClick={markSent} title="Confirma que a mensagem foi enviada. Conta para o objetivo diário." style={{ ...btn, marginLeft: lead(!shaky && !label), background: "color-mix(in srgb, var(--sl-success, #16a34a) 12%, transparent)" }}>✓ Marcar enviado</button>
       ) : null}
-      {text ? (
-        <>
-          <a href={whatsappUrl(creator.contactPhone, text, hints)} target="_blank" rel="noopener noreferrer" onClick={() => setOpened(true)} title="Abre o WhatsApp com a mensagem já escrita" style={{ ...btn, marginLeft: sentAt || opened || note || shaky || src ? 0 : "auto", opacity: shaky ? 0.6 : 1 }}>WhatsApp</a>
-          <button onClick={() => { navigator.clipboard.writeText(text); setCopied(true); setOpened(true); setTimeout(() => setCopied(false), 1500); }} title={text} style={{ ...btn, border: "1px solid var(--sl-border-strong)", color: "var(--sl-text-muted)" }}>{copied ? '✓ Copiada' : 'Copiar msg'}</button>
-        </>
-      ) : (
-        <>
-          <button onClick={writeAndOpen} disabled={busy} title="Escreve a mensagem curta para este lead (cerca de 20 segundos) e abre o WhatsApp com ela" style={{ ...btn, marginLeft: sentAt || note || shaky || src ? 0 : "auto", opacity: busy ? 0.6 : 1, cursor: busy ? "wait" : "pointer" }}>{busy ? 'A escrever… ~20s' : 'WhatsApp · escrever mensagem'}</button>
-          {!busy && <a href={whatsappUrl(creator.contactPhone, '', hints)} target="_blank" rel="noopener noreferrer" onClick={() => setOpened(true)} title="Abre a conversa sem mensagem" style={{ ...btn, border: "1px solid var(--sl-border-strong)", color: "var(--sl-text-muted)" }}>Abrir sem msg</a>}
-        </>
+      <a href={whatsappUrl(creator.contactPhone, text, hints)} target="_blank" rel="noopener noreferrer" onClick={() => setOpened(true)} title={text ? "Abre o WhatsApp com a mensagem já escrita" : "Abre a conversa no WhatsApp"} style={{ ...btn, marginLeft: lead(!shaky && !label && !showStatus), opacity: shaky ? 0.6 : 1 }}>WhatsApp</a>
+      {text && (
+        <button onClick={() => { navigator.clipboard.writeText(text); setCopied(true); setTimeout(() => setCopied(false), 1500); }} title={text} style={{ ...btn, border: "1px solid var(--sl-border-strong)", color: "var(--sl-text-muted)" }}>{copied ? '✓ Copiada' : 'Copiar msg'}</button>
       )}
     </>
   );
 };
 
-const EditableContactPhone = ({ creator, patchCreator, onRefresh }) => {
+const EditableContactPhone = ({ creator, patchCreator }) => {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(creator?.contactPhone || '');
   const [saving, setSaving] = useState(false);
@@ -702,7 +666,7 @@ const EditableContactPhone = ({ creator, patchCreator, onRefresh }) => {
     <div style={{ marginTop: 8, display: "flex", alignItems: "center", gap: 8, padding: "6px 10px", background: "color-mix(in srgb, var(--sl-info) 6%, transparent)", border: "1px solid color-mix(in srgb, var(--sl-info) 20%, transparent)", borderRadius: 6 }}>
       <span style={{ fontSize: 12, fontWeight: 700, color: "var(--sl-info)", letterSpacing: "0.10em", textTransform: "uppercase" }}>Telefone</span>
       <a href={`tel:${creator.contactPhone}`} style={{ fontSize: 12, color: "var(--sl-info)", textDecoration: "none", fontFamily: "'JetBrains Mono', ui-monospace, monospace" }}>{creator.contactPhone}</a>
-      <WhatsAppAction creator={creator} patchCreator={patchCreator} onRefresh={onRefresh} />
+      <WhatsAppAction creator={creator} patchCreator={patchCreator} />
       <button onClick={() => navigator.clipboard.writeText(creator.contactPhone)} title="Copiar" style={{ padding: "2px 8px", borderRadius: 4, border: "1px solid color-mix(in srgb, var(--sl-info) 25%, transparent)", background: "transparent", color: "var(--sl-info)", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>Copy</button>
       <button onClick={() => setEditing(true)} title="Editar telefone" style={{ padding: "2px 8px", borderRadius: 4, border: "1px solid var(--sl-border-strong)", background: "transparent", color: "var(--sl-text-muted)", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>✏ Edit</button>
     </div>
@@ -2239,7 +2203,7 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
                 {creator.bio && <p style={{ fontSize: 12, color: "var(--sl-text-muted)", margin: 0, lineHeight: 1.6, whiteSpace: "pre-wrap" }}>{creator.bio}</p>}
                 {creator.externalUrl && <a href={creator.externalUrl.startsWith("http") ? creator.externalUrl : "https://" + creator.externalUrl} target="_blank" rel="noopener noreferrer" style={{ display: "block", marginTop: 6, fontSize: 12, color: "var(--sl-accent-text)", textDecoration: "none" }}>{creator.externalUrl}</a>}
                 <EditableContactEmail creator={creator} patchCreator={patchCreator} />
-                <EditableContactPhone creator={creator} patchCreator={patchCreator} onRefresh={() => fetchCreator(creator.id)} />
+                <EditableContactPhone creator={creator} patchCreator={patchCreator} />
               </div>
               {/* IG multi-link bio — Instagram's native "Links" feature, up to 5
                   titled links per profile. Captured on every scrape; falls back
