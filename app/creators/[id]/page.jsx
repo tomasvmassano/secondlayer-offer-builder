@@ -55,7 +55,7 @@ const TABS = [
   { key: "perfil", label: "Perfil" },
   { key: "negocio", label: "Negócio" },
   { key: "audit", label: "Audit" },
-  { key: "dm", label: "DM Writer" },
+  { key: "dm", label: "Outreach" },
   { key: "oferta", label: "Oferta" },
   { key: "launch", label: "Launch" },
   { key: "pitch", label: "Pitch" },
@@ -1312,9 +1312,12 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
     const now = new Date().toISOString();
     const cur = creator?.outreach || {};
     const patch = { ...cur };
-    if (field === 'dm')    patch.dmSentAt = now;
-    if (field === 'email') patch.emailSentAt = now;
-    if (field === 'whatsapp') patch.whatsappSentAt = now;
+    // First-contact methods toggle: marking stamps now, clicking a marked chip
+    // clears it. (It used to re-stamp "now", silently moving an old send into
+    // today's count.)
+    if (field === 'dm')       patch.dmSentAt = cur.dmSentAt ? null : now;
+    if (field === 'email')    patch.emailSentAt = cur.emailSentAt ? null : now;
+    if (field === 'whatsapp') patch.whatsappSentAt = cur.whatsappSentAt ? null : now;
     if (field === 'followUpDm' || field === 'followUpEmail' || field === 'followUpWhatsapp') {
       const existingArr = Array.isArray(cur.followUps) ? cur.followUps : [];
       if (existingArr.length >= 3) return; // cap stays at 3 across channels
@@ -2105,7 +2108,7 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
             }}>
               {t.label}
               {t.key === "audit" && creator?.offer?.internal_metadata?.ecosystem_audit && <span style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--sl-success)", display: "inline-block", marginLeft: 6 }} />}
-              {t.key === "dm" && creator.dmSequence && <span style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--sl-success)", display: "inline-block", marginLeft: 6 }} />}
+              {t.key === "dm" && (creator.dmSequence || creator.outreach?.dmSentAt || creator.outreach?.emailSentAt || creator.outreach?.whatsappSentAt || creator.outreach?.coldCalls?.length) && <span style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--sl-success)", display: "inline-block", marginLeft: 6 }} />}
               {t.key === "oferta" && creator.offer && <span style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--sl-success)", display: "inline-block", marginLeft: 6 }} />}
               {t.key === "launch" && Object.keys(creator.launch || {}).length > 0 && <span style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--sl-success)", display: "inline-block", marginLeft: 6 }} />}
             </button>
@@ -2556,93 +2559,23 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
           ) : (
             <div style={{ marginTop: 12, padding: "24px", textAlign: "center", border: "1px dashed color-mix(in srgb, var(--sl-text) 6%, transparent)", borderRadius: 8, background: "color-mix(in srgb, var(--sl-text) 1%, transparent)" }}>
               <p style={{ color: "var(--sl-text-faint)", fontSize: 12, margin: "0 0 4px", fontWeight: 600 }}>Archetype + Unicidade</p>
-              <p style={{ color: "var(--sl-border-strong)", fontSize: 12, margin: 0 }}>Disponível após o criador responder à DM. Marca "Respondeu" na tab DM.</p>
+              <p style={{ color: "var(--sl-border-strong)", fontSize: 12, margin: 0 }}>Disponível após o criador responder à DM. Marca "Respondeu" na tab Outreach.</p>
             </div>
           )}
         </>)}
 
         {/* ════════════ DM WRITER TAB ════════════ */}
         {tab === "dm" && (<>
-          {!creator.dmSequence?.dm && !dmLoading && (
-            (
-            <div>
-              <div className="sl-grid-3" style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12, marginBottom: 16 }}>
-                <div>
-                  <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "var(--sl-text-faint)", marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.05em" }}>Primeiro Nome</label>
-                  <input type="text" style={inputStyle} placeholder="Ex: Mariana" value={dmInputs.primeiro_nome || ""} onChange={e => setDmInputs(p => ({ ...p, primeiro_nome: e.target.value }))} />
-                </div>
-                <div>
-                  <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "var(--sl-text-faint)", marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.05em" }}>Idioma</label>
-                  <select style={inputStyle} value={dmLanguage} onChange={e => setDmLanguage(e.target.value)}>
-                    <option value="pt">Português (PT)</option>
-                    <option value="en">English (EN)</option>
-                    <option value="es">Español (ES)</option>
-                  </select>
-                  {creator?.primaryLanguage && dmLanguage !== String(creator.primaryLanguage).toLowerCase() && (
-                    <div style={{ fontSize: 12, color: "var(--sl-warning)", marginTop: 6, lineHeight: 1.4 }}>A audiência principal está em <strong>{String(creator.primaryLanguage).toUpperCase()}</strong>.</div>
-                  )}
-                </div>
-                <div>
-                  <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "var(--sl-text-faint)", marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.05em" }}>Notas <span style={{ fontWeight: 400, color: "var(--sl-border-strong)" }}>(opcional)</span></label>
-                  <input type="text" style={inputStyle} placeholder="Contexto extra..." value={dmNotes} onChange={e => setDmNotes(e.target.value)} />
-                </div>
-              </div>
-              <div style={{ fontSize: 12, color: "var(--sl-text-faint)", marginBottom: 8, lineHeight: 1.4 }}>DM curto (modelo de volume) — abertura personalizada + uma ideia útil, sem pedir nada. Assinado por <strong style={{ color: "var(--sl-text-muted)" }}>{senderName}</strong>.</div>
-              <button onClick={() => generateDM('initial')} style={{ padding: "12px 32px", borderRadius: 8, border: "none", background: "var(--sl-primary)", color: "var(--sl-primary-contrast)", fontSize: 14, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", width: "100%" }}>Gerar DM</button>
-            </div>
-            )
-          )}
-          {dmLoading && (
-            <div style={{ textAlign: "center", padding: 40 }}>
-              <div style={{ width: 20, height: 20, margin: "0 auto 12px", border: "2px solid var(--sl-surface-raised)", borderTopColor: "var(--sl-primary)", borderRadius: "50%", animation: "sl-spin 0.8s linear infinite" }} />
-              <p style={{ fontSize: 12, color: "var(--sl-text-faint)" }}>A analisar o perfil e a escrever DM, email e WhatsApp... (30-60s)</p>
-              <style>{`@keyframes sl-spin{to{transform:rotate(360deg)}}`}</style>
-            </div>
-          )}
-          {dmError && <div style={{ padding: "10px 14px", borderRadius: 6, background: "color-mix(in srgb, var(--sl-danger) 10%, transparent)", border: "1px solid color-mix(in srgb, var(--sl-danger) 20%, transparent)", color: "var(--sl-danger)", fontSize: 12, marginBottom: 16 }}>{dmError}</div>}
-          {creator.dmSequence && (creator.dmSequence.dm || creator.dmSequence.email_day1) && (() => {
-            const seq = creator.dmSequence;
-            const firstName = seq.inputs?.primeiro_nome || creator.name?.split(" ")[0] || "";
-            // Templates — zero API cost, switched on creator language so an
-            // English creator doesn't get PT text. Style mirrors the cold DM:
-            // short, conversational, no em dashes, signed off with "Raul".
-            const isEn = creator?.primaryLanguage === 'en';
-            const isEs = creator?.primaryLanguage === 'es';
-            const followupT3 = isEn
-              ? `Hey ${firstName},\n\nProbably buried this, so here it is again. That idea is worth two minutes of your time, easily. Did it land?\n\nCheers,\nRaul`
-              : isEs
-              ? `Hola ${firstName},\n\nSeguro que se enterró, así que aquí va otra vez. Esa idea vale bien dos minutos de tu tiempo. ¿Te encajó?\n\nUn abrazo,\nRaul`
-              : `Olá ${firstName},\n\nDeve ter ficado enterrado, por isso aqui vai outra vez. Aquela ideia vale bem dois minutos do teu tempo. Fez sentido?\n\nAbraço,\nRaul`;
-            const followupT7 = isEn
-              ? `Hey ${firstName},\n\nHad another one for you this week, sharper than the first. The best moves I'd rather walk you through live. Got 15 minutes this week?\n\nCheers,\nRaul`
-              : isEs
-              ? `Hola ${firstName},\n\nSe me ocurrió otra para ti esta semana, más afilada que la primera. Las mejores prefiero enseñártelas en directo. ¿Tienes 15 minutos esta semana?\n\nUn abrazo,\nRaul`
-              : `Olá ${firstName},\n\nTive outra para ti esta semana, mais afiada que a primeira. As melhores prefiro mostrar-tas ao vivo. Tens 15 minutos esta semana?\n\nAbraço,\nRaul`;
-            const breakupT14 = isEn
-              ? `Hey ${firstName},\n\nLast one from me. If turning the audience you already have into real revenue is ever a priority, that call is worth your 15 minutes. You know where I am.\n\nCheers,\nRaul`
-              : isEs
-              ? `Hola ${firstName},\n\nÚltima por mi parte. Si convertir la audiencia que ya tienes en ingresos de verdad llega a ser prioridad, esa llamada vale tus 15 min. Ya sabes dónde encontrarme.\n\nUn abrazo,\nRaul`
-              : `Olá ${firstName},\n\nÚltima do meu lado. Se transformar a audiência que já tens em receita a sério for um dia prioridade, essa call vale os teus 15 min. Sabes onde me encontrar.\n\nAbraço,\nRaul`;
-
-            return (
-              <div>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    <span style={{ fontSize: 12, color: "var(--sl-text-faint)" }}>Gerado: {new Date(seq.generatedAt).toLocaleString("pt-PT")}</span>
-                    <span style={{ fontSize: 8, padding: "1px 6px", borderRadius: 3, background: "color-mix(in srgb, var(--sl-primary) 10%, transparent)", color: "var(--sl-accent-text)", fontWeight: 600 }}>Template {seq.template || "A"}</span>
-                  </div>
-                  <button onClick={() => { patchCreator({ dmSequence: null }); setReplyText(""); }} style={{ padding: "6px 14px", borderRadius: 6, border: "1px solid var(--sl-border)", background: "transparent", color: "var(--sl-text-muted)", fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>Regenerar</button>
-                </div>
-
-                {/* Outreach tracker — drives the daily reminder digest. Each chip
-                    is click-to-mark; once marked it shows the date and the
-                    reminder cron stops pinging that milestone. */}
+                {/* Outreach tracker — ALWAYS visible, with or without generated
+                    copy: the team often sends its own message and only needs to
+                    record which methods were used. Each chip is click-to-mark
+                    (click again to unmark) and feeds /equipa and the cadence. */}
                 {(() => {
                   const out = creator.outreach || {};
                   const sentChip = (sent, label, onClick) => (
                     <button
                       onClick={onClick}
-                      title={sent ? `Marcado a ${new Date(sent).toLocaleString('pt-PT')} · Clica para desmarcar` : 'Clica quando enviares'}
+                      title={sent ? `Enviado a ${new Date(sent).toLocaleString('pt-PT')} · Clica para desmarcar` : 'Clica quando enviares por este método'}
                       style={{
                         padding: "4px 10px", borderRadius: 4, fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit",
                         border: `1px solid ${sent ? 'color-mix(in srgb, var(--sl-success) 30%, transparent)' : 'color-mix(in srgb, var(--sl-text) 8%, transparent)'}`,
@@ -2660,10 +2593,10 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
                   };
                   return (
                     <div style={{ padding: "10px 14px", marginBottom: 16, background: "var(--sl-surface)", border: "1px solid var(--sl-border)", borderRadius: 8, display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center" }}>
-                      <span style={{ fontSize: 12, fontWeight: 700, color: "var(--sl-text-faint)", letterSpacing: "0.08em", textTransform: "uppercase" }}>Outreach</span>
+                      <span title="Marca os métodos que usaste com este lead. Podes marcar vários." style={{ fontSize: 12, fontWeight: 700, color: "var(--sl-text-faint)", letterSpacing: "0.08em", textTransform: "uppercase" }}>Enviado por</span>
                       {sentChip(out.dmSentAt, 'DM', () => markOutreach('dm'))}
                       {sentChip(out.emailSentAt, 'Email', () => markOutreach('email'))}
-                      {(creator.contactPhone || out.whatsappSentAt) && sentChip(out.whatsappSentAt, 'WhatsApp', () => markOutreach('whatsapp'))}
+                      {sentChip(out.whatsappSentAt, 'WhatsApp', () => markOutreach('whatsapp'))}
                       <span style={{ fontSize: 12, color: "var(--sl-text-faint)" }}>·</span>
                       {/* Follow-ups split by channel so the dashboard can
                           show DM-followups vs Email-followups effectiveness.
@@ -2693,7 +2626,7 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
                             >
                               + Follow-up Email{emFu > 0 ? ` (${emFu})` : ''}
                             </button>
-                            {(creator.contactPhone || out.whatsappSentAt) && (
+                            {(
                             <button
                               onClick={() => markOutreach('followUpWhatsapp')}
                               title="Marca quando enviares um follow-up por WhatsApp"
@@ -2738,7 +2671,7 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
                           <button onClick={() => markOutreach('repliedEmail')} title="Marca quando o creator responder via email." style={{ padding: "4px 10px", borderRadius: 4, fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", border: "1px solid var(--sl-border)", background: "transparent", color: "var(--sl-text-muted)" }}>
                             ○ Respondeu (Email)
                           </button>
-                          {(creator.contactPhone || out.whatsappSentAt) && (
+                          {(
                           <button onClick={() => markOutreach('repliedWhatsapp')} title="Marca quando o creator responder via WhatsApp." style={{ padding: "4px 10px", borderRadius: 4, fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", border: "1px solid var(--sl-border)", background: "transparent", color: "var(--sl-text-muted)" }}>
                             ○ Respondeu (WhatsApp)
                           </button>
@@ -2773,7 +2706,7 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
                           the conversation has actually started (DM sent) and
                           isn't already cold/signed — otherwise there's nothing
                           to lose. */}
-                      {out.dmSentAt && creator.pipelineStatus !== 'cold' && creator.pipelineStatus !== 'signed' && (
+                      {(out.dmSentAt || out.emailSentAt || out.whatsappSentAt) && creator.pipelineStatus !== 'cold' && creator.pipelineStatus !== 'signed' && (
                         <button onClick={markCold} title="Marca como frio e regista a razão de perda." style={{ padding: "4px 10px", borderRadius: 4, fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", border: "1px solid color-mix(in srgb, var(--sl-danger) 25%, transparent)", background: "transparent", color: "var(--sl-danger)" }}>
                           Marcar frio
                         </button>
@@ -2786,6 +2719,79 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
                     </div>
                   );
                 })()}
+
+          {!creator.dmSequence?.dm && !dmLoading && (
+            (
+            <div>
+              <p style={{ ...sectionTitleStyle, marginTop: 8 }}>Gerar mensagens <span style={{ fontWeight: 400, textTransform: "none", letterSpacing: 0, color: "var(--sl-text-faint)" }}>· opcional</span></p>
+              <div style={{ fontSize: 12, color: "var(--sl-text-faint)", marginBottom: 12, lineHeight: 1.4 }}>Não precisas de gerar nada para registar o que enviaste: marca os métodos em cima. Usa isto quando quiseres a DM, o email e o WhatsApp escritos para este lead.</div>
+              <div className="sl-grid-3" style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12, marginBottom: 16 }}>
+                <div>
+                  <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "var(--sl-text-faint)", marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.05em" }}>Primeiro Nome</label>
+                  <input type="text" style={inputStyle} placeholder="Ex: Mariana" value={dmInputs.primeiro_nome || ""} onChange={e => setDmInputs(p => ({ ...p, primeiro_nome: e.target.value }))} />
+                </div>
+                <div>
+                  <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "var(--sl-text-faint)", marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.05em" }}>Idioma</label>
+                  <select style={inputStyle} value={dmLanguage} onChange={e => setDmLanguage(e.target.value)}>
+                    <option value="pt">Português (PT)</option>
+                    <option value="en">English (EN)</option>
+                    <option value="es">Español (ES)</option>
+                  </select>
+                  {creator?.primaryLanguage && dmLanguage !== String(creator.primaryLanguage).toLowerCase() && (
+                    <div style={{ fontSize: 12, color: "var(--sl-warning)", marginTop: 6, lineHeight: 1.4 }}>A audiência principal está em <strong>{String(creator.primaryLanguage).toUpperCase()}</strong>.</div>
+                  )}
+                </div>
+                <div>
+                  <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "var(--sl-text-faint)", marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.05em" }}>Notas <span style={{ fontWeight: 400, color: "var(--sl-border-strong)" }}>(opcional)</span></label>
+                  <input type="text" style={inputStyle} placeholder="Contexto extra..." value={dmNotes} onChange={e => setDmNotes(e.target.value)} />
+                </div>
+              </div>
+              <div style={{ fontSize: 12, color: "var(--sl-text-faint)", marginBottom: 8, lineHeight: 1.4 }}>DM curto (modelo de volume) — abertura personalizada + uma ideia útil, sem pedir nada. Assinado por <strong style={{ color: "var(--sl-text-muted)" }}>{senderName}</strong>.</div>
+              <button onClick={() => generateDM('initial')} style={{ padding: "12px 32px", borderRadius: 8, border: "none", background: "var(--sl-primary)", color: "var(--sl-primary-contrast)", fontSize: 14, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", width: "100%" }}>Gerar mensagens</button>
+            </div>
+            )
+          )}
+          {dmLoading && (
+            <div style={{ textAlign: "center", padding: 40 }}>
+              <div style={{ width: 20, height: 20, margin: "0 auto 12px", border: "2px solid var(--sl-surface-raised)", borderTopColor: "var(--sl-primary)", borderRadius: "50%", animation: "sl-spin 0.8s linear infinite" }} />
+              <p style={{ fontSize: 12, color: "var(--sl-text-faint)" }}>A analisar o perfil e a escrever DM, email e WhatsApp... (30-60s)</p>
+              <style>{`@keyframes sl-spin{to{transform:rotate(360deg)}}`}</style>
+            </div>
+          )}
+          {dmError && <div style={{ padding: "10px 14px", borderRadius: 6, background: "color-mix(in srgb, var(--sl-danger) 10%, transparent)", border: "1px solid color-mix(in srgb, var(--sl-danger) 20%, transparent)", color: "var(--sl-danger)", fontSize: 12, marginBottom: 16 }}>{dmError}</div>}
+          {creator.dmSequence && (creator.dmSequence.dm || creator.dmSequence.email_day1) && (() => {
+            const seq = creator.dmSequence;
+            const firstName = seq.inputs?.primeiro_nome || creator.name?.split(" ")[0] || "";
+            // Templates — zero API cost, switched on creator language so an
+            // English creator doesn't get PT text. Style mirrors the cold DM:
+            // short, conversational, no em dashes, signed off with "Raul".
+            const isEn = creator?.primaryLanguage === 'en';
+            const isEs = creator?.primaryLanguage === 'es';
+            const followupT3 = isEn
+              ? `Hey ${firstName},\n\nProbably buried this, so here it is again. That idea is worth two minutes of your time, easily. Did it land?\n\nCheers,\nRaul`
+              : isEs
+              ? `Hola ${firstName},\n\nSeguro que se enterró, así que aquí va otra vez. Esa idea vale bien dos minutos de tu tiempo. ¿Te encajó?\n\nUn abrazo,\nRaul`
+              : `Olá ${firstName},\n\nDeve ter ficado enterrado, por isso aqui vai outra vez. Aquela ideia vale bem dois minutos do teu tempo. Fez sentido?\n\nAbraço,\nRaul`;
+            const followupT7 = isEn
+              ? `Hey ${firstName},\n\nHad another one for you this week, sharper than the first. The best moves I'd rather walk you through live. Got 15 minutes this week?\n\nCheers,\nRaul`
+              : isEs
+              ? `Hola ${firstName},\n\nSe me ocurrió otra para ti esta semana, más afilada que la primera. Las mejores prefiero enseñártelas en directo. ¿Tienes 15 minutos esta semana?\n\nUn abrazo,\nRaul`
+              : `Olá ${firstName},\n\nTive outra para ti esta semana, mais afiada que a primeira. As melhores prefiro mostrar-tas ao vivo. Tens 15 minutos esta semana?\n\nAbraço,\nRaul`;
+            const breakupT14 = isEn
+              ? `Hey ${firstName},\n\nLast one from me. If turning the audience you already have into real revenue is ever a priority, that call is worth your 15 minutes. You know where I am.\n\nCheers,\nRaul`
+              : isEs
+              ? `Hola ${firstName},\n\nÚltima por mi parte. Si convertir la audiencia que ya tienes en ingresos de verdad llega a ser prioridad, esa llamada vale tus 15 min. Ya sabes dónde encontrarme.\n\nUn abrazo,\nRaul`
+              : `Olá ${firstName},\n\nÚltima do meu lado. Se transformar a audiência que já tens em receita a sério for um dia prioridade, essa call vale os teus 15 min. Sabes onde me encontrar.\n\nAbraço,\nRaul`;
+
+            return (
+              <div>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <span style={{ fontSize: 12, color: "var(--sl-text-faint)" }}>Gerado: {new Date(seq.generatedAt).toLocaleString("pt-PT")}</span>
+                    <span style={{ fontSize: 8, padding: "1px 6px", borderRadius: 3, background: "color-mix(in srgb, var(--sl-primary) 10%, transparent)", color: "var(--sl-accent-text)", fontWeight: 600 }}>Template {seq.template || "A"}</span>
+                  </div>
+                  <button onClick={() => { patchCreator({ dmSequence: null }); setReplyText(""); }} style={{ padding: "6px 14px", borderRadius: 6, border: "1px solid var(--sl-border)", background: "transparent", color: "var(--sl-text-muted)", fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>Regenerar</button>
+                </div>
 
                 {/* (The persistent reply notes textarea now lives at the
                     BOTTOM of this section — "Resposta do Criador" — sharing

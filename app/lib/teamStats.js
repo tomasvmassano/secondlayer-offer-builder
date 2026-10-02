@@ -178,6 +178,9 @@ function emptyRow(key, firstName) {
     dmsSent: 0,
     emailsSent: 0,
     whatsappSent: 0,
+    // Cold-call dials logged by this operator, and how many were picked up.
+    callsMade: 0,
+    callsConnected: 0,
     // Outreach touches — unique creators where this operator sent at least
     // one channel (DM or email) within the window. Same creator + same day
     // touched on both channels still counts as 1. Drives the €50 daily rule.
@@ -271,6 +274,13 @@ export async function getTeamStats({ window = 'today', now = new Date(), from = 
         || (waInWindow ? (o.whatsappSentBy || c.addedBy) : null)
         || c.addedBy;
       bumpRow(rows, touchActor, 'touchesSent');
+    }
+    // Cold calls — one per dial, credited to whoever logged it.
+    for (const dial of (Array.isArray(o.coldCalls) ? o.coldCalls : [])) {
+      if (!dial?.at || !inWindow(dial.at, startMs, endMs)) continue;
+      const actor = dial.by || c.addedBy;
+      bumpRow(rows, actor, 'callsMade');
+      if (dial.connected) bumpRow(rows, actor, 'callsConnected');
     }
     // Follow-ups — prefer the new array (channel-tagged) when present.
     // Falls back to the legacy lastFollowUpAt + counter for old records
@@ -1022,6 +1032,9 @@ export async function getRecentActivity({ limit = 8 } = {}) {
     if (postReset(o.dmSentAt)) events.push({ at: o.dmSentAt, type: 'dm_sent', firstName: (o.dmSentBy || c.addedBy)?.firstName, creator: c.name, creatorId: c.id });
     if (postReset(o.emailSentAt)) events.push({ at: o.emailSentAt, type: 'email_sent', firstName: (o.emailSentBy || c.addedBy)?.firstName, creator: c.name, creatorId: c.id });
     if (postReset(o.whatsappSentAt)) events.push({ at: o.whatsappSentAt, type: 'whatsapp_sent', firstName: (o.whatsappSentBy || c.addedBy)?.firstName, creator: c.name, creatorId: c.id });
+    for (const dial of (Array.isArray(o.coldCalls) ? o.coldCalls : [])) {
+      if (postReset(dial?.at)) events.push({ at: dial.at, type: 'call_made', firstName: (dial.by || c.addedBy)?.firstName, creator: c.name, creatorId: c.id });
+    }
     // Follow-ups — one event per follow-up from the channel-tagged array
     // (new shape), with the legacy single-timestamp fallback for records
     // that predate the array. Attributed to whoever did the follow-up.

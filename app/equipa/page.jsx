@@ -87,6 +87,7 @@ const ACTIVITY_LABELS = {
   dm_sent:         { label: 'enviou DM a',                color: ACCENT },
   email_sent:      { label: 'enviou email a',             color: ACCENT },
   whatsapp_sent:   { label: 'enviou WhatsApp a',          color: ACCENT },
+  call_made:       { label: 'ligou a',                    color: ACCENT },
   follow_up:       { label: 'fez follow-up a',            color: AMBER },
   replied:         { label: 'recebeu resposta de',        color: 'var(--sl-info)' },
   signed:          { label: 'fechou',                     color: GREEN },
@@ -422,9 +423,11 @@ export default function EquipaPage() {
                   const streak = data.streaks?.find(s => s.userId === row.userId);
                   const delta = data.deltas?.find(d => d.userId === row.userId);
                   const activity = data.activity?.find(a => a.userId === row.userId);
-                  const isLeader = i === 0 && data.rows.length > 1 && row.dmsSent > 0;
+                  const isLeader = i === 0 && data.rows.length > 1 && (row.touchesSent || 0) > 0;
                   const isLoser = !!sbRow?.missedGoal;
-                  const goalPct = sbRow ? Math.min(100, Math.round((row.dmsSent / sbRow.target) * 100)) : null;
+                  // Goal progress counts every method (DM, email, WhatsApp): unique
+                  // leads contacted, the same number the scoreboard gates on.
+                  const goalPct = sbRow ? Math.min(100, Math.round(((row.touchesSent || 0) / sbRow.target) * 100)) : null;
                   const yRow = yesterdayByUser?.[row.userId] || null;
                   return (
                     <PersonRow
@@ -1018,7 +1021,7 @@ function PersonCard({ row, sbRow, streak, pipe, vel, delta, yesterdayRow, monthl
 // Order: Operador · Streak · Touches · DMs · Emails · Reply % · Respostas · Fechados · Criadores · F-up · 7-day spark · Goal ring
 // Criadores (creators added) + F-up (follow-ups done) sit together at the
 // end — the two daily-input metrics the team tracks alongside outreach.
-const PERSON_ROW_COLS = "180px 70px 70px 80px 100px 80px 80px 70px 70px 110px 50px";
+const PERSON_ROW_COLS = "170px 60px 60px 80px 70px 80px 80px 70px 70px 60px 110px 50px";
 function PersonRow({ row, sbRow, streak, delta, yesterdayRow, activity, isLeader, isLoser, goalPct, windowKey, last }) {
   const series = activity?.days || [];
   const replyRate = row.replyRate;
@@ -1067,6 +1070,9 @@ function PersonRow({ row, sbRow, streak, delta, yesterdayRow, activity, isLeader
       {/* WhatsApp — first messages sent through the phone chip */}
       <PersonRowCell label="WhatsApp" value={row.whatsappSent || 0} accent={TEXT_MID} delta={showVsYesterday ? ((row.whatsappSent || 0) - (yesterdayRow.whatsappSent || 0)) : null} />
 
+      {/* Ligações — cold-call dials logged, with pick-ups in the tooltip */}
+      <span title={`${row.callsConnected || 0} atendidas`}><PersonRowCell label="Ligações" value={row.callsMade || 0} accent={TEXT_MID} delta={showVsYesterday ? ((row.callsMade || 0) - (yesterdayRow.callsMade || 0)) : null} /></span>
+
       {/* Reply % — color-coded */}
       <PersonRowCell label="Reply %" value={`${replyRate}%`} accent={replyAccent} delta={showVsYesterday ? (replyRate - (yesterdayRow.replyRate || 0)) : null} deltaSuffix="pp" />
 
@@ -1091,7 +1097,7 @@ function PersonRow({ row, sbRow, streak, delta, yesterdayRow, activity, isLeader
       {/* Goal ring — only on Hoje view, shows DMs/target progress */}
       <div style={{ alignSelf: "center", justifySelf: "end" }}>
         {windowKey === 'today' && sbRow ? (
-          <ProgressRing value={goalPct} size={44} stroke={4} color={goalPct >= 100 ? GREEN : ACCENT} centerLabel={`${row.dmsSent}/${sbRow.target}`} />
+          <span title="Leads contactados hoje por qualquer método (DM, email ou WhatsApp). Um lead conta uma vez."><ProgressRing value={goalPct} size={44} stroke={4} color={goalPct >= 100 ? GREEN : ACCENT} centerLabel={`${row.touchesSent || 0}/${sbRow.target}`} /></span>
         ) : null}
       </div>
     </div>
