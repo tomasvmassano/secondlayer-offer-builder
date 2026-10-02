@@ -2108,7 +2108,7 @@ function CreatorProfilePageImpl({ params: paramsPromise }) {
             }}>
               {t.label}
               {t.key === "audit" && creator?.offer?.internal_metadata?.ecosystem_audit && <span style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--sl-success)", display: "inline-block", marginLeft: 6 }} />}
-              {t.key === "dm" && (creator.dmSequence || creator.outreach?.dmSentAt || creator.outreach?.emailSentAt || creator.outreach?.whatsappSentAt || creator.outreach?.coldCalls?.length) && <span style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--sl-success)", display: "inline-block", marginLeft: 6 }} />}
+              {t.key === "dm" && !!(creator.dmSequence || creator.outreach?.dmSentAt || creator.outreach?.emailSentAt || creator.outreach?.whatsappSentAt || creator.outreach?.coldCalls?.length) && <span style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--sl-success)", display: "inline-block", marginLeft: 6 }} />}
               {t.key === "oferta" && creator.offer && <span style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--sl-success)", display: "inline-block", marginLeft: 6 }} />}
               {t.key === "launch" && Object.keys(creator.launch || {}).length > 0 && <span style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--sl-success)", display: "inline-block", marginLeft: 6 }} />}
             </button>
