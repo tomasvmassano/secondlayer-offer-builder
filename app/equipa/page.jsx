@@ -165,6 +165,8 @@ export default function EquipaPage() {
     if (!data?.rows) return null;
     const sumDms = data.rows.reduce((s, r) => s + (r.dmsSent || 0), 0);
     const sumEmails = data.rows.reduce((s, r) => s + (r.emailsSent || 0), 0);
+    const sumWhatsapp = data.rows.reduce((s, r) => s + (r.whatsappSent || 0), 0);
+    const sumCalls = data.rows.reduce((s, r) => s + (r.callsMade || 0), 0);
     const sumTouches = data.rows.reduce((s, r) => s + (r.touchesSent || 0), 0);
     const sumReplies = data.rows.reduce((s, r) => s + (r.repliesReceived || 0), 0);
     const sumRepliesDm = data.rows.reduce((s, r) => s + (r.repliesViaDm || 0), 0);
@@ -190,7 +192,7 @@ export default function EquipaPage() {
     }
     // Goal % now gates on touches (the new daily-rule unit) instead of DMs.
     const goalPct = totalTarget > 0 ? Math.min(100, Math.round((sumTouches / totalTarget) * 100)) : 0;
-    return { sumDms, sumEmails, sumTouches, sumReplies, sumRepliesDm, sumRepliesEmail, sumCreators, sumSigned, replyRate, dmReplyRate, emailReplyRate, totalTarget, goalPct };
+    return { sumDms, sumEmails, sumWhatsapp, sumCalls, sumTouches, sumReplies, sumRepliesDm, sumRepliesEmail, sumCreators, sumSigned, replyRate, dmReplyRate, emailReplyRate, totalTarget, goalPct };
   }, [data, windowKey]);
 
   // Yesterday totals — only populated when windowKey === 'today' AND the
@@ -347,7 +349,7 @@ export default function EquipaPage() {
                   windowKey === 'custom'    ? 'Outreach no período' : 'Outreach sempre'
                 }
                 value={fmtNum(heroStats.sumTouches)}
-                hint={heroStats.totalTarget > 0 ? `${heroStats.totalTarget} alvo (${heroStats.goalPct}%) · DM+Email = 1 toque` : 'DM+Email mesmo creator = 1 toque'}
+                hint={heroStats.totalTarget > 0 ? `${heroStats.totalTarget} alvo (${heroStats.goalPct}%) · DM, email ou WhatsApp ao mesmo lead = 1 toque` : 'DM, email ou WhatsApp ao mesmo lead = 1 toque'}
                 accent
                 progress={heroStats.totalTarget > 0 ? heroStats.goalPct : null}
                 deltaChip={yesterdayTotals && <VsYesterdayChip current={heroStats.sumTouches} previous={yesterdayTotals.sumTouches} />}
@@ -362,6 +364,8 @@ export default function EquipaPage() {
                 <div className="sl-grid-2" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginTop: 12 }}>
                   <MicroStat label="DMs enviadas" value={fmtNum(heroStats.sumDms)} />
                   <MicroStat label="Emails enviados" value={fmtNum(heroStats.sumEmails)} />
+                  <MicroStat label="WhatsApp enviados" value={fmtNum(heroStats.sumWhatsapp || 0)} />
+                  <MicroStat label="Ligações" value={fmtNum(heroStats.sumCalls || 0)} />
                 </div>
               </HeroCard>
 
